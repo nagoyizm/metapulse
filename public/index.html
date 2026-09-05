@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MetaPulse — Suite de Gestión y Automatización de Redes Sociales</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/previews.css">
+</head>
+<body class="light-theme">
+  <!-- PANTALLA DE ACCESO Y SEGURIDAD METAPULSE -->
+  <div id="auth-overlay" style="display: flex; position: fixed; inset: 0; z-index: 999999; background: radial-gradient(circle at top, #1e1e2e 0%, #0a0b10 100%); align-items: center; justify-content: center; padding: 20px; font-family: 'Inter', sans-serif;">
+    <div style="background: rgba(23, 24, 34, 0.95); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 100%; max-width: 440px; padding: 38px 32px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.06); color: #fff;">
+      
+      <div style="text-align: center; margin-bottom: 28px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6); box-shadow: 0 8px 30px rgba(236,72,153,0.4); margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" width="34" height="34" stroke="#fff" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h2 style="margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.5px; color: #fff;">MetaPulse Suite</h2>
+        <p style="margin: 6px 0 0; font-size: 0.85rem; color: #94a3b8;">Acceso seguro y privado a la plataforma</p>
+      </div>
+
+      <div id="auth-error-box" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 20px; line-height: 1.45;"></div>
+
+      <form id="form-auth-login" style="display: flex; flex-direction: column; gap: 18px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;" for="auth-email">Correo Electrónico:</label>
+          <div style="position: relative;">
+            <input type="email" id="auth-email" required class="form-control" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 12px 14px 12px 40px; border-radius: 8px; font-size: 0.9rem; width: 100%; box-sizing: border-box;" placeholder="andresvegapozas@gmail.com" value="andresvegapozas@gmail.com">
+            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7;">✉️</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;" for="auth-password">Contraseña Maestra:</label>
+          <div style="position: relative;">
+            <input type="password" id="auth-password" required class="form-control" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 12px 40px 12px 40px; border-radius: 8px; font-size: 0.9rem; width: 100%; box-sizing: border-box;" placeholder="••••••••••••">
+            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7;">🔑</span>
+            <button type="button" id="btn-toggle-auth-pwd" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="Ver/Ocultar contraseña">👁️</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #94a3b8;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="auth-remember" checked style="accent-color: #ec4899; cursor: pointer; width: 16px; height: 16px;">
+            <span>Mantener sesión iniciada (30 días)</span>
+          </label>
+        </div>
+
+        <button type="submit" id="btn-submit-auth-login" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 18px rgba(236,72,153,0.45); margin-top: 6px; transition: opacity 0.2s;">
+          <span id="btn-auth-spinner" style="display:none;">⏳</span>
+          <span id="btn-auth-text">🔐 Iniciar Sesión</span>
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center; font-size: 0.74rem; color: #64748b;">
+        🔒 Protección activa con encriptación PBKDF2 de 100.000 iteraciones y bloqueo anti-fuerza bruta.
+      </div>
+    </div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+            </svg>
+            <span class="pulse-dot"></span>
+          </div>
+          <div class="brand-text">
+            <h2>MetaPulse</h2>
+            <span class="badge badge-accent">Social Suite</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Panel Principal</span>
+        </button>
+        <button class="nav-item" data-tab="composer">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          <span>Crear Post (Composer)</span>
+        </button>
+        <button class="nav-item" data-tab="queue">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>Planner & Calendario</span>
+          <span class="nav-badge" id="sidebar-queue-badge">0</span>
+        </button>
+        <button class="nav-item" data-tab="analytics">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+          <span>Analíticas & Insights</span>
+        </button>
+        <button class="nav-item" data-tab="media">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          <span>Multimedia & Logos</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Conexión Meta & Ajustes</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="account-status-card" id="sidebar-account-status">
+          <div class="status-indicator online"></div>
+          <div class="status-info">
+            <p class="status-title">Página Meta</p>
+            <p class="status-subtitle" id="sidebar-page-name">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-title">Panel Principal</h1>
+          <p class="page-subtitle" id="page-subtitle">Monitorea tus cuentas, cola de publicaciones y rendimiento en tiempo real.</p>
+        </div>
+        <div class="topbar-right">
+          <div class="account-switcher-wrap" style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.78rem; color:var(--text-secondary); font-weight:500;">🏢 Cuenta:</span>
+            <select id="global-account-select" aria-label="Seleccionar cuenta activa" class="form-control" style="width: auto; min-width: 180px; padding: 6px 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+              <option value="">Cargando cuentas...</option>
+            </select>
+          </div>
+          <div class="live-clock">
+            <span class="clock-icon">🕒</span>
+            <span id="live-clock-text">--:--:--</span>
+          </div>
+          <div id="auth-user-badge" style="display:none; align-items:center; gap:8px; background:var(--bg-surface-subtle); padding:5px 12px; border-radius:20px; border:1px solid var(--border-subtle); font-size:0.8rem;">
+            <span style="color:var(--text-secondary);">👤 <strong id="auth-user-name" style="color:var(--text-primary);">Andrés Vega</strong></span>
+            <button id="btn-auth-logout" class="btn btn-ghost btn-xs" style="color:var(--accent-rose); font-weight:700; padding:2px 6px; font-size:0.75rem;" title="Cerrar sesión">Salir</button>
+          </div>
+          <button class="btn-theme-toggle" id="btn-theme-toggle" title="Cambiar Tema (Claro / Oscuro)">
+            <span id="theme-toggle-icon">☀️</span>
+          </button>
+          <button class="btn btn-primary" id="btn-quick-create">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Crear Publicación</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section class="tab-pane active" id="tab-dashboard">
+        <div class="dashboard-grid">
+          <!-- Metrics Cards -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon icon-cyan">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">En Cola (Programados)</span>
+                <h3 class="stat-value" id="dash-stat-scheduled">0</h3>
+                <span class="stat-subtext">Próximo slot: <strong id="dash-next-slot-time">Calculando...</strong></span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-emerald">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Publicados con Éxito</span>
+                <h3 class="stat-value" id="dash-stat-published">0</h3>
+                <span class="stat-subtext text-emerald">100% de entrega</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-rose">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Con Error / Reintento</span>
+                <h3 class="stat-value" id="dash-stat-failed">0</h3>
+                <span class="stat-subtext">Reintentos automáticos activos</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-violet">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Cuentas Vinculadas</span>
+                <h3 class="stat-value" id="dash-stat-accounts">2</h3>
+                <span class="stat-subtext">Facebook & Instagram</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Connection Status Banner -->
+          <div class="card meta-connection-banner" id="dash-meta-banner">
+            <div class="banner-left">
+              <div class="meta-logos">
+                <div class="meta-badge fb">f</div>
+                <div class="meta-badge ig">📷</div>
+              </div>
+              <div>
+                <h3 id="dash-banner-title">Página de Facebook e Instagram Conectadas</h3>
+                <p id="dash-banner-desc">Meta Graph API v21.0 enlazada correctamente.</p>
+              </div>
+            </div>
+            <div class="banner-actions">
+              <button class="btn btn-secondary btn-sm" id="btn-goto-wizard">Gestionar Tokens</button>
+              <button class="btn btn-primary btn-sm" id="btn-test-connection">Verificar Conexión</button>
+            </div>
+          </div>
+
+          <!-- PROACTIVE WEEKLY RADAR & PLANNER (MIÉRCOLES & SÁBADOS) -->
+          <div class="card proactive-radar-card" id="dash-proactive-card" style="border: 1px solid rgba(99, 102, 241, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);">
+            <div class="card-header" style="border-bottom: 1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.4rem;">💡</span>
+                <div>
+                  <h3 style="margin:0; font-size:1.05rem;">Radar Proactivo: Plan Semanal (Miércoles & Sábados)</h3>
+                  <p style="margin:0; font-size:0.78rem; color:var(--text-secondary);" id="dash-radar-subtitle">Ideas generadas por IA para tu cuenta activa</p>
+                </div>
+              </div>
+              <span class="badge badge-accent" id="dash-radar-account-tag">Cuenta Activa</span>
+            </div>
+            <div class="card-body">
+              <div class="two-col-grid" id="dash-radar-ideas-container" style="gap:16px;">
+                <!-- Cargado dinámicamente -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Two Columns: Queue and Recent Activity -->
+          <div class="two-col-grid">
+            <!-- Upcoming Queue -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Próximos Posts en Cola</h3>
+                <button class="btn btn-ghost btn-sm" id="btn-view-all-queue">Ver todos</button>
+              </div>
+              <div class="card-body">
+                <div class="posts-list" id="dash-upcoming-list">
+                  <div class="empty-state">
+                    <p>No hay publicaciones en cola actualmente.</p>
+                    <button class="btn btn-secondary btn-sm" onclick="navigateToTab('composer')">Programar un post ahora</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Published -->
+            <div class="card">
+              <div class="card-header" style="justify-content: space-between; align-items: center;">
+                <h3>Historial de Publicaciones</h3>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn btn-secondary btn-sm" id="btn-sync-live-dash" title="Sincronizar feed en vivo de Instagram">
+                    🔄 Sincronizar Feed
+                  </button>
+                  <button class="btn btn-ghost btn-sm" onclick="navigateToTab('analytics')">Estadísticas</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="posts-list" id="dash-recent-list">
+                  <div class="empty-state">
+                    <p>Aún no se han sincronizado publicaciones.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: COMPOSER (CREAR PUBLICACIÓN) -->
+      <section class="tab-pane" id="tab-composer">
+        <div class="composer-container">
+          <!-- Left Column: Form & Inputs -->
+          <div class="composer-form-col">
+            <div class="card">
+              <div class="card-header">
+                <div class="header-title-row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <h3 style="margin:0;">Redactor de Contenido</h3>
+                  <div style="display:flex; gap:8px; margin-left:auto; flex-wrap:wrap;">
+                    <button class="btn btn-ai btn-sm" id="btn-open-ai-modal">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+                      <span>Asistente IA (Copy)</span>
+                    </button>
+                    <button type="button" class="btn btn-sm" id="btn-open-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+                      <span>📦 Carga en Lote (Autopilot)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <!-- Target Platforms -->
+                <div class="form-group">
+                  <span class="form-label">Destinos de Publicación:</span>
+                  <div class="platforms-selector">
+                    <label class="platform-checkbox fb active">
+                      <input type="checkbox" id="platform-fb" value="facebook" checked>
+                      <span class="platform-badge-icon">f</span>
+                      <span>Facebook Page</span>
+                    </label>
+                    <label class="platform-checkbox ig active">
+                      <input type="checkbox" id="platform-ig" value="instagram" checked>
+                      <span class="platform-badge-icon">📷</span>
+                      <span>Instagram Business</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Post Format -->
+                <div class="form-group">
+                  <span class="form-label">Tipo de Formato:</span>
+                  <div class="radio-pill-group">
+                    <label class="radio-pill active">
+                      <input type="radio" name="post_type" value="feed" checked>
+                      <span>Publicación Feed</span>
+                    </label>
+                    <label class="radio-pill">
+                      <input type="radio" name="post_type" value="story">
+                      <span>Historia (Story)</span>
+                    </label>
+                    <label class="radio-pill">
+                      <input type="radio" name="post_type" value="reel">
+                      <span>Reel / Video</span>
+                    </label>
+                    <label class="radio-pill">
+                      <input type="radio" name="post_type" value="carousel">
+                      <span>Carrusel</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Post Title (Optional / Internal Note) -->
+                <div class="form-group">
+                  <label class="form-label" for="post-title">Título / Referencia Interna <span class="text-muted">(opcional)</span></label>
+                  <input type="text" id="post-title" class="form-control" placeholder="Ej: Promo Verano #3, Tip del Martes...">
+                </div>
+
+                <!-- Post Content / Caption -->
+                <div class="form-group">
+                  <div class="caption-header">
+                    <label class="form-label" for="post-content">Texto del Post (Copy / Caption)</label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <button type="button" class="btn btn-secondary btn-xs" id="btn-humanize-composer" title="Auditar gancho <120 caracteres y eliminar rastros de IA">
+                        🔍 Auditar / Humanizar (Anti-IA)
+                      </button>
+                      <div class="char-counters">
+                        <span class="counter-badge fb" id="counter-fb">FB: 0</span>
+                        <span class="counter-badge ig" id="counter-ig">IG: 0 / 2200</span>
+                      </div>
+                    </div>
+                  </div>
+                  <textarea id="post-content" class="form-control composer-textarea" rows="6" placeholder="Escribe el copy de tu publicación aquí o usa el botón 'Asistente IA' arriba..."></textarea>
+                  
+                  <!-- Quick Hashtag Suggestions -->
+                  <div class="quick-tags" id="quick-tags-container">
+                    <span class="tag-title">Hashtags sugeridos:</span>
+                    <button class="tag-chip" data-tag="#marketingdigital">#marketingdigital</button>
+                    <button class="tag-chip" data-tag="#socialmedia">#socialmedia</button>
+                    <button class="tag-chip" data-tag="#emprendimiento">#emprendimiento</button>
+                    <button class="tag-chip" data-tag="#branding">#branding</button>
+                    <button class="tag-chip" data-tag="#viral">#viral</button>
+                    <button class="tag-chip" data-tag="#creadoresdecontenido">#creadoresdecontenido</button>
+                  </div>
+                </div>
+
+                <!-- Media Upload & Management -->
+                <div class="form-group">
+                  <div class="media-upload-header">
+                    <span class="form-label">Archivos Multimedia (Imágenes / Videos)</span>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                      <!-- Botón especializado Cabañas La Campiña -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-campina-flyer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #059669; border-color: #059669;">
+                        🌲 Maquetar Flyer Editorial 4:5 ($0)
+                      </button>
+                      <!-- Botón especializado Kmarket -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-kmarket-designer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #ea580c; border-color: #ea580c;">
+                        🛒 Diseñador Gráfico Senior 4:5
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
+                        ✨ Póster 4:5
+                      </button>
+                      <button type="button" class="btn btn-ghost btn-sm" id="btn-watermark-overlay" style="display: none;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+                        Estampar Logo
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Generador Directo de Imágenes con IA (Gemini Flash Lite / La opción más económica) -->
+                  <div class="ai-image-generator-bar" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <label class="form-check-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; color:var(--text-primary); user-select:none; margin:0;">
+                      <input type="checkbox" id="chk-use-ai-image" style="cursor:pointer; width:16px; height:16px; accent-color:var(--primary);">
+                      <span>🎨 Generador de Imágenes IA: Gemini Flash Lite (Económico)</span>
+                    </label>
+
+                    <div id="ai-image-controls" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <select id="ai-image-format-select" aria-label="Formato de imagen para IA" class="form-control form-control-sm" style="font-size:0.75rem; padding:4px 8px; width:auto;">
+                        <option value="feed">Formato 4:5 (Feed vertical)</option>
+                        <option value="story">Formato 9:16 (Story / Reel)</option>
+                        <option value="square">Formato 1:1 (Cuadrado)</option>
+                      </select>
+                      <label id="lbl-use-base-image" style="display:none; align-items:center; gap:5px; cursor:pointer; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin:0;">
+                        <input type="checkbox" id="chk-use-base-image" style="cursor:pointer; accent-color:var(--primary);">
+                        <span>🖼️ Usar foto actual de base</span>
+                      </label>
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-trigger-direct-image" style="font-size:0.75rem; padding:5px 12px; gap:6px;">
+                        ✨ Generar Imagen Ahora
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="dropzone" id="media-dropzone">
+                    <input type="file" id="media-file-input" aria-label="Subir archivos multimedia" multiple accept="image/*,video/*" style="display: none;">
+                    <div class="dropzone-content">
+                      <div class="dropzone-icon">📁</div>
+                      <p><strong>Haz clic aquí</strong> o arrastra tus fotos / videos</p>
+                      <span class="dropzone-sub">JPG, PNG, WebP o MP4 (soporta múltiples imágenes para carruseles)</span>
+                    </div>
+                  </div>
+
+                  <!-- Media Previews Grid -->
+                  <div class="media-preview-grid" id="media-preview-grid"></div>
+
+                  <!-- Cross-Share to Story Option (Directly under Media Upload) -->
+                  <div class="form-group story-cross-share-section" id="story-cross-share-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(168,85,247,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.35); border-radius: var(--radius-xs); padding: 14px; margin-top: 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
+                        <input type="checkbox" id="chk-also-share-story" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
+                        <span>📲 Compartir también como Historia (Story 9:16)</span>
+                      </label>
+                      <span class="badge" style="background:linear-gradient(135deg, #ec4899, #8b5cf6); color:white; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:700;">Story 9:16 Auto</span>
+                    </div>
+                    <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary);">
+                      Genera automáticamente una Historia vertical 9:16 con fondo artístico envolvente difuminado a partir de esta imagen para Instagram y Facebook Stories.
+                    </p>
+
+                    <!-- Story Timing Options (Hidden by default) -->
+                    <div id="story-timing-box" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed rgba(236,72,153,0.3); margin-left:29px;">
+                      <label class="form-label" style="font-size:0.8rem; margin-bottom:6px;">¿En qué horario publicar la Historia?</label>
+                      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
+                        <label class="radio-pill active" style="font-size:0.8rem;">
+                          <input type="radio" name="story_schedule_timing" value="same_time" checked>
+                          <span>⚡ Mismo momento</span>
+                        </label>
+                        <label class="radio-pill" style="font-size:0.8rem;">
+                          <input type="radio" name="story_schedule_timing" value="plus_3h">
+                          <span>⏰ 3h después (+3h)</span>
+                        </label>
+                        <label class="radio-pill" style="font-size:0.8rem;">
+                          <input type="radio" name="story_schedule_timing" value="night_slot">
+                          <span>🌙 En la noche (20:30)</span>
+                        </label>
+                        <label class="radio-pill" style="font-size:0.8rem;">
+                          <input type="radio" name="story_schedule_timing" value="custom">
+                          <span>📅 Horario propio</span>
+                        </label>
+                      </div>
+                      <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
+                        <input type="datetime-local" id="story-custom-datetime" class="form-control" style="font-size:0.85rem;">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Scheduling Options -->
+                <div class="form-group scheduling-section">
+                  <span class="form-label">¿Cuándo quieres publicar?</span>
+                  <div class="schedule-options">
+                    <label class="schedule-radio active">
+                      <input type="radio" name="schedule_option" value="next_slot" checked>
+                      <div class="option-content">
+                        <strong>Próximo Slot Automático</strong>
+                        <span class="slot-preview-text" id="composer-next-slot-label">Calculando...</span>
+                      </div>
+                    </label>
+
+                    <label class="schedule-radio">
+                      <input type="radio" name="schedule_option" value="custom">
+                      <div class="option-content">
+                        <strong>Fecha y Hora Específica</strong>
+                        <span>Elige exactamente cuándo debe publicarse</span>
+                      </div>
+                    </label>
+
+                    <label class="schedule-radio">
+                      <input type="radio" name="schedule_option" value="now">
+                      <div class="option-content">
+                        <strong>Publicar Inmediatamente</strong>
+                        <span>Enviar a Meta en este instante</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <!-- Custom Date Picker (Hidden by default) -->
+                  <div class="custom-date-container" id="custom-date-container" style="display: none;">
+                    <label class="form-label" for="custom-schedule-datetime">Selecciona día y hora:</label>
+                    <input type="datetime-local" id="custom-schedule-datetime" class="form-control">
+                  </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="composer-actions">
+                  <button class="btn btn-secondary" id="btn-clear-composer">Limpiar</button>
+                  <button class="btn btn-primary btn-lg" id="btn-submit-post">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    <span id="btn-submit-post-text">Agendar en Próximo Slot</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Live Mockup Preview -->
+          <div class="composer-preview-col">
+            <div class="card preview-card">
+              <div class="card-header">
+                <h3>Vista Previa en Vivo</h3>
+                <div class="preview-tabs">
+                  <button class="preview-tab active" data-preview="fb">Facebook</button>
+                  <button class="preview-tab" data-preview="ig">Instagram</button>
+                  <button class="preview-tab" data-preview="story">Story</button>
+                </div>
+              </div>
+
+              <div class="card-body preview-wrapper">
+                <!-- FACEBOOK MOCKUP -->
+                <div class="mockup mockup-fb active" id="mockup-fb">
+                  <div class="fb-post-header">
+                    <div class="fb-avatar" id="mock-fb-avatar">P</div>
+                    <div class="fb-user-info">
+                      <h4 id="mock-fb-name">Nombre de tu Página</h4>
+                      <span>Justo ahora · 🌎</span>
+                    </div>
+                  </div>
+                  <div class="fb-post-body">
+                    <p id="mock-fb-text">Escribe tu texto en el composer para verlo aquí...</p>
+                  </div>
+                  <div class="fb-post-media" id="mock-fb-media">
+                    <div class="media-placeholder">Sin imagen seleccionada</div>
+                  </div>
+                  <div class="fb-post-footer">
+                    <div class="fb-action">👍 Me gusta</div>
+                    <div class="fb-action">💬 Comentar</div>
+                    <div class="fb-action">↗️ Compartir</div>
+                  </div>
+                </div>
+
+                <!-- INSTAGRAM FEED MOCKUP -->
+                <div class="mockup mockup-ig" id="mockup-ig">
+                  <div class="ig-post-header">
+                    <div class="ig-avatar-wrap">
+                      <div class="ig-avatar" id="mock-ig-avatar">IG</div>
+                    </div>
+                    <div class="ig-user-info">
+                      <h4 id="mock-ig-name">tu_cuenta_ig</h4>
+                      <span>Publicación patrocinada</span>
+                    </div>
+                  </div>
+                  <div class="ig-post-media" id="mock-ig-media">
+                    <div class="media-placeholder">Sin imagen seleccionada</div>
+                  </div>
+                  <div class="ig-post-actions">
+                    <div class="ig-action-left">
+                      <span>❤️</span>
+                      <span>💬</span>
+                      <span>✈️</span>
+                    </div>
+                    <span>🔖</span>
+                  </div>
+                  <div class="ig-post-body">
+                    <p><strong id="mock-ig-name-body">tu_cuenta_ig</strong> <span id="mock-ig-text">Escribe tu texto en el composer para verlo aquí...</span></p>
+                  </div>
+                </div>
+
+                <!-- INSTAGRAM STORY MOCKUP -->
+                <div class="mockup mockup-story" id="mockup-story">
+                  <div class="story-device">
+                    <div class="story-header">
+                      <div class="story-progress"><div class="story-bar"></div></div>
+                      <div class="story-user">
+                        <div class="story-avatar" id="mock-story-avatar">IG</div>
+                        <span id="mock-story-name">tu_cuenta_ig</span>
+                        <span class="story-time">1h</span>
+                      </div>
+                    </div>
+                    <div class="story-media" id="mock-story-media">
+                      <div class="media-placeholder">Imagen de Historia (9:16)</div>
+                    </div>
+                    <div class="story-text-overlay" id="mock-story-text"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: PLANNER & CALENDARIO DE CONTENIDOS -->
+      <section class="tab-pane" id="tab-queue">
+        <!-- Selector Superior de Vistas del Planner -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+          <div class="planner-view-tabs">
+            <button type="button" class="planner-view-btn active" data-view="calendar">📅 Vista Calendario Planner</button>
+            <button type="button" class="planner-view-btn" data-view="list">📋 Vista Lista & Cola</button>
+            <button type="button" class="planner-view-btn" data-view="slots">⏰ Horarios Semanales (Slots)</button>
+          </div>
+
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-live-queue" title="Sincronizar publicaciones en vivo desde Instagram">
+              🔄 Sincronizar Posts de Meta
+            </button>
+            <button type="button" class="btn btn-sm" id="btn-planner-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+              📦 Carga en Lote (Autopilot)
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-planner-new-post">
+              + Crear Post
+            </button>
+          </div>
+        </div>
+
+        <!-- 1. VISTA PLANNER CALENDARIO (PRINCIPAL) -->
+        <div id="view-planner-calendar" class="planner-wrapper">
+          <div class="planner-toolbar">
+            <div class="planner-nav-group">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-planner-prev">&lt; Anterior</button>
+              <h3 class="planner-month-title" id="planner-month-label">Septiembre 2026</h3>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-planner-next">Siguiente &gt;</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-planner-today">Hoy</button>
+            </div>
+
+            <!-- Filtros de formato y estado -->
+            <div class="filter-pills" id="planner-filter-pills">
+              <button type="button" class="filter-pill active" data-planner-filter="all">Todos</button>
+              <button type="button" class="filter-pill" data-planner-filter="story">📱 Historias</button>
+              <button type="button" class="filter-pill" data-planner-filter="reel">🎥 Reels</button>
+              <button type="button" class="filter-pill" data-planner-filter="feed">🖼️ Feed</button>
+              <button type="button" class="filter-pill" data-planner-filter="scheduled">🕒 Agendados</button>
+              <button type="button" class="filter-pill" data-planner-filter="published">✅ Publicados</button>
+            </div>
+          </div>
+
+          <div class="planner-calendar-card">
+            <div class="planner-weekdays-header">
+              <div class="planner-weekday-col">Lun</div>
+              <div class="planner-weekday-col">Mar</div>
+              <div class="planner-weekday-col">Mié</div>
+              <div class="planner-weekday-col">Jue</div>
+              <div class="planner-weekday-col">Vie</div>
+              <div class="planner-weekday-col">Sáb</div>
+              <div class="planner-weekday-col">Dom</div>
+            </div>
+            <div class="planner-grid" id="planner-calendar-grid">
+              <!-- Celdas de días generadas dinámicamente -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. VISTA LISTA DE ENVÍOS -->
+        <div id="view-planner-list" style="display:none;">
+          <div class="card queue-list-card">
+            <div class="card-header">
+              <div class="header-filter-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <h3>Cola de Envíos & Historial</h3>
+                </div>
+                <div class="filter-pills">
+                  <button class="filter-pill active" data-filter="all">Todos</button>
+                  <button class="filter-pill" data-filter="scheduled">Programados</button>
+                  <button class="filter-pill" data-filter="published">Publicados</button>
+                  <button class="filter-pill" data-filter="failed">Errores</button>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="posts-table-wrapper">
+                <table class="data-table" id="queue-data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Fecha Programada</th>
+                      <th>Destino</th>
+                      <th>Tipo</th>
+                      <th>Contenido</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="queue-table-body">
+                    <!-- Filas dinámicas -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. VISTA HORARIOS SEMANALES (SLOTS) -->
+        <div id="view-planner-slots" style="display:none;">
+          <div class="card slots-config-card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.25rem;">⏰</span>
+                <h3 style="margin:0;">Horarios Semanales & Pruebas A/B</h3>
+              </div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                <button class="btn btn-secondary btn-sm" id="btn-save-as-new-preset" title="Guardar la configuración actual como una nueva prueba (ej: Prueba 1, Prueba 2)">
+                  ➕ Guardar como Nueva Prueba
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-save-slots" title="Guardar cambios en el horario actual">
+                  💾 Guardar Cambios
+                </button>
+                <button class="btn btn-primary btn-sm" id="btn-preset-wed-sat" title="Configurar 2 post semanales: Miércoles y Sábados">
+                  🎯 Preset Miércoles & Sábados
+                </button>
+              </div>
+            </div>
+
+            <!-- Barra de Selección de Presets Guardados -->
+            <div style="background:var(--bg-surface-subtle); border-bottom:1px solid var(--border-subtle); padding:12px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <label for="select-schedule-presets" style="font-size:0.82rem; font-weight:600; color:var(--text-secondary); margin:0;">
+                  Horario / Prueba Seleccionada:
+                </label>
+                <select id="select-schedule-presets" class="form-control" style="font-size:0.85rem; padding:5px 12px; min-width:250px; font-weight:600;">
+                  <!-- Se llena dinámicamente -->
+                </select>
+                <span id="badge-active-preset" class="badge" style="background:#10b981; color:#fff; font-size:0.72rem; padding:3px 8px; border-radius:10px;">
+                  ✅ Horario Activo Vigente
+                </span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-activate-selected-preset" style="font-size:0.8rem;">
+                  ⚡ Activar este Horario
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:4px 8px;">
+                  🗑️
+                </button>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <p class="section-hint" style="margin-top:0;">
+                💡 <strong>Estrategia de Horarios A/B:</strong> Diseña diferentes combinaciones de horarios (por ejemplo, <em>"Prueba 1: Mediodía"</em> vs <em>"Prueba 2: Nocturna"</em>). Las publicaciones se agendarán en estos espacios y luego podrás comparar su alcance real en la pestaña <strong>Estadísticas</strong>.
+              </p>
+              
+              <div class="slots-week-editor" id="slots-week-container">
+                <!-- Se llena dinámicamente con los 7 días de la semana -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: ANALÍTICAS & INSIGHTS -->
+      <section class="tab-pane" id="tab-analytics">
+        <div class="analytics-container">
+          <div class="analytics-header-card card">
+            <div class="banner-left">
+              <h2>Métricas de Rendimiento & Inteligencia Algorítmica</h2>
+              <p>Datos en vivo de Meta Graph API v21.0 y auditoría estratégica con IA</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="btn-trigger-ai-audit" title="Analizar el feed con el algoritmo de Meta">
+                ✨ Auditoría Estratégica con IA
+              </button>
+              <button class="btn btn-secondary" id="btn-refresh-insights">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                Actualizar Métricas
+              </button>
+            </div>
+          </div>
+
+          <!-- AI AUDIT RESULT CONTAINER -->
+          <div class="card ai-audit-card" id="card-ai-audit" style="display:none; border:1px solid var(--primary-border); background: var(--bg-surface);">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.2rem;">✨</span>
+                <h3 style="margin:0; font-size:1rem;">Auditoría de Crecimiento & Algoritmo (Meta Growth AI)</h3>
+                <span class="badge" id="ai-audit-provider-badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-size:0.72rem; padding:2px 8px; border-radius:10px;">Gemini</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="btn-close-ai-audit">✕ Cerrar</button>
+            </div>
+            <div class="card-body">
+              <div id="ai-audit-content" class="ai-audit-markdown-body" style="font-size:0.86rem; line-height:1.6; color:var(--text-primary);">
+                <!-- Contenido dinámico de la auditoría -->
+              </div>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-icon icon-cyan">👁️</div>
+              <div class="stat-content">
+                <span class="stat-label">Alcance Total (Reach)</span>
+                <h3 class="stat-value" id="kpi-reach">48,920</h3>
+                <span class="stat-subtext text-emerald">↑ +14.2% esta semana</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-violet">📈</div>
+              <div class="stat-content">
+                <span class="stat-label">Impresiones Totales</span>
+                <h3 class="stat-value" id="kpi-impressions">89,400</h3>
+                <span class="stat-subtext text-emerald">↑ +8.7% vs mes anterior</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-emerald">💬</div>
+              <div class="stat-content">
+                <span class="stat-label">Tasa de Interacción</span>
+                <h3 class="stat-value" id="kpi-engagement">4.8%</h3>
+                <span class="stat-subtext">Promedio superior a la media</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-rose">👥</div>
+              <div class="stat-content">
+                <span class="stat-label">Seguidores Totales</span>
+                <h3 class="stat-value" id="kpi-followers">40,850</h3>
+                <span class="stat-subtext">Facebook & Instagram</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTENT INTELLIGENCE GRID: TOP POST & BEST HOURS -->
+          <div class="two-col-grid" style="margin-bottom: 20px;">
+            <!-- CARD 1: TOP POST GANADOR -->
+            <div class="card top-post-card" id="top-post-card">
+              <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.15rem;">🏆</span>
+                  <h3 style="margin:0;">Publicación Más Exitosa (Top Post)</h3>
+                </div>
+                <span class="badge" id="top-post-score-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.75rem; padding:3px 8px; border-radius:12px;">Puntaje Máximo</span>
+              </div>
+              <div class="card-body">
+                <div class="top-post-body" id="top-post-content">
+                  <div class="top-post-media-row" style="display:flex; gap:14px; align-items:flex-start;">
+                    <div id="top-post-thumbnail-wrap" style="width:110px; height:110px; border-radius:var(--radius-xs); overflow:hidden; background:var(--bg-surface-subtle); flex-shrink:0; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-subtle);">
+                      <img id="top-post-img" src="" alt="Top Post" style="width:100%; height:100%; object-fit:cover; display:none;">
+                      <span id="top-post-placeholder-icon" style="font-size:1.8rem;">📸</span>
+                    </div>
+                    <div class="top-post-details" style="flex:1; min-width:0;">
+                      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+                        <span class="badge" id="top-post-likes-badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">❤️ 0 Likes</span>
+                        <span class="badge" id="top-post-comments-badge" style="background:rgba(59,130,246,0.12); color:#1d4ed8; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">💬 0 Comentarios</span>
+                        <span class="badge" id="top-post-type-badge" style="background:rgba(168,85,247,0.12); color:#7e22ce; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">🎥 Video</span>
+                      </div>
+                      <h4 id="top-post-title" style="margin:0 0 6px 0; font-size:0.92rem; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Cargando publicación...</h4>
+                      <p id="top-post-caption" style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-secondary); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;"></p>
+                      <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary btn-sm" id="btn-top-post-reuse" style="font-size:0.75rem; padding:4px 10px;">🔄 Reusar en Composer</button>
+                        <button class="btn btn-primary btn-sm" id="btn-top-post-story" style="font-size:0.75rem; padding:4px 10px;">📲 Convertir a Historia</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD 2: MEJORES HORAS PARA PUBLICAR -->
+            <div class="card best-hours-card">
+              <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.15rem;">⏰</span>
+                  <h3 style="margin:0;">Mejores Horas para Publicar</h3>
+                </div>
+                <span class="badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-weight:700; font-size:0.75rem; padding:3px 8px; border-radius:12px;">Algoritmo Local</span>
+              </div>
+              <div class="card-body">
+                <p class="section-hint" style="margin-top:0; margin-bottom:12px; font-size:0.8rem;">
+                  Franjas horarias con mayor tracción orgánica detectadas para tu audiencia en Algarrobo:
+                </p>
+                <div id="best-windows-list" style="display:flex; flex-direction:column; gap:8px;">
+                  <!-- Se llena dinámicamente con las ventanas óptimas -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FORMAT PERFORMANCE BREAKDOWN CARD -->
+          <div class="card format-breakdown-card" style="margin-bottom: 20px;">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.15rem;">📊</span>
+                <h3 style="margin:0;">Rendimiento Comparativo por Formato</h3>
+              </div>
+              <span class="badge" id="format-winner-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">🏆 Ganador: Reels / Video</span>
+            </div>
+            <div class="card-body">
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;" id="format-stat-boxes">
+                <!-- Box Reels -->
+                <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-weight:700; font-size:0.88rem;">🎥 Reels & Videos</span>
+                    <span class="badge" style="background:rgba(168,85,247,0.15); color:#7e22ce; font-size:0.72rem; padding:2px 6px;">Viral & Shares</span>
+                  </div>
+                  <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-video-avg-likes">0 likes prom.</div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-video-meta">Mayor tasa de envío por DM (Sends)</div>
+                </div>
+
+                <!-- Box Carruseles -->
+                <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-weight:700; font-size:0.88rem;">🖼️ Carruseles (Multi-foto)</span>
+                    <span class="badge" style="background:rgba(59,130,246,0.15); color:#1d4ed8; font-size:0.72rem; padding:2px 6px;">Retención & Saves</span>
+                  </div>
+                  <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-carousel-avg-likes">0 likes prom.</div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-carousel-meta">Mayor tiempo de permanencia en feed</div>
+                </div>
+
+                <!-- Box Fotos Feed -->
+                <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-weight:700; font-size:0.88rem;">📸 Fotos & Flyers 4:5</span>
+                    <span class="badge" style="background:rgba(234,88,12,0.15); color:#c2410c; font-size:0.72rem; padding:2px 6px;">Impacto Rápido</span>
+                  </div>
+                  <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-image-avg-likes">0 likes prom.</div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-image-meta">Eficaz con titulares y ofertas claras</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SCHEDULE EXPERIMENTS & A/B TESTING CARD -->
+          <div class="card schedule-experiments-card" style="margin-bottom: 20px;">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.25rem;">🧪</span>
+                <div>
+                  <h3 style="margin:0;">Comparativa de Horarios Guardados & Pruebas A/B</h3>
+                  <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Compara qué horario y franja horaria generan mayor alcance real y retorno</p>
+                </div>
+              </div>
+              <span class="badge" id="schedule-winner-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">
+                🏆 Calculando ganador...
+              </span>
+            </div>
+            <div class="card-body">
+              <!-- AI Insight Banner -->
+              <div id="schedule-ab-insight-banner" style="background:rgba(99, 102, 241, 0.07); border:1px solid rgba(99, 102, 241, 0.2); border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.83rem; color:var(--text-primary); display:flex; align-items:flex-start; gap:10px;">
+                <span style="font-size:1.1rem; line-height:1;">💡</span>
+                <div id="schedule-ab-insight-text">Cargando diagnóstico comparativo de horarios...</div>
+              </div>
+
+              <!-- Grid de Tarjetas de Presets Comparados -->
+              <div id="schedule-presets-comparison-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; margin-bottom:16px;">
+                <!-- Dinámico -->
+              </div>
+
+              <!-- Tabla / Resumen de Franjas Horarias con Mayor Tracción -->
+              <div style="border-top:1px solid var(--border-subtle); padding-top:14px;">
+                <h4 style="margin:0 0 10px 0; font-size:0.88rem; color:var(--text-secondary);">🎯 Franjas Horarias de Mayor Conversión Detectadas:</h4>
+                <div id="schedule-ab-heatmap-list" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
+                  <!-- Dinámico -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="two-col-grid">
+            <div class="card">
+              <div class="card-header">
+                <h3>Evolución de Alcance e Impresiones</h3>
+              </div>
+              <div class="card-body">
+                <div class="chart-canvas-wrapper">
+                  <canvas id="chart-reach" width="600" height="280"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3>Interacciones por Día de la Semana</h3>
+              </div>
+              <div class="card-body">
+                <div class="chart-canvas-wrapper">
+                  <canvas id="chart-engagement" width="600" height="280"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: MULTIMEDIA & LOGOS -->
+      <section class="tab-pane" id="tab-media">
+        <div class="media-container">
+          <!-- Columna Izquierda: Editor de Marca de Agua -->
+          <div class="card watermark-tool-card">
+            <div class="card-header">
+              <h3>Herramienta de Branding & Marca de Agua</h3>
+            </div>
+            <div class="card-body">
+              <p class="section-hint">Sube el logotipo de tu marca en PNG transparente y estámpalo automáticamente en cualquier flyer o fotografía.</p>
+
+              <!-- Subir Logo -->
+              <div class="form-group">
+                <label class="form-label" for="logo-file-input">Subir Logotipo (PNG transparente)</label>
+                <div class="logo-upload-box">
+                  <input type="file" id="logo-file-input" aria-label="Subir Logotipo PNG" accept="image/png,image/webp" style="display:none;">
+                  <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logo-file-input').click()">
+                    Seleccionar Logo PNG
+                  </button>
+                  <span id="logo-file-name" class="text-muted">Ningún logo seleccionado</span>
+                </div>
+              </div>
+
+              <!-- Posición de la Marca de Agua -->
+              <div class="form-group">
+                <span class="form-label">Posición del Logo:</span>
+                <div class="position-grid">
+                  <button class="pos-btn" data-pos="top-left">Superior Izq</button>
+                  <button class="pos-btn" data-pos="top-right">Superior Der</button>
+                  <button class="pos-btn" data-pos="center">Centro</button>
+                  <button class="pos-btn" data-pos="bottom-left">Inferior Izq</button>
+                  <button class="pos-btn active" data-pos="bottom-right">Inferior Der</button>
+                </div>
+              </div>
+
+              <!-- Sliders de Opacidad y Tamaño -->
+              <div class="form-group">
+                <div class="slider-header">
+                  <label class="form-label" for="slider-opacity">Opacidad: <span id="opacity-val">85%</span></label>
+                </div>
+                <input type="range" id="slider-opacity" aria-label="Opacidad del logo" min="20" max="100" value="85" class="form-range">
+              </div>
+
+              <div class="form-group">
+                <div class="slider-header">
+                  <label class="form-label" for="slider-scale">Tamaño del Logo: <span id="scale-val">18% del ancho</span></label>
+                </div>
+                <input type="range" id="slider-scale" aria-label="Tamaño del logo" min="8" max="40" value="18" class="form-range">
+              </div>
+
+              <!-- Formatos predefinidos -->
+              <div class="form-group">
+                <span class="form-label">Adaptar Dimensiones a Redes:</span>
+                <div class="btn-group-full">
+                  <button class="btn btn-secondary btn-sm" id="btn-format-square">1:1 Cuadrado (Feed)</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-format-portrait">4:5 Vertical (Feed IG)</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-format-story">9:16 Historia / Reel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna Derecha: Galería de Medios -->
+          <div class="card media-gallery-card">
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div>
+                <h3 style="margin:0;">Biblioteca Multimedia Local</h3>
+                <span id="media-account-indicator" style="font-size:0.75rem; color:var(--text-secondary);">Filtrando por cuenta activa</span>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <div class="btn-group" style="display:inline-flex; border:1px solid var(--border-color); border-radius:var(--radius-xs); overflow:hidden;">
+                  <button type="button" class="btn btn-xs btn-primary" id="btn-media-filter-current" onclick="window.setMediaAccountFilter('current')">Esta Cuenta</button>
+                  <button type="button" class="btn btn-xs btn-ghost" id="btn-media-filter-all" onclick="window.setMediaAccountFilter('all')">Ver Todas</button>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('media-file-input').click()">+ Subir Archivos</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="gallery-grid" id="media-gallery-grid">
+                <!-- Se llena con fotos subidas -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: CONFIGURACIÓN & META WIZARD -->
+      <section class="tab-pane" id="tab-settings">
+        <div class="settings-container">
+          <!-- WIZARD PASO A PASO DE META -->
+          <div class="card meta-wizard-card">
+            <div class="card-header">
+              <div class="header-title-row">
+                <div class="meta-icon-row">
+                  <div class="meta-badge fb">f</div>
+                  <div class="meta-badge ig">📷</div>
+                  <h3>Asistente de Conexión con Meta Graph API</h3>
+                </div>
+                <span class="badge badge-accent">Oficial v21.0</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="wizard-steps">
+                <!-- Paso 1: Checklist -->
+                <div class="wizard-step active" id="step-1">
+                  <div class="step-num">1</div>
+                  <div class="step-content">
+                    <h4>Requisitos Previos en Meta for Developers</h4>
+                    <ul class="checklist">
+                      <li>✅ Tener una <strong>Página de Facebook</strong> administrada por ti.</li>
+                      <li>✅ Tener una <strong>Cuenta Profesional de Instagram</strong> (Business/Creador) vinculada a tu Página de Facebook.</li>
+                      <li>✅ Crear una App en <a href="https://developers.facebook.com/apps/" target="_blank" class="external-link">Meta for Developers ↗</a> (Tipo: <em>Otro</em> o <em>Negocios</em>).</li>
+                      <li>✅ Permisos requeridos marcados: <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code>, <code>instagram_basic</code>, <code>instagram_content_publish</code>.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Paso 2: Credenciales -->
+                <div class="wizard-step" id="step-2">
+                  <div class="step-num">2</div>
+                  <div class="step-content">
+                    <h4>Introduce tus Credenciales de Meta</h4>
+                    <div class="form-grid-2">
+                      <div class="form-group">
+                        <label class="form-label" for="meta-app-id">Meta APP ID:</label>
+                        <input type="text" id="meta-app-id" class="form-control" placeholder="Ej: 123456789012345">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="meta-app-secret">Meta APP Secret:</label>
+                        <input type="password" id="meta-app-secret" class="form-control" placeholder="Secreto de la app de Facebook">
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label" for="meta-user-token">
+                        User Access Token (generado en Graph API Explorer):
+                        <a href="https://developers.facebook.com/tools/explorer/" target="_blank" class="external-link">Abrir Explorer ↗</a>
+                      </label>
+                      <input type="text" id="meta-user-token" class="form-control" placeholder="EAA...">
+                    </div>
+
+                    <div class="wizard-actions">
+                      <button class="btn btn-secondary" id="btn-exchange-token">
+                        ⚡ Convertir a Token de Larga Duración (60 días)
+                      </button>
+                      <button class="btn btn-primary" id="btn-detect-pages">
+                        🔍 Detectar Páginas de Facebook e Instagram
+                      </button>
+                    </div>
+
+                    <div id="meta-exchange-result" class="alert-box" style="display: none;"></div>
+                  </div>
+                </div>
+
+                <!-- Paso 3: Selección de Página -->
+                <div class="wizard-step" id="step-3">
+                  <div class="step-num">3</div>
+                  <div class="step-content">
+                    <h4>Páginas Detectadas</h4>
+                    <div id="detected-pages-list" class="detected-pages-list">
+                      <p class="text-muted">Presiona "Detectar Páginas" arriba para cargar tus cuentas asociadas.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OTRAS CONFIGURACIONES -->
+          <div class="two-col-grid">
+            <!-- Asistente de IA (API Keys) -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Motor de Inteligencia Artificial</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label" for="ai-provider-select">Proveedor de IA para Copys:</label>
+                  <select id="ai-provider-select" class="form-control">
+                    <option value="gemini">Google Gemini (Recomendado - 1.5 Flash)</option>
+                    <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+                    <option value="claude">Anthropic Claude (Claude 3.5 Sonnet)</option>
+                    <option value="local">Plantillas Inteligentes Locales (Sin API Key)</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="ai-apikey-group">
+                  <label class="form-label" for="ai-api-key">API Key del Proveedor:</label>
+                  <input type="password" id="ai-api-key" class="form-control" placeholder="Pega tu clave API aquí...">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="brand-default-name">Nombre de tu Marca por Defecto:</label>
+                  <input type="text" id="brand-default-name" class="form-control" placeholder="Ej: Mi Negocio / Agencia Digital">
+                </div>
+
+                <button class="btn btn-secondary btn-sm" id="btn-save-ai-settings">Guardar Configuración de IA</button>
+              </div>
+            </div>
+
+            <!-- Ajustes de Servidor y Simulación -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Opciones de Servidor & Sandbox</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label class="form-label" for="public-url-base">
+                    URL Pública para Ingesta de Media en Instagram:
+                    <span class="text-muted">(ngrok / localtunnel / servidor)</span>
+                  </label>
+                  <input type="text" id="public-url-base" class="form-control" placeholder="https://tu-tunel.ngrok-free.app">
+                  <small class="form-help">Instagram API requiere URLs públicas con HTTPS para descargar fotos de tus posts.</small>
+                </div>
+
+                <div class="form-group toggle-group">
+                  <div class="toggle-label">
+                    <strong>Modo Simulación / Sandbox</strong>
+                    <span>Permite probar toda la suite y el scheduler sin llamadas reales a Meta API.</span>
+                  </div>
+                  <label class="switch" for="toggle-simulation-mode">
+                    <input type="checkbox" id="toggle-simulation-mode" aria-label="Modo Simulación / Sandbox">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <button class="btn btn-secondary btn-sm" id="btn-save-server-settings">Guardar Opciones</button>
+              </div>
+            </div>
+
+            <!-- Sello Oficial & Logotipo de Marca (Kmarket / La Campiña) -->
+            <div class="card" style="grid-column: 1 / -1;">
+              <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.2rem;">🏷️</span>
+                  <h3 style="margin:0;">Sello Oficial & Logotipo de Marca (Watermark)</h3>
+                </div>
+                <span class="badge" style="background:var(--primary-subtle); color:var(--primary); font-size:0.75rem;">Reutilizable en diagramación</span>
+              </div>
+              <div class="card-body">
+                <p class="section-hint" style="margin-bottom:14px;">
+                  Sube el sello circular oficial de <strong>Kmarket Algarrobo</strong> (en formato <strong>PNG con fondo transparente</strong>). 
+                  Este sello se guardará en el sistema y se podrá reutilizar permanentemente para estamparlo con nitidez vectorial en la esquina de cada afiche publicitario.
+                </p>
+
+                <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:8px; padding:14px 18px;">
+                  <div id="settings-seal-preview-box" style="width:76px; height:76px; border-radius:50%; border:2px dashed var(--border-subtle); display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.06); flex-shrink:0;">
+                    <img id="settings-seal-img" src="" alt="Sello Oficial" style="width:100%; height:100%; object-fit:contain; display:none;">
+                    <span id="settings-seal-placeholder" style="font-size:1.8rem; color:var(--text-muted);">🏷️</span>
+                  </div>
+
+                  <div style="flex:1; min-width:220px;">
+                    <input type="file" id="settings-seal-file" aria-label="Subir Sello Circular PNG" accept="image/png,image/webp" style="display:none;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                      <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('settings-seal-file').click()">
+                        📁 Subir Sello Circular PNG
+                      </button>
+                      <button type="button" class="btn btn-ghost btn-sm" id="btn-view-watermarks-tool" onclick="navigateToTab('media')">
+                        Ir al Editor Multimedia ↗
+                      </button>
+                    </div>
+                    <span id="settings-seal-filename" class="text-muted" style="font-size:0.82rem;">Ningún sello cargado aún</span>
+                  </div>
+                </div>
+
+                <div class="form-group toggle-group" style="margin-top:16px; margin-bottom:0;">
+                  <div class="toggle-label">
+                    <strong>Auto-estampar Sello Oficial en Afiches 4:5</strong>
+                    <span>Estampa automáticamente el sello nítido en la esquina inferior derecha al generar con IA o maquetar afiches.</span>
+                  </div>
+                  <label class="switch" for="chk-auto-stamp-seal">
+                    <input type="checkbox" id="chk-auto-stamp-seal" aria-label="Auto-estampar Sello Oficial en Afiches 4:5">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: ASISTENTE IA COPYWRITER & GENERADOR ESPECIALIZADO -->
+  <div class="modal-backdrop" id="ai-modal" style="display: none;">
+    <div class="modal-dialog" style="max-width: 680px;">
+      <div class="modal-content">
+        <div class="modal-header" style="flex-direction: column; align-items: stretch; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="ai-badge-header">
+              <span class="ai-sparkle">✨</span>
+              <h3>Estación Creativa de Inteligencia Artificial (Gemini)</h3>
+            </div>
+            <button class="modal-close" id="btn-close-ai-modal">&times;</button>
+          </div>
+          <!-- Mode Tabs -->
+          <div class="preview-tabs" style="width: 100%; display: flex; flex-wrap: wrap; gap: 4px;">
+            <button type="button" class="preview-tab active" id="btn-ai-tab-general" data-ai-mode="general">✨ Redactor 2026</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-carousel" data-ai-mode="carousel">📑 Carrusel Slide a Slide</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-humanize" data-ai-mode="humanize">🔍 Humanizador Anti-IA</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-kmarket" data-ai-mode="kmarket">🛒 Kmarket: Producto 4:5</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-campina" data-ai-mode="campina">🏡 La Campiña: Reel & Fechas</button>
+          </div>
+        </div>
+
+        <div class="modal-body">
+          <!-- MODO: CARRUSEL SLIDE A SLIDE (2026 Skill) -->
+          <div class="ai-mode-pane" id="ai-pane-carousel" style="display: none;">
+            <div class="form-group">
+              <label class="form-label" for="carousel-topic">Tema o Guía para el Carrusel:</label>
+              <input type="text" id="carousel-topic" class="form-control" placeholder="Ej: 5 errores al preparar ramen, 4 lugares secretos de Algarrobo...">
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label" for="carousel-slides-count">Diapositivas:</label>
+                <select id="carousel-slides-count" class="form-control">
+                  <option value="5">5 Diapositivas (Rápido y al grano)</option>
+                  <option value="6" selected>6 Diapositivas (Óptimo para retención)</option>
+                  <option value="8">8 Diapositivas (Guía profunda / Tutorial)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="carousel-goal">Objetivo Algorítmico 2026:</label>
+                <select id="carousel-goal" class="form-control">
+                  <option value="saves">💾 Guardados (Saves - Alcance continuo)</option>
+                  <option value="shares">🚀 Compartidos DM (Sends - Viralidad)</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" class="btn btn-ai btn-full" id="btn-generate-carousel">
+              <span>📑 Planificar Carrusel con Metodología 2026</span>
+            </button>
+            <div id="carousel-results-box" style="display: none; margin-top: 14px; max-height: 280px; overflow-y: auto;">
+              <!-- Slides renderizados dinámicamente -->
+            </div>
+          </div>
+
+          <!-- MODO: HUMANIZADOR ANTI-IA (2026 Skill) -->
+          <div class="ai-mode-pane" id="ai-pane-humanize" style="display: none;">
+            <div class="form-group">
+              <label class="form-label" for="humanize-input-text">Pega cualquier borrador o texto que quieras auditar:</label>
+              <textarea id="humanize-input-text" class="form-control" rows="4" placeholder="Pega tu texto aquí para comprobar gancho <120 caracteres, guiones largos, clichés de IA y hashtags..."></textarea>
+            </div>
+            <button type="button" class="btn btn-ai btn-full" id="btn-run-humanize">
+              <span>🔍 Auditar y Humanizar Texto</span>
+            </button>
+            <div id="humanize-audit-box" style="display:none; margin-top: 12px; background:var(--bg-surface-subtle); padding:10px 12px; border-radius:var(--radius-xs); border:1px solid var(--border-subtle);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong>Diagnóstico de Humanización:</strong>
+                <span id="humanize-score-badge" class="badge" style="font-size:0.8rem; background:var(--primary); color:#fff;">100/100</span>
+              </div>
+              <ul id="humanize-issues-list" style="margin:0 0 10px 18px; font-size:0.78rem; color:var(--text-secondary);"></ul>
+              <label class="form-label" for="humanize-output-text" style="font-size:0.75rem;">Versión 100% Humana Optimizada para Instagram:</label>
+              <textarea id="humanize-output-text" class="form-control" rows="5" style="font-size:0.82rem;"></textarea>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-apply-humanized" style="margin-top:8px;">
+                Insertar en el Composer →
+              </button>
+            </div>
+          </div>
+
+          <!-- MODO 1: GENERAL -->
+          <div class="ai-mode-pane active" id="ai-pane-general">
+            <div class="form-group">
+              <label class="form-label" for="ai-topic">¿De qué trata tu publicación o flyer?</label>
+              <textarea id="ai-topic" class="form-control" rows="3" placeholder="Ej: Nueva promoción de fin de semana, tips de ahorro, etc..."></textarea>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label" for="ai-tone">Tono de voz:</label>
+                <select id="ai-tone" class="form-control">
+                  <option value="engaging">🔥 Atractivo & Dinámico (Engagement)</option>
+                  <option value="sales">⚡ Vendedor & Oferta (Conversión)</option>
+                  <option value="educational">💡 Educativo & Tips de Valor</option>
+                  <option value="inspirational">✨ Inspiracional & Storytelling</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ai-goal">Objetivo principal:</label>
+                <select id="ai-goal" class="form-control">
+                  <option value="engagement">Comentarios y Compartidos</option>
+                  <option value="sales">Ventas / Visitas a tienda</option>
+                  <option value="saves">Guardar el post (tips/receta/guía)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="ai-custom-inst">Instrucciones extra <span class="text-muted">(opcional)</span>:</label>
+              <input type="text" id="ai-custom-inst" class="form-control" placeholder="Ej: Mencionar sorteo, incluir emojis de fuego...">
+            </div>
+
+            <button class="btn btn-ai btn-full" id="btn-generate-ai-copy">
+              <span>✨ Generar Copy y Hashtags con Gemini</span>
+            </button>
+          </div>
+
+          <!-- MODO 2: KMARKET PRODUCTO 4:5 -->
+          <div class="ai-mode-pane" id="ai-pane-kmarket" style="display: none;">
+            <p class="section-hint" style="margin-bottom:12px;">Sube una foto del empaque de tu producto para que la IA <strong>investigue sus detalles online</strong>, desglose su ficha técnica, redacte el <strong>Copy para Instagram</strong> y genere el <strong>Afiche Publicitario 4:5</strong> con Diseñador Senior.</p>
+            
+            <!-- Box Escaneo Inteligente de Producto -->
+            <div class="card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.85rem;">📷 Foto del Empaque de Referencia:</span>
+                <span class="badge" style="background:var(--primary-subtle); color:var(--primary); font-size:0.75rem;">Visión IA + Búsqueda</span>
+              </div>
+              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div id="kmarket-scan-thumb" style="width:68px; height:68px; border-radius:6px; border:1px dashed var(--border-subtle); overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <img id="kmarket-scan-img" src="" alt="Empaque de referencia" style="width:100%; height:100%; object-fit:cover; display:none;">
+                  <span id="kmarket-scan-placeholder" style="font-size:1.8rem; color:var(--text-muted);">📷</span>
+                </div>
+                <div style="flex:1; min-width:200px;">
+                  <input type="file" id="kmarket-scan-file-input" aria-label="Subir foto del empaque de referencia" accept="image/*" style="display:none;">
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('kmarket-scan-file-input').click()">
+                      📁 Seleccionar Foto
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-scan-product-auto">
+                      🔍 Escanear e Investigar Producto
+                    </button>
+                  </div>
+                  <div id="kmarket-scan-status" class="text-muted" style="font-size:0.75rem;">Sube la foto del empaque para investigar marca, ingredientes y notas de sabor.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="kmarket-prod-name">Nombre del Producto / Novedad:</label>
+              <input type="text" id="kmarket-prod-name" class="form-control" placeholder="Ej: Bibigo Jinhan Kimchi Mandu, Ramen Buldak Carbonara...">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="kmarket-prod-desc">Ficha Técnica & Detalles Sensoriales:</label>
+              <textarea id="kmarket-prod-desc" class="form-control" rows="3" placeholder="Ingredientes clave, notas de sabor, texturas y cómo prepararlo..."></textarea>
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="btn btn-ai" style="flex:1;" id="btn-generate-kmarket-ai">
+                <span>📝 Redactar Copy con estos Datos</span>
+              </button>
+              <button class="btn btn-primary" style="flex:1;" id="btn-generate-kmarket-direct-poster">
+                <span>🎨 Generar Afiche 4:5 Ahora</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-open-gemini-web-floating" title="Abrir Gemini Web en ventana auxiliar compacta con el prompt listo">
+                <span>🌐 Abrir Gemini Web</span>
+              </button>
+            </div>
+
+            <!-- Box Prompt Maestro de Imagen -->
+            <div class="card" id="kmarket-image-prompt-box" style="display:none; margin-top:14px; background:var(--bg-secondary); border: 1px dashed var(--accent-primary);">
+              <div class="card-header" style="padding: 8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <strong style="font-size:0.82rem;">🎨 Imagen Publicitaria 4:5:</strong>
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-flux-image">✨ Generar con Gemini 3 Pro</button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-image-prompt">📋 Copiar Prompt</button>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 8px 12px;">
+                <textarea id="kmarket-image-prompt-text" aria-label="Prompt maestro de imagen publicitaria" class="form-control" rows="3" style="font-size:0.8rem; font-family:var(--font-mono);" readonly></textarea>
+                <div id="kmarket-ai-img-preview" style="display:none; margin-top:8px; text-align:center;">
+                  <img id="kmarket-ai-img-result" src="" alt="AI Generated" style="max-height:160px; border-radius:4px; border:1px solid var(--border-subtle); object-fit:cover;">
+                  <div style="font-size:0.75rem; color:var(--accent-brand-text); margin-top:4px; font-weight:600;">✅ ¡Imagen lista y cargada en el Composer!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODO 3: LA CAMPIÑA GUION REEL & FECHAS -->
+          <div class="ai-mode-pane" id="ai-pane-campina" style="display: none;">
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div style="font-size: 0.8rem; color: var(--text-primary);">
+                <span style="color: var(--success);">🌐</span> <strong>Datos oficiales de www.cabanaslacampina.cl</strong><br>
+                <span class="text-muted" style="font-size:0.75rem;">Cabañas familiares (2 a 8 p), Suites de pareja, Quinchos privados, Jardines temáticos, Desconexión sin Wi-Fi.</span>
+              </div>
+              <button class="btn btn-secondary btn-xs" id="btn-sync-campina-web" title="Re-escanear www.cabanaslacampina.cl">🔄 Sincronizar Web</button>
+            </div>
+            
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label" for="campina-format">Formato:</label>
+                <select id="campina-format" class="form-control">
+                  <option value="reel">🎥 Guión de Reel / Video (Audio + Tomas + Textos)</option>
+                  <option value="feed">🖼️ Publicación de Feed (Foto / Carrusel)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="campina-date">Ocasión / Fecha Próxima:</label>
+                <input type="text" id="campina-date" class="form-control" placeholder="Ej: Fin de semana, Feriado, Días de descanso...">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="campina-theme">Tema o Enfoque:</label>
+              <textarea id="campina-theme" class="form-control" rows="2" placeholder="Ej: Asado familiar en quincho privado, desconexión de pantallas en los jardines temáticos, escapada de descanso en suites de pareja..."></textarea>
+            </div>
+
+            <button class="btn btn-ai btn-full" id="btn-generate-campina-ai">
+              <span>🏡 Generar Guión y Copy La Campiña</span>
+            </button>
+          </div>
+
+          <!-- Resultado generado común -->
+          <div class="ai-result-box" id="ai-result-box" style="display: none; margin-top: 14px;">
+            <div class="ai-result-header">
+              <label class="form-label" for="ai-generated-text">Texto / Copy del Post:</label>
+              <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">🔄 Regenerar</button>
+            </div>
+            <textarea id="ai-generated-text" class="form-control" rows="8"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-ai">Cancelar</button>
+          <button class="btn btn-primary" id="btn-apply-ai-copy" style="display: none;">
+            Insertar en el Composer →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DE PUBLICACIÓN EN PLANNER -->
+  <div class="modal-backdrop" id="modal-planner-detail" style="display: none;">
+    <div class="modal-dialog" style="max-width: 580px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="planner-detail-format-badge" class="badge" style="background:var(--primary); color:#fff; font-size:0.75rem;">📱 Story</span>
+            <h3 id="planner-detail-title" style="margin:0; font-size:1.05rem;">Detalle de la Publicación</h3>
+          </div>
+          <button class="modal-close" id="btn-close-planner-detail">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-subtle); padding:10px 14px; border-radius:var(--radius-xs);">
+            <div>
+              <span style="font-size:0.75rem; color:var(--text-secondary);">Fecha / Horario:</span>
+              <div id="planner-detail-datetime" style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">--</div>
+            </div>
+            <div id="planner-detail-status-pill">
+              <span class="status-pill published">Publicado</span>
+            </div>
+          </div>
+
+          <!-- Desglose de Estado de Entrega por Red Social (FB / IG) -->
+          <div id="planner-detail-delivery-breakdown" style="display:none; font-size:0.78rem; border-radius:var(--radius-xs); padding:10px 14px; line-height:1.45;"></div>
+
+          <div id="planner-detail-media-container" style="text-align:center; max-height:260px; overflow:hidden; border-radius:var(--radius-xs); background:#0f172a; display:flex; align-items:center; justify-content:center;">
+            <!-- Media preview -->
+          </div>
+
+          <div>
+            <span class="form-label" style="font-size:0.78rem;">Texto & Hashtags:</span>
+            <div id="planner-detail-copy" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px; font-size:0.84rem; max-height:140px; overflow-y:auto; white-space:pre-wrap; line-height:1.45;"></div>
+          </div>
+
+          <!-- Opción para Subir / Convertir en Historia 9:16 -->
+          <div id="planner-detail-story-box" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(139,92,246,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.3); border-radius: var(--radius-xs); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                  <span>📲</span> Subir como Historia (Story 9:16)
+                </strong>
+                <span id="planner-detail-story-desc" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px; line-height:1.35;">
+                  Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.
+                </span>
+              </div>
+              <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#ec4899; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
+                Story 9:16
+              </span>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-planner-edit-story-composer" style="font-size:0.78rem; padding: 6px 12px; display:flex; align-items:center; gap:5px;" title="Cargar adaptado en Composer para previsualizar y editar">
+                <span>📝</span> Maquetar en Composer
+              </button>
+              <button type="button" class="btn btn-sm" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; border: none; font-weight: 700; font-size:0.78rem; padding: 6px 14px; border-radius: 4px; cursor: pointer; display:flex; align-items:center; gap:5px; box-shadow: 0 2px 8px rgba(236,72,153,0.35);" title="Crear Story 9:16 y publicar inmediatamente en Meta">
+                <span>⚡</span> Publicar Historia Ahora
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-danger" id="btn-planner-delete-post" style="background:#b91c1c; color:#fff; border:none; padding:7px 14px; border-radius:var(--radius-xs); font-weight:600; cursor:pointer;">
+            🗑️ Desprogramar / Eliminar
+          </button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #ec4899; font-weight: 600;">📲 Story 9:16</button>
+            <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MAQUETADOR FLYER LA CAMPIÑA 4:5 -->
+  <div class="modal-backdrop" id="modal-campina-flyer" style="display: none;">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" style="background:#047857; color:#fff; font-size:0.75rem;">🌲 La Campiña 4:5</span>
+            <h3 style="margin:0; font-size:1.05rem;">Maquetar Flyer Editorial sobre Foto Real</h3>
+          </div>
+          <button class="modal-close" id="btn-close-campina-flyer">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">
+            Ajusta tu foto real a proporción vertical 4:5 para Instagram con tipografía sobria de revista y jerarquía visual limpia. <strong>(Costo: $0.00)</strong>
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="campina-flyer-badge">Etiqueta Superior:</label>
+            <input type="text" id="campina-flyer-badge" class="form-control" value="CABAÑAS LA CAMPIÑA • ALGARROBO">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="campina-flyer-headline">Titular Principal:</label>
+            <input type="text" id="campina-flyer-headline" class="form-control" placeholder="Ej: TU ESCAPADA EN LA NATURALEZA">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="campina-flyer-subline">Subtítulo / Atributos de Descanso:</label>
+            <input type="text" id="campina-flyer-subline" class="form-control" placeholder="Ej: Tinajas calientes bajo las estrellas • Quinchos privados • Algarrobo">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="campina-flyer-style">Estilo Tipográfico:</label>
+            <select id="campina-flyer-style" class="form-control">
+              <option value="editorial" selected>Serif Editorial Elegante (Instrument Serif / Lora)</option>
+              <option value="minimal">Sans-Serif Moderna & Limpia (Outfit)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-campina-flyer">Cancelar</button>
+          <button class="btn btn-primary" id="btn-submit-campina-flyer" style="background:#047857; border-color:#047857;">
+            🌲 Crear Flyer Editorial 4:5 ($0)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DISEÑADOR SENIOR KMARKET (GEMINI 3 PRO) -->
+  <div class="modal-backdrop" id="modal-kmarket-designer" style="display: none;">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" style="background:#c2410c; color:#fff; font-size:0.75rem;">🛒 Kmarket 4:5</span>
+            <h3 style="margin:0; font-size:1.05rem;">Diseñador Gráfico Senior (Gemini Flash Lite)</h3>
+          </div>
+          <button class="modal-close" id="btn-close-kmarket-designer">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+          <div style="background:rgba(234, 88, 12, 0.08); border:1px solid rgba(234, 88, 12, 0.25); border-radius:6px; padding:10px 12px; font-size:0.78rem; color:var(--text-secondary);">
+            ⚡ <strong>Instrucción Maestra Activa:</strong> Se generará un arte publicitario 4:5 para Instagram evocando la estética del producto a partir de tu foto de referencia con la versión económica de Gemini.
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kmarket-designer-prod-name">Nombre del Producto:</label>
+            <input type="text" id="kmarket-designer-prod-name" class="form-control" placeholder="Ej: Samyang Buldak Carbonara, Helado Samanco...">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kmarket-designer-notes">Detalles o Estética a evocar <span class="text-muted">(opcional)</span>:</label>
+            <input type="text" id="kmarket-designer-notes" class="form-control" placeholder="Ej: Sabor picante cremoso, plato servido apetitoso...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-kmarket-designer">Cancelar</button>
+          <button class="btn btn-primary" id="btn-submit-kmarket-designer" style="background:#c2410c; border-color:#c2410c;">
+            🎨 Generar con Diseñador Senior (Gemini Flash Lite)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BATCH AUTOPILOT (IMPORTADOR Y PROGRAMADOR EN LOTE) -->
+  <div class="modal-backdrop" id="modal-batch-autopilot" style="display: none;">
+    <div class="modal-dialog" style="max-width: 840px; width: 95%;">
+      <div class="modal-content" style="max-height: 90vh; display: flex; flex-direction: column;">
+        
+        <div class="modal-header" style="background: var(--bg-surface-subtle); border-bottom: 1px solid var(--border-subtle); padding: 14px 20px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.4rem;">📦</span>
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary);">Importador en Lote & Autopilot</h3>
+              <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Sube tus afiches generados: se estampa el sello, se redacta el post oficial Kmarket y se agendan en slots libres.</p>
+            </div>
+          </div>
+          <button class="modal-close" id="btn-close-batch-modal">&times;</button>
+        </div>
+
+        <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+          <!-- STEP 1: Upload Dropzone -->
+          <div id="batch-step-upload">
+            <div id="batch-dropzone" style="border: 2px dashed var(--primary); border-radius: 12px; padding: 36px 20px; text-align: center; background: rgba(99, 102, 241, 0.03); cursor: pointer; transition: all 0.2s;">
+              <input type="file" id="batch-file-input" multiple accept="image/*" style="display: none;">
+              <div style="font-size: 3rem; margin-bottom: 12px;">📁</div>
+              <h4 style="margin: 0 0 6px 0; font-size: 1.1rem;">Arrastra aquí tus afiches o haz clic para seleccionarlos</h4>
+              <p style="margin: 0 0 16px 0; font-size: 0.82rem; color: var(--text-secondary);">Selecciona varios archivos a la vez (JPG, PNG, WebP generados en Gemini)</p>
+              <button type="button" class="btn btn-primary" onclick="document.getElementById('batch-file-input').click()">
+                Seleccionar Lote de Imágenes
+              </button>
+            </div>
+            
+            <div style="margin-top: 16px; background: var(--bg-surface-subtle); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-secondary);">
+              <strong>ℹ️ ¿Cómo funciona el Autopilot?</strong>
+              <ul style="margin: 6px 0 0 18px; padding: 0; line-height: 1.5;">
+                <li>Estampa automáticamente el sello circular de Kmarket en cada afiche.</li>
+                <li>La IA analiza cada imagen y redacta el post con la <strong>fórmula oficial de Kmarket</strong> (dirección física y 5-7 hashtags).</li>
+                <li>Calcula los <strong>próximos slots de horario libres</strong> en tu calendario para no colisionar publicaciones.</li>
+                <li>Podrás revisar y afinar cada texto y fecha antes de programar con un solo clic.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- STEP 2: Loading / Processing Progress -->
+          <div id="batch-step-processing" style="display: none; text-align: center; padding: 40px 20px;">
+            <div class="loading-spinner" style="width: 48px; height: 48px; border-width: 4px; margin: 0 auto 16px auto;"></div>
+            <h4 id="batch-progress-title" style="margin: 0 0 8px 0; font-size: 1.1rem;">Procesando imágenes del lote...</h4>
+            <p id="batch-progress-sub" style="margin: 0; font-size: 0.82rem; color: var(--text-secondary);">Estampando sellos oficiales y redactando copies con IA...</p>
+          </div>
+
+          <!-- STEP 3: Review & Schedule -->
+          <div id="batch-step-review" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong id="batch-review-summary" style="font-size: 0.95rem; color: var(--text-primary);">Publicaciones listas para programar</strong>
+                <p style="margin: 0; font-size: 0.75rem; color: var(--text-secondary);">Revisa cada publicación, ajusta el texto o el horario si lo deseas.</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-batch-add-more">
+                + Agregar Más Imágenes
+              </button>
+            </div>
+
+            <!-- Batch Story Auto-generator Config -->
+            <div id="batch-story-options-wrap" style="margin-bottom: 16px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 12px 16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; margin:0; font-size:0.86rem; color:var(--text-primary);">
+                  <input type="checkbox" id="batch-chk-create-stories" checked style="width:18px; height:18px; accent-color:var(--primary); cursor:pointer;">
+                  <span>📲 Crear y agendar también versión Historia (Story 9:16) para cada afiche</span>
+                </label>
+                <div id="batch-story-timing-box" style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
+                  <span style="color:var(--text-secondary); font-weight:600;">Horario de las Stories:</span>
+                  <select id="batch-story-timing-option" class="form-control" style="font-size:0.82rem; padding:4px 10px; width:auto; font-weight:600;">
+                    <option value="plus_3h" selected>⏰ 3 horas después del post (+3h)</option>
+                    <option value="night_slot">🌙 En la noche de cada día (20:30 hrs)</option>
+                    <option value="same_time">⚡ Mismo horario que el post</option>
+                    <option value="next_day">☀️ Al día siguiente a las 11:00 hrs</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- List of Post Cards -->
+            <div id="batch-items-container" style="display: flex; flex-direction: column; gap: 16px;">
+              <!-- Dynamic Cards generated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" id="batch-modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-batch">Cerrar</button>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-primary" id="btn-confirm-batch-schedule" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700; display: none;">
+              🚀 Aprobar y Programar Todo en el Calendario
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JS SCRIPTS -->
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/composer.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/watermark.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/batchScheduler.js"></script>
+</body>
+</html>

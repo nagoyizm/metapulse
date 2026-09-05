@@ -1,0 +1,32 @@
+{
+  "name": "metapulse-social-manager",
+  "version": "1.0.0",
+  "description": "Suite integral para gestión, programación, edición y analítica de Facebook e Instagram con Meta Graph API e IA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch-path=src --watch-path=public --watch-path=server.js server.js"
+  },
+  "keywords": [
+    "meta",
+    "facebook",
+    "instagram",
+    "social-media",
+    "scheduler",
+    "graph-api",
+    "automation",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "sharp": "^0.33.5"
+  }
+}

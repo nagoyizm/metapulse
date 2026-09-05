@@ -1,0 +1,354 @@
+/* ==========================================================================
+   PREVIEWS & MOCKUPS (Facebook & Instagram - Sharp Geometric Frame)
+   ========================================================================== */
+
+.preview-card {
+  position: sticky;
+  top: 20px;
+}
+
+.preview-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.preview-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.preview-tab.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.preview-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 440px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  padding: 18px;
+  overflow: hidden;
+}
+
+.mockup {
+  display: none;
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.mockup.active {
+  display: block;
+}
+
+/* ----------------------------------------------------
+   FACEBOOK POST MOCKUP
+   ---------------------------------------------------- */
+.mockup-fb {
+  background: var(--bg-surface);
+  color: var(--text-main);
+}
+
+.fb-post-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.fb-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-meta-fb);
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.fb-user-info h4 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 1px;
+}
+
+.fb-user-info span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.fb-post-body {
+  padding: 4px 14px 10px 14px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-main);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.fb-post-media {
+  width: 100%;
+  min-height: 180px;
+  max-height: 340px;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.fb-post-media img,
+.fb-post-media video {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  object-fit: cover;
+}
+
+.fb-post-footer {
+  display: flex;
+  border-top: 1px solid var(--border-subtle);
+  padding: 4px 6px;
+}
+
+.fb-action {
+  flex: 1;
+  text-align: center;
+  padding: 6px 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+
+.fb-action:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
+}
+
+/* ----------------------------------------------------
+   INSTAGRAM FEED MOCKUP
+   ---------------------------------------------------- */
+.mockup-ig {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+}
+
+.ig-post-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.ig-avatar-wrap {
+  padding: 1.5px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.ig-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--bg-surface);
+  color: var(--text-main);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ig-user-info h4 {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.ig-user-info span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.ig-post-media {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ig-post-media img,
+.ig-post-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ig-post-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 1.15rem;
+}
+
+.ig-action-left {
+  display: flex;
+  gap: 12px;
+}
+
+.ig-post-body {
+  padding: 0 12px 12px 12px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-main);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* ----------------------------------------------------
+   INSTAGRAM STORY MOCKUP
+   ---------------------------------------------------- */
+.mockup-story {
+  background: #000;
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  border: 2px solid var(--border-strong);
+  width: 260px;
+  box-shadow: var(--shadow-modal);
+}
+
+.story-device {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9/16;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #111;
+  display: flex;
+  flex-direction: column;
+}
+
+.story-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  z-index: 5;
+}
+
+.story-progress {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 1px;
+  margin-bottom: 6px;
+}
+
+.story-bar {
+  width: 45%;
+  height: 100%;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.story-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.story-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #bc1888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+}
+
+.story-time {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+.story-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.story-media img,
+.story-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-text-overlay {
+  position: absolute;
+  bottom: 14px;
+  left: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: #fff;
+  display: none;
+}
+
+.media-placeholder {
+  color: var(--text-subtle);
+  font-size: 0.78rem;
+  padding: 30px 14px;
+  text-align: center;
+}
