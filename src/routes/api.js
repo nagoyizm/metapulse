@@ -386,7 +386,7 @@ router.get('/posts/:id', (req, res) => {
 
 router.put('/posts/:id', (req, res) => {
   try {
-    const { title, content, platforms, post_type, media_urls, scheduled_at, status } = req.body;
+    const { title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name } = req.body;
     const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
     if (!post) {
       return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
@@ -401,6 +401,8 @@ router.put('/posts/:id', (req, res) => {
           media_urls = COALESCE(?, media_urls),
           scheduled_at = COALESCE(?, scheduled_at),
           status = COALESCE(?, status),
+          account_id = COALESCE(?, account_id),
+          account_name = COALESCE(?, account_name),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
@@ -411,11 +413,92 @@ router.put('/posts/:id', (req, res) => {
       media_urls ? JSON.stringify(media_urls) : null,
       scheduled_at,
       status,
+      account_id !== undefined ? account_id : null,
+      account_name !== undefined ? account_name : null,
       req.params.id
     );
 
     const updated = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
     res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reasignar una publicación individual a otra cuenta / negocio
+router.post('/posts/:id/reassign', (req, res) => {
+  try {
+    const { accountId, accountName } = req.body;
+    if (!accountId) {
+      return res.status(400).json({ success: false, error: 'Se requiere accountId para la reasignación.' });
+    }
+
+    const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
+    }
+
+    db.prepare(`
+      UPDATE posts
+      SET account_id = ?, account_name = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(accountId, accountName || '', req.params.id);
+
+    const updated = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
+    res.json({
+      success: true,
+      message: `¡Publicación #${req.params.id} transferida con éxito a "${accountName || accountId}"!`,
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reasignación masiva (Bulk) de publicaciones entre cuentas
+router.post('/posts/bulk-reassign', (req, res) => {
+  try {
+    const { sourceAccountId, targetAccountId, targetAccountName, postIds } = req.body;
+    if (!targetAccountId) {
+      return res.status(400).json({ success: false, error: 'Se requiere targetAccountId para transferir.' });
+    }
+
+    let updatedCount = 0;
+    if (Array.isArray(postIds) && postIds.length > 0) {
+      const stmt = db.prepare(`
+        UPDATE posts
+        SET account_id = ?, account_name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      const tx = db.transaction((ids) => {
+        for (const id of ids) {
+          stmt.run(targetAccountId, targetAccountName || '', id);
+          updatedCount++;
+        }
+      });
+      tx(postIds);
+    } else if (sourceAccountId) {
+      const resUpdate = db.prepare(`
+        UPDATE posts
+        SET account_id = ?, account_name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE account_id = ?
+      `).run(targetAccountId, targetAccountName || '', sourceAccountId);
+      updatedCount = resUpdate.changes;
+    } else {
+      // Si no se pasó sourceAccountId ni postIds, reasignar todos los posts que tengan account_id nulo o diferente al destino
+      const resUpdate = db.prepare(`
+        UPDATE posts
+        SET account_id = ?, account_name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE account_id != ? OR account_id IS NULL OR account_id = ''
+      `).run(targetAccountId, targetAccountName || '', targetAccountId);
+      updatedCount = resUpdate.changes;
+    }
+
+    res.json({
+      success: true,
+      message: `¡${updatedCount} publicación(es) transferida(s) con éxito a "${targetAccountName || targetAccountId}"!`,
+      count: updatedCount
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -971,6 +1054,11 @@ router.get('/meta/accounts', async (req, res) => {
       return res.json({ success: true, data: [] });
     }
     const pages = await metaService.getManagedPages(userToken, includeHidden === 'true');
+    if (pages && pages.length > 0) {
+      try {
+        setSetting('cached_managed_accounts', JSON.stringify(pages));
+      } catch (_) {}
+    }
     res.json({ success: true, data: pages });
   } catch (err) {
     res.status(500).json({ success: false, error: err.response ? (err.response.data?.error?.message || err.message) : err.message });
@@ -982,6 +1070,11 @@ router.post('/meta/detect-accounts', async (req, res) => {
     const userToken = req.body.userToken || getSetting('meta_user_token');
     const { includeHidden } = req.body;
     const pages = await metaService.getManagedPages(userToken, includeHidden !== false);
+    if (pages && pages.length > 0) {
+      try {
+        setSetting('cached_managed_accounts', JSON.stringify(pages));
+      } catch (_) {}
+    }
     res.json({ success: true, data: pages });
   } catch (err) {
     res.status(500).json({ success: false, error: err.response ? (err.response.data?.error?.message || err.message) : err.message });

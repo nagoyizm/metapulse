@@ -423,10 +423,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function setupPlannerAccountFilter() {
+  const pFilter = document.getElementById('planner-account-filter');
+  if (pFilter && !pFilter._hasListener) {
+    pFilter._hasListener = true;
+    pFilter.addEventListener('change', () => {
+      window.loadPlannerData(pFilter.value);
+    });
+  }
+}
+
 // 2. Cargar Datos del Planner (Posts pasados y futuros)
-window.loadPlannerData = async function() {
+window.loadPlannerData = async function(customAccountId) {
   try {
-    const res = await fetch('/api/posts?status=all&limit=100');
+    setupPlannerAccountFilter();
+    const filterEl = document.getElementById('planner-account-filter');
+    let targetAcc = customAccountId;
+    if (targetAcc === undefined && filterEl) {
+      targetAcc = filterEl.value;
+    }
+    if (!targetAcc) targetAcc = 'all';
+
+    const url = targetAcc === 'all'
+      ? '/api/posts?status=all&limit=250&accountId=all'
+      : `/api/posts?status=all&limit=250&accountId=${encodeURIComponent(targetAcc)}`;
+
+    const res = await fetch(url);
     const json = await res.json();
     if (json.success) {
       PlannerState.posts = json.data || [];
@@ -842,14 +874,15 @@ function renderQueueTable(posts) {
     return `
       <tr>
         <td><strong>#${post.id}</strong></td>
+        <td><span class="badge" style="background: rgba(99,102,241,0.12); color: var(--primary); font-size: 0.75rem; font-weight:600; white-space:nowrap;">🏢 ${escapeHtml(post.account_name || 'Cuenta General')}</span></td>
         <td>📅 ${scheduleDate}</td>
         <td><div style="display:flex;gap:4px;align-items:center;">${platformBadges}</div></td>
         <td><span class="badge badge-accent">${(post.post_type || 'feed').toUpperCase()}</span></td>
         <td style="cursor:pointer;" onclick="window.showPlannerPostDetailById(${post.id})" title="Click para ver detalle y opciones de Historia 9:16">
           <div style="display:flex; gap:10px; align-items:center;">
             ${mediaThumb}
-            <div style="max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              ${post.title ? `<strong>${post.title}:</strong> ` : ''}${post.content}
+            <div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${post.title ? `<strong>${escapeHtml(post.title)}:</strong> ` : ''}${escapeHtml(post.content || '')}
             </div>
           </div>
         </td>
@@ -863,6 +896,7 @@ function renderQueueTable(posts) {
               <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>
             ` : ''}
             <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">📲 Story</button>
+            <button class="btn btn-ghost btn-xs" onclick="window.openReassignModal(${post.id}, '${escapeHtml(post.account_name || '')}', '${post.account_id || ''}')" title="Reasignar a otra cuenta">🏢 Mover</button>
             <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${post.id})" title="Reutilizar copy en Composer">🔄 Reusar</button>
             <button class="btn btn-ghost btn-xs" style="color:var(--accent-rose);" onclick="deletePost(${post.id})" title="Eliminar">&times;</button>
           </div>
@@ -1112,3 +1146,148 @@ window.reusePost = function(id) {
 
   showToast('Contenido copiado al Composer', 'info');
 };
+
+// ==========================================
+// 6. GESTIÓN Y REASIGNACIÓN DE CUENTAS EN POSTS
+// ==========================================
+let currentReassignTarget = { mode: 'single', postId: null, currentAccountId: null };
+
+window.openReassignModal = function(postId, currentAccountName, currentAccountId) {
+  const modal = document.getElementById('modal-reassign-post');
+  if (!modal) return;
+
+  currentReassignTarget = { mode: 'single', postId, currentAccountId };
+
+  const titleEl = document.getElementById('modal-reassign-title');
+  const singleInfo = document.getElementById('reassign-single-info');
+  const bulkBox = document.getElementById('reassign-bulk-options');
+  const postLabel = document.getElementById('reassign-post-label');
+  const currentAcc = document.getElementById('reassign-current-account');
+  const btnConfirm = document.getElementById('btn-confirm-reassign');
+  const targetSelect = document.getElementById('reassign-target-select');
+
+  if (titleEl) titleEl.textContent = `Reasignar Publicación #${postId}`;
+  if (singleInfo) singleInfo.style.display = 'block';
+  if (bulkBox) bulkBox.style.display = 'none';
+  if (postLabel) postLabel.textContent = `#${postId}`;
+  if (currentAcc) currentAcc.textContent = currentAccountName || 'Cuenta General';
+  if (btnConfirm) btnConfirm.textContent = '✅ Transferir Publicación';
+
+  // Si hay páginas cacheadas, asegurar que targetSelect esté poblado
+  if (targetSelect && window._cachedMetaPages && targetSelect.options.length === 0) {
+    targetSelect.innerHTML = window._cachedMetaPages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
+  }
+
+  setupReassignConfirmBtn();
+  modal.style.display = 'flex';
+};
+
+window.openBulkReassignModal = function(sourceAccountId, sourceAccountName) {
+  const modal = document.getElementById('modal-reassign-post');
+  if (!modal) return;
+
+  currentReassignTarget = { mode: 'bulk' };
+
+  const titleEl = document.getElementById('modal-reassign-title');
+  const singleInfo = document.getElementById('reassign-single-info');
+  const bulkBox = document.getElementById('reassign-bulk-options');
+  const btnConfirm = document.getElementById('btn-confirm-reassign');
+  const targetSelect = document.getElementById('reassign-target-select');
+  const sourceSelect = document.getElementById('reassign-source-select');
+
+  if (titleEl) titleEl.textContent = 'Mover Publicaciones en Lote a otra Cuenta';
+  if (singleInfo) singleInfo.style.display = 'none';
+  if (bulkBox) bulkBox.style.display = 'block';
+  if (btnConfirm) btnConfirm.textContent = '🚀 Transferir Todos los Posts';
+
+  // Asegurar que selects estén poblados
+  if (window._cachedMetaPages) {
+    const opts = window._cachedMetaPages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
+    if (targetSelect && targetSelect.options.length === 0) targetSelect.innerHTML = opts;
+    if (sourceSelect && sourceSelect.options.length === 0) sourceSelect.innerHTML = opts;
+  }
+
+  if (sourceSelect && sourceAccountId) {
+    sourceSelect.value = sourceAccountId;
+  }
+
+  setupReassignConfirmBtn();
+  modal.style.display = 'flex';
+};
+
+window.closeReassignModal = function() {
+  const modal = document.getElementById('modal-reassign-post');
+  if (modal) modal.style.display = 'none';
+};
+
+function setupReassignConfirmBtn() {
+  const btnConfirm = document.getElementById('btn-confirm-reassign');
+  if (btnConfirm && !btnConfirm._hasListener) {
+    btnConfirm._hasListener = true;
+    btnConfirm.addEventListener('click', async () => {
+      const targetSelect = document.getElementById('reassign-target-select');
+      const targetOpt = targetSelect?.options[targetSelect.selectedIndex];
+      const targetAccountId = targetSelect?.value;
+      const targetAccountName = targetOpt?.getAttribute('data-name') || targetOpt?.textContent?.trim() || '';
+
+      if (!targetAccountId) {
+        showToast('Selecciona una cuenta de destino válida.', 'warning');
+        return;
+      }
+
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Procesando transferencia...';
+
+      try {
+        if (currentReassignTarget.mode === 'single') {
+          const res = await fetch(`/api/posts/${currentReassignTarget.postId}/reassign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId: targetAccountId, accountName: targetAccountName })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast(json.message || 'Publicación reasignada con éxito.', 'success');
+            window.closeReassignModal();
+            window.loadPlannerData();
+            if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+          } else {
+            throw new Error(json.error || 'Error al reasignar');
+          }
+        } else {
+          // Transferencia en Lote (Bulk)
+          const sourceSelect = document.getElementById('reassign-source-select');
+          const sourceAccountId = sourceSelect?.value;
+
+          const res = await fetch('/api/posts/bulk-reassign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceAccountId,
+              targetAccountId,
+              targetAccountName
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast(json.message || 'Transferencia masiva completada.', 'success');
+            window.closeReassignModal();
+            window.loadPlannerData();
+            if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+          } else {
+            throw new Error(json.error || 'Error en transferencia masiva');
+          }
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btnConfirm.disabled = false;
+        btnConfirm.textContent = currentReassignTarget.mode === 'single' ? '✅ Transferir Publicación' : '🚀 Transferir Todos los Posts';
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupReassignConfirmBtn();
+});

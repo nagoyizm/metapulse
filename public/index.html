@@ -305,6 +305,16 @@
               </div>
 
               <div class="card-body">
+                <!-- Active Target Account Banner -->
+                <div class="composer-active-account-banner" id="composer-account-banner" style="margin-bottom: 16px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.1rem;">🏢</span>
+                    <span style="font-size: 0.82rem; color: var(--text-secondary);">Publicando en la cuenta:</span>
+                    <strong id="composer-active-account-name" style="font-size: 0.9rem; color: var(--primary);">Cargando...</strong>
+                  </div>
+                  <span id="composer-active-account-ig" class="badge badge-accent" style="font-size: 0.75rem;">IG: --</span>
+                </div>
+
                 <!-- Target Platforms -->
                 <div class="form-group">
                   <span class="form-label">Destinos de Publicación:</span>
@@ -621,12 +631,21 @@
             <button type="button" class="planner-view-btn" data-view="slots">⏰ Horarios Semanales (Slots)</button>
           </div>
 
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div class="planner-account-filter-wrap" style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:0.78rem; color:var(--text-secondary); font-weight:600;">🏢 Cuenta:</span>
+              <select id="planner-account-filter" class="form-control" style="width: auto; min-width: 170px; padding: 4px 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                <option value="all">🌐 Todas las cuentas</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-open-bulk-reassign" onclick="window.openBulkReassignModal()" title="Mover publicaciones de una cuenta a otra">
+              🏢 Mover Posts en Lote
+            </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-live-queue" title="Sincronizar publicaciones en vivo desde Instagram">
-              🔄 Sincronizar Posts de Meta
+              🔄 Sincronizar Meta
             </button>
             <button type="button" class="btn btn-sm" id="btn-planner-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
-              📦 Carga en Lote (Autopilot)
+              📦 Carga en Lote
             </button>
             <button type="button" class="btn btn-primary btn-sm" id="btn-planner-new-post">
               + Crear Post
@@ -693,6 +712,7 @@
                   <thead>
                     <tr>
                       <th>ID</th>
+                      <th>Cuenta / Negocio</th>
                       <th>Fecha Programada</th>
                       <th>Destino</th>
                       <th>Tipo</th>
@@ -1694,6 +1714,16 @@
         </div>
 
         <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+          <!-- Active Target Account Badge for Batch -->
+          <div style="margin-bottom: 16px; padding: 10px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.1rem;">🏢</span>
+              <span style="font-size: 0.82rem; color: var(--text-secondary);">Cuenta destino para este lote:</span>
+              <strong id="batch-target-account-name" style="font-size: 0.9rem; color: var(--primary);">Cargando...</strong>
+            </div>
+            <span id="batch-target-account-ig" class="badge badge-accent" style="font-size: 0.75rem;">IG: --</span>
+          </div>
+
           <!-- STEP 1: Upload Dropzone -->
           <div id="batch-step-upload">
             <div id="batch-dropzone" style="border: 2px dashed var(--primary); border-radius: 12px; padding: 36px 20px; text-align: center; background: rgba(99, 102, 241, 0.03); cursor: pointer; transition: all 0.2s;">
@@ -1771,6 +1801,61 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REASIGNAR PUBLICACIÓN DE CUENTA -->
+  <div class="modal-backdrop" id="modal-reassign-post" style="display: none;">
+    <div class="modal-dialog" style="max-width: 520px; width: 95%;">
+      <div class="modal-content">
+        <div class="modal-header" style="background: var(--bg-surface-subtle); border-bottom: 1px solid var(--border-subtle); padding: 14px 20px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.3rem;">🏢</span>
+            <div>
+              <h3 style="margin:0; font-size:1.1rem;" id="modal-reassign-title">Reasignar Publicación</h3>
+              <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Mueve publicaciones entre cuentas de Facebook e Instagram</p>
+            </div>
+          </div>
+          <button class="modal-close" onclick="window.closeReassignModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <div id="reassign-single-info" style="margin-bottom: 14px; padding: 12px; background: var(--bg-surface-subtle); border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 0.85rem;">
+            <div><strong>Publicación:</strong> <span id="reassign-post-label">#--</span></div>
+            <div style="margin-top: 4px; color: var(--text-secondary);">Cuenta actual: <strong id="reassign-current-account" style="color:var(--text-primary);">--</strong></div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; display: block;">
+              Selecciona la Cuenta Destino:
+            </label>
+            <select id="reassign-target-select" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; font-weight: 600;">
+              <!-- Opciones cargadas dinámicamente -->
+            </select>
+          </div>
+
+          <div id="reassign-bulk-options" style="display: none; margin-top: 14px; padding: 14px; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px;">
+            <label class="form-label" style="font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; display: block; color: var(--primary);">
+              ⚡ Transferencia en Lote (Migrar todo):
+            </label>
+            <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 10px 0;">
+              Transfiere todas las publicaciones programadas de una cuenta de prueba a tu cuenta definitiva en 1 clic.
+            </p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span style="font-size: 0.8rem; font-weight: 600;">Desde la cuenta:</span>
+              <select id="reassign-source-select" class="form-control" style="font-size: 0.82rem; padding: 4px 8px; width: auto; font-weight: 600;">
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid var(--border-subtle);">
+          <button type="button" class="btn btn-secondary" onclick="window.closeReassignModal()">Cancelar</button>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-primary" id="btn-confirm-reassign">
+              ✅ Confirmar Reasignación
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

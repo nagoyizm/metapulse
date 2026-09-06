@@ -199,10 +199,12 @@ class MetaService {
   /**
    * Publica en la Página de Facebook
    */
-  async publishToFacebook({ message, mediaUrls = [], postType = 'feed' }) {
+  async publishToFacebook({ message, mediaUrls = [], postType = 'feed', customPageId, customPageToken }) {
     const config = this.getConfig();
+    const pageId = customPageId || config.pageId;
+    const pageToken = customPageToken || config.pageToken;
 
-    if (config.simulationMode || !config.pageToken || !config.pageId) {
+    if (config.simulationMode || !pageToken || !pageId) {
       if (config.simulationMode) {
         return {
           success: true,
@@ -214,9 +216,6 @@ class MetaService {
       }
       throw new Error('Facebook no está configurado (falta PAGE_ID o PAGE_TOKEN).');
     }
-
-    const pageId = config.pageId;
-    const pageToken = config.pageToken;
     const resolvedMedia = (await Promise.all(mediaUrls.map(url => this.resolveMediaUrl(url)))).filter(Boolean);
 
     // Caso 1: Solo texto
@@ -483,10 +482,12 @@ class MetaService {
   /**
    * Publica en Instagram Business (Feed, Story, Reel, Carousel)
    */
-  async publishToInstagram({ message, mediaUrls = [], postType = 'feed' }) {
+  async publishToInstagram({ message, mediaUrls = [], postType = 'feed', customInstagramId, customPageToken }) {
     const config = this.getConfig();
+    const igUserId = customInstagramId || config.instagramId;
+    const token = customPageToken || config.pageToken;
 
-    if (config.simulationMode || !config.instagramId || !config.pageToken) {
+    if (config.simulationMode || !igUserId || !token) {
       if (config.simulationMode) {
         return {
           success: true,
@@ -498,9 +499,6 @@ class MetaService {
       }
       throw new Error('Instagram no está configurado (falta INSTAGRAM_ACCOUNT_ID o PAGE_TOKEN).');
     }
-
-    const igUserId = config.instagramId;
-    const token = config.pageToken;
     const resolvedMedia = (await Promise.all(mediaUrls.map(url => this.resolveMediaUrl(url)))).filter(Boolean);
 
     if (resolvedMedia.length === 0) {

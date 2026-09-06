@@ -362,6 +362,39 @@ window.reusePost = async function(id) {
   }
 };
 
+// Helper global para obtener la cuenta actualmente seleccionada en el header
+window.getActiveAccount = function() {
+  const select = document.getElementById('global-account-select');
+  if (!select || !select.value) return null;
+  const opt = select.options[select.selectedIndex];
+  return {
+    pageId: select.value,
+    pageName: opt?.getAttribute('data-name') || '',
+    pageToken: opt?.getAttribute('data-token') || '',
+    instagramId: opt?.getAttribute('data-igid') || '',
+    instagramUsername: opt?.getAttribute('data-iguser') || ''
+  };
+};
+
+// Actualiza los badges informativos en el Composer y en el Batch Autopilot
+window.updateActiveAccountBadges = function() {
+  const active = window.getActiveAccount();
+  const compName = document.getElementById('composer-active-account-name');
+  const compIg = document.getElementById('composer-active-account-ig');
+  const batchName = document.getElementById('batch-target-account-name');
+  const batchIg = document.getElementById('batch-target-account-ig');
+
+  if (active) {
+    if (compName) compName.textContent = active.pageName;
+    if (compIg) compIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
+    if (batchName) batchName.textContent = active.pageName;
+    if (batchIg) batchIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
+  } else {
+    if (compName) compName.textContent = 'Sin cuenta seleccionada';
+    if (batchName) batchName.textContent = 'Sin cuenta seleccionada';
+  }
+};
+
 // Cargar opciones en el Selector de Negocio Global
 async function loadAccountSwitcher() {
   const select = document.getElementById('global-account-select');
@@ -372,10 +405,12 @@ async function loadAccountSwitcher() {
     const json = await res.json();
     if (!json.success || !json.data || json.data.length === 0) {
       select.innerHTML = '<option value="">Sin cuentas conectadas</option>';
+      window.updateActiveAccountBadges();
       return;
     }
 
     const pages = json.data;
+    window._cachedMetaPages = pages;
     const currentSelectedPageId = AppState.config ? AppState.config.pageId : '';
 
     select.innerHTML = pages.map(p => {
@@ -389,6 +424,29 @@ async function loadAccountSwitcher() {
     if (currentSelectedPageId) {
       select.value = currentSelectedPageId;
     }
+
+    // Poblar también el filtro de cuentas del Planner / Cola
+    const plannerFilter = document.getElementById('planner-account-filter');
+    if (plannerFilter) {
+      const currentFilterVal = plannerFilter.value || 'all';
+      plannerFilter.innerHTML = '<option value="all">🌐 Todas las cuentas</option>' + pages.map(p => {
+        const igLabel = p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : '';
+        return `<option value="${p.pageId}">${p.pageName}${igLabel}</option>`;
+      }).join('');
+      if (currentSelectedPageId && currentFilterVal !== 'all') {
+        plannerFilter.value = currentSelectedPageId;
+      }
+    }
+
+    // Poblar los selects del Modal de Reasignación
+    const targetSelect = document.getElementById('reassign-target-select');
+    const sourceSelect = document.getElementById('reassign-source-select');
+    const pagesOptions = pages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
+    if (targetSelect) targetSelect.innerHTML = pagesOptions;
+    if (sourceSelect) sourceSelect.innerHTML = pagesOptions;
+
+    // Actualizar badges visuales
+    window.updateActiveAccountBadges();
 
     select.onchange = async () => {
       const opt = select.options[select.selectedIndex];
@@ -410,8 +468,15 @@ async function loadAccountSwitcher() {
         const switchJson = await switchRes.json();
         if (switchJson.success) {
           showToast(`¡Cuenta activa cambiada a: ${pageName}!`, 'success');
+          window.updateActiveAccountBadges();
           loadDashboardStatus();
           loadProactiveRadar();
+
+          // Si el filtro de planner no estaba en 'all', sincronizarlo
+          if (plannerFilter && plannerFilter.value !== 'all') {
+            plannerFilter.value = pageId;
+          }
+
           if (window.loadPlannerData) window.loadPlannerData();
           if (window.loadQueuePosts) window.loadQueuePosts();
           if (window.loadAnalyticsData) window.loadAnalyticsData();

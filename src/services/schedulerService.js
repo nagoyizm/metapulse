@@ -70,12 +70,39 @@ class SchedulerService {
     }
   }
 
-  async dispatchToFacebook(post, mediaUrls) {
+  getAccountCredentials(post) {
+    let targetPageId = null;
+    let targetPageToken = null;
+    let targetInstagramId = null;
+
+    if (post && post.account_id) {
+      try {
+        const cachedStr = getSetting('cached_managed_accounts');
+        if (cachedStr) {
+          const accounts = JSON.parse(cachedStr);
+          const acc = accounts.find(a => String(a.pageId) === String(post.account_id));
+          if (acc && acc.pageToken) {
+            targetPageId = acc.pageId;
+            targetPageToken = acc.pageToken;
+            if (acc.instagram && acc.instagram.id) {
+              targetInstagramId = acc.instagram.id;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    return { targetPageId, targetPageToken, targetInstagramId };
+  }
+
+  async dispatchToFacebook(post, mediaUrls, creds = {}) {
     try {
       return await metaService.publishToFacebook({
         message: post.content,
         mediaUrls: mediaUrls,
-        postType: post.post_type
+        postType: post.post_type,
+        customPageId: creds.targetPageId,
+        customPageToken: creds.targetPageToken
       });
     } catch (fbErr) {
       const msg = fbErr.response ? (fbErr.response.data.error?.message || fbErr.message) : fbErr.message;
@@ -83,12 +110,14 @@ class SchedulerService {
     }
   }
 
-  async dispatchToInstagram(post, mediaUrls) {
+  async dispatchToInstagram(post, mediaUrls, creds = {}) {
     try {
       return await metaService.publishToInstagram({
         message: post.content,
         mediaUrls: mediaUrls,
-        postType: post.post_type
+        postType: post.post_type,
+        customInstagramId: creds.targetInstagramId,
+        customPageToken: creds.targetPageToken
       });
     } catch (igErr) {
       const msg = igErr.response ? (igErr.response.data.error?.message || igErr.message) : igErr.message;
@@ -107,17 +136,18 @@ class SchedulerService {
       WHERE id = ?
     `).run(post.id);
 
-    console.log(`📤 Publicando Post ID ${post.id} ("${post.title || 'Sin título'}")...`);
+    console.log(`📤 Publicando Post ID ${post.id} ("${post.title || 'Sin título'}") [Cuenta: ${post.account_name || post.account_id || 'Predeterminada'}]...`);
 
     const platforms = JSON.parse(post.platforms || '["facebook","instagram"]');
     const mediaUrls = JSON.parse(post.media_urls || '[]');
+    const creds = this.getAccountCredentials(post);
     const results = {};
     let hasError = false;
     let errorMessage = '';
 
     try {
       if (platforms.includes('facebook')) {
-        results.facebook = await this.dispatchToFacebook(post, mediaUrls);
+        results.facebook = await this.dispatchToFacebook(post, mediaUrls, creds);
         if (!results.facebook.success) {
           hasError = true;
           errorMessage += `FB: ${results.facebook.error}; `;
@@ -125,7 +155,7 @@ class SchedulerService {
       }
 
       if (platforms.includes('instagram')) {
-        results.instagram = await this.dispatchToInstagram(post, mediaUrls);
+        results.instagram = await this.dispatchToInstagram(post, mediaUrls, creds);
         if (!results.instagram.success) {
           hasError = true;
           errorMessage += `IG: ${results.instagram.error}; `;

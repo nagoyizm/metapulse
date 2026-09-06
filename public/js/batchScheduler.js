@@ -15,6 +15,9 @@
   window.openBatchModal = function openBatchModal() {
     const modal = getEl('modal-batch-autopilot');
     if (!modal) return;
+    if (typeof window.updateActiveAccountBadges === 'function') {
+      window.updateActiveAccountBadges();
+    }
     modal.style.display = 'flex';
     resetBatchViews();
   };
@@ -314,6 +317,10 @@
 
     const includeStories = Boolean(document.getElementById('batch-chk-create-stories')?.checked);
     const storyTimingRule = document.getElementById('batch-story-timing-option')?.value || 'plus_3h';
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const accountSelect = document.getElementById('global-account-select');
+    const accountId = activeAcc?.pageId || accountSelect?.value || '';
+    const accountName = activeAcc?.pageName || (accountSelect?.options[accountSelect?.selectedIndex]?.getAttribute('data-name')) || '';
 
     try {
       const res = await fetch('/api/batch/confirm-schedule', {
@@ -322,7 +329,9 @@
         body: JSON.stringify({
           posts: postsToSchedule,
           include_stories: includeStories,
-          story_timing_rule: storyTimingRule
+          story_timing_rule: storyTimingRule,
+          accountId,
+          accountName
         })
       });
 

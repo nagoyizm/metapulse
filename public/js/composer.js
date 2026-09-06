@@ -738,6 +738,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Procesando solicitud de publicación...', 'info');
 
     try {
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      const accountSelect = document.getElementById('global-account-select');
+      const accountId = activeAcc?.pageId || accountSelect?.value || '';
+      const accountName = activeAcc?.pageName || (accountSelect?.options[accountSelect?.selectedIndex]?.getAttribute('data-name')) || '';
+
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -749,6 +754,8 @@ document.addEventListener('DOMContentLoaded', () => {
           media_urls: ComposerState.mediaFiles,
           schedule_type: scheduleOption,
           scheduled_at: customSchedule,
+          accountId,
+          accountName,
           also_share_story: alsoShareStory,
           story_timing_rule: storyTimingRule,
           story_custom_datetime: storyCustomDatetime
