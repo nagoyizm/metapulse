@@ -731,9 +731,20 @@ function showPlannerPostDetail(post) {
     if (mediaUrls.length > 0) {
       const firstMedia = mediaUrls[0];
       const isVid = firstMedia.match(/\.(mp4|mov|webm)$/i);
-      mediaContainer.innerHTML = isVid
-        ? `<video src="${firstMedia}" controls style="max-height:240px; max-width:100%;"></video>`
-        : `<img src="${firstMedia}" alt="preview" style="max-height:240px; max-width:100%; object-fit:contain;">`;
+      mediaContainer.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
+          ${isVid
+            ? `<video src="${firstMedia}" controls style="max-height:240px; max-width:100%; border-radius:8px;"></video>`
+            : `<img src="${firstMedia}" alt="preview" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px;">
+            ${mediaUrls.map((url, idx) => `
+              <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
+                <span>📥</span> Descargar ${isVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
       mediaContainer.style.display = 'flex';
     } else {
       mediaContainer.style.display = 'none';
@@ -896,6 +907,9 @@ function renderQueueTable(posts) {
               <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>
             ` : ''}
             <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">📲 Story</button>
+            ${media.length > 0 ? `
+              <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'post-${post.id}')" title="Descargar imagen del post">📥 Bajar</button>
+            ` : ''}
             <button class="btn btn-ghost btn-xs" onclick="window.openReassignModal(${post.id}, '${escapeHtml(post.account_name || '')}', '${post.account_id || ''}')" title="Reasignar a otra cuenta">🏢 Mover</button>
             <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${post.id})" title="Reutilizar copy en Composer">🔄 Reusar</button>
             <button class="btn btn-ghost btn-xs" style="color:var(--accent-rose);" onclick="deletePost(${post.id})" title="Eliminar">&times;</button>
@@ -905,6 +919,35 @@ function renderQueueTable(posts) {
     `;
   }).join('');
 }
+
+// Descarga de archivos multimedia de posts programados o publicados
+window.downloadMediaFile = async function(url, suggestedName) {
+  if (!url) return;
+  try {
+    if (typeof showToast === 'function') showToast('Descargando archivo multimedia...', 'info');
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    const extMatch = url.match(/\.(jpg|jpeg|png|webp|mp4|mov|gif)/i);
+    const ext = extMatch ? extMatch[0] : '.jpg';
+    a.download = (suggestedName || 'post-media') + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    if (typeof showToast === 'function') showToast('¡Archivo descargado correctamente!', 'success');
+  } catch (err) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.download = (suggestedName || 'post-media') + '.jpg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+};
 
 // 5. Cargar Slots Semanales y Presets Guardados
 window._loadedSchedulePresets = [];

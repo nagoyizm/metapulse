@@ -145,18 +145,32 @@ async function loadDashboardStatus() {
     // Lista de próximos posts
     const upcomingList = document.getElementById('dash-upcoming-list');
     if (upcomingPosts && upcomingPosts.length > 0) {
-      upcomingList.innerHTML = upcomingPosts.map(p => `
-        <div class="page-select-card">
-          <div class="page-info-block">
-            <span class="badge badge-accent">${p.post_type.toUpperCase()}</span>
+      upcomingList.innerHTML = upcomingPosts.map(p => {
+        let media = [];
+        try { media = JSON.parse(p.media_urls || '[]'); } catch (_) {}
+        const firstMedia = media.length > 0 ? media[0] : null;
+        const isVid = firstMedia ? firstMedia.match(/\.(mp4|mov)$/i) : false;
+        const mediaThumb = firstMedia
+          ? (isVid ? `<div style="width:38px; height:38px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>` : `<img src="${firstMedia}" style="width:38px; height:38px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`)
+          : '';
+
+        return `
+        <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:8px;">
+          <div class="page-info-block" style="gap:10px; align-items:center;">
+            ${mediaThumb}
             <div>
-              <strong>${p.title || (p.content.slice(0, 40) + '...')}</strong>
-              <p class="text-muted" style="font-size:0.75rem;">📅 ${new Date(p.scheduled_at).toLocaleString()}</p>
+              <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
+              <strong style="display:block; font-size:0.85rem; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.title || (p.content.slice(0, 40) + '...')}</strong>
+              <p class="text-muted" style="font-size:0.75rem; margin:0;">📅 ${new Date(p.scheduled_at).toLocaleString()}</p>
             </div>
           </div>
-          <span class="status-pill scheduled">Programado</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">📥 Bajar</button>` : ''}
+            <span class="status-pill scheduled">Programado</span>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // Lista de recientes publicados
@@ -164,8 +178,9 @@ async function loadDashboardStatus() {
     if (recentPublished && recentPublished.length > 0) {
       recentList.innerHTML = recentPublished.map(p => {
         let mediaThumb = '';
+        let media = [];
         try {
-          const media = JSON.parse(p.media_urls || '[]');
+          media = JSON.parse(p.media_urls || '[]');
           if (media.length > 0) {
             const isVid = media[0].match(/\.(mp4|mov)$/i);
             mediaThumb = isVid
@@ -187,6 +202,9 @@ async function loadDashboardStatus() {
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+            ${media.length > 0 ? `
+              <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'published-${p.id}')" title="Descargar imagen">📥 Bajar</button>
+            ` : ''}
             <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${p.id})" title="Repostear este post como Historia 9:16">
               📲 Historia
             </button>
