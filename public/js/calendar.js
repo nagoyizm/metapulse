@@ -15,6 +15,56 @@ const PlannerState = {
   posts: []
 };
 
+// Utilidades centralizadas de fecha/hora en uso horario de Chile (America/Santiago)
+const CHILE_TZ = 'America/Santiago';
+
+function getChileDateString(rawDate) {
+  if (!rawDate) return '';
+  try {
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return String(rawDate).slice(0, 10);
+    return d.toLocaleDateString('en-CA', { timeZone: CHILE_TZ }); // Formato YYYY-MM-DD
+  } catch (_) {
+    return String(rawDate).slice(0, 10);
+  }
+}
+
+function formatChileTime(rawDate) {
+  if (!rawDate) return '';
+  try {
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('es-CL', {
+      timeZone: CHILE_TZ,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch (_) {
+    return '';
+  }
+}
+
+function formatChileDateTime(rawDate, options = {}) {
+  if (!rawDate) return 'Sin fecha';
+  try {
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return String(rawDate);
+    const defaultOpts = {
+      timeZone: CHILE_TZ,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+    return d.toLocaleString('es-CL', { ...defaultOpts, ...options });
+  } catch (_) {
+    return String(rawDate);
+  }
+}
+
 // 1. Inicialización y Gestión de Vistas del Planner
 document.addEventListener('DOMContentLoaded', () => {
   // Selector de Vistas: Calendario, Lista o Slots
@@ -492,11 +542,11 @@ function renderPlannerCalendar() {
     const isToday = isCurrentMonth && d === todayDate;
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-    // Filtrar publicaciones que correspondan a esta fecha
+    // Filtrar publicaciones que correspondan a esta fecha usando zona horaria de Chile
     const dayPosts = PlannerState.posts.filter(p => {
       const rawDate = p.scheduled_at || p.published_at;
       if (!rawDate) return false;
-      const postDateStr = rawDate.slice(0, 10);
+      const postDateStr = getChileDateString(rawDate);
       if (postDateStr !== dateStr) return false;
 
       // Aplicar filtro de formato o estado
@@ -568,11 +618,7 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
       const thumbUrl = mediaUrls[0] || '';
 
       const rawDate = post.scheduled_at || post.published_at || '';
-      let timeStr = '';
-      if (rawDate) {
-        const dObj = new Date(rawDate);
-        timeStr = dObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      }
+      const timeStr = formatChileTime(rawDate);
 
       const formatIcon = isStory ? '📱' : isReel ? '🎥' : '🖼️';
       const statusIcon = isScheduled ? '🕒' : '✅';
@@ -629,9 +675,14 @@ function showPlannerPostDetail(post) {
   const rawDate = post.scheduled_at || post.published_at;
   const dateEl = document.getElementById('planner-detail-datetime');
   if (dateEl) {
-    dateEl.textContent = rawDate
-      ? new Date(rawDate).toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : 'Sin fecha asignada';
+    dateEl.textContent = formatChileDateTime(rawDate, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   let metaRes = null;
@@ -864,9 +915,12 @@ function renderQueueTable(posts) {
       statusPill += `<br><small style="color:var(--accent-rose); font-size:0.7rem;">Reintento ${post.retry_count}/${post.max_retries}</small>`;
     }
 
-    const scheduleDate = post.published_at || post.scheduled_at 
-      ? new Date(post.published_at || post.scheduled_at).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-      : 'Sin fecha';
+    const scheduleDate = formatChileDateTime(post.published_at || post.scheduled_at, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
     return `
       <tr>

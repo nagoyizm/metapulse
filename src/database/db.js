@@ -117,7 +117,7 @@ function initializeDatabase() {
   // Populate default settings if empty
   const defaultSettings = [
     { key: 'simulation_mode', value: 'false' },
-    { key: 'timezone', value: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Mexico_City' },
+    { key: 'timezone', value: 'America/Santiago' },
     { key: 'ai_provider', value: 'gemini' },
     { key: 'ai_model', value: 'gemini-1.5-flash' },
     { key: 'public_url_base', value: '' },

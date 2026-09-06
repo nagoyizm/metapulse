@@ -207,7 +207,28 @@
       card.style.gap = '16px';
       card.style.alignItems = 'start';
 
-      const formattedDatetime = item.scheduledAt ? item.scheduledAt.slice(0, 16) : '';
+      let formattedDatetime = '';
+      if (item.scheduledAt) {
+        try {
+          const d = new Date(item.scheduledAt);
+          if (!isNaN(d.getTime())) {
+            const parts = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'America/Santiago',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            }).formatToParts(d);
+            const p = {};
+            parts.forEach(x => { p[x.type] = x.value; });
+            formattedDatetime = `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+          }
+        } catch (_) {
+          formattedDatetime = item.scheduledAt.slice(0, 16);
+        }
+      }
 
       card.innerHTML = `
         <!-- Columna Izquierda: Imagen con sello y check -->

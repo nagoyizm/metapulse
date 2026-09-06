@@ -1,3 +1,6 @@
+// Forzar huso horario de Chile (America/Santiago) para toda la aplicación y el motor de agendamiento
+process.env.TZ = process.env.TZ || 'America/Santiago';
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

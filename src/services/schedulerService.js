@@ -45,13 +45,19 @@ class SchedulerService {
     try {
       const nowIso = new Date().toISOString();
 
-      // Buscar posts programados vencidos
-      const duePosts = db.prepare(`
+      // Buscar posts en estado scheduled
+      const candidates = db.prepare(`
         SELECT * FROM posts
-        WHERE status = 'scheduled' AND scheduled_at <= ?
+        WHERE status = 'scheduled' AND scheduled_at IS NOT NULL
         ORDER BY scheduled_at ASC
-        LIMIT 10
-      `).all(nowIso);
+        LIMIT 25
+      `).all();
+
+      const nowMs = Date.now();
+      const duePosts = candidates.filter(p => {
+        const postMs = new Date(p.scheduled_at).getTime();
+        return !isNaN(postMs) && postMs <= nowMs;
+      }).slice(0, 10);
 
       if (duePosts.length === 0) {
         this.isProcessing = false;

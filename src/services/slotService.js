@@ -53,8 +53,7 @@ class SlotService {
           const alreadyPicked = resultSlots.some(iso => Math.abs(new Date(iso).getTime() - candidate.getTime()) < 2 * 60 * 60 * 1000);
 
           if (!collision && !alreadyPicked) {
-            const iso = `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}T${pad(h)}:${pad(m || 0)}:00`;
-            resultSlots.push(iso);
+            resultSlots.push(candidate.toISOString());
             if (resultSlots.length >= count) break;
           }
         }
@@ -69,8 +68,7 @@ class SlotService {
           const alreadyPicked = resultSlots.some(iso => Math.abs(new Date(iso).getTime() - candidate.getTime()) < 2 * 60 * 60 * 1000);
 
           if (!collision && !alreadyPicked) {
-            const iso = `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}T${pad(h)}:00:00`;
-            resultSlots.push(iso);
+            resultSlots.push(candidate.toISOString());
             if (resultSlots.length >= count) break;
           }
         }
@@ -83,8 +81,7 @@ class SlotService {
     while (resultSlots.length < count) {
       const candidate = new Date(currentDay);
       candidate.setHours(12, 0, 0, 0);
-      const iso = `${candidate.getFullYear()}-${pad(candidate.getMonth() + 1)}-${pad(candidate.getDate())}T12:00:00`;
-      resultSlots.push(iso);
+      resultSlots.push(candidate.toISOString());
       currentDay.setDate(currentDay.getDate() + 1);
     }
 

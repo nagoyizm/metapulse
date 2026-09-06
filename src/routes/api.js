@@ -1826,7 +1826,15 @@ router.post('/batch/confirm-schedule', async (req, res) => {
       const content = (p.content || '').trim();
       const platforms = JSON.stringify(p.platforms || ['instagram', 'facebook']);
       const mediaUrls = JSON.stringify(p.imageUrl ? [p.imageUrl] : []);
-      const scheduledAt = p.scheduledAt;
+      const rawScheduledAt = p.scheduledAt;
+      let scheduledAt = null;
+      if (rawScheduledAt) {
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawScheduledAt)) {
+          scheduledAt = new Date(rawScheduledAt + ':00').toISOString();
+        } else {
+          scheduledAt = new Date(rawScheduledAt).toISOString();
+        }
+      }
 
       if (content && scheduledAt) {
         // 1. Programar post del Feed
@@ -1858,7 +1866,9 @@ router.post('/batch/confirm-schedule', async (req, res) => {
             } else if (story_timing_rule === 'night_slot') {
               const night = new Date(baseD);
               night.setHours(20, 30, 0, 0);
-              if (night <= baseD) night.setDate(night.getDate() + 1);
+              if (night.getTime() <= baseD.getTime()) {
+                night.setDate(night.getDate() + 1);
+              }
               storyScheduledAt = night.toISOString();
             } else if (story_timing_rule === 'next_day') {
               const next = new Date(baseD);

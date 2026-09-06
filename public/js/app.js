@@ -112,7 +112,15 @@ async function loadDashboardStatus() {
     // Próximo slot
     if (nextSlot) {
       const d = new Date(nextSlot);
-      const formatted = d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const formatted = d.toLocaleDateString('es-CL', {
+        timeZone: 'America/Santiago',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
       document.getElementById('dash-next-slot-time').textContent = formatted;
       const compSlot = document.getElementById('composer-next-slot-label');
       if (compSlot) compSlot.textContent = `Próximo: ${formatted}`;
@@ -161,7 +169,7 @@ async function loadDashboardStatus() {
             <div>
               <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
               <strong style="display:block; font-size:0.85rem; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.title || (p.content.slice(0, 40) + '...')}</strong>
-              <p class="text-muted" style="font-size:0.75rem; margin:0;">📅 ${new Date(p.scheduled_at).toLocaleString()}</p>
+              <p class="text-muted" style="font-size:0.75rem; margin:0;">📅 ${new Date(p.scheduled_at).toLocaleString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
@@ -198,7 +206,7 @@ async function loadDashboardStatus() {
               <strong style="display:block; font-size:0.85rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                 ${p.title || (p.content.slice(0, 35) + '...')}
               </strong>
-              <p class="text-muted" style="font-size:0.72rem; margin:0;">✅ ${new Date(p.published_at || p.updated_at).toLocaleDateString()} · Meta</p>
+              <p class="text-muted" style="font-size:0.72rem; margin:0;">✅ ${new Date(p.published_at || p.updated_at).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} · Meta</p>
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
