@@ -173,6 +173,7 @@ async function loadDashboardStatus() {
             </div>
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn btn-secondary btn-xs" onclick="window.openEditPostModal(${p.id})" title="Editar hora, texto o imagen">✏️ Editar</button>
             ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">📥 Bajar</button>` : ''}
             <span class="status-pill scheduled">Programado</span>
           </div>

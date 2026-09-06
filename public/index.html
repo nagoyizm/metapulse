@@ -1605,8 +1605,94 @@
           <div style="display:flex; gap:8px; align-items:center;">
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
             <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #ec4899; font-weight: 600;">📲 Story 9:16</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;" title="Editar horario, texto, título o imagen">✏️ Editar Post</button>
             <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR DETALLES DE POST PROGRAMADO -->
+  <div class="modal-backdrop" id="modal-edit-post" style="display: none;">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge" style="background:var(--primary); color:#fff; font-size:0.75rem;">✏️ Editor de Post</span>
+            <h3 id="edit-post-modal-title" style="margin:0; font-size:1.05rem;">Editar Publicación Programada</h3>
+          </div>
+          <button class="modal-close" id="btn-close-edit-post" onclick="window.closeEditPostModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:14px; max-height:75vh; overflow-y:auto;">
+          <input type="hidden" id="edit-post-id" value="">
+
+          <!-- Formato y Cuenta -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Tipo de Publicación:</label>
+              <select id="edit-post-type" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
+                <option value="feed">🖼️ Feed Post (Foto/Video)</option>
+                <option value="story">📱 Story (Historia 9:16)</option>
+                <option value="reel">🎥 Reel Vertical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Cuenta Asignada:</label>
+              <select id="edit-post-account" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
+                <!-- Cuentas sincronizadas -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Título y Fecha/Hora Programada -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Título / Producto:</label>
+              <input type="text" id="edit-post-title" class="form-control" placeholder="Ej: Helado Melona Melón" style="font-size:0.85rem; padding:7px 10px;">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Fecha y Hora (Chile):</label>
+              <input type="datetime-local" id="edit-post-datetime" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
+            </div>
+          </div>
+
+          <!-- Texto / Copy -->
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin:0;">Texto del Post & Hashtags:</label>
+              <span id="edit-post-char-count" class="text-muted" style="font-size:0.75rem;">0 caracteres</span>
+            </div>
+            <textarea id="edit-post-content" class="form-control" rows="6" style="font-size:0.84rem; line-height:1.45; resize:vertical; font-family:inherit;"></textarea>
+          </div>
+
+          <!-- Imagen / Multimedia -->
+          <div class="form-group">
+            <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Imagen o Video:</label>
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+              <!-- Miniatura previa actual -->
+              <div id="edit-post-media-preview" style="width:100px; height:125px; border-radius:6px; overflow:hidden; background:#0f172a; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <span class="text-muted" style="font-size:0.75rem;">Sin imagen</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+                <input type="text" id="edit-post-media-url" class="form-control" placeholder="URL o ruta de imagen (ej: /uploads/...)" style="font-size:0.82rem; padding:6px 10px;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <label class="btn btn-secondary btn-sm" style="margin:0; cursor:pointer; font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;">
+                    <span>📁</span> Subir nueva foto
+                    <input type="file" id="edit-post-file-input" accept="image/*,video/*" style="display:none;">
+                  </label>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-clear-media" style="font-size:0.78rem; padding:5px 10px;">Quitar imagen</button>
+                </div>
+                <span style="font-size:0.72rem; color:var(--text-secondary);">Puedes subir una nueva foto desde tu equipo o pegar una URL directa.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <button type="button" class="btn btn-secondary" onclick="window.closeEditPostModal()">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-save-edit-post" style="display:flex; align-items:center; gap:6px;">
+            <span>💾</span> Guardar Cambios
+          </button>
         </div>
       </div>
     </div>

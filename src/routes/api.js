@@ -392,6 +392,15 @@ router.put('/posts/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
     }
 
+    let normalizedScheduledAt = scheduled_at !== undefined ? scheduled_at : post.scheduled_at;
+    if (normalizedScheduledAt && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalizedScheduledAt)) {
+      normalizedScheduledAt = new Date(normalizedScheduledAt + ':00').toISOString();
+    } else if (normalizedScheduledAt) {
+      try {
+        normalizedScheduledAt = new Date(normalizedScheduledAt).toISOString();
+      } catch (_) {}
+    }
+
     db.prepare(`
       UPDATE posts
       SET title = COALESCE(?, title),
@@ -406,13 +415,13 @@ router.put('/posts/:id', (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
-      title,
-      content,
-      platforms ? JSON.stringify(platforms) : null,
-      post_type,
-      media_urls ? JSON.stringify(media_urls) : null,
-      scheduled_at,
-      status,
+      title !== undefined ? title : null,
+      content !== undefined ? content : null,
+      platforms !== undefined ? JSON.stringify(platforms) : null,
+      post_type !== undefined ? post_type : null,
+      media_urls !== undefined ? JSON.stringify(media_urls) : null,
+      normalizedScheduledAt !== undefined ? normalizedScheduledAt : null,
+      status !== undefined ? status : null,
       account_id !== undefined ? account_id : null,
       account_name !== undefined ? account_name : null,
       req.params.id

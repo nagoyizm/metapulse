@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPlannerPublishStoryNow = document.getElementById('btn-planner-publish-story-now');
   const btnPlannerEditStoryComposer = document.getElementById('btn-planner-edit-story-composer');
   const btnPlannerStoryFooter = document.getElementById('btn-planner-story-footer');
+  const btnPlannerDetailEdit = document.getElementById('btn-planner-detail-edit');
 
   function closeModal() {
     if (modalDetail) {
@@ -160,6 +161,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (modalDetail) {
     modalDetail.addEventListener('click', (e) => {
       if (e.target === modalDetail) closeModal();
+    });
+  }
+
+  // Acción: Abrir Editor completo desde el modal de detalle
+  if (btnPlannerDetailEdit) {
+    btnPlannerDetailEdit.addEventListener('click', () => {
+      const post = modalDetail._currentPost;
+      if (!post) return;
+      closeModal();
+      if (typeof window.openEditPostModal === 'function') {
+        window.openEditPostModal(post.id);
+      }
     });
   }
 
@@ -946,6 +959,7 @@ function renderQueueTable(posts) {
             ${post.status === 'failed' ? `
               <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>
             ` : ''}
+            <button class="btn btn-secondary btn-xs" onclick="window.openEditPostModal(${post.id})" title="Editar detalles, hora, copy o imagen">✏️ Editar</button>
             <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">📲 Story</button>
             ${media.length > 0 ? `
               <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'post-${post.id}')" title="Descargar imagen del post">📥 Bajar</button>
@@ -1373,4 +1387,248 @@ function setupReassignConfirmBtn() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupReassignConfirmBtn();
+  setupEditPostModal();
 });
+
+// =============================================================================
+// MODAL EDITOR DE DETALLES DE PUBLICACIÓN (HORA, COPY, IMAGEN, TÍTULO, CUENTA)
+// =============================================================================
+
+function toChileDatetimeLocalValue(rawDate) {
+  if (!rawDate) return '';
+  try {
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Santiago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).formatToParts(d);
+    const p = {};
+    parts.forEach(x => { p[x.type] = x.value; });
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  } catch (_) {
+    return '';
+  }
+}
+
+window.openEditPostModal = function(postId) {
+  const post = (PlannerState.posts || []).find(p => p.id === Number(postId));
+  if (!post) {
+    showToast('No se encontró la publicación a editar', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('modal-edit-post');
+  if (!modal) return;
+
+  // Llenar campos
+  document.getElementById('edit-post-id').value = post.id;
+  document.getElementById('edit-post-modal-title').textContent = `Editar Publicación #${post.id}`;
+  document.getElementById('edit-post-title').value = post.title || '';
+  document.getElementById('edit-post-content').value = post.content || '';
+  document.getElementById('edit-post-type').value = post.post_type || 'feed';
+
+  // Caracteres
+  const charCounter = document.getElementById('edit-post-char-count');
+  if (charCounter) charCounter.textContent = `${(post.content || '').length} caracteres`;
+
+  // Fecha y hora en uso horario chileno
+  const dtInput = document.getElementById('edit-post-datetime');
+  if (dtInput) {
+    dtInput.value = toChileDatetimeLocalValue(post.scheduled_at || post.published_at);
+  }
+
+  // Imagen actual
+  let mediaUrls = [];
+  try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
+  const currentImg = mediaUrls[0] || '';
+  document.getElementById('edit-post-media-url').value = currentImg;
+  updateEditPostMediaPreview(currentImg);
+
+  // Poblar select de cuentas
+  const accSelect = document.getElementById('edit-post-account');
+  if (accSelect) {
+    accSelect.innerHTML = '';
+    const accounts = (typeof window.getAccountsList === 'function') ? window.getAccountsList() : [];
+    
+    // Si no hay lista en memoria, poner al menos la cuenta actual del post
+    if (accounts.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = post.account_id || '';
+      opt.dataset.name = post.account_name || 'Cuenta Actual';
+      opt.textContent = post.account_name || 'Cuenta Actual';
+      opt.selected = true;
+      accSelect.appendChild(opt);
+    } else {
+      accounts.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.pageId;
+        opt.dataset.name = acc.pageName;
+        opt.textContent = `${acc.pageName} ${acc.instagram ? `(@${acc.instagram.username})` : ''}`;
+        if (String(acc.pageId) === String(post.account_id)) {
+          opt.selected = true;
+        }
+        accSelect.appendChild(opt);
+      });
+    }
+  }
+
+  modal.style.display = 'flex';
+};
+
+window.closeEditPostModal = function() {
+  const modal = document.getElementById('modal-edit-post');
+  if (modal) modal.style.display = 'none';
+};
+
+function updateEditPostMediaPreview(url) {
+  const preview = document.getElementById('edit-post-media-preview');
+  if (!preview) return;
+  if (!url) {
+    preview.innerHTML = '<span class="text-muted" style="font-size:0.75rem;">Sin imagen</span>';
+    return;
+  }
+  const isVid = url.match(/\.(mp4|mov|webm)$/i);
+  if (isVid) {
+    preview.innerHTML = `<video src="${url}" controls style="width:100%; height:100%; object-fit:cover;"></video>`;
+  } else {
+    preview.innerHTML = `<img src="${url}" alt="Preview" style="width:100%; height:100%; object-fit:cover;">`;
+  }
+}
+
+function setupEditPostModal() {
+  const modal = document.getElementById('modal-edit-post');
+  if (!modal) return;
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) window.closeEditPostModal();
+  });
+
+  const contentArea = document.getElementById('edit-post-content');
+  const charCounter = document.getElementById('edit-post-char-count');
+  if (contentArea && charCounter) {
+    contentArea.addEventListener('input', () => {
+      charCounter.textContent = `${contentArea.value.length} caracteres`;
+    });
+  }
+
+  const urlInput = document.getElementById('edit-post-media-url');
+  if (urlInput) {
+    urlInput.addEventListener('input', () => {
+      updateEditPostMediaPreview(urlInput.value.trim());
+    });
+  }
+
+  const clearBtn = document.getElementById('btn-edit-post-clear-media');
+  if (clearBtn && urlInput) {
+    clearBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      updateEditPostMediaPreview('');
+    });
+  }
+
+  // Subida de nueva foto desde el modal
+  const fileInput = document.getElementById('edit-post-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('files', file);
+
+      try {
+        showToast('Subiendo archivo multimedia...', 'info');
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+          const uploadedUrl = json.data[0].url;
+          if (urlInput) urlInput.value = uploadedUrl;
+          updateEditPostMediaPreview(uploadedUrl);
+          showToast('¡Archivo subido exitosamente!', 'success');
+        } else {
+          showToast('Error al subir archivo: ' + (json.error || 'Desconocido'), 'error');
+        }
+      } catch (err) {
+        showToast('Error de conexión al subir: ' + err.message, 'error');
+      } finally {
+        fileInput.value = '';
+      }
+    });
+  }
+
+  // Botón Guardar Cambios
+  const btnSave = document.getElementById('btn-save-edit-post');
+  if (btnSave) {
+    btnSave.addEventListener('click', async () => {
+      const postId = document.getElementById('edit-post-id')?.value;
+      if (!postId) return;
+
+      const title = document.getElementById('edit-post-title')?.value.trim() || '';
+      const content = document.getElementById('edit-post-content')?.value.trim() || '';
+      const postType = document.getElementById('edit-post-type')?.value || 'feed';
+      const scheduledAtLocal = document.getElementById('edit-post-datetime')?.value;
+      const mediaUrl = document.getElementById('edit-post-media-url')?.value.trim() || '';
+
+      const accSelect = document.getElementById('edit-post-account');
+      const selectedAccOpt = accSelect?.options[accSelect?.selectedIndex];
+      const accountId = selectedAccOpt?.value || '';
+      const accountName = selectedAccOpt?.dataset?.name || '';
+
+      if (!content && !mediaUrl) {
+        showToast('Debes incluir al menos texto o una imagen para la publicación', 'error');
+        return;
+      }
+
+      btnSave.disabled = true;
+      btnSave.innerHTML = '<span>⏳</span> Guardando...';
+
+      try {
+        const payload = {
+          title,
+          content,
+          post_type: postType,
+          media_urls: mediaUrl ? [mediaUrl] : [],
+          scheduled_at: scheduledAtLocal || null,
+          account_id: accountId,
+          account_name: accountName
+        };
+
+        const res = await fetch(`/api/posts/${postId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const json = await res.json();
+        if (!json.success) {
+          throw new Error(json.error || 'Error al guardar cambios');
+        }
+
+        showToast(`¡Publicación #${postId} actualizada correctamente!`, 'success');
+        window.closeEditPostModal();
+
+        // Recargar datos en Planner y Cola
+        if (typeof window.loadPlannerData === 'function') {
+          await window.loadPlannerData();
+        }
+        if (typeof loadDashboardStatus === 'function') {
+          loadDashboardStatus();
+        }
+      } catch (err) {
+        showToast('Error al actualizar publicación: ' + err.message, 'error');
+      } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = '<span>💾</span> Guardar Cambios';
+      }
+    });
+  }
+}
