@@ -443,19 +443,6 @@ async function loadAccountSwitcher() {
       select.value = currentSelectedPageId;
     }
 
-    // Poblar también el filtro de cuentas del Planner / Cola
-    const plannerFilter = document.getElementById('planner-account-filter');
-    if (plannerFilter) {
-      const currentFilterVal = plannerFilter.value || 'all';
-      plannerFilter.innerHTML = '<option value="all">🌐 Todas las cuentas</option>' + pages.map(p => {
-        const igLabel = p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : '';
-        return `<option value="${p.pageId}">${p.pageName}${igLabel}</option>`;
-      }).join('');
-      if (currentSelectedPageId && currentFilterVal !== 'all') {
-        plannerFilter.value = currentSelectedPageId;
-      }
-    }
-
     // Poblar los selects del Modal de Reasignación
     const targetSelect = document.getElementById('reassign-target-select');
     const sourceSelect = document.getElementById('reassign-source-select');
@@ -490,13 +477,8 @@ async function loadAccountSwitcher() {
           loadDashboardStatus();
           loadProactiveRadar();
 
-          // Si el filtro de planner no estaba en 'all', sincronizarlo
-          if (plannerFilter && plannerFilter.value !== 'all') {
-            plannerFilter.value = pageId;
-          }
-
-          if (window.loadPlannerData) window.loadPlannerData();
-          if (window.loadQueuePosts) window.loadQueuePosts();
+          if (window.loadPlannerData) window.loadPlannerData(pageId);
+          if (window.loadQueuePosts) window.loadQueuePosts(pageId);
           if (window.loadAnalyticsData) window.loadAnalyticsData();
           if (window.loadMediaGallery) window.loadMediaGallery();
           if (window.loadWatermarksList) window.loadWatermarksList();

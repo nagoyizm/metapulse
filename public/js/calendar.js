@@ -433,30 +433,16 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-function setupPlannerAccountFilter() {
-  const pFilter = document.getElementById('planner-account-filter');
-  if (pFilter && !pFilter._hasListener) {
-    pFilter._hasListener = true;
-    pFilter.addEventListener('change', () => {
-      window.loadPlannerData(pFilter.value);
-    });
-  }
-}
-
-// 2. Cargar Datos del Planner (Posts pasados y futuros)
+// 2. Cargar Datos del Planner (Posts pasados y futuros de la cuenta activa)
 window.loadPlannerData = async function(customAccountId) {
   try {
-    setupPlannerAccountFilter();
-    const filterEl = document.getElementById('planner-account-filter');
-    let targetAcc = customAccountId;
-    if (targetAcc === undefined && filterEl) {
-      targetAcc = filterEl.value;
-    }
-    if (!targetAcc) targetAcc = 'all';
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const globalSelect = document.getElementById('global-account-select');
+    const targetAcc = customAccountId !== undefined ? customAccountId : (activeAcc?.pageId || globalSelect?.value || '');
 
-    const url = targetAcc === 'all'
-      ? '/api/posts?status=all&limit=250&accountId=all'
-      : `/api/posts?status=all&limit=250&accountId=${encodeURIComponent(targetAcc)}`;
+    const url = targetAcc
+      ? `/api/posts?status=all&limit=250&accountId=${encodeURIComponent(targetAcc)}`
+      : '/api/posts?status=all&limit=250';
 
     const res = await fetch(url);
     const json = await res.json();
