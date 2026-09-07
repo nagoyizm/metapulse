@@ -20,6 +20,19 @@ class VideoService {
   }
 
   /**
+   * Obtiene la ruta ejecutable de FFmpeg asegurando permisos en Linux y Windows
+   */
+  getFFmpegBinary() {
+    if (ffmpegPath && fs.existsSync(ffmpegPath)) {
+      try {
+        fs.chmodSync(ffmpegPath, 0o755);
+      } catch (_) {}
+      return ffmpegPath;
+    }
+    return 'ffmpeg';
+  }
+
+  /**
    * Resuelve cualquier ruta o URL de imagen a un archivo local absoluto
    */
   async resolveImageToLocal(imageInput) {
@@ -211,7 +224,7 @@ class VideoService {
       console.log(`[VideoService] Ejecutando FFmpeg para generar Story Video de ${parsedDuration}s...`);
 
       await new Promise((resolve, reject) => {
-        execFile(ffmpegPath, args, (error, stdout, stderr) => {
+        execFile(this.getFFmpegBinary(), args, (error, stdout, stderr) => {
           if (error) {
             console.error('[VideoService] Error en FFmpeg:', stderr || error.message);
             return reject(new Error(`Error en codificación FFmpeg: ${error.message}`));
