@@ -41,7 +41,10 @@ class WhatsAppService {
     }
 
     const chatId = `${cleanPhone}@c.us`;
-    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiToken}`;
+    // Green-API utiliza subdominios dedicados por host de instancia (ej: https://7105.api.greenapi.com)
+    const hostPrefix = idInstance.length >= 4 ? idInstance.slice(0, 4) : '';
+    const baseUrl = hostPrefix ? `https://${hostPrefix}.api.greenapi.com` : 'https://api.green-api.com';
+    const url = `${baseUrl}/waInstance${idInstance}/sendMessage/${apiToken}`;
 
     try {
       const response = await axios.post(
