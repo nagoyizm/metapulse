@@ -407,22 +407,28 @@ window.getActiveAccount = function() {
   };
 };
 
-// Actualiza los badges informativos en el Composer y en el Batch Autopilot
+// Actualiza los badges informativos en el Composer, Batch Autopilot e Inbox
 window.updateActiveAccountBadges = function() {
   const active = window.getActiveAccount();
   const compName = document.getElementById('composer-active-account-name');
   const compIg = document.getElementById('composer-active-account-ig');
   const batchName = document.getElementById('batch-target-account-name');
   const batchIg = document.getElementById('batch-target-account-ig');
+  const inboxName = document.getElementById('inbox-active-account-name');
+  const inboxBadge = document.getElementById('inbox-active-account-badge');
 
   if (active) {
     if (compName) compName.textContent = active.pageName;
     if (compIg) compIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
     if (batchName) batchName.textContent = active.pageName;
     if (batchIg) batchIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
+    if (inboxName) inboxName.textContent = active.pageName;
+    if (inboxBadge) inboxBadge.style.display = 'inline-flex';
   } else {
     if (compName) compName.textContent = 'Sin cuenta seleccionada';
     if (batchName) batchName.textContent = 'Sin cuenta seleccionada';
+    if (inboxName) inboxName.textContent = 'Sin cuenta';
+    if (inboxBadge) inboxBadge.style.display = 'none';
   }
 };
 
@@ -496,6 +502,7 @@ async function loadAccountSwitcher() {
           if (window.loadMediaGallery) window.loadMediaGallery();
           if (window.loadWatermarksList) window.loadWatermarksList();
           if (window.loadActiveSealPreview) window.loadActiveSealPreview();
+          if (window.loadInboxData) window.loadInboxData();
         }
       } catch (e) {
         showToast('Error cambiando de cuenta: ' + e.message, 'error');

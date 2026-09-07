@@ -32,6 +32,53 @@ class MetaService {
   }
 
   /**
+   * Obtiene las credenciales específicas de una cuenta (desde caché de cuentas administradas o de settings)
+   */
+  getAccountCredentials(target = null) {
+    const config = this.getConfig();
+    if (!target) return config;
+
+    // Si ya es un objeto de credenciales
+    if (typeof target === 'object' && target !== null && (target.pageId || target.pageToken)) {
+      return {
+        ...config,
+        pageId: target.pageId || config.pageId,
+        pageName: target.pageName || config.pageName,
+        pageToken: target.pageToken || config.pageToken,
+        instagramId: target.instagramId || (target.instagram ? target.instagram.id : config.instagramId),
+        instagramUsername: target.instagramUsername || (target.instagram ? (target.instagram.username || target.instagram.name) : config.instagramUsername)
+      };
+    }
+
+    const accountIdStr = String(target);
+    // Si coincide con la cuenta actualmente activa en settings
+    if (String(config.pageId) === accountIdStr || String(config.instagramId) === accountIdStr) {
+      return config;
+    }
+
+    // Buscar en cuentas administradas cacheadas
+    try {
+      const cachedStr = getSetting('cached_managed_accounts');
+      if (cachedStr) {
+        const accounts = JSON.parse(cachedStr);
+        const acc = accounts.find(a => String(a.pageId) === accountIdStr || (a.instagram && String(a.instagram.id) === accountIdStr));
+        if (acc) {
+          return {
+            ...config,
+            pageId: acc.pageId,
+            pageName: acc.pageName || '',
+            pageToken: acc.pageToken || config.pageToken,
+            instagramId: acc.instagram ? acc.instagram.id : '',
+            instagramUsername: acc.instagram ? (acc.instagram.username || acc.instagram.name || '') : ''
+          };
+        }
+      }
+    } catch (_) {}
+
+    return config;
+  }
+
+  /**
    * Convierte un User Access Token de corta duración en uno de larga duración (60 días)
    */
   async exchangeForLongLivedUserToken(shortToken, customAppId, customAppSecret) {
@@ -934,11 +981,11 @@ class MetaService {
   /**
    * Obtiene los comentarios recientes de publicaciones en Instagram y Facebook
    */
-  async getRecentComments(limit = 30) {
-    const config = this.getConfig();
+  async getRecentComments(limit = 30, targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
 
     if (config.simulationMode || (!config.pageToken && !config.instagramId)) {
-      return this.getSimulationComments();
+      return this.getSimulationComments(config);
     }
 
     const commentsList = [];
@@ -961,6 +1008,8 @@ class MetaService {
             commentsList.push({
               id: c.id,
               platform: 'instagram',
+              account_id: config.pageId || config.instagramId,
+              account_name: config.pageName || '',
               post_id: m.id,
               post_caption: (m.caption || '').split('\n')[0].slice(0, 80),
               post_media_url: m.media_url || m.thumbnail_url || null,
@@ -998,6 +1047,8 @@ class MetaService {
             commentsList.push({
               id: c.id,
               platform: 'facebook',
+              account_id: config.pageId,
+              account_name: config.pageName || '',
               post_id: p.id,
               post_caption: (p.message || '').split('\n')[0].slice(0, 80),
               post_media_url: null,
@@ -1018,7 +1069,7 @@ class MetaService {
     }
 
     if (commentsList.length === 0 && config.simulationMode) {
-      return this.getSimulationComments();
+      return this.getSimulationComments(config);
     }
 
     return commentsList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limit);
@@ -1027,8 +1078,8 @@ class MetaService {
   /**
    * Responde a un comentario en Instagram o Facebook
    */
-  async replyComment(commentId, platform = 'instagram', message) {
-    const config = this.getConfig();
+  async replyComment(commentId, platform = 'instagram', message, targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
 
     if (!message || !message.trim()) {
       throw new Error('El mensaje de respuesta no puede estar vacío.');
@@ -1074,11 +1125,11 @@ class MetaService {
   /**
    * Obtiene la lista de conversaciones / hilos de DMs de Instagram y Messenger
    */
-  async getConversations(limit = 20) {
-    const config = this.getConfig();
+  async getConversations(limit = 20, targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
 
     if (config.simulationMode || (!config.pageToken && !config.instagramId)) {
-      return this.getSimulationConversations();
+      return this.getSimulationConversations(config);
     }
 
     const conversations = [];
@@ -1103,7 +1154,8 @@ class MetaService {
           conversations.push({
             id: item.id,
             platform: 'instagram',
-            account_id: config.instagramId,
+            account_id: config.pageId || config.instagramId,
+            account_name: config.pageName || '',
             participant_id: participant.id || 'unknown',
             participant_name: participant.name || participant.username || 'Cliente Instagram',
             participant_username: participant.username ? `@${participant.username}` : null,
@@ -1139,6 +1191,7 @@ class MetaService {
             id: item.id,
             platform: 'facebook',
             account_id: config.pageId,
+            account_name: config.pageName || '',
             participant_id: participant.id || 'unknown',
             participant_name: participant.name || 'Cliente Facebook',
             participant_username: null,
@@ -1155,7 +1208,7 @@ class MetaService {
     }
 
     if (conversations.length === 0 && config.simulationMode) {
-      return this.getSimulationConversations();
+      return this.getSimulationConversations(config);
     }
 
     return conversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at)).slice(0, limit);
@@ -1164,8 +1217,8 @@ class MetaService {
   /**
    * Obtiene los mensajes de una conversación específica
    */
-  async getConversationMessages(conversationId, platform = 'instagram') {
-    const config = this.getConfig();
+  async getConversationMessages(conversationId, platform = 'instagram', targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
 
     if (config.simulationMode || !config.pageToken || conversationId.startsWith('sim_')) {
       return this.getSimulationMessages(conversationId);
@@ -1189,8 +1242,9 @@ class MetaService {
           id: m.id,
           conversation_id: conversationId,
           platform,
+          account_id: config.pageId || null,
           sender_id: m.from?.id || 'unknown',
-          sender_name: m.from?.name || m.from?.username || (isFromPage ? 'Página' : 'Cliente'),
+          sender_name: m.from?.name || m.from?.username || (isFromPage ? (config.pageName || 'Página') : 'Cliente'),
           sender_type: isFromPage ? 'page' : 'customer',
           message_text: m.message || '',
           created_at: m.created_time ? new Date(m.created_time).toISOString() : new Date().toISOString()
@@ -1207,8 +1261,8 @@ class MetaService {
   /**
    * Envía un mensaje de respuesta a un hilo de conversación
    */
-  async sendDirectMessage(conversationId, recipientId, platform = 'instagram', message) {
-    const config = this.getConfig();
+  async sendDirectMessage(conversationId, recipientId, platform = 'instagram', message, targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
 
     if (!message || !message.trim()) {
       throw new Error('El mensaje no puede estar vacío.');
@@ -1251,13 +1305,67 @@ class MetaService {
   /**
    * Genera conversaciones de prueba para modo simulación y sandbox
    */
-  getSimulationConversations() {
+  getSimulationConversations(targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
     const now = Date.now();
+    const pageId = config.pageId || 'sim_acc';
+    const pageName = config.pageName || 'Negocio';
+    const isCampina = (pageName + ' ' + pageId).toLowerCase().includes('campi') || (pageName + ' ' + pageId).toLowerCase().includes('caba');
+
+    if (isCampina) {
+      return [
+        {
+          id: `sim_conv_${pageId}_1`,
+          platform: 'instagram',
+          account_id: pageId,
+          account_name: pageName,
+          participant_id: 'sim_user_camp_1',
+          participant_name: 'Camila Valenzuela',
+          participant_username: '@camila_valenzuela',
+          participant_pic: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+          last_message_text: '¡Hola! ¿Tienen cabaña disponible para 4 personas este fin de semana?',
+          last_message_at: new Date(now - 12 * 60 * 1000).toISOString(),
+          unread_count: 1,
+          is_archived: 0
+        },
+        {
+          id: `sim_conv_${pageId}_2`,
+          platform: 'instagram',
+          account_id: pageId,
+          account_name: pageName,
+          participant_id: 'sim_user_camp_2',
+          participant_name: 'Rodrigo Mendoza',
+          participant_username: '@rodrigo_mza',
+          participant_pic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+          last_message_text: '¿El valor incluye acceso a la tinaja caliente? Muchas gracias.',
+          last_message_at: new Date(now - 3 * 3600 * 1000).toISOString(),
+          unread_count: 0,
+          is_archived: 0
+        },
+        {
+          id: `sim_conv_${pageId}_3`,
+          platform: 'facebook',
+          account_id: pageId,
+          account_name: pageName,
+          participant_id: 'sim_user_camp_3',
+          participant_name: 'Marcela Contreras',
+          participant_username: null,
+          participant_pic: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=80',
+          last_message_text: 'Buenas tardes, ¿se aceptan mascotas pequeñas en las cabañas?',
+          last_message_at: new Date(now - 6 * 3600 * 1000).toISOString(),
+          unread_count: 1,
+          is_archived: 0
+        }
+      ];
+    }
+
     return [
       {
-        id: 'sim_conv_1',
+        id: `sim_conv_${pageId}_1`,
         platform: 'instagram',
-        participant_id: 'sim_user_1',
+        account_id: pageId,
+        account_name: pageName,
+        participant_id: 'sim_user_km_1',
         participant_name: 'Camila Valenzuela',
         participant_username: '@camila_valenzuela',
         participant_pic: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
@@ -1267,9 +1375,11 @@ class MetaService {
         is_archived: 0
       },
       {
-        id: 'sim_conv_2',
+        id: `sim_conv_${pageId}_2`,
         platform: 'instagram',
-        participant_id: 'sim_user_2',
+        account_id: pageId,
+        account_name: pageName,
+        participant_id: 'sim_user_km_2',
         participant_name: 'Rodrigo Mendoza',
         participant_username: '@rodrigo_mza',
         participant_pic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
@@ -1279,13 +1389,15 @@ class MetaService {
         is_archived: 0
       },
       {
-        id: 'sim_conv_3',
+        id: `sim_conv_${pageId}_3`,
         platform: 'facebook',
-        participant_id: 'sim_user_3',
+        account_id: pageId,
+        account_name: pageName,
+        participant_id: 'sim_user_km_3',
         participant_name: 'Marcela Contreras',
         participant_username: null,
         participant_pic: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=80',
-        last_message_text: 'Buenas tardes, ¿cuánto demoran los despachos a regiones?',
+        last_message_text: 'Buenas tardes, ¿tienen servicio de delivery en el sector de Algarrobo?',
         last_message_at: new Date(now - 6 * 3600 * 1000).toISOString(),
         unread_count: 1,
         is_archived: 0
@@ -1298,7 +1410,7 @@ class MetaService {
    */
   getSimulationMessages(conversationId) {
     const now = Date.now();
-    if (conversationId === 'sim_conv_1') {
+    if (conversationId.includes('_1')) {
       return [
         {
           id: 'sim_m_1',
@@ -1307,7 +1419,7 @@ class MetaService {
           sender_id: 'sim_user_1',
           sender_name: 'Camila Valenzuela',
           sender_type: 'customer',
-          message_text: 'Hola! Vi su post de la nueva colección 🌟',
+          message_text: 'Hola! Vi su publicación reciente 🌟',
           created_at: new Date(now - 35 * 60 * 1000).toISOString()
         },
         {
@@ -1315,9 +1427,9 @@ class MetaService {
           conversation_id: conversationId,
           platform: 'instagram',
           sender_id: 'page_id',
-          sender_name: 'MetaPulse Store',
+          sender_name: 'Atención al Cliente',
           sender_type: 'page',
-          message_text: '¡Hola Camila! Qué alegría saludarte. Sí, la lanzamos hoy mismo.',
+          message_text: '¡Hola Camila! Qué alegría saludarte. ¿En qué podemos ayudarte hoy?',
           created_at: new Date(now - 28 * 60 * 1000).toISOString()
         },
         {
@@ -1327,11 +1439,11 @@ class MetaService {
           sender_id: 'sim_user_1',
           sender_name: 'Camila Valenzuela',
           sender_type: 'customer',
-          message_text: '¡Hola! ¿Aún tienen stock del pack promocional publicado hoy?',
+          message_text: '¡Hola! ¿Aún tienen disponibilidad / stock de lo publicado hoy?',
           created_at: new Date(now - 12 * 60 * 1000).toISOString()
         }
       ];
-    } else if (conversationId === 'sim_conv_3') {
+    } else if (conversationId.includes('_3')) {
       return [
         {
           id: 'sim_m_4',
@@ -1340,7 +1452,7 @@ class MetaService {
           sender_id: 'sim_user_3',
           sender_name: 'Marcela Contreras',
           sender_type: 'customer',
-          message_text: 'Buenas tardes, ¿cuánto demoran los despachos a regiones?',
+          message_text: 'Buenas tardes, ¿cuánto demoran los despachos o reservas?',
           created_at: new Date(now - 6 * 3600 * 1000).toISOString()
         }
       ];
@@ -1362,49 +1474,116 @@ class MetaService {
   /**
    * Genera comentarios simulados para demostración
    */
-  getSimulationComments() {
+  getSimulationComments(targetAccount = null) {
+    const config = this.getAccountCredentials(targetAccount);
     const now = Date.now();
+    const pageId = config.pageId || 'sim_acc';
+    const pageName = config.pageName || 'Negocio';
+    const isCampina = (pageName + ' ' + pageId).toLowerCase().includes('campi') || (pageName + ' ' + pageId).toLowerCase().includes('caba');
+
+    if (isCampina) {
+      return [
+        {
+          id: `sim_cmt_${pageId}_1`,
+          platform: 'instagram',
+          account_id: pageId,
+          account_name: pageName,
+          post_id: 'post_camp_101',
+          post_caption: '🌲 Disfruta de la tranquilidad y naturaleza en Algarrobo. Cabañas equipadas...',
+          post_media_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200&auto=format&fit=crop&q=80',
+          post_permalink: 'https://instagram.com',
+          from_id: 'sim_user_c1',
+          from_name: 'mariapaz_viajes',
+          comment_text: '¿Tienen disponibilidad para el próximo fin de semana largo? Saludos!',
+          created_at: new Date(now - 15 * 60 * 1000).toISOString(),
+          reply_count: 0,
+          is_answered: 0,
+          reply_text: null
+        },
+        {
+          id: `sim_cmt_${pageId}_2`,
+          platform: 'instagram',
+          account_id: pageId,
+          account_name: pageName,
+          post_id: 'post_camp_101',
+          post_caption: '🌲 Disfruta de la tranquilidad y naturaleza en Algarrobo. Cabañas equipadas...',
+          post_media_url: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=200&auto=format&fit=crop&q=80',
+          post_permalink: 'https://instagram.com',
+          from_id: 'sim_user_c2',
+          from_name: 'esteban_turismo',
+          comment_text: 'Valores por noche por favor 🙌',
+          created_at: new Date(now - 80 * 60 * 1000).toISOString(),
+          reply_count: 1,
+          is_answered: 1,
+          reply_text: '¡Hola Esteban! Te enviamos los valores y detalles por mensaje privado 😉'
+        },
+        {
+          id: `sim_cmt_${pageId}_3`,
+          platform: 'facebook',
+          account_id: pageId,
+          account_name: pageName,
+          post_id: 'post_camp_102',
+          post_caption: 'Relax total en nuestras tinajas al aire libre. ¡Reserva con anticipación!',
+          post_media_url: null,
+          post_permalink: 'https://facebook.com',
+          from_id: 'sim_user_c3',
+          from_name: 'Loreto Silva Morales',
+          comment_text: '¿Hasta qué hora se puede usar la tinaja caliente? Saludos!',
+          created_at: new Date(now - 4 * 3600 * 1000).toISOString(),
+          reply_count: 0,
+          is_answered: 0,
+          reply_text: null
+        }
+      ];
+    }
+
     return [
       {
-        id: 'sim_cmt_1',
+        id: `sim_cmt_${pageId}_1`,
         platform: 'instagram',
-        post_id: 'post_101',
-        post_caption: '⚡ Novedades de la semana: Descubre nuestras ofertas exclusivas...',
+        account_id: pageId,
+        account_name: pageName,
+        post_id: 'post_km_101',
+        post_caption: '⚡ Novedades de la semana en Kmarket: Descubre nuestras ofertas exclusivas...',
         post_media_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80',
         post_permalink: 'https://instagram.com',
         from_id: 'sim_user_c1',
-        from_name: 'mariapaz_decor',
-        comment_text: '¿Hacen envíos a la V Región (Viña del Mar / Algarrobo)? Me encantó el producto!',
+        from_name: 'mariapaz_algarrobo',
+        comment_text: '¿Hacen envíos a domicilio en Algarrobo / El Quisco? Me encantó la promo!',
         created_at: new Date(now - 15 * 60 * 1000).toISOString(),
         reply_count: 0,
         is_answered: 0,
         reply_text: null
       },
       {
-        id: 'sim_cmt_2',
+        id: `sim_cmt_${pageId}_2`,
         platform: 'instagram',
-        post_id: 'post_101',
-        post_caption: '⚡ Novedades de la semana: Descubre nuestras ofertas exclusivas...',
+        account_id: pageId,
+        account_name: pageName,
+        post_id: 'post_km_101',
+        post_caption: '⚡ Novedades de la semana en Kmarket: Descubre nuestras ofertas exclusivas...',
         post_media_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80',
         post_permalink: 'https://instagram.com',
         from_id: 'sim_user_c2',
         from_name: 'esteban_gomez',
-        comment_text: 'Precio por favor 🙌',
+        comment_text: 'Precio del pack por favor 🙌',
         created_at: new Date(now - 80 * 60 * 1000).toISOString(),
         reply_count: 1,
         is_answered: 1,
-        reply_text: '¡Hola Esteban! Te enviamos los detalles por mensaje directo 😉'
+        reply_text: '¡Hola Esteban! Te enviamos los detalles y catálogo por mensaje directo 😉'
       },
       {
-        id: 'sim_cmt_3',
+        id: `sim_cmt_${pageId}_3`,
         platform: 'facebook',
-        post_id: 'post_102',
-        post_caption: 'Gran lanzamiento de temporada. ¡Aprovecha los descuentos de apertura!',
+        account_id: pageId,
+        account_name: pageName,
+        post_id: 'post_km_102',
+        post_caption: 'Gran variedad de productos frescos y abarrotes. ¡Visítanos en nuestro local!',
         post_media_url: null,
         post_permalink: 'https://facebook.com',
         from_id: 'sim_user_c3',
         from_name: 'Loreto Silva Morales',
-        comment_text: '¿Hasta cuándo dura la promoción? Saludos!',
+        comment_text: '¿Hasta qué hora atienden hoy domingo? Saludos!',
         created_at: new Date(now - 4 * 3600 * 1000).toISOString(),
         reply_count: 0,
         is_answered: 0,

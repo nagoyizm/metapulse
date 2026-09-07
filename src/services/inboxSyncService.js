@@ -53,7 +53,7 @@ class InboxSyncService {
   /**
    * Ejecuta la sincronización completa de DMs y Comentarios
    */
-  async syncAll() {
+  async syncAll(targetAccountId = null) {
     if (this.isSyncing) {
       return { skipped: true, reason: 'Ya hay una sincronización en progreso.' };
     }
@@ -62,13 +62,37 @@ class InboxSyncService {
     const stats = { newMessages: 0, newComments: 0, notificationsSent: 0 };
 
     try {
-      // 1. Sincronizar Conversaciones y DMs
-      const convStats = await this.syncConversations();
-      stats.newMessages += convStats.newMessages;
+      // Determinar qué cuentas sincronizar
+      let accountsToSync = [];
+      if (targetAccountId) {
+        const creds = metaService.getAccountCredentials(targetAccountId);
+        accountsToSync = [creds];
+      } else {
+        // En background sync, sincronizar todas las cuentas conectadas no ocultas
+        try {
+          const cachedStr = getSetting('cached_managed_accounts');
+          if (cachedStr) {
+            const parsed = JSON.parse(cachedStr);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              accountsToSync = parsed.filter(p => !p.isHidden).map(p => metaService.getAccountCredentials(p));
+            }
+          }
+        } catch (_) {}
 
-      // 2. Sincronizar Comentarios
-      const commentStats = await this.syncComments();
-      stats.newComments += commentStats.newComments;
+        if (accountsToSync.length === 0) {
+          accountsToSync = [metaService.getConfig()];
+        }
+      }
+
+      for (const acc of accountsToSync) {
+        // 1. Sincronizar Conversaciones y DMs para esta cuenta
+        const convStats = await this.syncConversations(acc);
+        stats.newMessages += convStats.newMessages;
+
+        // 2. Sincronizar Comentarios para esta cuenta
+        const commentStats = await this.syncComments(acc);
+        stats.newComments += commentStats.newComments;
+      }
 
       // 3. Despachar notificaciones pendientes a WhatsApp
       const notifStats = await this.dispatchPendingWhatsAppNotifications();
@@ -92,18 +116,23 @@ class InboxSyncService {
   /**
    * Sincroniza conversaciones y mensajes recientes
    */
-  async syncConversations() {
+  async syncConversations(accountCreds = null) {
     let newMessages = 0;
     try {
-      const conversations = await metaService.getConversations(15);
+      const creds = metaService.getAccountCredentials(accountCreds);
+      const conversations = await metaService.getConversations(15, creds);
 
       for (const conv of conversations) {
+        if (!conv.account_id) conv.account_id = creds.pageId || creds.instagramId || null;
+        if (!conv.account_name) conv.account_name = creds.pageName || null;
+
         // Guardar o actualizar la conversación en SQLite
         upsertConversation(conv);
 
         // Obtener los mensajes del hilo
-        const messages = await metaService.getConversationMessages(conv.id, conv.platform);
+        const messages = await metaService.getConversationMessages(conv.id, conv.platform, creds);
         for (const msg of messages) {
+          if (!msg.account_id) msg.account_id = conv.account_id;
           // Comprobar si ya existe
           const exists = db.prepare('SELECT id, notified_whatsapp FROM inbox_messages WHERE id = ?').get(msg.id);
           if (!exists) {
@@ -123,12 +152,16 @@ class InboxSyncService {
   /**
    * Sincroniza comentarios de publicaciones recientes
    */
-  async syncComments() {
+  async syncComments(accountCreds = null) {
     let newComments = 0;
     try {
-      const comments = await metaService.getRecentComments(25);
+      const creds = metaService.getAccountCredentials(accountCreds);
+      const comments = await metaService.getRecentComments(25, creds);
 
       for (const c of comments) {
+        if (!c.account_id) c.account_id = creds.pageId || null;
+        if (!c.account_name) c.account_name = creds.pageName || null;
+
         const exists = db.prepare('SELECT id, notified_whatsapp FROM inbox_comments WHERE id = ?').get(c.id);
         if (!exists) {
           upsertInboxComment(c);
@@ -163,7 +196,10 @@ class InboxSyncService {
       const unnotifiedMsgs = getUnnotifiedMessages();
       for (const msg of unnotifiedMsgs) {
         try {
+          const conv = msg.conversation_id ? db.prepare('SELECT account_name FROM inbox_conversations WHERE id = ?').get(msg.conversation_id) : null;
+          const accName = conv?.account_name || '';
           await whatsappService.notifyDirectMessage({
+            accountName: accName,
             senderName: msg.sender_name || 'Cliente',
             messageText: msg.message_text,
             platform: msg.platform
@@ -188,6 +224,7 @@ class InboxSyncService {
       for (const c of unnotifiedComments) {
         try {
           await whatsappService.notifyComment({
+            accountName: c.account_name || '',
             authorName: c.from_name || 'Usuario',
             commentText: c.comment_text,
             postCaption: c.post_caption,

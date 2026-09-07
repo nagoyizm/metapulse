@@ -15,8 +15,23 @@ const InboxState = {
   searchQuery: ''
 };
 
+// Actualizar badge de cuenta activa en Inbox
+function updateInboxAccountBadge() {
+  const badge = document.getElementById('inbox-active-account-badge');
+  const nameEl = document.getElementById('inbox-active-account-name');
+  const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  if (nameEl) {
+    nameEl.textContent = active ? (active.pageName || 'Cuenta') : 'Sin cuenta';
+  }
+  if (badge) {
+    badge.style.display = active ? 'inline-flex' : 'none';
+  }
+}
+window.updateInboxAccountBadge = updateInboxAccountBadge;
+
 // Carga principal invocada al entrar a la pestaña 'inbox'
 window.loadInboxData = async function() {
+  updateInboxAccountBadge();
   await Promise.all([
     loadConversations(),
     loadComments(),
@@ -44,7 +59,12 @@ function setupInboxSubtabs() {
       const icon = document.getElementById('btn-inbox-refresh-icon');
       if (icon) icon.classList.add('spin-animation');
       try {
-        const res = await fetch('/api/inbox/sync', { method: 'POST' });
+        const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+        const res = await fetch('/api/inbox/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: active?.pageId || null })
+        });
         const json = await res.json();
         if (json.success) {
           showToast('Sincronización completada exitosamente', 'success');
@@ -167,12 +187,39 @@ function switchInboxView(view) {
 // ==========================================
 async function loadConversations() {
   try {
-    const res = await fetch('/api/inbox/conversations');
+    const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const params = new URLSearchParams();
+    if (active && active.pageId) {
+      params.append('accountId', active.pageId);
+      if (active.instagramId) params.append('instagramId', active.instagramId);
+    }
+    const url = `/api/inbox/conversations${params.toString() ? '?' + params.toString() : ''}`;
+    const res = await fetch(url);
     const json = await res.json();
     if (json.success) {
       InboxState.conversations = json.data || [];
       renderConversationsList();
       updateUnreadBadges();
+
+      // Si la conversación activa ya no pertenece a esta cuenta, deseleccionar
+      if (InboxState.activeConversationId && !InboxState.conversations.some(c => c.id === InboxState.activeConversationId)) {
+        InboxState.activeConversationId = null;
+        InboxState.messages = [];
+        const headerBar = document.getElementById('chat-header-bar');
+        const footerBar = document.getElementById('chat-footer-bar');
+        const msgsContainer = document.getElementById('chat-messages-container');
+        if (headerBar) headerBar.style.display = 'none';
+        if (footerBar) footerBar.style.display = 'none';
+        if (msgsContainer) {
+          msgsContainer.innerHTML = `
+            <div class="chat-empty-state">
+              <div style="font-size: 2.8rem; margin-bottom: 8px;">✉️</div>
+              <h3>Bandeja de Mensajes Directos</h3>
+              <p>Selecciona un cliente de la lista izquierda para leer la conversación y responderle en vivo.</p>
+            </div>
+          `;
+        }
+      }
 
       // Si no hay chat seleccionado y hay chats, seleccionar el primero
       if (!InboxState.activeConversationId && InboxState.conversations.length > 0) {
@@ -426,7 +473,14 @@ async function generateAiReplySuggestion() {
 // ==========================================
 async function loadComments() {
   try {
-    const res = await fetch(`/api/inbox/comments?filter=${InboxState.commentFilter}`);
+    const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const params = new URLSearchParams();
+    params.append('filter', InboxState.commentFilter);
+    if (active && active.pageId) {
+      params.append('accountId', active.pageId);
+      if (active.instagramId) params.append('instagramId', active.instagramId);
+    }
+    const res = await fetch(`/api/inbox/comments?${params.toString()}`);
     const json = await res.json();
     if (json.success) {
       InboxState.comments = json.data || [];
@@ -723,7 +777,13 @@ function startInboxPolling() {
 
 async function updateUnreadBadgesFromApi() {
   try {
-    const res = await fetch('/api/inbox/conversations');
+    const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const params = new URLSearchParams();
+    if (active && active.pageId) {
+      params.append('accountId', active.pageId);
+      if (active.instagramId) params.append('instagramId', active.instagramId);
+    }
+    const res = await fetch(`/api/inbox/conversations${params.toString() ? '?' + params.toString() : ''}`);
     const json = await res.json();
     if (json.success && json.data) {
       InboxState.conversations = json.data;

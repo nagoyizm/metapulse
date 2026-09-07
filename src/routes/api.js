@@ -18,6 +18,7 @@ const {
   getInboxMessagesByConversation,
   upsertInboxComment,
   getInboxComments,
+  getInboxCommentById,
   markCommentAnswered
 } = require('../database/db');
 const metaService = require('../services/metaService');
@@ -1949,14 +1950,19 @@ router.post('/batch/confirm-schedule', async (req, res) => {
  */
 router.get('/inbox/conversations', async (req, res) => {
   try {
-    let conversations = getInboxConversations();
-    if (conversations.length === 0) {
-      // Si la BD local está vacía, sincronizar desde Meta / simulación
-      const metaConvs = await metaService.getConversations(20);
+    const accountId = req.query.accountId || req.query.account_id || getSetting('meta_page_id');
+    const instagramId = req.query.instagramId || req.query.instagram_id || getSetting('meta_instagram_id');
+    let conversations = getInboxConversations(accountId, instagramId);
+    if (conversations.length === 0 && accountId && accountId !== 'all') {
+      // Si la BD local está vacía para esta cuenta, sincronizar desde Meta / simulación
+      const creds = metaService.getAccountCredentials(accountId);
+      const metaConvs = await metaService.getConversations(20, creds);
       for (const c of metaConvs) {
+        if (!c.account_id) c.account_id = creds.pageId || null;
+        if (!c.account_name) c.account_name = creds.pageName || null;
         upsertConversation(c);
       }
-      conversations = getInboxConversations();
+      conversations = getInboxConversations(accountId, instagramId);
     }
     res.json({ success: true, data: conversations });
   } catch (err) {
@@ -1974,8 +1980,10 @@ router.get('/inbox/conversations/:id/messages', async (req, res) => {
     if (messages.length === 0) {
       const conv = getInboxConversationById(convId);
       const platform = conv ? conv.platform : 'instagram';
-      const metaMsgs = await metaService.getConversationMessages(convId, platform);
+      const creds = conv?.account_id ? metaService.getAccountCredentials(conv.account_id) : null;
+      const metaMsgs = await metaService.getConversationMessages(convId, platform, creds);
       for (const m of metaMsgs) {
+        if (!m.account_id && conv) m.account_id = conv.account_id;
         upsertInboxMessage(m);
       }
       messages = getInboxMessagesByConversation(convId);
@@ -2001,15 +2009,17 @@ router.post('/inbox/conversations/:id/reply', async (req, res) => {
     const conv = getInboxConversationById(convId);
     const plat = platform || (conv ? conv.platform : 'instagram');
     const recipientId = conv ? conv.participant_id : null;
+    const creds = conv?.account_id ? metaService.getAccountCredentials(conv.account_id) : null;
 
-    const metaRes = await metaService.sendDirectMessage(convId, recipientId, plat, text);
+    const metaRes = await metaService.sendDirectMessage(convId, recipientId, plat, text, creds);
 
     const newMsg = {
       id: metaRes.id || `out_${Date.now()}`,
       conversation_id: convId,
       platform: plat,
+      account_id: conv ? conv.account_id : (getSetting('meta_page_id') || null),
       sender_id: 'page',
-      sender_name: 'MetaPulse',
+      sender_name: creds?.pageName || 'MetaPulse',
       sender_type: 'page',
       message_text: text.trim(),
       created_at: new Date().toISOString(),
@@ -2041,14 +2051,19 @@ router.post('/inbox/conversations/:id/reply', async (req, res) => {
 router.get('/inbox/comments', async (req, res) => {
   try {
     const filter = req.query.filter || 'all';
-    let comments = getInboxComments(filter);
-    if (comments.length === 0) {
-      // Sincronizar desde Meta / simulación
-      const metaComments = await metaService.getRecentComments(30);
+    const accountId = req.query.accountId || req.query.account_id || getSetting('meta_page_id');
+    const instagramId = req.query.instagramId || req.query.instagram_id || getSetting('meta_instagram_id');
+    let comments = getInboxComments(filter, accountId, instagramId);
+    if (comments.length === 0 && accountId && accountId !== 'all') {
+      // Sincronizar desde Meta / simulación para esta cuenta
+      const creds = metaService.getAccountCredentials(accountId);
+      const metaComments = await metaService.getRecentComments(30, creds);
       for (const c of metaComments) {
+        if (!c.account_id) c.account_id = creds.pageId || null;
+        if (!c.account_name) c.account_name = creds.pageName || null;
         upsertInboxComment(c);
       }
-      comments = getInboxComments(filter);
+      comments = getInboxComments(filter, accountId, instagramId);
     }
     res.json({ success: true, data: comments });
   } catch (err) {
@@ -2068,8 +2083,10 @@ router.post('/inbox/comments/:id/reply', async (req, res) => {
       return res.status(400).json({ success: false, error: 'La respuesta no puede estar vacía.' });
     }
 
-    const plat = platform || 'instagram';
-    const metaRes = await metaService.replyComment(commentId, plat, text);
+    const comment = getInboxCommentById(commentId);
+    const plat = platform || (comment ? comment.platform : 'instagram');
+    const creds = comment?.account_id ? metaService.getAccountCredentials(comment.account_id) : null;
+    const metaRes = await metaService.replyComment(commentId, plat, text, creds);
 
     // Marcar en la BD como respondido
     markCommentAnswered(commentId, text.trim());
@@ -2089,7 +2106,8 @@ router.post('/inbox/comments/:id/reply', async (req, res) => {
  */
 router.post('/inbox/sync', async (req, res) => {
   try {
-    const result = await inboxSyncService.syncAll();
+    const accountId = req.body?.accountId || req.query?.accountId || req.body?.account_id || req.query?.account_id || null;
+    const result = await inboxSyncService.syncAll(accountId);
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

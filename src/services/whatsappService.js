@@ -116,15 +116,16 @@ class WhatsAppService {
   /**
    * Notifica la llegada de un nuevo mensaje directo (DM)
    */
-  async notifyDirectMessage({ senderName, messageText, platform = 'instagram' }) {
+  async notifyDirectMessage({ accountName, senderName, messageText, platform = 'instagram' }) {
     const config = this.getConfig();
     if (!config.enabled || !config.notifyDms) {
       return { skipped: true, reason: 'Notificaciones de DMs desactivadas' };
     }
 
     const platformLabel = platform === 'facebook' ? 'Facebook Messenger' : 'Instagram Direct';
+    const tag = accountName ? `[MetaPulse | ${accountName}]` : '[MetaPulse]';
     const text = 
-`🔔 *[MetaPulse] Nuevo Mensaje en ${platformLabel}*
+`🔔 *${tag} Nuevo Mensaje en ${platformLabel}*
 👤 *De:* ${senderName || 'Usuario'}
 💬 *Mensaje:* "${(messageText || '').slice(0, 160)}"
 
@@ -136,7 +137,7 @@ class WhatsAppService {
   /**
    * Notifica la llegada de un nuevo comentario en una publicación
    */
-  async notifyComment({ authorName, commentText, postCaption, platform = 'instagram' }) {
+  async notifyComment({ accountName, authorName, commentText, postCaption, platform = 'instagram' }) {
     const config = this.getConfig();
     if (!config.enabled || !config.notifyComments) {
       return { skipped: true, reason: 'Notificaciones de comentarios desactivadas' };
@@ -144,8 +145,9 @@ class WhatsAppService {
 
     const platformLabel = platform === 'facebook' ? 'Facebook' : 'Instagram';
     const postSnippet = postCaption ? `\n📌 *Post:* "${postCaption.slice(0, 45)}..."` : '';
+    const tag = accountName ? `[MetaPulse | ${accountName}]` : '[MetaPulse]';
     const text = 
-`💬 *[MetaPulse] Nuevo Comentario en ${platformLabel}*
+`💬 *${tag} Nuevo Comentario en ${platformLabel}*
 👤 *Autor:* ${authorName || 'Usuario'}${postSnippet}
 ✍️ *Comentario:* "${(commentText || '').slice(0, 160)}"
 

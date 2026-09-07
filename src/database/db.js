@@ -92,6 +92,7 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       platform TEXT NOT NULL DEFAULT 'instagram',
       account_id TEXT,
+      account_name TEXT,
       participant_id TEXT,
       participant_name TEXT,
       participant_username TEXT,
@@ -108,6 +109,7 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       conversation_id TEXT NOT NULL,
       platform TEXT NOT NULL DEFAULT 'instagram',
+      account_id TEXT,
       sender_id TEXT NOT NULL,
       sender_name TEXT,
       sender_type TEXT NOT NULL,
@@ -120,6 +122,8 @@ function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS inbox_comments (
       id TEXT PRIMARY KEY,
       platform TEXT NOT NULL DEFAULT 'instagram',
+      account_id TEXT,
+      account_name TEXT,
       post_id TEXT NOT NULL,
       post_caption TEXT,
       post_media_url TEXT,
@@ -159,6 +163,29 @@ function initializeDatabase() {
   } catch (_) {}
   try {
     db.prepare('ALTER TABLE watermarks ADD COLUMN account_name TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE inbox_comments ADD COLUMN account_id TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE inbox_comments ADD COLUMN account_name TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE inbox_conversations ADD COLUMN account_name TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE inbox_messages ADD COLUMN account_id TEXT').run();
+  } catch (_) {}
+
+  // Auto-asociar comentarios huérfanos con el account_id de sus posts correspondientes
+  try {
+    db.prepare(`
+      UPDATE inbox_comments
+      SET account_id = (SELECT posts.account_id FROM posts WHERE posts.meta_post_id = inbox_comments.post_id OR posts.id = inbox_comments.post_id LIMIT 1),
+          account_name = (SELECT posts.account_name FROM posts WHERE posts.meta_post_id = inbox_comments.post_id OR posts.id = inbox_comments.post_id LIMIT 1)
+      WHERE (account_id IS NULL OR account_id = '')
+        AND EXISTS (SELECT 1 FROM posts WHERE posts.meta_post_id = inbox_comments.post_id OR posts.id = inbox_comments.post_id)
+    `).run();
   } catch (_) {}
 
   // Populate default settings if empty
@@ -302,11 +329,13 @@ function setMultipleSettings(settingsObj) {
 function upsertConversation(conv) {
   const stmt = db.prepare(`
     INSERT INTO inbox_conversations (
-      id, platform, account_id, participant_id, participant_name,
+      id, platform, account_id, account_name, participant_id, participant_name,
       participant_username, participant_pic, last_message_text, last_message_at,
       unread_count, is_archived, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
+      account_id = COALESCE(excluded.account_id, inbox_conversations.account_id),
+      account_name = COALESCE(excluded.account_name, inbox_conversations.account_name),
       participant_name = COALESCE(excluded.participant_name, inbox_conversations.participant_name),
       participant_username = COALESCE(excluded.participant_username, inbox_conversations.participant_username),
       participant_pic = COALESCE(excluded.participant_pic, inbox_conversations.participant_pic),
@@ -319,6 +348,7 @@ function upsertConversation(conv) {
     conv.id,
     conv.platform || 'instagram',
     conv.account_id || null,
+    conv.account_name || null,
     conv.participant_id || null,
     conv.participant_name || 'Usuario',
     conv.participant_username || null,
@@ -330,12 +360,20 @@ function upsertConversation(conv) {
   );
 }
 
-function getInboxConversations() {
-  return db.prepare(`
-    SELECT * FROM inbox_conversations
-    WHERE is_archived = 0
-    ORDER BY last_message_at DESC
-  `).all();
+function getInboxConversations(accountId = null, instagramId = null) {
+  let query = 'SELECT * FROM inbox_conversations WHERE is_archived = 0';
+  const params = [];
+  if (accountId && accountId !== 'all') {
+    if (instagramId && String(instagramId) !== String(accountId)) {
+      query += ' AND (account_id = ? OR account_id = ?)';
+      params.push(String(accountId), String(instagramId));
+    } else {
+      query += ' AND account_id = ?';
+      params.push(String(accountId));
+    }
+  }
+  query += ' ORDER BY last_message_at DESC';
+  return db.prepare(query).all(...params);
 }
 
 function getInboxConversationById(id) {
@@ -345,14 +383,15 @@ function getInboxConversationById(id) {
 function upsertInboxMessage(msg) {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO inbox_messages (
-      id, conversation_id, platform, sender_id, sender_name,
+      id, conversation_id, platform, account_id, sender_id, sender_name,
       sender_type, message_text, created_at, notified_whatsapp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   return stmt.run(
     msg.id,
     msg.conversation_id,
     msg.platform || 'instagram',
+    msg.account_id || null,
     msg.sender_id,
     msg.sender_name || null,
     msg.sender_type || 'customer',
@@ -386,10 +425,12 @@ function markMessageNotified(id) {
 function upsertInboxComment(c) {
   const stmt = db.prepare(`
     INSERT INTO inbox_comments (
-      id, platform, post_id, post_caption, post_media_url, post_permalink,
+      id, platform, account_id, account_name, post_id, post_caption, post_media_url, post_permalink,
       from_id, from_name, comment_text, created_at, reply_count, is_answered, reply_text, notified_whatsapp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
+      account_id = COALESCE(excluded.account_id, inbox_comments.account_id),
+      account_name = COALESCE(excluded.account_name, inbox_comments.account_name),
       reply_count = excluded.reply_count,
       is_answered = MAX(inbox_comments.is_answered, excluded.is_answered),
       reply_text = COALESCE(excluded.reply_text, inbox_comments.reply_text)
@@ -397,6 +438,8 @@ function upsertInboxComment(c) {
   return stmt.run(
     c.id,
     c.platform || 'instagram',
+    c.account_id || null,
+    c.account_name || null,
     c.post_id,
     c.post_caption || '',
     c.post_media_url || null,
@@ -412,15 +455,29 @@ function upsertInboxComment(c) {
   );
 }
 
-function getInboxComments(filter = 'all') {
-  let query = 'SELECT * FROM inbox_comments';
+function getInboxComments(filter = 'all', accountId = null, instagramId = null) {
+  let query = 'SELECT * FROM inbox_comments WHERE 1=1';
+  const params = [];
+  if (accountId && accountId !== 'all') {
+    if (instagramId && String(instagramId) !== String(accountId)) {
+      query += ' AND (account_id = ? OR account_id = ?)';
+      params.push(String(accountId), String(instagramId));
+    } else {
+      query += ' AND account_id = ?';
+      params.push(String(accountId));
+    }
+  }
   if (filter === 'unanswered') {
-    query += ' WHERE is_answered = 0';
+    query += ' AND is_answered = 0';
   } else if (filter === 'answered') {
-    query += ' WHERE is_answered = 1';
+    query += ' AND is_answered = 1';
   }
   query += ' ORDER BY datetime(created_at) DESC';
-  return db.prepare(query).all();
+  return db.prepare(query).all(...params);
+}
+
+function getInboxCommentById(id) {
+  return db.prepare('SELECT * FROM inbox_comments WHERE id = ?').get(id);
 }
 
 function markCommentAnswered(commentId, replyText) {
@@ -459,6 +516,7 @@ module.exports = {
   markMessageNotified,
   upsertInboxComment,
   getInboxComments,
+  getInboxCommentById,
   markCommentAnswered,
   getUnnotifiedComments,
   markCommentNotified
