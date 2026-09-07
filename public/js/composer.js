@@ -106,9 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.radio-pill').forEach(pill => {
         pill.classList.toggle('active', pill.querySelector('input').checked);
       });
-      // Si seleccionó story, cambiar preview a story
+      // Si seleccionó story, cambiar preview a story y destacar sección de música
+      const musicSec = document.getElementById('story-music-section');
       if (radio.value === 'story') {
         switchPreviewTab('story');
+        if (musicSec) musicSec.style.display = 'block';
       } else {
         switchPreviewTab('fb');
       }
@@ -743,6 +745,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const accountId = activeAcc?.pageId || accountSelect?.value || '';
       const accountName = activeAcc?.pageName || (accountSelect?.options[accountSelect?.selectedIndex]?.getAttribute('data-name')) || '';
 
+      const musicConfigPayload = (window.StoryMusicState && window.StoryMusicState.enabled && window.StoryMusicState.selectedTrack) ? {
+        audio_url: window.StoryMusicState.selectedTrack.streamUrl,
+        start_time: window.StoryMusicState.startTime || 0,
+        duration: window.StoryMusicState.duration || 15,
+        add_music_sticker: Boolean(window.StoryMusicState.addSticker),
+        song_title: window.StoryMusicState.selectedTrack.title || '',
+        song_artist: window.StoryMusicState.selectedTrack.artist || ''
+      } : null;
+
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -758,7 +769,9 @@ document.addEventListener('DOMContentLoaded', () => {
           accountName,
           also_share_story: alsoShareStory,
           story_timing_rule: storyTimingRule,
-          story_custom_datetime: storyCustomDatetime
+          story_custom_datetime: storyCustomDatetime,
+          music_config: postType === 'story' ? musicConfigPayload : null,
+          story_music_config: alsoShareStory ? musicConfigPayload : null
         })
       });
 
@@ -770,6 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
         postTitle.value = '';
         if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
         if (storyTimingBox) storyTimingBox.style.display = 'none';
+        if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
         ComposerState.mediaFiles = [];
         renderMediaPreviews();
         updateLivePreviews();
@@ -791,6 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
     postTitle.value = '';
     if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
     if (storyTimingBox) storyTimingBox.style.display = 'none';
+    if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
     postTitle.value = '';
     ComposerState.mediaFiles = [];
     renderMediaPreviews();

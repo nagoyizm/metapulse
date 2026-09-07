@@ -19,8 +19,11 @@ window.loadSettingsData = async function() {
     if (s.ai_api_key) document.getElementById('ai-api-key').value = s.ai_api_key;
     if (s.brand_name) document.getElementById('brand-default-name').value = s.brand_name;
 
-    // Llenar servidor & simulación
+    // Llenar servidor & simulación & música
     if (s.public_url_base) document.getElementById('public-url-base').value = s.public_url_base;
+    if (s.jamendo_client_id && document.getElementById('jamendo-client-id')) {
+      document.getElementById('jamendo-client-id').value = s.jamendo_client_id;
+    }
     document.getElementById('toggle-simulation-mode').checked = (s.simulation_mode === 'true');
 
     // Llenar estado de auto-estampar sello
@@ -225,6 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnSaveServerSettings) {
     btnSaveServerSettings.addEventListener('click', async () => {
       const publicUrlBase = document.getElementById('public-url-base').value.trim();
+      const jamendoClientId = document.getElementById('jamendo-client-id')?.value.trim() || '';
       const simulationMode = document.getElementById('toggle-simulation-mode').checked;
 
       try {
@@ -233,12 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             public_url_base: publicUrlBase,
+            jamendo_client_id: jamendoClientId,
             simulation_mode: simulationMode ? 'true' : 'false'
           })
         });
         const json = await res.json();
         if (json.success) {
-          showToast('Ajustes de servidor y simulación actualizados', 'success');
+          showToast('Ajustes de servidor, simulación y música actualizados', 'success');
           loadDashboardStatus();
         }
       } catch (err) {

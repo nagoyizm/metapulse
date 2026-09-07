@@ -28,6 +28,8 @@ const aiService = require('../services/aiService');
 const slotService = require('../services/slotService');
 const whatsappService = require('../services/whatsappService');
 const inboxSyncService = require('../services/inboxSyncService');
+const musicService = require('../services/musicService');
+const videoService = require('../services/videoService');
 const { scrapeCampinaWebsite, CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
 
 // Configuración de Multer para subida de archivos
@@ -67,6 +69,27 @@ const watermarkStorage = multer.diskStorage({
 });
 
 const uploadWatermark = multer({ storage: watermarkStorage });
+
+const audioStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dest = path.join(__dirname, '../../uploads/audio');
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    cb(null, dest);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E6);
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp3';
+    cb(null, `audio-${uniqueSuffix}${ext}`);
+  }
+});
+
+const uploadAudio = multer({
+  storage: audioStorage,
+  limits: { fileSize: 35 * 1024 * 1024 } // 35MB
+});
+
 const authService = require('../services/authService');
 
 // ==========================================
@@ -279,11 +302,36 @@ router.post('/posts', async (req, res) => {
       accountName = getSetting('meta_page_name') || '',
       also_share_story = false,
       story_timing_rule = 'same_time',
-      story_custom_datetime = null
+      story_custom_datetime = null,
+      music_config = null,
+      story_music_config = null
     } = req.body;
 
     if (!content && (!media_urls || media_urls.length === 0)) {
       return res.status(400).json({ success: false, error: 'Debes incluir al menos texto o contenido multimedia.' });
+    }
+
+    // Si la publicación es de tipo 'story' y tiene configuración de música con imagen estática,
+    // convertirla en video MP4 vertical 9:16 con audio embebido
+    if (post_type === 'story' && music_config && music_config.audio_url && media_urls.length > 0) {
+      const firstMedia = media_urls[0];
+      if (!firstMedia.match(/\.(mp4|mov)$/i)) {
+        try {
+          console.log('[API] Generando video story con música embebida para publicación directa...');
+          const vidResult = await videoService.generateStoryVideo({
+            imageInput: firstMedia,
+            audioInput: music_config.audio_url,
+            duration: music_config.duration || 15,
+            startTime: music_config.start_time || 0,
+            addMusicSticker: Boolean(music_config.add_music_sticker),
+            songTitle: music_config.song_title || '',
+            songArtist: music_config.song_artist || ''
+          });
+          media_urls[0] = vidResult.relativeUrl;
+        } catch (err) {
+          console.warn('[Auto-Story-Music Video Error]:', err.message);
+        }
+      }
     }
 
     let targetSchedule = null;
@@ -333,11 +381,26 @@ router.post('/posts', async (req, res) => {
         }
 
         if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
-          const cardRes = await imageService.createStoryCard({
-            inputImagePath: absImagePath,
-            brandName: accountName || getSetting('meta_page_name') || ''
-          });
-          storyMediaUrl = cardRes.relativeUrl;
+          // Si incluyó configuración de música para la historia, generamos video story MP4 con audio
+          if (story_music_config && story_music_config.audio_url) {
+            console.log('[API] Generando video story cruzado con música...');
+            const vidRes = await videoService.generateStoryVideo({
+              imageInput: absImagePath,
+              audioInput: story_music_config.audio_url,
+              duration: story_music_config.duration || 15,
+              startTime: story_music_config.start_time || 0,
+              addMusicSticker: Boolean(story_music_config.add_music_sticker),
+              songTitle: story_music_config.song_title || '',
+              songArtist: story_music_config.song_artist || ''
+            });
+            storyMediaUrl = vidRes.relativeUrl;
+          } else {
+            const cardRes = await imageService.createStoryCard({
+              inputImagePath: absImagePath,
+              brandName: accountName || getSetting('meta_page_name') || ''
+            });
+            storyMediaUrl = cardRes.relativeUrl;
+          }
         }
 
         // Calcular horario de la historia
@@ -1601,6 +1664,108 @@ router.post('/watermark/apply', async (req, res) => {
 
     res.json({ success: true, data: processed });
   } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// MÚSICA SIN COPYRIGHT Y GENERACIÓN DE VIDEO STORIES (FFMPEG)
+// ==========================================
+
+router.get('/music/library', (req, res) => {
+  try {
+    const { category = null, q = null } = req.query;
+    const tracks = musicService.getCuratedCatalog(category, q);
+    const userAudios = musicService.getUserUploadedAudios();
+    res.json({
+      success: true,
+      data: {
+        tracks,
+        userAudios,
+        categories: [
+          { id: 'all', label: '🔥 Todos los Géneros' },
+          { id: 'pop', label: '✨ Pop & Alegre' },
+          { id: 'lofi', label: '☕ Lo-Fi & Relax' },
+          { id: 'acoustic', label: '🎸 Acústico & Cálido' },
+          { id: 'corporate', label: '💼 Corporativo & Marca' },
+          { id: 'funky', label: '🍕 Divertido & Foodie' },
+          { id: 'electronic', label: '⚡ Electrónica & Tech' }
+        ]
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/music/search', async (req, res) => {
+  try {
+    const { q = '', tag = '', limit = 15 } = req.query;
+    const result = await musicService.searchJamendo({ query: q, tag, limit: Number(limit) });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/music/upload', uploadAudio.single('audio'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No se subió ningún archivo de audio.' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        relativeUrl: `/uploads/audio/${req.file.filename}`,
+        sizeBytes: req.file.size
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/stories/generate-video', async (req, res) => {
+  try {
+    const {
+      image_url,
+      audio_url,
+      duration = 15,
+      start_time = 0,
+      add_music_sticker = false,
+      song_title = '',
+      song_artist = ''
+    } = req.body;
+
+    if (!image_url) {
+      return res.status(400).json({ success: false, error: 'Se requiere una imagen para generar el video de la Historia.' });
+    }
+    if (!audio_url) {
+      return res.status(400).json({ success: false, error: 'Se requiere una pista de audio (canción subida o de la biblioteca).' });
+    }
+
+    console.log(`[API] Iniciando generación de Video Story con audio para: ${song_title || 'Audio seleccionado'}`);
+
+    const result = await videoService.generateStoryVideo({
+      imageInput: image_url,
+      audioInput: audio_url,
+      duration: Number(duration) || 15,
+      startTime: Number(start_time) || 0,
+      addMusicSticker: Boolean(add_music_sticker),
+      songTitle: song_title,
+      songArtist: song_artist
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: '¡Video Story vertical 9:16 generado con éxito listo para Instagram/Facebook!'
+    });
+  } catch (err) {
+    console.error('[Generate Story Video Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

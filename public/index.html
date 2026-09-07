@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/previews.css">
+  <link rel="stylesheet" href="css/story-music.css">
 </head>
 <body class="light-theme">
   <!-- PANTALLA DE ACCESO Y SEGURIDAD METAPULSE -->
@@ -490,6 +491,130 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Story Music & FFmpeg Audio Integration (Simulator for Instagram Music Stories) -->
+                  <div class="form-group story-music-section" id="story-music-section">
+                    <div class="story-music-header">
+                      <div class="story-music-title-wrap">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
+                          <input type="checkbox" id="chk-story-music-enabled" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
+                          <span>🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)</span>
+                        </label>
+                      </div>
+                      <span class="story-music-badge-ffmpeg">
+                        <span>⚡ FFmpeg Story Video</span>
+                      </span>
+                    </div>
+                    <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                      Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con música de fondo embebida, simulando que fue subida con audio desde la app de Instagram para que suene con volumen real.
+                    </p>
+
+                    <!-- Drawer de Selección de Música (Oculto hasta activar) -->
+                    <div class="story-music-drawer" id="story-music-drawer" style="display: none;">
+                      <!-- Tabs de Fuentes -->
+                      <div class="music-source-tabs">
+                        <button type="button" class="music-tab-btn active" data-tab="curated">
+                          <span>🎧 Biblioteca Sin Copyright</span>
+                        </button>
+                        <button type="button" class="music-tab-btn" data-tab="upload">
+                          <span>📁 Subir mi Canción</span>
+                        </button>
+                        <button type="button" class="music-tab-btn" data-tab="jamendo">
+                          <span>🔍 Explorar Jamendo API</span>
+                        </button>
+                      </div>
+
+                      <!-- TAB 1: Biblioteca Curada Sin Copyright -->
+                      <div id="music-tab-curated" class="music-tab-content">
+                        <!-- Categorías / Moods -->
+                        <div class="music-category-pills" id="music-category-pills"></div>
+
+                        <!-- Buscador -->
+                        <div class="music-search-bar" style="margin: 10px 0 8px 0;">
+                          <span class="music-search-icon">🔍</span>
+                          <input type="text" id="music-search-input" class="music-search-input" placeholder="Buscar por nombre, artista o mood...">
+                        </div>
+
+                        <!-- Lista de Canciones -->
+                        <div class="music-track-list" id="music-track-list"></div>
+                      </div>
+
+                      <!-- TAB 2: Subir Canción Propia -->
+                      <div id="music-tab-upload" class="music-tab-content" style="display:none;">
+                        <input type="file" id="story-audio-file-input" accept="audio/*" style="display:none;">
+                        <div class="audio-upload-dropzone" id="story-audio-dropzone">
+                          <div style="font-size:1.8rem; margin-bottom:4px;">🎵</div>
+                          <p><strong>Haz clic aquí</strong> o arrastra tu archivo de música</p>
+                          <span class="audio-upload-sub">Formatos soportados: MP3, WAV, M4A, AAC, OGG (hasta 35MB)</span>
+                        </div>
+                      </div>
+
+                      <!-- TAB 3: Jamendo API -->
+                      <div id="music-tab-jamendo" class="music-tab-content" style="display:none;">
+                        <div style="display:flex; gap:8px; margin-bottom:10px;">
+                          <input type="text" id="jamendo-search-input" class="music-search-input" placeholder="Buscar en catálogo libre Jamendo (ej: summer, lofi, upbeat)...">
+                          <button type="button" class="btn btn-primary btn-sm" id="btn-jamendo-search" style="padding:0 14px; white-space:nowrap;">Buscar</button>
+                        </div>
+                        <div class="music-track-list" id="jamendo-results-list">
+                          <div style="text-align:center; padding:15px; color:var(--text-secondary); font-size:0.8rem;">
+                            Escribe una palabra clave para buscar millones de canciones Creative Commons en Jamendo.
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Panel de Configuración de la Pista Activa -->
+                      <div class="story-active-music-panel" id="story-active-music-panel" style="display:none;">
+                        <div class="active-track-header">
+                          <div class="active-track-pill">
+                            <span>🎵</span>
+                            <div>
+                              <div id="active-music-title" style="font-size:0.85rem; font-weight:700;">Sin pista</div>
+                              <div id="active-music-artist" style="font-size:0.72rem; color:var(--text-secondary); font-weight:400;">MetaPulse</div>
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-secondary btn-sm" id="btn-active-music-play" style="font-size:0.75rem; padding:4px 10px;">
+                            ▶ Escuchar
+                          </button>
+                        </div>
+
+                        <!-- Selector de Fragmento / Inicio -->
+                        <div class="slider-container">
+                          <div class="slider-header">
+                            <span>✂️ Punto de inicio de la canción:</span>
+                            <span id="music-trim-display" style="color:#ec4899; font-weight:700;">0:00s a 0:15s (15s)</span>
+                          </div>
+                          <input type="range" id="music-trim-slider" class="audio-trim-slider" min="0" max="120" value="0" step="1">
+                        </div>
+
+                        <!-- Duración de la Historia -->
+                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                          <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">Duración Story:</span>
+                          <div class="duration-pills">
+                            <span class="duration-pill" data-duration="10">10s</span>
+                            <span class="duration-pill active" data-duration="15">15s (Estándar)</span>
+                            <span class="duration-pill" data-duration="30">30s</span>
+                          </div>
+                        </div>
+
+                        <!-- Sticker de Música Visual -->
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; margin-top:4px;">
+                          <input type="checkbox" id="chk-music-sticker" checked style="width:16px; height:16px; accent-color:#ec4899;">
+                          <span>Superponer sticker visual de música estilo Instagram ("🎵 Canción • Artista")</span>
+                        </label>
+
+                        <!-- Botón de Generación Instantánea con FFmpeg -->
+                        <button type="button" class="btn-generate-story-video" id="btn-generate-story-video">
+                          ⚡ Generar Video Story con Audio Ahora
+                        </button>
+
+                        <!-- Indicador de Éxito -->
+                        <div class="story-video-success-badge" id="story-video-success-box" style="display:none;">
+                          <span class="video-status-text">¡Video Story MP4 generado con éxito!</span>
+                          <a href="#" id="story-video-download-link" target="_blank" style="color:#34d399; text-decoration:underline; font-size:0.75rem; display:none;">Ver video ↗</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Scheduling Options -->
@@ -617,6 +742,19 @@
                       <div class="media-placeholder">Imagen de Historia (9:16)</div>
                     </div>
                     <div class="story-text-overlay" id="mock-story-text"></div>
+                    <!-- Instagram Story Music Sticker Preview -->
+                    <div class="story-music-sticker-overlay" id="mock-story-music-sticker" style="display:none;">
+                      <div class="story-sticker-icon">🎵</div>
+                      <div class="story-sticker-meta">
+                        <span class="story-sticker-title" id="mock-music-title">Canción</span>
+                        <span class="story-sticker-artist" id="mock-music-artist">Artista • Instagram Audio</span>
+                      </div>
+                      <div class="music-sound-bars">
+                        <span class="bar b1"></span>
+                        <span class="bar b2"></span>
+                        <span class="bar b3"></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1234,6 +1372,15 @@
                   </label>
                   <input type="text" id="public-url-base" class="form-control" placeholder="https://tu-tunel.ngrok-free.app">
                   <small class="form-help">Instagram API requiere URLs públicas con HTTPS para descargar fotos de tus posts.</small>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="jamendo-client-id">
+                    Jamendo API Client ID (Música Libre de Derechos en Stories):
+                    <span class="text-muted">(Opcional)</span>
+                  </label>
+                  <input type="text" id="jamendo-client-id" class="form-control" placeholder="Ej: Tu Client ID de developer.jamendo.com">
+                  <small class="form-help">Permite buscar millones de pistas Creative Commons directamente para musicalizar tus Stories.</small>
                 </div>
 
                 <div class="form-group toggle-group">
@@ -2169,6 +2316,7 @@
   <script src="js/auth.js"></script>
   <script src="js/app.js"></script>
   <script src="js/composer.js"></script>
+  <script src="js/storyMusic.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/watermark.js"></script>
