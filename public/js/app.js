@@ -50,10 +50,10 @@ function navigateToTab(tabId) {
   const titles = {
     dashboard: 'Panel Principal',
     composer: 'Crear Publicación',
-    queue: 'Planner & Calendario de Contenidos',
-    analytics: 'Analíticas & Rendimiento',
-    media: 'Multimedia & Marca de Agua',
-    inbox: 'Bandeja de Entrada & Comentarios',
+    queue: 'Planner',
+    analytics: 'Analítica',
+    media: 'Multimedia',
+    inbox: 'Bandeja de Entrada',
     settings: 'Conexión Meta & Ajustes'
   };
 
