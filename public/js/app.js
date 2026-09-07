@@ -46,20 +46,20 @@ function navigateToTab(tabId) {
 
   AppState.activeTab = tabId;
 
-  // Actualizar subtítulo y título de cabecera
+  // Actualizar título de cabecera
   const titles = {
-    dashboard: { title: 'Panel Principal', sub: 'Monitorea tus cuentas, cola de publicaciones y rendimiento en tiempo real.' },
-    composer: { title: 'Crear Publicación', sub: 'Redacta, previsualiza y programa posts, historias y reels con IA.' },
-    queue: { title: 'Planner & Calendario de Contenidos', sub: 'Visualiza tus posts, historias y reels pasados y futuros en el calendario interactivo.' },
-    analytics: { title: 'Analíticas & Rendimiento', sub: 'Métricas de alcance e interacción desde Meta Graph API.' },
-    media: { title: 'Multimedia & Marca de Agua', sub: 'Organiza fotos, estampa tu logotipo y adapta dimensiones sociales.' },
-    inbox: { title: 'Bandeja de Entrada & Comentarios', sub: 'Lee y responde mensajes directos y comentarios de Instagram y Facebook con alertas a WhatsApp.' },
-    settings: { title: 'Conexión Meta & Ajustes', sub: 'Configura tokens de Facebook e Instagram y servicios de IA.' }
+    dashboard: 'Panel Principal',
+    composer: 'Crear Publicación',
+    queue: 'Planner & Calendario de Contenidos',
+    analytics: 'Analíticas & Rendimiento',
+    media: 'Multimedia & Marca de Agua',
+    inbox: 'Bandeja de Entrada & Comentarios',
+    settings: 'Conexión Meta & Ajustes'
   };
 
   if (titles[tabId]) {
-    document.getElementById('page-title').textContent = titles[tabId].title;
-    document.getElementById('page-subtitle').textContent = titles[tabId].sub;
+    const titleEl = document.getElementById('page-title');
+    if (titleEl) titleEl.textContent = titles[tabId];
   }
 
   // Cargas específicas por pestaña

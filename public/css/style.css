@@ -377,6 +377,11 @@ h1, h2, h3, h4, .brand-text h2, .stat-value, .status-title {
   z-index: 15;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+}
+
 #page-title {
   font-size: 1.18rem;
   font-weight: 700;
@@ -384,12 +389,7 @@ h1, h2, h3, h4, .brand-text h2, .stat-value, .status-title {
   letter-spacing: -0.02em;
   text-transform: none;
   color: var(--text-primary);
-}
-
-.page-subtitle {
-  font-size: 0.80rem;
-  color: var(--text-muted);
-  margin-top: 2px;
+  margin: 0;
 }
 
 .topbar-right {
