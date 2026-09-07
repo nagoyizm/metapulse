@@ -930,6 +930,488 @@ class MetaService {
       message: `Se sincronizaron ${newCount} publicaciones desde Instagram.`
     };
   }
+
+  /**
+   * Obtiene los comentarios recientes de publicaciones en Instagram y Facebook
+   */
+  async getRecentComments(limit = 30) {
+    const config = this.getConfig();
+
+    if (config.simulationMode || (!config.pageToken && !config.instagramId)) {
+      return this.getSimulationComments();
+    }
+
+    const commentsList = [];
+
+    // 1. Obtener de Instagram
+    if (config.instagramId && config.pageToken) {
+      try {
+        const res = await axios.get(`${this.graphUrl}/${config.instagramId}/media`, {
+          params: {
+            fields: 'id,caption,media_url,thumbnail_url,permalink,timestamp,comments{id,text,timestamp,from,username,like_count,replies{id,text,timestamp,from,username}}',
+            limit: 15,
+            access_token: config.pageToken
+          }
+        });
+
+        const mediaItems = res.data?.data || [];
+        for (const m of mediaItems) {
+          const rawComments = m.comments?.data || [];
+          for (const c of rawComments) {
+            commentsList.push({
+              id: c.id,
+              platform: 'instagram',
+              post_id: m.id,
+              post_caption: (m.caption || '').split('\n')[0].slice(0, 80),
+              post_media_url: m.media_url || m.thumbnail_url || null,
+              post_permalink: m.permalink || null,
+              from_id: c.from?.id || 'ig_user',
+              from_name: c.from?.username || c.username || 'Usuario de Instagram',
+              comment_text: c.text || '',
+              created_at: c.timestamp ? new Date(c.timestamp).toISOString() : new Date().toISOString(),
+              reply_count: c.replies?.data?.length || 0,
+              is_answered: (c.replies?.data?.length || 0) > 0 ? 1 : 0,
+              reply_text: c.replies?.data?.[0]?.text || null
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[MetaService] Error obteniendo comentarios de IG:', err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    // 2. Obtener de Facebook
+    if (config.pageId && config.pageToken) {
+      try {
+        const res = await axios.get(`${this.graphUrl}/${config.pageId}/posts`, {
+          params: {
+            fields: 'id,message,permalink_url,created_time,comments{id,message,created_time,from,comments}',
+            limit: 10,
+            access_token: config.pageToken
+          }
+        });
+
+        const posts = res.data?.data || [];
+        for (const p of posts) {
+          const rawComments = p.comments?.data || [];
+          for (const c of rawComments) {
+            commentsList.push({
+              id: c.id,
+              platform: 'facebook',
+              post_id: p.id,
+              post_caption: (p.message || '').split('\n')[0].slice(0, 80),
+              post_media_url: null,
+              post_permalink: p.permalink_url || null,
+              from_id: c.from?.id || 'fb_user',
+              from_name: c.from?.name || 'Usuario de Facebook',
+              comment_text: c.message || '',
+              created_at: c.created_time ? new Date(c.created_time).toISOString() : new Date().toISOString(),
+              reply_count: c.comments?.data?.length || 0,
+              is_answered: (c.comments?.data?.length || 0) > 0 ? 1 : 0,
+              reply_text: c.comments?.data?.[0]?.message || null
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[MetaService] Error obteniendo comentarios de FB:', err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    if (commentsList.length === 0 && config.simulationMode) {
+      return this.getSimulationComments();
+    }
+
+    return commentsList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limit);
+  }
+
+  /**
+   * Responde a un comentario en Instagram o Facebook
+   */
+  async replyComment(commentId, platform = 'instagram', message) {
+    const config = this.getConfig();
+
+    if (!message || !message.trim()) {
+      throw new Error('El mensaje de respuesta no puede estar vacío.');
+    }
+
+    if (config.simulationMode || !config.pageToken) {
+      return {
+        success: true,
+        simulated: true,
+        id: `sim_reply_${Date.now()}`,
+        commentId,
+        platform,
+        message: message.trim(),
+        createdAt: new Date().toISOString()
+      };
+    }
+
+    const endpoint = platform === 'instagram'
+      ? `${this.graphUrl}/${commentId}/replies`
+      : `${this.graphUrl}/${commentId}/comments`;
+
+    try {
+      const res = await axios.post(endpoint, null, {
+        params: {
+          message: message.trim(),
+          access_token: config.pageToken
+        }
+      });
+      return {
+        success: true,
+        id: res.data?.id,
+        commentId,
+        platform,
+        message: message.trim(),
+        createdAt: new Date().toISOString()
+      };
+    } catch (err) {
+      const errorDetail = err.response?.data?.error?.message || err.message;
+      throw new Error(`Error al responder comentario en Meta: ${errorDetail}`);
+    }
+  }
+
+  /**
+   * Obtiene la lista de conversaciones / hilos de DMs de Instagram y Messenger
+   */
+  async getConversations(limit = 20) {
+    const config = this.getConfig();
+
+    if (config.simulationMode || (!config.pageToken && !config.instagramId)) {
+      return this.getSimulationConversations();
+    }
+
+    const conversations = [];
+
+    // 1. Instagram Conversations
+    if (config.instagramId && config.pageToken) {
+      try {
+        const res = await axios.get(`${this.graphUrl}/${config.instagramId}/conversations`, {
+          params: {
+            platform: 'instagram',
+            fields: 'id,updated_time,unread_count,participants,messages.limit(1){id,created_time,from,to,message}',
+            limit: 15,
+            access_token: config.pageToken
+          }
+        });
+
+        const items = res.data?.data || [];
+        for (const item of items) {
+          const participant = (item.participants?.data || []).find(p => p.id !== config.instagramId) || item.participants?.data?.[0] || {};
+          const lastMsg = item.messages?.data?.[0] || {};
+
+          conversations.push({
+            id: item.id,
+            platform: 'instagram',
+            account_id: config.instagramId,
+            participant_id: participant.id || 'unknown',
+            participant_name: participant.name || participant.username || 'Cliente Instagram',
+            participant_username: participant.username ? `@${participant.username}` : null,
+            participant_pic: null,
+            last_message_text: lastMsg.message || 'Mensaje nuevo',
+            last_message_at: lastMsg.created_time || item.updated_time || new Date().toISOString(),
+            unread_count: item.unread_count || 0,
+            is_archived: 0
+          });
+        }
+      } catch (err) {
+        console.warn('[MetaService] Error obteniendo conversaciones de Instagram:', err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    // 2. Facebook Conversations
+    if (config.pageId && config.pageToken) {
+      try {
+        const res = await axios.get(`${this.graphUrl}/${config.pageId}/conversations`, {
+          params: {
+            fields: 'id,updated_time,unread_count,participants,messages.limit(1){id,created_time,from,to,message}',
+            limit: 10,
+            access_token: config.pageToken
+          }
+        });
+
+        const items = res.data?.data || [];
+        for (const item of items) {
+          const participant = (item.participants?.data || []).find(p => p.id !== config.pageId) || item.participants?.data?.[0] || {};
+          const lastMsg = item.messages?.data?.[0] || {};
+
+          conversations.push({
+            id: item.id,
+            platform: 'facebook',
+            account_id: config.pageId,
+            participant_id: participant.id || 'unknown',
+            participant_name: participant.name || 'Cliente Facebook',
+            participant_username: null,
+            participant_pic: null,
+            last_message_text: lastMsg.message || 'Mensaje nuevo',
+            last_message_at: lastMsg.created_time || item.updated_time || new Date().toISOString(),
+            unread_count: item.unread_count || 0,
+            is_archived: 0
+          });
+        }
+      } catch (err) {
+        console.warn('[MetaService] Error obteniendo conversaciones de Facebook:', err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    if (conversations.length === 0 && config.simulationMode) {
+      return this.getSimulationConversations();
+    }
+
+    return conversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at)).slice(0, limit);
+  }
+
+  /**
+   * Obtiene los mensajes de una conversación específica
+   */
+  async getConversationMessages(conversationId, platform = 'instagram') {
+    const config = this.getConfig();
+
+    if (config.simulationMode || !config.pageToken || conversationId.startsWith('sim_')) {
+      return this.getSimulationMessages(conversationId);
+    }
+
+    try {
+      const res = await axios.get(`${this.graphUrl}/${conversationId}/messages`, {
+        params: {
+          fields: 'id,created_time,from,to,message',
+          limit: 30,
+          access_token: config.pageToken
+        }
+      });
+
+      const raw = res.data?.data || [];
+      const ourIds = [config.instagramId, config.pageId].filter(Boolean);
+
+      const messages = raw.map(m => {
+        const isFromPage = ourIds.includes(m.from?.id);
+        return {
+          id: m.id,
+          conversation_id: conversationId,
+          platform,
+          sender_id: m.from?.id || 'unknown',
+          sender_name: m.from?.name || m.from?.username || (isFromPage ? 'Página' : 'Cliente'),
+          sender_type: isFromPage ? 'page' : 'customer',
+          message_text: m.message || '',
+          created_at: m.created_time ? new Date(m.created_time).toISOString() : new Date().toISOString()
+        };
+      });
+
+      return messages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } catch (err) {
+      console.warn('[MetaService] Error obteniendo mensajes de la conversación:', err.response?.data?.error?.message || err.message);
+      return [];
+    }
+  }
+
+  /**
+   * Envía un mensaje de respuesta a un hilo de conversación
+   */
+  async sendDirectMessage(conversationId, recipientId, platform = 'instagram', message) {
+    const config = this.getConfig();
+
+    if (!message || !message.trim()) {
+      throw new Error('El mensaje no puede estar vacío.');
+    }
+
+    if (config.simulationMode || !config.pageToken || conversationId.startsWith('sim_')) {
+      return {
+        success: true,
+        simulated: true,
+        id: `sim_msg_${Date.now()}`,
+        conversationId,
+        text: message.trim(),
+        sender_type: 'page',
+        created_at: new Date().toISOString()
+      };
+    }
+
+    try {
+      const res = await axios.post(`${this.graphUrl}/${conversationId}/messages`, null, {
+        params: {
+          message: message.trim(),
+          access_token: config.pageToken
+        }
+      });
+
+      return {
+        success: true,
+        id: res.data?.id || `msg_${Date.now()}`,
+        conversationId,
+        text: message.trim(),
+        sender_type: 'page',
+        created_at: new Date().toISOString()
+      };
+    } catch (err) {
+      const errorDetail = err.response?.data?.error?.message || err.message;
+      throw new Error(`Error enviando mensaje por Meta API: ${errorDetail}`);
+    }
+  }
+
+  /**
+   * Genera conversaciones de prueba para modo simulación y sandbox
+   */
+  getSimulationConversations() {
+    const now = Date.now();
+    return [
+      {
+        id: 'sim_conv_1',
+        platform: 'instagram',
+        participant_id: 'sim_user_1',
+        participant_name: 'Camila Valenzuela',
+        participant_username: '@camila_valenzuela',
+        participant_pic: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+        last_message_text: '¡Hola! ¿Aún tienen stock del pack promocional publicado hoy?',
+        last_message_at: new Date(now - 12 * 60 * 1000).toISOString(),
+        unread_count: 1,
+        is_archived: 0
+      },
+      {
+        id: 'sim_conv_2',
+        platform: 'instagram',
+        participant_id: 'sim_user_2',
+        participant_name: 'Rodrigo Mendoza',
+        participant_username: '@rodrigo_mza',
+        participant_pic: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+        last_message_text: 'Perfecto, muchas gracias por la información. Saludos!',
+        last_message_at: new Date(now - 3 * 3600 * 1000).toISOString(),
+        unread_count: 0,
+        is_archived: 0
+      },
+      {
+        id: 'sim_conv_3',
+        platform: 'facebook',
+        participant_id: 'sim_user_3',
+        participant_name: 'Marcela Contreras',
+        participant_username: null,
+        participant_pic: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=80',
+        last_message_text: 'Buenas tardes, ¿cuánto demoran los despachos a regiones?',
+        last_message_at: new Date(now - 6 * 3600 * 1000).toISOString(),
+        unread_count: 1,
+        is_archived: 0
+      }
+    ];
+  }
+
+  /**
+   * Genera mensajes de prueba para un chat simulado
+   */
+  getSimulationMessages(conversationId) {
+    const now = Date.now();
+    if (conversationId === 'sim_conv_1') {
+      return [
+        {
+          id: 'sim_m_1',
+          conversation_id: conversationId,
+          platform: 'instagram',
+          sender_id: 'sim_user_1',
+          sender_name: 'Camila Valenzuela',
+          sender_type: 'customer',
+          message_text: 'Hola! Vi su post de la nueva colección 🌟',
+          created_at: new Date(now - 35 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'sim_m_2',
+          conversation_id: conversationId,
+          platform: 'instagram',
+          sender_id: 'page_id',
+          sender_name: 'MetaPulse Store',
+          sender_type: 'page',
+          message_text: '¡Hola Camila! Qué alegría saludarte. Sí, la lanzamos hoy mismo.',
+          created_at: new Date(now - 28 * 60 * 1000).toISOString()
+        },
+        {
+          id: 'sim_m_3',
+          conversation_id: conversationId,
+          platform: 'instagram',
+          sender_id: 'sim_user_1',
+          sender_name: 'Camila Valenzuela',
+          sender_type: 'customer',
+          message_text: '¡Hola! ¿Aún tienen stock del pack promocional publicado hoy?',
+          created_at: new Date(now - 12 * 60 * 1000).toISOString()
+        }
+      ];
+    } else if (conversationId === 'sim_conv_3') {
+      return [
+        {
+          id: 'sim_m_4',
+          conversation_id: conversationId,
+          platform: 'facebook',
+          sender_id: 'sim_user_3',
+          sender_name: 'Marcela Contreras',
+          sender_type: 'customer',
+          message_text: 'Buenas tardes, ¿cuánto demoran los despachos a regiones?',
+          created_at: new Date(now - 6 * 3600 * 1000).toISOString()
+        }
+      ];
+    }
+    return [
+      {
+        id: 'sim_m_5',
+        conversation_id: conversationId,
+        platform: 'instagram',
+        sender_id: 'sim_user_2',
+        sender_name: 'Rodrigo Mendoza',
+        sender_type: 'customer',
+        message_text: 'Perfecto, muchas gracias por la información. Saludos!',
+        created_at: new Date(now - 3 * 3600 * 1000).toISOString()
+      }
+    ];
+  }
+
+  /**
+   * Genera comentarios simulados para demostración
+   */
+  getSimulationComments() {
+    const now = Date.now();
+    return [
+      {
+        id: 'sim_cmt_1',
+        platform: 'instagram',
+        post_id: 'post_101',
+        post_caption: '⚡ Novedades de la semana: Descubre nuestras ofertas exclusivas...',
+        post_media_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80',
+        post_permalink: 'https://instagram.com',
+        from_id: 'sim_user_c1',
+        from_name: 'mariapaz_decor',
+        comment_text: '¿Hacen envíos a la V Región (Viña del Mar / Algarrobo)? Me encantó el producto!',
+        created_at: new Date(now - 15 * 60 * 1000).toISOString(),
+        reply_count: 0,
+        is_answered: 0,
+        reply_text: null
+      },
+      {
+        id: 'sim_cmt_2',
+        platform: 'instagram',
+        post_id: 'post_101',
+        post_caption: '⚡ Novedades de la semana: Descubre nuestras ofertas exclusivas...',
+        post_media_url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=80',
+        post_permalink: 'https://instagram.com',
+        from_id: 'sim_user_c2',
+        from_name: 'esteban_gomez',
+        comment_text: 'Precio por favor 🙌',
+        created_at: new Date(now - 80 * 60 * 1000).toISOString(),
+        reply_count: 1,
+        is_answered: 1,
+        reply_text: '¡Hola Esteban! Te enviamos los detalles por mensaje directo 😉'
+      },
+      {
+        id: 'sim_cmt_3',
+        platform: 'facebook',
+        post_id: 'post_102',
+        post_caption: 'Gran lanzamiento de temporada. ¡Aprovecha los descuentos de apertura!',
+        post_media_url: null,
+        post_permalink: 'https://facebook.com',
+        from_id: 'sim_user_c3',
+        from_name: 'Loreto Silva Morales',
+        comment_text: '¿Hasta cuándo dura la promoción? Saludos!',
+        created_at: new Date(now - 4 * 3600 * 1000).toISOString(),
+        reply_count: 0,
+        is_answered: 0,
+        reply_text: null
+      }
+    ];
+  }
 }
 
 module.exports = new MetaService();

@@ -3,13 +3,30 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 
-const { db, getSetting, getAllSettings, setSetting, setMultipleSettings } = require('../database/db');
+const {
+  db,
+  getSetting,
+  getAllSettings,
+  setSetting,
+  setMultipleSettings,
+  upsertConversation,
+  getInboxConversations,
+  getInboxConversationById,
+  upsertInboxMessage,
+  getInboxMessagesByConversation,
+  upsertInboxComment,
+  getInboxComments,
+  markCommentAnswered
+} = require('../database/db');
 const metaService = require('../services/metaService');
 const schedulerService = require('../services/schedulerService');
 const imageService = require('../services/imageService');
 const aiService = require('../services/aiService');
 const slotService = require('../services/slotService');
+const whatsappService = require('../services/whatsappService');
+const inboxSyncService = require('../services/inboxSyncService');
 const { scrapeCampinaWebsite, CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
 
 // Configuración de Multer para subida de archivos
@@ -1923,5 +1940,322 @@ router.post('/batch/confirm-schedule', async (req, res) => {
   }
 });
 
+// ==========================================
+// 8. BANDEJA DE ENTRADA (INBOX & COMENTARIOS) & WHATSAPP
+// ==========================================
+
+/**
+ * Obtener lista de conversaciones (DMs)
+ */
+router.get('/inbox/conversations', async (req, res) => {
+  try {
+    let conversations = getInboxConversations();
+    if (conversations.length === 0) {
+      // Si la BD local está vacía, sincronizar desde Meta / simulación
+      const metaConvs = await metaService.getConversations(20);
+      for (const c of metaConvs) {
+        upsertConversation(c);
+      }
+      conversations = getInboxConversations();
+    }
+    res.json({ success: true, data: conversations });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Obtener mensajes de una conversación
+ */
+router.get('/inbox/conversations/:id/messages', async (req, res) => {
+  try {
+    const convId = req.params.id;
+    let messages = getInboxMessagesByConversation(convId);
+    if (messages.length === 0) {
+      const conv = getInboxConversationById(convId);
+      const platform = conv ? conv.platform : 'instagram';
+      const metaMsgs = await metaService.getConversationMessages(convId, platform);
+      for (const m of metaMsgs) {
+        upsertInboxMessage(m);
+      }
+      messages = getInboxMessagesByConversation(convId);
+    }
+    res.json({ success: true, data: messages });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Enviar respuesta a un mensaje directo (DM)
+ */
+router.post('/inbox/conversations/:id/reply', async (req, res) => {
+  try {
+    const convId = req.params.id;
+    const { text, platform } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'El mensaje de respuesta no puede estar vacío.' });
+    }
+
+    const conv = getInboxConversationById(convId);
+    const plat = platform || (conv ? conv.platform : 'instagram');
+    const recipientId = conv ? conv.participant_id : null;
+
+    const metaRes = await metaService.sendDirectMessage(convId, recipientId, plat, text);
+
+    const newMsg = {
+      id: metaRes.id || `out_${Date.now()}`,
+      conversation_id: convId,
+      platform: plat,
+      sender_id: 'page',
+      sender_name: 'MetaPulse',
+      sender_type: 'page',
+      message_text: text.trim(),
+      created_at: new Date().toISOString(),
+      notified_whatsapp: 1
+    };
+    upsertInboxMessage(newMsg);
+
+    // Actualizar la conversación local
+    if (conv) {
+      conv.last_message_text = text.trim();
+      conv.last_message_at = newMsg.created_at;
+      conv.unread_count = 0;
+      upsertConversation(conv);
+    }
+
+    res.json({
+      success: true,
+      data: newMsg,
+      message: 'Mensaje enviado exitosamente.'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Obtener comentarios en publicaciones
+ */
+router.get('/inbox/comments', async (req, res) => {
+  try {
+    const filter = req.query.filter || 'all';
+    let comments = getInboxComments(filter);
+    if (comments.length === 0) {
+      // Sincronizar desde Meta / simulación
+      const metaComments = await metaService.getRecentComments(30);
+      for (const c of metaComments) {
+        upsertInboxComment(c);
+      }
+      comments = getInboxComments(filter);
+    }
+    res.json({ success: true, data: comments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Responder a un comentario
+ */
+router.post('/inbox/comments/:id/reply', async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    const { text, platform } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'La respuesta no puede estar vacía.' });
+    }
+
+    const plat = platform || 'instagram';
+    const metaRes = await metaService.replyComment(commentId, plat, text);
+
+    // Marcar en la BD como respondido
+    markCommentAnswered(commentId, text.trim());
+
+    res.json({
+      success: true,
+      data: metaRes,
+      message: 'Comentario respondido exitosamente.'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Forzar sincronización instantánea de Inbox y despachar alertas
+ */
+router.post('/inbox/sync', async (req, res) => {
+  try {
+    const result = await inboxSyncService.syncAll();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Obtener configuración de alertas WhatsApp
+ */
+router.get('/inbox/settings', (req, res) => {
+  try {
+    const config = whatsappService.getConfig();
+    const lastSynced = getSetting('inbox_last_synced_at') || null;
+    res.json({
+      success: true,
+      data: {
+        ...config,
+        lastSynced
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Guardar configuración de WhatsApp
+ */
+router.post('/inbox/settings', (req, res) => {
+  try {
+    const {
+      enabled,
+      phone,
+      apiKey,
+      notifyDms,
+      notifyComments,
+      publicUrl
+    } = req.body;
+
+    const updates = {};
+    if (enabled !== undefined) updates.whatsapp_notifications_enabled = String(enabled);
+    if (phone !== undefined) updates.whatsapp_phone = String(phone).trim();
+    if (apiKey !== undefined) updates.whatsapp_api_key = String(apiKey).trim();
+    if (notifyDms !== undefined) updates.whatsapp_notify_dms = String(notifyDms);
+    if (notifyComments !== undefined) updates.whatsapp_notify_comments = String(notifyComments);
+    if (publicUrl !== undefined && publicUrl.trim()) updates.public_url_base = String(publicUrl).trim();
+
+    setMultipleSettings(updates);
+
+    res.json({
+      success: true,
+      message: 'Configuración de WhatsApp guardada exitosamente.',
+      data: whatsappService.getConfig()
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Enviar mensaje de prueba a WhatsApp
+ */
+router.post('/inbox/test-whatsapp', async (req, res) => {
+  try {
+    const { phone, apiKey } = req.body;
+    const result = await whatsappService.sendTestMessage(phone, apiKey);
+    res.json({
+      success: true,
+      message: 'Mensaje de prueba enviado con éxito. Revisa tu WhatsApp.',
+      data: result
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Handshake de Meta Webhooks (GET)
+ */
+router.get('/webhooks/meta', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  const verifyToken = getSetting('meta_webhook_verify_token') || 'metapulse_webhook_secret';
+
+  if (mode && token) {
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('[Meta Webhook] Verificación de webhook exitosa.');
+      return res.status(200).send(challenge);
+    }
+    return res.sendStatus(403);
+  }
+  res.sendStatus(400);
+});
+
+/**
+ * Recepción de eventos en tiempo real de Meta Webhooks (POST)
+ */
+router.post('/webhooks/meta', async (req, res) => {
+  try {
+    const body = req.body;
+    console.log('[Meta Webhook] Evento recibido:', JSON.stringify(body).slice(0, 200));
+
+    // Responder inmediatamente con 200 OK según la especificación de Meta
+    res.status(200).send('EVENT_RECEIVED');
+
+    // Despachar sincronización en segundo plano sin bloquear el webhook
+    setImmediate(() => {
+      inboxSyncService.syncAll().catch(e => console.error('[Meta Webhook] Error en sync post-webhook:', e.message));
+    });
+  } catch (err) {
+    console.error('[Meta Webhook] Error procesando evento:', err.message);
+    res.sendStatus(500);
+  }
+});
+
+/**
+ * Sugerencia de respuesta rápida con IA para el chat de Inbox
+ */
+router.post('/ai/suggest-reply', async (req, res) => {
+  try {
+    const { customerMessage, customerName, platform } = req.body;
+    const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
+    const firstName = (customerName || 'Cliente').split(' ')[0];
+
+    if (apiKey) {
+      try {
+        const prompt = `Eres el community manager y asistente de atención al cliente de una tienda en ${platform === 'facebook' ? 'Facebook' : 'Instagram'}.
+El cliente ${firstName} nos envió el siguiente mensaje:
+"${customerMessage || 'Hola'}"
+
+Genera una respuesta breve (máximo 2 a 3 oraciones), sumamente cortés, cálida, profesional y orientada a resolver su duda o concretar la atención.
+Usa 1 o 2 emojis apropiados.
+Responde únicamente con el texto final que se le enviará al cliente, sin comillas ni explicaciones adicionales.`;
+
+        const geminiRes = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 180 }
+          },
+          { timeout: 7000 }
+        );
+
+        const replyText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (replyText) {
+          return res.json({ success: true, reply: replyText });
+        }
+      } catch (err) {
+        console.warn('[AI Suggest Reply] Error con Gemini API, usando plantilla local:', err.message);
+      }
+    }
+
+    const fallbackReplies = [
+      `¡Hola ${firstName}! Muchas gracias por escribirnos. Con mucho gusto te ayudamos con tu consulta, ¿te gustaría que te enviemos más detalles por aquí? 😊`,
+      `¡Hola ${firstName}! Qué alegría saludarte. Sí, tenemos disponibilidad y podemos coordinarlo de inmediato. ¿Qué dudas tienes? 🌟`,
+      `¡Hola ${firstName}! Gracias por contactarnos. Enseguida revisamos los detalles y te respondemos. ¡Quedamos muy atentos! 🙌`
+    ];
+    const reply = fallbackReplies[Math.floor(Math.random() * fallbackReplies.length)];
+
+    res.json({ success: true, reply });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+
 

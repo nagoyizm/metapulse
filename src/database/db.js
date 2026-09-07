@@ -87,6 +87,53 @@ function initializeDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS inbox_conversations (
+      id TEXT PRIMARY KEY,
+      platform TEXT NOT NULL DEFAULT 'instagram',
+      account_id TEXT,
+      participant_id TEXT,
+      participant_name TEXT,
+      participant_username TEXT,
+      participant_pic TEXT,
+      last_message_text TEXT,
+      last_message_at TEXT,
+      unread_count INTEGER DEFAULT 0,
+      is_archived INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS inbox_messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      platform TEXT NOT NULL DEFAULT 'instagram',
+      sender_id TEXT NOT NULL,
+      sender_name TEXT,
+      sender_type TEXT NOT NULL,
+      message_text TEXT NOT NULL,
+      created_at TEXT,
+      notified_whatsapp INTEGER DEFAULT 0,
+      created_local_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS inbox_comments (
+      id TEXT PRIMARY KEY,
+      platform TEXT NOT NULL DEFAULT 'instagram',
+      post_id TEXT NOT NULL,
+      post_caption TEXT,
+      post_media_url TEXT,
+      post_permalink TEXT,
+      from_id TEXT NOT NULL,
+      from_name TEXT,
+      comment_text TEXT NOT NULL,
+      created_at TEXT,
+      reply_count INTEGER DEFAULT 0,
+      is_answered INTEGER DEFAULT 0,
+      reply_text TEXT,
+      notified_whatsapp INTEGER DEFAULT 0,
+      created_local_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try {
@@ -129,7 +176,15 @@ function initializeDatabase() {
     { key: 'meta_page_token', value: '' },
     { key: 'meta_instagram_id', value: '' },
     { key: 'meta_instagram_username', value: '' },
-    { key: 'meta_token_expires_at', value: '' }
+    { key: 'meta_token_expires_at', value: '' },
+    { key: 'whatsapp_notifications_enabled', value: 'false' },
+    { key: 'whatsapp_phone', value: '' },
+    { key: 'whatsapp_api_key', value: '' },
+    { key: 'whatsapp_notify_dms', value: 'true' },
+    { key: 'whatsapp_notify_comments', value: 'true' },
+    { key: 'whatsapp_service_type', value: 'callmebot' },
+    { key: 'inbox_poll_interval_seconds', value: '90' },
+    { key: 'inbox_last_synced_at', value: '' }
   ];
 
   const insertSetting = db.prepare(`
@@ -243,11 +298,168 @@ function setMultipleSettings(settingsObj) {
   tx(settingsObj);
 }
 
+// Helpers para Inbox & Conversaciones
+function upsertConversation(conv) {
+  const stmt = db.prepare(`
+    INSERT INTO inbox_conversations (
+      id, platform, account_id, participant_id, participant_name,
+      participant_username, participant_pic, last_message_text, last_message_at,
+      unread_count, is_archived, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      participant_name = COALESCE(excluded.participant_name, inbox_conversations.participant_name),
+      participant_username = COALESCE(excluded.participant_username, inbox_conversations.participant_username),
+      participant_pic = COALESCE(excluded.participant_pic, inbox_conversations.participant_pic),
+      last_message_text = COALESCE(excluded.last_message_text, inbox_conversations.last_message_text),
+      last_message_at = COALESCE(excluded.last_message_at, inbox_conversations.last_message_at),
+      unread_count = excluded.unread_count,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+  return stmt.run(
+    conv.id,
+    conv.platform || 'instagram',
+    conv.account_id || null,
+    conv.participant_id || null,
+    conv.participant_name || 'Usuario',
+    conv.participant_username || null,
+    conv.participant_pic || null,
+    conv.last_message_text || '',
+    conv.last_message_at || new Date().toISOString(),
+    conv.unread_count !== undefined ? conv.unread_count : 0,
+    conv.is_archived ? 1 : 0
+  );
+}
+
+function getInboxConversations() {
+  return db.prepare(`
+    SELECT * FROM inbox_conversations
+    WHERE is_archived = 0
+    ORDER BY last_message_at DESC
+  `).all();
+}
+
+function getInboxConversationById(id) {
+  return db.prepare('SELECT * FROM inbox_conversations WHERE id = ?').get(id);
+}
+
+function upsertInboxMessage(msg) {
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO inbox_messages (
+      id, conversation_id, platform, sender_id, sender_name,
+      sender_type, message_text, created_at, notified_whatsapp
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  return stmt.run(
+    msg.id,
+    msg.conversation_id,
+    msg.platform || 'instagram',
+    msg.sender_id,
+    msg.sender_name || null,
+    msg.sender_type || 'customer',
+    msg.message_text,
+    msg.created_at || new Date().toISOString(),
+    msg.notified_whatsapp ? 1 : 0
+  );
+}
+
+function getInboxMessagesByConversation(conversationId) {
+  return db.prepare(`
+    SELECT * FROM inbox_messages
+    WHERE conversation_id = ?
+    ORDER BY datetime(created_at) ASC, id ASC
+  `).all(conversationId);
+}
+
+function getUnnotifiedMessages() {
+  return db.prepare(`
+    SELECT * FROM inbox_messages
+    WHERE sender_type = 'customer' AND notified_whatsapp = 0
+    ORDER BY created_at ASC
+  `).all();
+}
+
+function markMessageNotified(id) {
+  return db.prepare('UPDATE inbox_messages SET notified_whatsapp = 1 WHERE id = ?').run(id);
+}
+
+// Helpers para Comentarios
+function upsertInboxComment(c) {
+  const stmt = db.prepare(`
+    INSERT INTO inbox_comments (
+      id, platform, post_id, post_caption, post_media_url, post_permalink,
+      from_id, from_name, comment_text, created_at, reply_count, is_answered, reply_text, notified_whatsapp
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      reply_count = excluded.reply_count,
+      is_answered = MAX(inbox_comments.is_answered, excluded.is_answered),
+      reply_text = COALESCE(excluded.reply_text, inbox_comments.reply_text)
+  `);
+  return stmt.run(
+    c.id,
+    c.platform || 'instagram',
+    c.post_id,
+    c.post_caption || '',
+    c.post_media_url || null,
+    c.post_permalink || null,
+    c.from_id,
+    c.from_name || 'Usuario',
+    c.comment_text,
+    c.created_at || new Date().toISOString(),
+    c.reply_count || 0,
+    c.is_answered ? 1 : 0,
+    c.reply_text || null,
+    c.notified_whatsapp ? 1 : 0
+  );
+}
+
+function getInboxComments(filter = 'all') {
+  let query = 'SELECT * FROM inbox_comments';
+  if (filter === 'unanswered') {
+    query += ' WHERE is_answered = 0';
+  } else if (filter === 'answered') {
+    query += ' WHERE is_answered = 1';
+  }
+  query += ' ORDER BY datetime(created_at) DESC';
+  return db.prepare(query).all();
+}
+
+function markCommentAnswered(commentId, replyText) {
+  return db.prepare(`
+    UPDATE inbox_comments
+    SET is_answered = 1, reply_text = ?, reply_count = reply_count + 1
+    WHERE id = ?
+  `).run(replyText, commentId);
+}
+
+function getUnnotifiedComments() {
+  return db.prepare(`
+    SELECT * FROM inbox_comments
+    WHERE notified_whatsapp = 0
+    ORDER BY created_at ASC
+  `).all();
+}
+
+function markCommentNotified(id) {
+  return db.prepare('UPDATE inbox_comments SET notified_whatsapp = 1 WHERE id = ?').run(id);
+}
+
 module.exports = {
   db,
   initializeDatabase,
   getSetting,
   getAllSettings,
   setSetting,
-  setMultipleSettings
+  setMultipleSettings,
+  upsertConversation,
+  getInboxConversations,
+  getInboxConversationById,
+  upsertInboxMessage,
+  getInboxMessagesByConversation,
+  getUnnotifiedMessages,
+  markMessageNotified,
+  upsertInboxComment,
+  getInboxComments,
+  markCommentAnswered,
+  getUnnotifiedComments,
+  markCommentNotified
 };

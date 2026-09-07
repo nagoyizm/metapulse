@@ -97,6 +97,11 @@
           <span>Planner & Calendario</span>
           <span class="nav-badge" id="sidebar-queue-badge">0</span>
         </button>
+        <button class="nav-item" data-tab="inbox">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Inbox & Comentarios</span>
+          <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: #ec4899; color: #fff;">0</span>
+        </button>
         <button class="nav-item" data-tab="analytics">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
           <span>Analíticas & Insights</span>
@@ -1297,6 +1302,184 @@
           </div>
         </div>
       </section>
+
+      <!-- TAB 7: BANDEJA DE ENTRADA & COMENTARIOS (INBOX) -->
+      <section class="tab-pane" id="tab-inbox">
+        <!-- Subnavigation & Controls Header -->
+        <div class="inbox-header-toolbar">
+          <div class="inbox-subtabs">
+            <button type="button" class="inbox-subtab active" data-inbox-view="dms" id="btn-inbox-subtab-dms">
+              <span>✉️ Mensajes Directos (DMs)</span>
+              <span class="badge badge-accent" id="inbox-unread-dms-badge" style="display:none;">0</span>
+            </button>
+            <button type="button" class="inbox-subtab" data-inbox-view="comments" id="btn-inbox-subtab-comments">
+              <span>💬 Comentarios en Posts</span>
+              <span class="badge badge-accent" id="inbox-unread-comments-badge" style="display:none;">0</span>
+            </button>
+            <button type="button" class="inbox-subtab" data-inbox-view="whatsapp" id="btn-inbox-subtab-whatsapp">
+              <span>📲 Alertas a WhatsApp</span>
+              <span class="pulse-dot-green" id="whatsapp-active-indicator" style="display:none;"></span>
+            </button>
+          </div>
+
+          <div class="inbox-actions-right">
+            <span id="inbox-last-synced-label" style="font-size: 0.78rem; color: var(--text-secondary); margin-right: 8px;"></span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-inbox-refresh" title="Sincronizar comentarios y mensajes de Meta">
+              <span id="btn-inbox-refresh-icon">🔄</span> Sincronizar Ahora
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW 1: MENSAJES DIRECTOS (DMs) -->
+        <div class="inbox-view-container" id="inbox-view-dms">
+          <div class="inbox-layout">
+            <!-- Sidebar: Lista de Conversaciones -->
+            <div class="inbox-threads-list">
+              <div class="threads-search-bar">
+                <input type="text" id="inbox-search-input" class="form-control" placeholder="🔍 Buscar por nombre o usuario...">
+              </div>
+              <div class="threads-scrollable" id="inbox-conversations-list">
+                <div class="empty-state-small">Cargando conversaciones...</div>
+              </div>
+            </div>
+
+            <!-- Panel de Chat / Mensajes Activos -->
+            <div class="inbox-chat-pane">
+              <!-- Chat Header -->
+              <div class="chat-header" id="chat-header-bar" style="display:none;">
+                <div class="chat-user-info">
+                  <div class="chat-avatar" id="chat-header-avatar">👤</div>
+                  <div>
+                    <h4 id="chat-header-name" style="margin: 0; font-size: 1rem;">Selecciona un chat</h4>
+                    <span class="chat-platform-tag" id="chat-header-platform">Instagram</span>
+                  </div>
+                </div>
+                <div class="chat-header-tools">
+                  <button class="btn btn-ghost btn-xs" id="btn-chat-refresh" title="Recargar chat">🔄</button>
+                </div>
+              </div>
+
+              <!-- Chat Body (Messages bubble list) -->
+              <div class="chat-body" id="chat-messages-container">
+                <div class="chat-empty-state">
+                  <div style="font-size: 2.8rem; margin-bottom: 8px;">✉️</div>
+                  <h3>Bandeja de Mensajes Directos</h3>
+                  <p>Selecciona un cliente de la lista izquierda para leer la conversación y responderle en vivo.</p>
+                </div>
+              </div>
+
+              <!-- Chat Footer (Reply Input) -->
+              <div class="chat-footer" id="chat-footer-bar" style="display:none;">
+                <div class="chat-input-wrapper">
+                  <textarea id="chat-reply-input" class="form-control" rows="2" placeholder="Escribe una respuesta para enviar por Instagram/Messenger... (Enter para enviar)"></textarea>
+                  <div class="chat-input-actions">
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-suggest" title="Sugerir respuesta profesional con IA">
+                      ✨ Sugerir con IA
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-chat-send">
+                      <span>Enviar</span> 🚀
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW 2: COMENTARIOS EN PUBLICACIONES -->
+        <div class="inbox-view-container" id="inbox-view-comments" style="display:none;">
+          <div class="comments-toolbar">
+            <div class="filter-group">
+              <button type="button" class="btn btn-sm btn-secondary active" data-comment-filter="all">Todos</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="unanswered">Pendientes de respuesta</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="answered">Respondidos</button>
+            </div>
+          </div>
+
+          <div class="comments-list-container" id="inbox-comments-list">
+            <!-- Tarjetas de comentarios generadas dinámicamente -->
+          </div>
+        </div>
+
+        <!-- VIEW 3: CONFIGURACIÓN ALERTAS WHATSAPP -->
+        <div class="inbox-view-container" id="inbox-view-whatsapp" style="display:none;">
+          <div class="card" style="max-width: 800px; margin: 0 auto;">
+            <div class="card-header">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.5rem;">📲</span>
+                <div>
+                  <h3 style="margin: 0;">Alertas Inmediatas en tu Celular vía WhatsApp</h3>
+                  <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Recibe un WhatsApp cada vez que un cliente te escriba un mensaje o comente un post.</p>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <!-- Tutorial CallMeBot -->
+              <div class="whatsapp-setup-guide">
+                <h4>⚡ Activación Rápida en 1 Minuto (Gratis y Oficial):</h4>
+                <ol>
+                  <li>Desde tu celular, abre este link de WhatsApp: <a href="https://api.whatsapp.com/send?phone=34644442054&text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" style="color: var(--primary); font-weight: bold; text-decoration: underline;">api.whatsapp.com/send?phone=34644442054</a> (o agrega el contacto <strong>+34 644 44 20 54</strong>).</li>
+                  <li>Envíale el mensaje predeterminado: <code>I allow callmebot to send me messages</code></li>
+                  <li>El bot te responderá al instante con tu <strong>API Key</strong> personal (ejemplo: <code>849201</code>).</li>
+                  <li>Ingresa tu número de teléfono y esa clave abajo, ¡y pulsa <em>"Enviar WhatsApp de Prueba"</em>!</li>
+                </ol>
+              </div>
+
+              <div class="form-group toggle-group" style="margin-top: 20px;">
+                <div class="toggle-label">
+                  <strong>Activar Alertas de WhatsApp</strong>
+                  <span>El servidor de Contabo enviará avisos a tu WhatsApp cuando lleguen mensajes nuevos.</span>
+                </div>
+                <label class="switch" for="chk-whatsapp-enabled">
+                  <input type="checkbox" id="chk-whatsapp-enabled">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <div class="form-grid-2" style="margin-top: 16px;">
+                <div class="form-group">
+                  <label class="form-label" for="whatsapp-input-phone">Tu Número de Teléfono (con código de país):</label>
+                  <input type="text" id="whatsapp-input-phone" class="form-control" placeholder="+56 9 1234 5678">
+                  <small class="form-hint">Para Chile: +569XXXXXXXX. Para otros países: +[código][número].</small>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="whatsapp-input-key">CallMeBot API Key:</label>
+                  <input type="text" id="whatsapp-input-key" class="form-control" placeholder="Ej: 849201">
+                  <small class="form-hint">La clave numérica recibida desde el bot de WhatsApp.</small>
+                </div>
+              </div>
+
+              <div class="form-grid-2" style="margin-top: 14px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="chk-notify-dms" checked style="accent-color: var(--primary); width: 16px; height: 16px;">
+                  <span style="font-size: 0.9rem;">Avisarme de nuevos Mensajes Directos (DMs)</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="chk-notify-comments" checked style="accent-color: var(--primary); width: 16px; height: 16px;">
+                  <span style="font-size: 0.9rem;">Avisarme de nuevos Comentarios en posts</span>
+                </label>
+              </div>
+
+              <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label" for="whatsapp-public-url">URL de tu Plataforma (para los enlaces en el WhatsApp):</label>
+                <input type="text" id="whatsapp-public-url" class="form-control" value="http://37.60.235.111:3000" placeholder="http://37.60.235.111:3000">
+                <small class="form-hint">El enlace que llegará en el WhatsApp para tocar y responder en MetaPulse.</small>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 12px;">
+                <button type="button" class="btn btn-secondary" id="btn-whatsapp-test">
+                  📲 Enviar WhatsApp de Prueba
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-whatsapp-save">
+                  💾 Guardar Ajustes de WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1952,5 +2135,6 @@
   <script src="js/watermark.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/batchScheduler.js"></script>
+  <script src="js/inbox.js"></script>
 </body>
 </html>

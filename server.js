@@ -10,6 +10,7 @@ require('dotenv').config();
 const { initializeDatabase } = require('./src/database/db');
 const apiRoutes = require('./src/routes/api');
 const schedulerService = require('./src/services/schedulerService');
+const inboxSyncService = require('./src/services/inboxSyncService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,4 +62,7 @@ app.listen(PORT, () => {
 
   // Iniciar worker de programación
   schedulerService.start();
+
+  // Iniciar worker de sincronización de Inbox y alertas WhatsApp
+  inboxSyncService.start();
 });

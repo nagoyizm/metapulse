@@ -53,6 +53,7 @@ function navigateToTab(tabId) {
     queue: { title: 'Planner & Calendario de Contenidos', sub: 'Visualiza tus posts, historias y reels pasados y futuros en el calendario interactivo.' },
     analytics: { title: 'Analíticas & Rendimiento', sub: 'Métricas de alcance e interacción desde Meta Graph API.' },
     media: { title: 'Multimedia & Marca de Agua', sub: 'Organiza fotos, estampa tu logotipo y adapta dimensiones sociales.' },
+    inbox: { title: 'Bandeja de Entrada & Comentarios', sub: 'Lee y responde mensajes directos y comentarios de Instagram y Facebook con alertas a WhatsApp.' },
     settings: { title: 'Conexión Meta & Ajustes', sub: 'Configura tokens de Facebook e Instagram y servicios de IA.' }
   };
 
@@ -67,6 +68,9 @@ function navigateToTab(tabId) {
     if (window.loadPlannerData) window.loadPlannerData();
     if (window.loadQueuePosts) window.loadQueuePosts();
     if (window.loadScheduleSlots) window.loadScheduleSlots();
+  }
+  if (tabId === 'inbox') {
+    if (window.loadInboxData) window.loadInboxData();
   }
   if (tabId === 'analytics') {
     if (window.loadAnalyticsData) window.loadAnalyticsData();
