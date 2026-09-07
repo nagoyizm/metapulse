@@ -1414,40 +1414,73 @@
               </div>
             </div>
             <div class="card-body">
-              <!-- Tutorial CallMeBot -->
-              <div class="whatsapp-setup-guide">
-                <h4>⚡ Activación Rápida en 1 Minuto (Gratis y Oficial):</h4>
+              <div class="form-group" style="margin-bottom: 18px;">
+                <label class="form-label" for="whatsapp-service-type"><strong>Proveedor de Conexión a WhatsApp:</strong></label>
+                <select id="whatsapp-service-type" class="form-control" style="font-size: 0.95rem; font-weight: 600;">
+                  <option value="green-api" selected>🟢 Green-API (Tu propio WhatsApp escaneando código QR - Muy estable)</option>
+                  <option value="callmebot">🤖 CallMeBot (Bot gratuito)</option>
+                </select>
+              </div>
+
+              <!-- Tutorial Green-API -->
+              <div class="whatsapp-setup-guide" id="guide-green-api">
+                <h4>🟢 Vinculación con Green-API (Tu propio WhatsApp):</h4>
                 <ol>
-                  <li>Desde tu celular, abre este link de WhatsApp: <a href="https://api.whatsapp.com/send?phone=34644442054&text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" style="color: var(--primary); font-weight: bold; text-decoration: underline;">api.whatsapp.com/send?phone=34644442054</a> (o agrega el contacto <strong>+34 644 44 20 54</strong>).</li>
-                  <li>Envíale el mensaje predeterminado: <code>I allow callmebot to send me messages</code></li>
-                  <li>El bot te responderá al instante con tu <strong>API Key</strong> personal (ejemplo: <code>849201</code>).</li>
-                  <li>Ingresa tu número de teléfono y esa clave abajo, ¡y pulsa <em>"Enviar WhatsApp de Prueba"</em>!</li>
+                  <li>En tu panel de <a href="https://console.green-api.com/" target="_blank" style="color: var(--primary); font-weight: bold; text-decoration: underline;">console.green-api.com</a>, entra a tu instancia gratuita.</li>
+                  <li>Haz clic en <strong>"QR code"</strong> y escanéalo con tu app de WhatsApp en el celular (en <em>WhatsApp &gt; Dispositivos vinculados &gt; Vincular dispositivo</em>).</li>
+                  <li>Una vez que la instancia marque <strong>"authorized"</strong>, copia tu <strong>idInstance</strong> y tu <strong>apiTokenInstance</strong> y pégalos aquí abajo.</li>
+                </ol>
+              </div>
+
+              <!-- Tutorial CallMeBot -->
+              <div class="whatsapp-setup-guide" id="guide-callmebot" style="display: none;">
+                <h4>⚡ Activación con CallMeBot:</h4>
+                <ol>
+                  <li>Envía el mensaje <code>I allow callmebot to send me messages</code> al bot de WhatsApp.</li>
+                  <li>Copia la clave numérica recibida (API Key) y pégala abajo.</li>
                 </ol>
               </div>
 
               <div class="form-group toggle-group" style="margin-top: 20px;">
                 <div class="toggle-label">
                   <strong>Activar Alertas de WhatsApp</strong>
-                  <span>El servidor de Contabo enviará avisos a tu WhatsApp cuando lleguen mensajes nuevos.</span>
+                  <span>El servidor de Contabo enviará avisos a tu WhatsApp cuando lleguen mensajes o comentarios.</span>
                 </div>
                 <label class="switch" for="chk-whatsapp-enabled">
-                  <input type="checkbox" id="chk-whatsapp-enabled">
+                  <input type="checkbox" id="chk-whatsapp-enabled" checked>
                   <span class="slider round"></span>
                 </label>
               </div>
 
-              <div class="form-grid-2" style="margin-top: 16px;">
-                <div class="form-group">
-                  <label class="form-label" for="whatsapp-input-phone">Tu Número de Teléfono (con código de país):</label>
-                  <input type="text" id="whatsapp-input-phone" class="form-control" placeholder="+56 9 1234 5678">
-                  <small class="form-hint">Para Chile: +569XXXXXXXX. Para otros países: +[código][número].</small>
+              <!-- Campos específicos Green-API -->
+              <div id="fields-green-api" style="margin-top: 16px;">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="whatsapp-green-id">idInstance (Green-API):</label>
+                    <input type="text" id="whatsapp-green-id" class="form-control" placeholder="Ej: 1101823456">
+                    <small class="form-hint">Número identificador de tu instancia en la consola.</small>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="whatsapp-green-token">apiTokenInstance (Green-API):</label>
+                    <input type="text" id="whatsapp-green-token" class="form-control" placeholder="Ej: d813470a1e4c49f8b7e...">
+                    <small class="form-hint">Token alfanumérico largo de tu instancia.</small>
+                  </div>
                 </div>
+              </div>
 
+              <!-- Campos específicos CallMeBot -->
+              <div id="fields-callmebot" style="display: none; margin-top: 16px;">
                 <div class="form-group">
                   <label class="form-label" for="whatsapp-input-key">CallMeBot API Key:</label>
                   <input type="text" id="whatsapp-input-key" class="form-control" placeholder="Ej: 849201">
-                  <small class="form-hint">La clave numérica recibida desde el bot de WhatsApp.</small>
                 </div>
+              </div>
+
+              <!-- Campo común: Teléfono de destino -->
+              <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label" for="whatsapp-input-phone">Tu Número de WhatsApp donde recibirás los avisos (con código de país):</label>
+                <input type="text" id="whatsapp-input-phone" class="form-control" placeholder="+56 9 1234 5678">
+                <small class="form-hint">Para Chile: 569XXXXXXXX o +569XXXXXXXX. Puede ser tu mismo número escaneado (se enviará a tu chat personal).</small>
               </div>
 
               <div class="form-grid-2" style="margin-top: 14px;">

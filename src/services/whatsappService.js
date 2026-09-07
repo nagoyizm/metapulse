@@ -10,33 +10,64 @@ class WhatsAppService {
       enabled: getSetting('whatsapp_notifications_enabled') === 'true',
       phone: (getSetting('whatsapp_phone') || '').trim(),
       apiKey: (getSetting('whatsapp_api_key') || '').trim(),
+      serviceType: getSetting('whatsapp_service_type') || 'green-api', // 'green-api' | 'callmebot'
+      greenIdInstance: (getSetting('whatsapp_green_id_instance') || '').trim(),
+      greenApiToken: (getSetting('whatsapp_green_api_token') || '').trim(),
       notifyDms: getSetting('whatsapp_notify_dms') !== 'false',
       notifyComments: getSetting('whatsapp_notify_comments') !== 'false',
-      serviceType: getSetting('whatsapp_service_type') || 'callmebot',
       publicUrl: (getSetting('public_url_base') || '').trim() || 'http://37.60.235.111:3000'
     };
   }
 
   /**
-   * Normaliza el número de teléfono para CallMeBot
-   * Acepta formatos como "+56 9 1234 5678", "56912345678", etc.
+   * Normaliza el teléfono para formato internacional
    */
-  normalizePhone(phone) {
+  normalizePhone(phone, forGreenApi = false) {
     if (!phone) return '';
-    let cleaned = phone.replace(/[^0-9+]/g, '');
-    if (!cleaned.startsWith('+') && !cleaned.startsWith('00')) {
-      cleaned = '+' + cleaned;
+    const digitsOnly = phone.replace(/[^0-9]/g, '');
+    if (forGreenApi) {
+      return digitsOnly;
     }
-    return cleaned;
+    return '+' + digitsOnly;
   }
 
   /**
-   * Envía un mensaje de texto plano vía CallMeBot
+   * Envía mensaje usando Green-API (instancia propia de WhatsApp)
    */
-  async sendMessage(phone, apiKey, text) {
-    const targetPhone = this.normalizePhone(phone);
+  async sendViaGreenApi(idInstance, apiToken, phone, text) {
+    const cleanPhone = this.normalizePhone(phone, true);
+    if (!idInstance || !apiToken || !cleanPhone) {
+      throw new Error('Faltan el ID de Instancia, el Token de Green-API o tu número de teléfono.');
+    }
+
+    const chatId = `${cleanPhone}@c.us`;
+    const url = `https://api.green-api.com/waInstance${idInstance}/sendMessage/${apiToken}`;
+
+    try {
+      const response = await axios.post(
+        url,
+        { chatId, message: text },
+        { timeout: 12000, headers: { 'Content-Type': 'application/json' } }
+      );
+
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.response?.data || err.message;
+      console.error('[WhatsAppService:GreenAPI] Error:', errorMsg);
+      throw new Error(`Error en Green-API: ${JSON.stringify(errorMsg)}`);
+    }
+  }
+
+  /**
+   * Envía mensaje usando CallMeBot
+   */
+  async sendViaCallMeBot(phone, apiKey, text) {
+    const targetPhone = this.normalizePhone(phone, false);
     if (!targetPhone || !apiKey) {
-      throw new Error('Faltan el número de teléfono o la API Key de WhatsApp/CallMeBot.');
+      throw new Error('Faltan el número de teléfono o la API Key de CallMeBot.');
     }
 
     const encodedText = encodeURIComponent(text);
@@ -45,25 +76,37 @@ class WhatsAppService {
     try {
       const response = await axios.get(url, {
         timeout: 10000,
-        headers: {
-          'User-Agent': 'MetaPulse-Social-Suite/1.0'
-        }
+        headers: { 'User-Agent': 'MetaPulse-Social-Suite/1.0' }
       });
 
-      // CallMeBot devuelve texto HTML o plano confirmando el envío
       const dataStr = String(response.data || '');
       if (dataStr.toLowerCase().includes('error') && !dataStr.toLowerCase().includes('success')) {
         throw new Error(`Respuesta de CallMeBot: ${dataStr}`);
       }
 
-      return {
-        success: true,
-        data: dataStr
-      };
+      return { success: true, data: dataStr };
     } catch (err) {
       const msg = err.response?.data ? String(err.response.data) : err.message;
-      console.error('[WhatsAppService] Error enviando mensaje:', msg);
-      throw new Error(`Fallo al enviar WhatsApp: ${msg}`);
+      console.error('[WhatsAppService:CallMeBot] Error:', msg);
+      throw new Error(`Fallo al enviar WhatsApp vía CallMeBot: ${msg}`);
+    }
+  }
+
+  /**
+   * Despacha el mensaje según el proveedor activo (Green-API o CallMeBot)
+   */
+  async dispatchMessage(text, customOpts = {}) {
+    const config = this.getConfig();
+    const service = customOpts.serviceType || config.serviceType || (config.greenIdInstance ? 'green-api' : 'callmebot');
+    const phone = customOpts.phone || config.phone;
+
+    if (service === 'green-api') {
+      const idInstance = customOpts.greenIdInstance || config.greenIdInstance;
+      const apiToken = customOpts.greenApiToken || config.greenApiToken;
+      return await this.sendViaGreenApi(idInstance, apiToken, phone, text);
+    } else {
+      const apiKey = customOpts.apiKey || config.apiKey;
+      return await this.sendViaCallMeBot(phone, apiKey, text);
     }
   }
 
@@ -75,9 +118,6 @@ class WhatsAppService {
     if (!config.enabled || !config.notifyDms) {
       return { skipped: true, reason: 'Notificaciones de DMs desactivadas' };
     }
-    if (!config.phone || !config.apiKey) {
-      return { skipped: true, reason: 'Teléfono o API Key no configurados' };
-    }
 
     const platformLabel = platform === 'facebook' ? 'Facebook Messenger' : 'Instagram Direct';
     const text = 
@@ -87,7 +127,7 @@ class WhatsAppService {
 
 👉 *Responder en:* ${config.publicUrl}/#inbox`;
 
-    return await this.sendMessage(config.phone, config.apiKey, text);
+    return await this.dispatchMessage(text);
   }
 
   /**
@@ -97,9 +137,6 @@ class WhatsAppService {
     const config = this.getConfig();
     if (!config.enabled || !config.notifyComments) {
       return { skipped: true, reason: 'Notificaciones de comentarios desactivadas' };
-    }
-    if (!config.phone || !config.apiKey) {
-      return { skipped: true, reason: 'Teléfono o API Key no configurados' };
     }
 
     const platformLabel = platform === 'facebook' ? 'Facebook' : 'Instagram';
@@ -111,31 +148,33 @@ class WhatsAppService {
 
 👉 *Responder en:* ${config.publicUrl}/#inbox`;
 
-    return await this.sendMessage(config.phone, config.apiKey, text);
+    return await this.dispatchMessage(text);
   }
 
   /**
-   * Envía un mensaje de prueba al teléfono configurado para validar la integración
+   * Envía un mensaje de prueba
    */
-  async sendTestMessage(customPhone, customApiKey) {
+  async sendTestMessage(customParams = {}) {
     const config = this.getConfig();
-    const phone = customPhone || config.phone;
-    const apiKey = customApiKey || config.apiKey;
+    const service = customParams.serviceType || config.serviceType || 'green-api';
+    const phone = customParams.phone || config.phone;
 
-    if (!phone || !apiKey) {
-      throw new Error('Debes ingresar un número de teléfono y tu API Key para enviar la prueba.');
+    if (!phone) {
+      throw new Error('Debes ingresar un número de teléfono para recibir la alerta.');
     }
 
     const testText = 
 `🚀 *[MetaPulse] ¡Conexión Exitosa con WhatsApp!*
 
-Tu servidor en *${config.publicUrl}* está listo para enviarte alertas en tiempo real de:
+Tu servidor en *${config.publicUrl}* está listo y conectado mediante *${service === 'green-api' ? 'Green-API' : 'CallMeBot'}*.
+
+Recibirás alertas en tiempo real de:
 • ✉️ Mensajes Directos (Instagram DMs & Messenger)
 • 💬 Comentarios en tus publicaciones
 
-¡Todo configurado correctamente! ⚡`;
+¡Todo funcionando correctamente! ⚡`;
 
-    return await this.sendMessage(phone, apiKey, testText);
+    return await this.dispatchMessage(testText, { ...customParams, phone, serviceType: service });
   }
 }
 

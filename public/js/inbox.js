@@ -109,6 +109,26 @@ function setupInboxSubtabs() {
   if (btnTestWpp) {
     btnTestWpp.addEventListener('click', testWhatsAppAlert);
   }
+
+  const serviceTypeSelect = document.getElementById('whatsapp-service-type');
+  if (serviceTypeSelect) {
+    serviceTypeSelect.addEventListener('change', (e) => {
+      toggleWhatsAppProviderFields(e.target.value);
+    });
+  }
+}
+
+function toggleWhatsAppProviderFields(serviceType) {
+  const isGreen = serviceType === 'green-api';
+  const guideGreen = document.getElementById('guide-green-api');
+  const guideCallmebot = document.getElementById('guide-callmebot');
+  const fieldsGreen = document.getElementById('fields-green-api');
+  const fieldsCallmebot = document.getElementById('fields-callmebot');
+
+  if (guideGreen) guideGreen.style.display = isGreen ? 'block' : 'none';
+  if (guideCallmebot) guideCallmebot.style.display = isGreen ? 'none' : 'block';
+  if (fieldsGreen) fieldsGreen.style.display = isGreen ? 'block' : 'none';
+  if (fieldsCallmebot) fieldsCallmebot.style.display = isGreen ? 'none' : 'block';
 }
 
 function switchInboxView(view) {
@@ -527,6 +547,9 @@ async function loadWhatsAppSettings() {
       const c = json.data;
 
       const chkEnabled = document.getElementById('chk-whatsapp-enabled');
+      const selectService = document.getElementById('whatsapp-service-type');
+      const inputGreenId = document.getElementById('whatsapp-green-id');
+      const inputGreenToken = document.getElementById('whatsapp-green-token');
       const inputPhone = document.getElementById('whatsapp-input-phone');
       const inputKey = document.getElementById('whatsapp-input-key');
       const chkDms = document.getElementById('chk-notify-dms');
@@ -535,15 +558,24 @@ async function loadWhatsAppSettings() {
       const indicator = document.getElementById('whatsapp-active-indicator');
       const syncLabel = document.getElementById('inbox-last-synced-label');
 
+      const service = c.serviceType || (c.greenIdInstance ? 'green-api' : 'callmebot');
+      if (selectService) selectService.value = service;
+      toggleWhatsAppProviderFields(service);
+
       if (chkEnabled) chkEnabled.checked = !!c.enabled;
+      if (inputGreenId) inputGreenId.value = c.greenIdInstance || '';
+      if (inputGreenToken) inputGreenToken.value = c.greenApiToken || '';
       if (inputPhone) inputPhone.value = c.phone || '';
       if (inputKey) inputKey.value = c.apiKey || '';
       if (chkDms) chkDms.checked = c.notifyDms !== false;
       if (chkComments) chkComments.checked = c.notifyComments !== false;
       if (inputUrl && c.publicUrl) inputUrl.value = c.publicUrl;
 
+      const isConfigured = (service === 'green-api' && c.greenIdInstance && c.greenApiToken && c.phone) ||
+                           (service === 'callmebot' && c.apiKey && c.phone);
+
       if (indicator) {
-        indicator.style.display = (c.enabled && c.phone && c.apiKey) ? 'inline-block' : 'none';
+        indicator.style.display = (c.enabled && isConfigured) ? 'inline-block' : 'none';
       }
 
       if (syncLabel && c.lastSynced) {
@@ -557,6 +589,9 @@ async function loadWhatsAppSettings() {
 
 async function saveWhatsAppSettings() {
   const enabled = document.getElementById('chk-whatsapp-enabled')?.checked || false;
+  const serviceType = document.getElementById('whatsapp-service-type')?.value || 'green-api';
+  const greenIdInstance = document.getElementById('whatsapp-green-id')?.value.trim() || '';
+  const greenApiToken = document.getElementById('whatsapp-green-token')?.value.trim() || '';
   const phone = document.getElementById('whatsapp-input-phone')?.value.trim() || '';
   const apiKey = document.getElementById('whatsapp-input-key')?.value.trim() || '';
   const notifyDms = document.getElementById('chk-notify-dms')?.checked ?? true;
@@ -572,6 +607,9 @@ async function saveWhatsAppSettings() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         enabled,
+        serviceType,
+        greenIdInstance,
+        greenApiToken,
         phone,
         apiKey,
         notifyDms,
@@ -595,11 +633,24 @@ async function saveWhatsAppSettings() {
 }
 
 async function testWhatsAppAlert() {
+  const serviceType = document.getElementById('whatsapp-service-type')?.value || 'green-api';
+  const greenIdInstance = document.getElementById('whatsapp-green-id')?.value.trim() || '';
+  const greenApiToken = document.getElementById('whatsapp-green-token')?.value.trim() || '';
   const phone = document.getElementById('whatsapp-input-phone')?.value.trim() || '';
   const apiKey = document.getElementById('whatsapp-input-key')?.value.trim() || '';
 
-  if (!phone || !apiKey) {
-    showToast('Ingresa tu número de teléfono y tu API Key primero', 'error');
+  if (!phone) {
+    showToast('Ingresa tu número de teléfono para recibir el WhatsApp', 'error');
+    return;
+  }
+
+  if (serviceType === 'green-api' && (!greenIdInstance || !greenApiToken)) {
+    showToast('Ingresa tu idInstance y apiTokenInstance de Green-API', 'error');
+    return;
+  }
+
+  if (serviceType === 'callmebot' && !apiKey) {
+    showToast('Ingresa tu API Key de CallMeBot', 'error');
     return;
   }
 
@@ -613,7 +664,13 @@ async function testWhatsAppAlert() {
     const res = await fetch('/api/inbox/test-whatsapp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, apiKey })
+      body: JSON.stringify({
+        serviceType,
+        greenIdInstance,
+        greenApiToken,
+        phone,
+        apiKey
+      })
     });
 
     const json = await res.json();

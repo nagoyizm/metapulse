@@ -2124,6 +2124,9 @@ router.post('/inbox/settings', (req, res) => {
       enabled,
       phone,
       apiKey,
+      serviceType,
+      greenIdInstance,
+      greenApiToken,
       notifyDms,
       notifyComments,
       publicUrl
@@ -2133,6 +2136,9 @@ router.post('/inbox/settings', (req, res) => {
     if (enabled !== undefined) updates.whatsapp_notifications_enabled = String(enabled);
     if (phone !== undefined) updates.whatsapp_phone = String(phone).trim();
     if (apiKey !== undefined) updates.whatsapp_api_key = String(apiKey).trim();
+    if (serviceType !== undefined) updates.whatsapp_service_type = String(serviceType).trim();
+    if (greenIdInstance !== undefined) updates.whatsapp_green_id_instance = String(greenIdInstance).trim();
+    if (greenApiToken !== undefined) updates.whatsapp_green_api_token = String(greenApiToken).trim();
     if (notifyDms !== undefined) updates.whatsapp_notify_dms = String(notifyDms);
     if (notifyComments !== undefined) updates.whatsapp_notify_comments = String(notifyComments);
     if (publicUrl !== undefined && publicUrl.trim()) updates.public_url_base = String(publicUrl).trim();
@@ -2154,8 +2160,14 @@ router.post('/inbox/settings', (req, res) => {
  */
 router.post('/inbox/test-whatsapp', async (req, res) => {
   try {
-    const { phone, apiKey } = req.body;
-    const result = await whatsappService.sendTestMessage(phone, apiKey);
+    const { phone, apiKey, serviceType, greenIdInstance, greenApiToken } = req.body;
+    const result = await whatsappService.sendTestMessage({
+      phone,
+      apiKey,
+      serviceType,
+      greenIdInstance,
+      greenApiToken
+    });
     res.json({
       success: true,
       message: 'Mensaje de prueba enviado con éxito. Revisa tu WhatsApp.',
