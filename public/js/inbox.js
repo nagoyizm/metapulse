@@ -116,6 +116,16 @@ function setupInboxSubtabs() {
       toggleWhatsAppProviderFields(e.target.value);
     });
   }
+
+  const btnToggleToken = document.getElementById('btn-toggle-green-token');
+  const inputGreenToken = document.getElementById('whatsapp-green-token');
+  if (btnToggleToken && inputGreenToken) {
+    btnToggleToken.addEventListener('click', () => {
+      const isPass = inputGreenToken.type === 'password';
+      inputGreenToken.type = isPass ? 'text' : 'password';
+      btnToggleToken.textContent = isPass ? '🙈' : '👁️';
+    });
+  }
 }
 
 function toggleWhatsAppProviderFields(serviceType) {

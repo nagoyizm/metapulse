@@ -7,15 +7,15 @@ class WhatsAppService {
    */
   getConfig() {
     return {
-      enabled: getSetting('whatsapp_notifications_enabled') === 'true',
-      phone: (getSetting('whatsapp_phone') || '').trim(),
-      apiKey: (getSetting('whatsapp_api_key') || '').trim(),
-      serviceType: getSetting('whatsapp_service_type') || 'green-api', // 'green-api' | 'callmebot'
-      greenIdInstance: (getSetting('whatsapp_green_id_instance') || '').trim(),
-      greenApiToken: (getSetting('whatsapp_green_api_token') || '').trim(),
+      enabled: getSetting('whatsapp_notifications_enabled') === 'true' || process.env.WHATSAPP_NOTIFICATIONS_ENABLED === 'true',
+      phone: (getSetting('whatsapp_phone') || process.env.WHATSAPP_PHONE || '').trim(),
+      apiKey: (getSetting('whatsapp_api_key') || process.env.CALLMEBOT_API_KEY || '').trim(),
+      serviceType: getSetting('whatsapp_service_type') || process.env.WHATSAPP_SERVICE_TYPE || 'green-api',
+      greenIdInstance: (getSetting('whatsapp_green_id_instance') || process.env.GREEN_ID_INSTANCE || '').trim(),
+      greenApiToken: (getSetting('whatsapp_green_api_token') || process.env.GREEN_API_TOKEN || '').trim(),
       notifyDms: getSetting('whatsapp_notify_dms') !== 'false',
       notifyComments: getSetting('whatsapp_notify_comments') !== 'false',
-      publicUrl: (getSetting('public_url_base') || '').trim() || 'http://37.60.235.111:3000'
+      publicUrl: (getSetting('public_url_base') || process.env.PUBLIC_URL_BASE || '').trim() || 'http://37.60.235.111:3000'
     };
   }
 

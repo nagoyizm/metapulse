@@ -1462,8 +1462,11 @@
                   </div>
                   <div class="form-group">
                     <label class="form-label" for="whatsapp-green-token">apiTokenInstance (Green-API):</label>
-                    <input type="text" id="whatsapp-green-token" class="form-control" placeholder="Ej: d813470a1e4c49f8b7e...">
-                    <small class="form-hint">Token alfanumérico largo de tu instancia.</small>
+                    <div style="position: relative;">
+                      <input type="password" id="whatsapp-green-token" class="form-control" style="padding-right: 40px;" placeholder="d813470a1e4c...">
+                      <button type="button" id="btn-toggle-green-token" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="Ver/Ocultar token">👁️</button>
+                    </div>
+                    <small class="form-hint">🔒 Token resguardado y enmascarado contra miradas curiosas.</small>
                   </div>
                 </div>
               </div>

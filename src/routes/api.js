@@ -2103,10 +2103,28 @@ router.get('/inbox/settings', (req, res) => {
   try {
     const config = whatsappService.getConfig();
     const lastSynced = getSetting('inbox_last_synced_at') || null;
+
+    // Resguardar tokens para no enviarlos en texto plano innecesariamente
+    const safeData = { ...config };
+    if (safeData.greenApiToken) {
+      safeData.hasGreenToken = true;
+      safeData.greenApiTokenMasked = safeData.greenApiToken.slice(0, 4) + '••••••••••••••••' + safeData.greenApiToken.slice(-4);
+      safeData.greenApiToken = safeData.greenApiTokenMasked;
+    } else {
+      safeData.hasGreenToken = false;
+    }
+
+    if (safeData.apiKey) {
+      safeData.hasCallmebotKey = true;
+      safeData.apiKey = '••••••••' + safeData.apiKey.slice(-3);
+    } else {
+      safeData.hasCallmebotKey = false;
+    }
+
     res.json({
       success: true,
       data: {
-        ...config,
+        ...safeData,
         lastSynced
       }
     });
@@ -2135,10 +2153,17 @@ router.post('/inbox/settings', (req, res) => {
     const updates = {};
     if (enabled !== undefined) updates.whatsapp_notifications_enabled = String(enabled);
     if (phone !== undefined) updates.whatsapp_phone = String(phone).trim();
-    if (apiKey !== undefined) updates.whatsapp_api_key = String(apiKey).trim();
     if (serviceType !== undefined) updates.whatsapp_service_type = String(serviceType).trim();
     if (greenIdInstance !== undefined) updates.whatsapp_green_id_instance = String(greenIdInstance).trim();
-    if (greenApiToken !== undefined) updates.whatsapp_green_api_token = String(greenApiToken).trim();
+
+    // Solo actualizar si el usuario escribió un token nuevo (sin caracteres enmascarados)
+    if (greenApiToken !== undefined && !greenApiToken.includes('••••')) {
+      updates.whatsapp_green_api_token = String(greenApiToken).trim();
+    }
+    if (apiKey !== undefined && !apiKey.includes('••••')) {
+      updates.whatsapp_api_key = String(apiKey).trim();
+    }
+
     if (notifyDms !== undefined) updates.whatsapp_notify_dms = String(notifyDms);
     if (notifyComments !== undefined) updates.whatsapp_notify_comments = String(notifyComments);
     if (publicUrl !== undefined && publicUrl.trim()) updates.public_url_base = String(publicUrl).trim();
@@ -2160,7 +2185,19 @@ router.post('/inbox/settings', (req, res) => {
  */
 router.post('/inbox/test-whatsapp', async (req, res) => {
   try {
-    const { phone, apiKey, serviceType, greenIdInstance, greenApiToken } = req.body;
+    let { phone, apiKey, serviceType, greenIdInstance, greenApiToken } = req.body;
+    const currentConfig = whatsappService.getConfig();
+
+    if (!greenApiToken || greenApiToken.includes('••••')) {
+      greenApiToken = currentConfig.greenApiToken;
+    }
+    if (!greenIdInstance) {
+      greenIdInstance = currentConfig.greenIdInstance;
+    }
+    if (!apiKey || apiKey.includes('••••')) {
+      apiKey = currentConfig.apiKey;
+    }
+
     const result = await whatsappService.sendTestMessage({
       phone,
       apiKey,
