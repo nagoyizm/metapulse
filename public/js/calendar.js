@@ -65,6 +65,48 @@ function formatChileDateTime(rawDate, options = {}) {
   }
 }
 
+// Manejo y autoreparación de miniaturas rotas o con firma expirada (Meta URL signature expired)
+window.handleThumbError = function(imgEl, postId) {
+  if (!imgEl) return;
+  imgEl.onerror = null; // Evitar bucle de errores
+
+  const src = imgEl.getAttribute('src') || '';
+  const isMetaCdn = src.includes('cdninstagram.com') || src.includes('fbcdn.net');
+
+  // Si proviene del CDN de Instagram/FB y conocemos el ID del post, intentar autorenovar y cachear en backend
+  if (postId && isMetaCdn) {
+    fetch(`/api/posts/${postId}/refresh-media`, { method: 'POST' })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.newMediaUrl) {
+          imgEl.src = json.newMediaUrl + (json.newMediaUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        } else {
+          applyFallbackThumb(imgEl);
+        }
+      })
+      .catch(() => {
+        applyFallbackThumb(imgEl);
+      });
+  } else {
+    applyFallbackThumb(imgEl);
+  }
+};
+
+function applyFallbackThumb(imgEl) {
+  if (!imgEl || !imgEl.parentElement) return;
+  const parent = imgEl.parentElement;
+  const fallback = document.createElement('div');
+  fallback.className = imgEl.className || 'planner-card-thumb';
+  fallback.style.cssText = 'background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 6px; flex-shrink: 0; min-width: 32px; min-height: 32px; color: var(--primary);';
+  fallback.innerHTML = '🖼️';
+  fallback.title = 'Miniatura no disponible temporalmente';
+  try {
+    parent.replaceChild(fallback, imgEl);
+  } catch (_) {
+    imgEl.style.display = 'none';
+  }
+}
+
 // 1. Inicialización y Gestión de Vistas del Planner
 document.addEventListener('DOMContentLoaded', () => {
   // Selector de Vistas: Calendario, Lista o Slots
@@ -290,6 +332,31 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         btnSyncLiveQueue.disabled = false;
         btnSyncLiveQueue.textContent = '🔄 Sincronizar Posts de Meta';
+      }
+    });
+  }
+
+  // Botón Reparar Miniaturas de Meta (Descarga y almacena localmente)
+  const btnRepairMetaThumbs = document.getElementById('btn-repair-meta-thumbs');
+  if (btnRepairMetaThumbs) {
+    btnRepairMetaThumbs.addEventListener('click', async () => {
+      btnRepairMetaThumbs.disabled = true;
+      btnRepairMetaThumbs.textContent = '🩹 Reparando...';
+      try {
+        const res = await fetch('/api/posts/repair-thumbnails', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.message || 'Miniaturas reparadas y cacheadas con éxito', 'success');
+          await window.loadPlannerData();
+          if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+        } else {
+          showToast('Error al reparar miniaturas: ' + (json.error || 'Desconocido'), 'error');
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      } finally {
+        btnRepairMetaThumbs.disabled = false;
+        btnRepairMetaThumbs.textContent = '🩹 Reparar Miniaturas';
       }
     });
   }
@@ -637,7 +704,7 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
       const statusIcon = isScheduled ? '🕒' : '✅';
 
       item.innerHTML = `
-        ${thumbUrl ? `<img src="${thumbUrl}" class="planner-card-thumb" alt="media">` : `<div class="planner-card-thumb" style="background:var(--bg-surface);display:flex;align-items:center;justify-content:center;font-size:0.75rem;">${formatIcon}</div>`}
+        ${thumbUrl ? `<img src="${thumbUrl}" class="planner-card-thumb" alt="media" onerror="window.handleThumbError(this, ${post.id})">` : `<div class="planner-card-thumb" style="background:var(--bg-surface);display:flex;align-items:center;justify-content:center;font-size:0.75rem;">${formatIcon}</div>`}
         <div class="planner-card-info">
           <span class="planner-card-time">${statusIcon} ${timeStr} · ${formatIcon}</span>
           <span class="planner-card-title">${post.title || post.content || 'Publicación'}</span>
@@ -785,7 +852,7 @@ function showPlannerPostDetail(post) {
         <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
           ${isVid
             ? `<video src="${firstMedia}" controls style="max-height:240px; max-width:100%; border-radius:8px;"></video>`
-            : `<img src="${firstMedia}" alt="preview" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
+            : `<img src="${firstMedia}" alt="preview" onerror="window.handleThumbError(this, ${post.id})" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px;">
             ${mediaUrls.map((url, idx) => `
               <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
@@ -920,7 +987,7 @@ function renderQueueTable(posts) {
       const isVid = media[0].match(/\.(mp4|mov)$/i);
       mediaThumb = isVid
         ? `<div style="width:36px; height:36px; border-radius:4px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>`
-        : `<img src="${media[0]}" style="width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
+        : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${post.id})" style="width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
     }
 
     let statusPill = `<span class="status-pill ${post.status}">${post.status}</span>`;
@@ -1497,7 +1564,7 @@ function updateEditPostMediaPreview(url) {
   if (isVid) {
     preview.innerHTML = `<video src="${url}" controls style="width:100%; height:100%; object-fit:cover;"></video>`;
   } else {
-    preview.innerHTML = `<img src="${url}" alt="Preview" style="width:100%; height:100%; object-fit:cover;">`;
+    preview.innerHTML = `<img src="${url}" alt="Preview" onerror="window.handleThumbError(this)" style="width:100%; height:100%; object-fit:cover;">`;
   }
 }
 

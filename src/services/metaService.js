@@ -905,9 +905,63 @@ class MetaService {
     }
   }
 
-  mapLivePostToRecord(p, config) {
-    const mediaUrl = p.media_url || p.thumbnail_url || '';
-    const mediaUrlsJson = mediaUrl ? JSON.stringify([mediaUrl]) : '[]';
+  /**
+   * Descarga y almacena localmente imágenes o miniaturas de Meta en disco
+   * para evitar que expiren las firmas temporales (URL signature expired).
+   */
+  async cacheRemoteMedia(remoteUrl, metaPostId) {
+    if (!remoteUrl || typeof remoteUrl !== 'string') return '';
+    if (!remoteUrl.startsWith('http://') && !remoteUrl.startsWith('https://')) {
+      return remoteUrl; // Ya es local o relativo
+    }
+
+    try {
+      const cacheDir = path.join(__dirname, '../../uploads/meta_cache');
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+
+      const safeId = String(metaPostId || Date.now()).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `ig_${safeId}.jpg`;
+      const localPath = path.join(cacheDir, filename);
+      const relativeUrl = `/uploads/meta_cache/${filename}`;
+
+      // Si ya existe el archivo en disco con tamaño válido, retornarlo directamente
+      if (fs.existsSync(localPath)) {
+        const stat = fs.statSync(localPath);
+        if (stat.size > 500) {
+          return relativeUrl;
+        }
+      }
+
+      // Descargar imagen desde el CDN de Meta
+      const response = await axios.get(remoteUrl, {
+        responseType: 'arraybuffer',
+        timeout: 12000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        }
+      });
+
+      if (response.status === 200 && response.data) {
+        fs.writeFileSync(localPath, Buffer.from(response.data));
+        return relativeUrl;
+      }
+    } catch (err) {
+      console.warn(`[MetaCache] No se pudo cachear en disco ${remoteUrl.slice(0, 60)}...: ${err.message}`);
+    }
+
+    return remoteUrl;
+  }
+
+  async mapLivePostToRecord(p, config) {
+    const rawMediaUrl = p.thumbnail_url || p.media_url || '';
+    let finalMediaUrl = rawMediaUrl;
+    if (rawMediaUrl) {
+      finalMediaUrl = await this.cacheRemoteMedia(rawMediaUrl, p.id);
+    }
+
+    const mediaUrlsJson = finalMediaUrl ? JSON.stringify([finalMediaUrl]) : '[]';
     const postType = p.media_type === 'VIDEO' ? 'reel' : 'feed';
     const publishedAt = p.timestamp ? new Date(p.timestamp).toISOString() : new Date().toISOString();
     const firstLine = (p.caption || '').split('\n')[0].slice(0, 45);
@@ -929,16 +983,17 @@ class MetaService {
    * Sincroniza las publicaciones en vivo de Instagram en la base de datos local SQLite
    */
   async syncLivePostsToDatabase() {
-    const livePosts = await this.getLiveInstagramPosts(25);
+    const livePosts = await this.getLiveInstagramPosts(30);
     if (!livePosts || livePosts.length === 0) {
-      return { syncedCount: 0, message: 'No se encontraron publicaciones en Instagram o no hay conexión.' };
+      return { syncedCount: 0, updatedCount: 0, message: 'No se encontraron publicaciones en Instagram o no hay conexión.' };
     }
 
     const { db } = require('../database/db');
     const config = this.getConfig();
     let newCount = 0;
+    let updatedCount = 0;
 
-    const findExisting = db.prepare('SELECT id FROM posts WHERE meta_post_id = ?');
+    const findExisting = db.prepare('SELECT id, media_urls FROM posts WHERE meta_post_id = ?');
     const insertPost = db.prepare(`
       INSERT INTO posts (
         title, content, media_urls, platforms, post_type, status,
@@ -948,12 +1003,15 @@ class MetaService {
         ?, ?, ?, ?, ?, NULL, ?, ?
       )
     `);
+    const updatePostMedia = db.prepare(`
+      UPDATE posts SET media_urls = ?, updated_at = ? WHERE id = ?
+    `);
 
     for (const p of livePosts) {
       const existing = findExisting.get(p.id);
-      if (!existing) {
-        const record = this.mapLivePostToRecord(p, config);
+      const record = await this.mapLivePostToRecord(p, config);
 
+      if (!existing) {
         insertPost.run(
           record.title,
           record.content,
@@ -968,14 +1026,126 @@ class MetaService {
           record.publishedAt
         );
         newCount++;
+      } else {
+        // Si el post ya existía pero tiene una URL externa o rota, actualizarla con la URL local en caché
+        let currentUrls = [];
+        try { currentUrls = JSON.parse(existing.media_urls || '[]'); } catch (_) {}
+        const firstUrl = currentUrls[0] || '';
+        const isExternalOrBroken = !firstUrl || firstUrl.includes('cdninstagram.com') || firstUrl.includes('fbcdn.net');
+
+        if (isExternalOrBroken && record.mediaUrlsJson && record.mediaUrlsJson !== '[]') {
+          updatePostMedia.run(record.mediaUrlsJson, new Date().toISOString(), existing.id);
+          updatedCount++;
+        }
       }
     }
 
     return {
       syncedCount: newCount,
+      updatedCount,
       totalLive: livePosts.length,
-      message: `Se sincronizaron ${newCount} publicaciones desde Instagram.`
+      message: `Se sincronizaron ${newCount} publicaciones nuevas y se actualizaron ${updatedCount} miniaturas en caché local.`
     };
+  }
+
+  /**
+   * Repara todas las publicaciones en la base de datos local que tengan un meta_post_id
+   * y cuyas miniaturas apunten a URLs externas de CDN expiradas o rotas.
+   */
+  async repairPostThumbnails() {
+    const { db } = require('../database/db');
+    const posts = db.prepare(`
+      SELECT id, meta_post_id, media_urls, account_id
+      FROM posts
+      WHERE meta_post_id IS NOT NULL AND meta_post_id != ''
+    `).all();
+
+    let repaired = 0;
+    let failed = 0;
+
+    for (const p of posts) {
+      let urls = [];
+      try { urls = JSON.parse(p.media_urls || '[]'); } catch (_) {}
+      const firstUrl = urls[0] || '';
+
+      // Si ya está cacheada localmente, verificar si existe físicamente
+      if (firstUrl && firstUrl.startsWith('/uploads/meta_cache/')) {
+        const localRel = firstUrl.replace('/uploads/meta_cache/', '');
+        const localPath = path.join(__dirname, '../../uploads/meta_cache', localRel);
+        if (fs.existsSync(localPath) && fs.statSync(localPath).size > 500) {
+          continue; // Archivo intacto en disco
+        }
+      }
+
+      // Si es una URL externa o archivo faltante, solicitar a Meta una URL nueva y fresca
+      try {
+        const creds = this.getAccountCredentials(p.account_id);
+        if (!creds.pageToken) {
+          failed++;
+          continue;
+        }
+
+        const res = await axios.get(`${this.graphUrl}/${p.meta_post_id}`, {
+          params: {
+            fields: 'id,media_type,media_url,thumbnail_url',
+            access_token: creds.pageToken
+          },
+          timeout: 10000
+        });
+
+        const freshUrl = res.data?.thumbnail_url || res.data?.media_url;
+        if (freshUrl) {
+          const cachedUrl = await this.cacheRemoteMedia(freshUrl, p.meta_post_id);
+          if (cachedUrl && cachedUrl.startsWith('/uploads/')) {
+            db.prepare('UPDATE posts SET media_urls = ?, updated_at = ? WHERE id = ?')
+              .run(JSON.stringify([cachedUrl]), new Date().toISOString(), p.id);
+            repaired++;
+          }
+        }
+      } catch (err) {
+        console.warn(`[MetaRepair] No se pudo renovar miniatura para post ${p.id} (${p.meta_post_id}):`, err.response?.data?.error?.message || err.message);
+        failed++;
+      }
+    }
+
+    return { repaired, failed, totalChecked: posts.length };
+  }
+
+  /**
+   * Refresca la miniatura de un post individual desde Meta Graph API y la descarga localmente.
+   */
+  async refreshSinglePostMedia(postId) {
+    const { db } = require('../database/db');
+    const post = db.prepare('SELECT id, meta_post_id, account_id, media_urls FROM posts WHERE id = ?').get(postId);
+    if (!post || !post.meta_post_id) {
+      throw new Error('Publicación no encontrada o no posee ID de Meta.');
+    }
+
+    const creds = this.getAccountCredentials(post.account_id);
+    if (!creds.pageToken) {
+      throw new Error('No hay token activo para consultar la API de Meta.');
+    }
+
+    const res = await axios.get(`${this.graphUrl}/${post.meta_post_id}`, {
+      params: {
+        fields: 'id,media_type,media_url,thumbnail_url',
+        access_token: creds.pageToken
+      },
+      timeout: 10000
+    });
+
+    const freshUrl = res.data?.thumbnail_url || res.data?.media_url;
+    if (!freshUrl) {
+      throw new Error('Meta no retornó URL multimedia para este post.');
+    }
+
+    const cachedUrl = await this.cacheRemoteMedia(freshUrl, post.meta_post_id);
+    if (cachedUrl) {
+      db.prepare('UPDATE posts SET media_urls = ?, updated_at = ? WHERE id = ?')
+        .run(JSON.stringify([cachedUrl]), new Date().toISOString(), post.id);
+      return cachedUrl;
+    }
+    return freshUrl;
   }
 
   /**

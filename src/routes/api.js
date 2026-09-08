@@ -282,6 +282,27 @@ router.get('/posts', (req, res) => {
     params.push(Number(limit), Number(offset));
 
     const posts = db.prepare(query).all(...params);
+
+    // Mapear dinámicamente si ya existe caché local para miniaturas de Meta
+    for (const p of posts) {
+      if (p.meta_post_id && p.media_urls) {
+        let urls = [];
+        try { urls = JSON.parse(p.media_urls || '[]'); } catch (_) {}
+        const first = urls[0] || '';
+        if (first && (first.includes('cdninstagram.com') || first.includes('fbcdn.net'))) {
+          const cacheFile = `ig_${p.meta_post_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
+          const localPath = path.join(__dirname, '../../uploads/meta_cache', cacheFile);
+          if (fs.existsSync(localPath)) {
+            urls[0] = `/uploads/meta_cache/${cacheFile}`;
+            p.media_urls = JSON.stringify(urls);
+            try {
+              db.prepare('UPDATE posts SET media_urls = ? WHERE id = ?').run(p.media_urls, p.id);
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
     res.json({ success: true, data: posts });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -589,6 +610,30 @@ router.post('/posts/bulk-reassign', (req, res) => {
       message: `¡${updatedCount} publicación(es) transferida(s) con éxito a "${targetAccountName || targetAccountId}"!`,
       count: updatedCount
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Reparación masiva y caché en disco de miniaturas expiradas de Meta (URL signature expired)
+router.post('/posts/repair-thumbnails', async (req, res) => {
+  try {
+    const result = await metaService.repairPostThumbnails();
+    res.json({
+      success: true,
+      data: result,
+      message: `Se verificaron ${result.totalChecked} posts: ${result.repaired} miniaturas descargadas y cacheadas en disco permanentemente.`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Refresco bajo demanda de miniatura para un post específico
+router.post('/posts/:id/refresh-media', async (req, res) => {
+  try {
+    const newMediaUrl = await metaService.refreshSinglePostMedia(req.params.id);
+    res.json({ success: true, newMediaUrl });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

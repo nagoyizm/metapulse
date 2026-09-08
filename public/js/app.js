@@ -163,7 +163,7 @@ async function loadDashboardStatus() {
         const firstMedia = media.length > 0 ? media[0] : null;
         const isVid = firstMedia ? firstMedia.match(/\.(mp4|mov)$/i) : false;
         const mediaThumb = firstMedia
-          ? (isVid ? `<div style="width:38px; height:38px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>` : `<img src="${firstMedia}" style="width:38px; height:38px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`)
+          ? (isVid ? `<div style="width:38px; height:38px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>` : `<img src="${firstMedia}" onerror="window.handleThumbError(this, ${p.id})" style="width:38px; height:38px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`)
           : '';
 
         return `
@@ -198,7 +198,7 @@ async function loadDashboardStatus() {
             const isVid = media[0].match(/\.(mp4|mov)$/i);
             mediaThumb = isVid
               ? `<div style="width:40px; height:40px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>`
-              : `<img src="${media[0]}" style="width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
+              : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${p.id})" style="width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
           }
         } catch (_) {}
 

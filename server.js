@@ -24,6 +24,7 @@ const dirs = [
   path.join(__dirname, 'uploads/audio'),
   path.join(__dirname, 'uploads/audio/cache'),
   path.join(__dirname, 'uploads/stories'),
+  path.join(__dirname, 'uploads/meta_cache'),
   path.join(__dirname, 'public')
 ];
 
