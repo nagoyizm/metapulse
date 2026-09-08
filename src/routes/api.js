@@ -32,6 +32,12 @@ const musicService = require('../services/musicService');
 const videoService = require('../services/videoService');
 const { scrapeCampinaWebsite, CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
 
+function isVideoUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|mov|webm|avi|m4v|mkv)$/i.test(clean);
+}
+
 // Configuración de Multer para subida de archivos
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -395,32 +401,40 @@ router.post('/posts', async (req, res) => {
     let createdStoryPost = null;
     if (also_share_story && media_urls && media_urls.length > 0 && post_type !== 'story') {
       try {
+        const isReel = post_type === 'reel';
+        const videoMedia = media_urls.find(u => isVideoUrl(u));
         let storyMediaUrl = media_urls[0];
-        let absImagePath = media_urls[0];
-        if (!absImagePath.startsWith('http')) {
-          absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
-        }
 
-        if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
-          // Si incluyó configuración de música para la historia, generamos video story MP4 con audio
-          if (story_music_config && story_music_config.audio_url) {
-            console.log('[API] Generando video story cruzado con música...');
-            const vidRes = await videoService.generateStoryVideo({
-              imageInput: absImagePath,
-              audioInput: story_music_config.audio_url,
-              duration: story_music_config.duration || 15,
-              startTime: story_music_config.start_time || 0,
-              addMusicSticker: Boolean(story_music_config.add_music_sticker),
-              songTitle: story_music_config.song_title || '',
-              songArtist: story_music_config.song_artist || ''
-            });
-            storyMediaUrl = vidRes.relativeUrl;
-          } else {
-            const cardRes = await imageService.createStoryCard({
-              inputImagePath: absImagePath,
-              brandName: accountName || getSetting('meta_page_name') || ''
-            });
-            storyMediaUrl = cardRes.relativeUrl;
+        if (isReel || videoMedia) {
+          // Si ya es un video o Reel, se comparte el video directamente como Video Story
+          storyMediaUrl = videoMedia || media_urls[0];
+        } else {
+          let absImagePath = media_urls[0];
+          if (!absImagePath.startsWith('http')) {
+            absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
+          }
+
+          if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
+            // Si incluyó configuración de música para la historia, generamos video story MP4 con audio
+            if (story_music_config && story_music_config.audio_url) {
+              console.log('[API] Generando video story cruzado con música...');
+              const vidRes = await videoService.generateStoryVideo({
+                imageInput: absImagePath,
+                audioInput: story_music_config.audio_url,
+                duration: story_music_config.duration || 15,
+                startTime: story_music_config.start_time || 0,
+                addMusicSticker: Boolean(story_music_config.add_music_sticker),
+                songTitle: story_music_config.song_title || '',
+                songArtist: story_music_config.song_artist || ''
+              });
+              storyMediaUrl = vidRes.relativeUrl;
+            } else {
+              const cardRes = await imageService.createStoryCard({
+                inputImagePath: absImagePath,
+                brandName: accountName || getSetting('meta_page_name') || ''
+              });
+              storyMediaUrl = cardRes.relativeUrl;
+            }
           }
         }
 
@@ -675,39 +689,70 @@ router.post('/posts/:id/repost-story', async (req, res) => {
       mediaUrls = JSON.parse(post.media_urls || '[]');
     } catch (_) {}
 
-    let storyMediaUrl = '';
-    if (mediaUrls.length > 0) {
-      const firstMedia = mediaUrls[0];
-      const isVideo = firstMedia.match(/\.(mp4|mov)$/i);
-      if (isVideo) {
-        storyMediaUrl = firstMedia;
-      } else {
-        try {
-          const inputPath = firstMedia.startsWith('http')
-            ? firstMedia
-            : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
-          const result = await imageService.createStoryCard({
-            inputImagePath: inputPath,
-            brandName: getSetting('meta_page_name') || ''
+    const isReel = post.post_type === 'reel';
+    let videoUrl = mediaUrls.find(u => isVideoUrl(u));
+
+    // Si es un Reel pero no tenemos el archivo de video en mediaUrls (ej: solo se guardó la miniatura JPG),
+    // consultar a Meta Graph API para obtener el enlace de video MP4 fresco
+    if (isReel && !videoUrl && post.meta_post_id) {
+      try {
+        const creds = metaService.getAccountCredentials(post.account_id);
+        if (creds.pageToken) {
+          const metaRes = await axios.get(`${metaService.graphUrl}/${post.meta_post_id}`, {
+            params: {
+              fields: 'id,media_type,media_url,thumbnail_url',
+              access_token: creds.pageToken
+            },
+            timeout: 10000
           });
-          storyMediaUrl = result.relativeUrl;
-        } catch (err) {
-          console.warn('Error procesando imagen para historia:', err.message);
-          storyMediaUrl = firstMedia;
+          if (metaRes.data?.media_url) {
+            videoUrl = metaRes.data.media_url;
+            const updatedList = [videoUrl, ...mediaUrls.filter(u => u !== videoUrl)];
+            db.prepare('UPDATE posts SET media_urls = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+              .run(JSON.stringify(updatedList), post.id);
+          }
         }
+      } catch (err) {
+        console.warn(`[RepostStory] No se pudo obtener video de Meta para Reel #${post.id}:`, err.message);
       }
     }
 
-    const teaserText = `✨ ¡NUEVO POST EN EL PERFIL! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Mira la publicación completa y todos los detalles en nuestro feed! 📲`;
+    let storyMediaUrl = '';
+    const isVideo = Boolean(videoUrl) || (mediaUrls.length > 0 && isVideoUrl(mediaUrls[0]));
+
+    if (isVideo) {
+      // Si es Reel o video, se comparte tal cual como video vertical
+      storyMediaUrl = videoUrl || mediaUrls[0];
+    } else if (mediaUrls.length > 0) {
+      const firstMedia = mediaUrls[0];
+      try {
+        const inputPath = firstMedia.startsWith('http')
+          ? firstMedia
+          : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
+        const result = await imageService.createStoryCard({
+          inputImagePath: inputPath,
+          brandName: post.account_name || getSetting('meta_page_name') || ''
+        });
+        storyMediaUrl = result.relativeUrl;
+      } catch (err) {
+        console.warn('Error procesando imagen para historia:', err.message);
+        storyMediaUrl = firstMedia;
+      }
+    }
+
+    const teaserText = isReel
+      ? `🎬 ¡MIRA ESTE REEL COMPLETO! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Toca aquí para ver el video en nuestro feed! 📲`
+      : `✨ ¡NUEVO POST EN EL PERFIL! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Mira la publicación completa y todos los detalles en nuestro feed! 📲`;
 
     res.json({
       success: true,
       data: {
         originalPostId: post.id,
-        title: `Story: ${post.title || 'Nuevo Post'}`,
+        title: `Story: ${post.title || (isReel ? 'Nuevo Reel' : 'Nuevo Post')}`,
         content: teaserText,
         mediaUrls: storyMediaUrl ? [storyMediaUrl] : [],
-        postType: 'story'
+        postType: 'story',
+        isVideoStory: isVideo
       }
     });
   } catch (err) {
@@ -727,15 +772,45 @@ router.post('/posts/:id/publish-story-now', async (req, res) => {
       mediaUrls = JSON.parse(post.media_urls || '[]');
     } catch (_) {}
 
-    if (mediaUrls.length === 0) {
+    const isReel = post.post_type === 'reel';
+    let videoUrl = mediaUrls.find(u => isVideoUrl(u));
+
+    // Si es un Reel pero no tenemos el archivo de video en mediaUrls (ej: solo se guardó la miniatura JPG),
+    // consultar a Meta Graph API para obtener el enlace de video MP4 fresco
+    if (isReel && !videoUrl && post.meta_post_id) {
+      try {
+        const creds = metaService.getAccountCredentials(post.account_id);
+        if (creds.pageToken) {
+          const metaRes = await axios.get(`${metaService.graphUrl}/${post.meta_post_id}`, {
+            params: {
+              fields: 'id,media_type,media_url,thumbnail_url',
+              access_token: creds.pageToken
+            },
+            timeout: 10000
+          });
+          if (metaRes.data?.media_url) {
+            videoUrl = metaRes.data.media_url;
+            const updatedList = [videoUrl, ...mediaUrls.filter(u => u !== videoUrl)];
+            db.prepare('UPDATE posts SET media_urls = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+              .run(JSON.stringify(updatedList), post.id);
+          }
+        }
+      } catch (err) {
+        console.warn(`[PublishStoryNow] No se pudo obtener video de Meta para Reel #${post.id}:`, err.message);
+      }
+    }
+
+    if (mediaUrls.length === 0 && !videoUrl) {
       return res.status(400).json({ success: false, error: 'Esta publicación no contiene archivos multimedia para convertir en historia.' });
     }
 
-    const firstMedia = mediaUrls[0];
-    let storyMediaUrl = firstMedia;
-    const isVideo = firstMedia.match(/\.(mp4|mov)$/i);
+    const isVideo = Boolean(videoUrl) || (mediaUrls.length > 0 && isVideoUrl(mediaUrls[0]));
+    let storyMediaUrl = '';
 
-    if (!isVideo) {
+    if (isVideo) {
+      storyMediaUrl = videoUrl || mediaUrls[0];
+    } else {
+      const firstMedia = mediaUrls[0];
       try {
         const inputPath = firstMedia.startsWith('http')
           ? firstMedia
@@ -747,10 +822,14 @@ router.post('/posts/:id/publish-story-now', async (req, res) => {
         storyMediaUrl = result.relativeUrl;
       } catch (err) {
         console.warn('Error adaptando imagen a historia:', err.message);
+        storyMediaUrl = firstMedia;
       }
     }
 
-    const teaserText = `✨ ¡NUEVO POST EN EL FEED! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Mira la publicación completa en nuestro perfil! 📲`;
+    const teaserText = isReel
+      ? `🎬 ¡MIRA ESTE REEL EN EL FEED! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Toca aquí para ver el video completo! 📲`
+      : `✨ ¡NUEVO POST EN EL FEED! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Mira la publicación completa en nuestro perfil! 📲`;
+
     const targetSchedule = new Date().toISOString();
 
     const insertStmt = db.prepare(`
@@ -759,7 +838,7 @@ router.post('/posts/:id/publish-story-now', async (req, res) => {
     `);
 
     const storyResult = insertStmt.run(
-      `Story: ${post.title || 'Nuevo Post'}`,
+      `Story: ${post.title || (isReel ? 'Nuevo Reel' : 'Nuevo Post')}`,
       teaserText,
       post.platforms || '["facebook","instagram"]',
       JSON.stringify([storyMediaUrl]),
@@ -775,7 +854,9 @@ router.post('/posts/:id/publish-story-now', async (req, res) => {
 
     res.json({
       success: true,
-      message: '¡Historia vertical 9:16 generada y enviada a publicación!',
+      message: isReel
+        ? '¡Reel compartido exitosamente como video en tus Historias!'
+        : '¡Historia vertical 9:16 generada y enviada a publicación!',
       data: updatedStory
     });
   } catch (err) {

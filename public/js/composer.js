@@ -8,6 +8,12 @@ const ComposerState = {
   activePreview: 'fb'
 };
 
+function isVideoUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|mov|webm|avi|m4v|mkv)$/i.test(clean);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const postContent = document.getElementById('post-content');
   const postTitle = document.getElementById('post-title');
@@ -70,10 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Actualización de Media en maquetas
     if (ComposerState.mediaFiles.length > 0) {
       const firstMedia = ComposerState.mediaFiles[0];
-      const isVideo = firstMedia.match(/\.(mp4|mov|webm)$/i);
+      const isVideo = isVideoUrl(firstMedia);
 
       const mediaHtml = isVideo
-        ? `<video src="${firstMedia}" controls autoplay muted loop></video>`
+        ? `<video src="${firstMedia}" controls autoplay muted loop style="width:100%;height:100%;object-fit:cover;"></video>`
         : `<img src="${firstMedia}" alt="Preview">`;
 
       mockFbMedia.innerHTML = mediaHtml;
@@ -259,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderMediaPreviews() {
     mediaPreviewGrid.innerHTML = '';
     ComposerState.mediaFiles.forEach((url, idx) => {
-      const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+      const isVideo = isVideoUrl(url);
       const div = document.createElement('div');
       div.className = 'media-preview-item';
       div.innerHTML = `

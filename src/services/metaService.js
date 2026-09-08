@@ -6,6 +6,12 @@ const { getSetting, getAllSettings, setSetting, setMultipleSettings } = require(
 const API_VERSION = 'v21.0';
 const GRAPH_URL = `https://graph.facebook.com/${API_VERSION}`;
 
+function isVideoUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|mov|webm|avi|m4v|mkv)$/i.test(clean);
+}
+
 class MetaService {
   constructor() {
     this.graphUrl = GRAPH_URL;
@@ -283,7 +289,7 @@ class MetaService {
 
     // Caso Historias (Facebook Stories 9:16 para Páginas)
     if (postType === 'story' && resolvedMedia.length >= 1) {
-      const isVideo = resolvedMedia[0].match(/\.(mp4|mov|avi)$/i);
+      const isVideo = isVideoUrl(resolvedMedia[0]);
       if (isVideo) {
         // Video Story
         const uploadRes = await axios.post(`${this.graphUrl}/${pageId}/videos`, null, {
@@ -387,7 +393,7 @@ class MetaService {
     }
 
     // Caso 4: Video o Reel en Facebook
-    if (postType === 'reel' || resolvedMedia[0].match(/\.(mp4|mov|avi)$/i)) {
+    if (postType === 'reel' || isVideoUrl(resolvedMedia[0])) {
       const res = await axios.post(`${this.graphUrl}/${pageId}/videos`, null, {
         params: {
           file_url: resolvedMedia[0],
@@ -433,7 +439,7 @@ class MetaService {
   }
 
   async createStoryContainer(igUserId, token, mediaUrl) {
-    const isVideo = mediaUrl.match(/\.(mp4|mov)$/i);
+    const isVideo = isVideoUrl(mediaUrl);
     const containerParams = {
       media_type: 'STORIES',
       access_token: token
@@ -471,7 +477,7 @@ class MetaService {
     const itemContainerIds = [];
 
     for (const mediaUrl of resolvedMedia) {
-      const isVideo = mediaUrl.match(/\.(mp4|mov)$/i);
+      const isVideo = isVideoUrl(mediaUrl);
       const itemParams = {
         is_carousel_item: true,
         access_token: token
@@ -505,7 +511,7 @@ class MetaService {
   }
 
   async createSingleFeedContainer(igUserId, token, mediaUrl, message) {
-    const isVideo = mediaUrl.match(/\.(mp4|mov)$/i);
+    const isVideo = isVideoUrl(mediaUrl);
     const containerParams = {
       caption: message,
       access_token: token
@@ -955,17 +961,41 @@ class MetaService {
   }
 
   async mapLivePostToRecord(p, config) {
-    const rawMediaUrl = p.thumbnail_url || p.media_url || '';
-    let finalMediaUrl = rawMediaUrl;
-    if (rawMediaUrl) {
-      finalMediaUrl = await this.cacheRemoteMedia(rawMediaUrl, p.id);
+    const isVideo = p.media_type === 'VIDEO';
+    const postType = isVideo ? 'reel' : 'feed';
+
+    let mediaList = [];
+    if (isVideo) {
+      // 1. Descargar y cachear miniatura local para renderizado rápido
+      const thumbUrl = p.thumbnail_url || p.media_url || '';
+      let cachedThumb = thumbUrl;
+      if (thumbUrl) {
+        cachedThumb = await this.cacheRemoteMedia(thumbUrl, p.id);
+      }
+
+      // 2. Video real MP4 para compartir como historia y reproducir
+      const videoUrl = p.media_url || '';
+      if (videoUrl && cachedThumb && cachedThumb !== videoUrl) {
+        // [videoUrl, cachedThumb]: el video para historias/reproducción y el thumb para miniaturas
+        mediaList = [videoUrl, cachedThumb];
+      } else if (videoUrl) {
+        mediaList = [videoUrl];
+      } else if (cachedThumb) {
+        mediaList = [cachedThumb];
+      }
+    } else {
+      const rawMediaUrl = p.media_url || p.thumbnail_url || '';
+      let cachedMedia = rawMediaUrl;
+      if (rawMediaUrl) {
+        cachedMedia = await this.cacheRemoteMedia(rawMediaUrl, p.id);
+      }
+      mediaList = cachedMedia ? [cachedMedia] : [];
     }
 
-    const mediaUrlsJson = finalMediaUrl ? JSON.stringify([finalMediaUrl]) : '[]';
-    const postType = p.media_type === 'VIDEO' ? 'reel' : 'feed';
+    const mediaUrlsJson = JSON.stringify(mediaList);
     const publishedAt = p.timestamp ? new Date(p.timestamp).toISOString() : new Date().toISOString();
     const firstLine = (p.caption || '').split('\n')[0].slice(0, 45);
-    const title = firstLine ? firstLine.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim() : 'Post de Instagram';
+    const title = firstLine ? firstLine.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '').trim() : (isVideo ? 'Reel de Instagram' : 'Post de Instagram');
 
     return {
       title,

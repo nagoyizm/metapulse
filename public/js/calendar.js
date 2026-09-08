@@ -65,6 +65,12 @@ function formatChileDateTime(rawDate, options = {}) {
   }
 }
 
+function isVideoUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|mov|webm|avi|m4v|mkv)$/i.test(clean);
+}
+
 // Manejo y autoreparación de miniaturas rotas o con firma expirada (Meta URL signature expired)
 window.handleThumbError = function(imgEl, postId) {
   if (!imgEl) return;
@@ -255,7 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const post = modalDetail._currentPost;
       if (!post) return;
 
-      const confirmMsg = `¿Deseas adaptar y publicar la publicación #${post.id} inmediatamente como Historia (Story 9:16) en tu cuenta seleccionada?`;
+      const isReel = post.post_type === 'reel';
+      const confirmMsg = isReel
+        ? `¿Deseas compartir este Reel #${post.id} inmediatamente como video en tus Historias (Story 9:16)?`
+        : `¿Deseas adaptar y publicar la publicación #${post.id} inmediatamente como Historia (Story 9:16) en tu cuenta seleccionada?`;
       if (!confirm(confirmMsg)) return;
 
       btnPlannerPublishStoryNow.disabled = true;
@@ -263,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnPlannerPublishStoryNow.innerHTML = '<span>⏳</span> Publicando Historia...';
 
       try {
-        showToast(`Generando tarjeta 9:16 y publicando historia...`, 'info');
+        showToast(isReel ? 'Preparando video del Reel y publicando en Historias...' : 'Generando tarjeta 9:16 y publicando historia...', 'info');
         const res = await fetch(`/api/posts/${post.id}/publish-story-now`, { method: 'POST' });
         const json = await res.json();
         if (!json.success) {
@@ -271,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        showToast('¡Historia publicada exitosamente en Meta!', 'success');
+        showToast(isReel ? '¡Reel compartido exitosamente en tus Historias!' : '¡Historia publicada exitosamente en Meta!', 'success');
         closeModal();
         if (typeof window.loadPlannerData === 'function') {
           await window.loadPlannerData();
@@ -695,7 +704,7 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
 
       let mediaUrls = [];
       try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
-      const thumbUrl = mediaUrls[0] || '';
+      const thumbUrl = mediaUrls.find(u => !isVideoUrl(u)) || mediaUrls[0] || '';
 
       const rawDate = post.scheduled_at || post.published_at || '';
       const timeStr = formatChileTime(rawDate);
@@ -846,19 +855,27 @@ function showPlannerPostDetail(post) {
   const mediaContainer = document.getElementById('planner-detail-media-container');
   if (mediaContainer) {
     if (mediaUrls.length > 0) {
-      const firstMedia = mediaUrls[0];
-      const isVid = firstMedia.match(/\.(mp4|mov|webm)$/i);
+      const isReel = post.post_type === 'reel';
+      const videoMedia = mediaUrls.find(u => isVideoUrl(u));
+      const imageMedia = mediaUrls.find(u => !isVideoUrl(u));
+      const isVid = Boolean(videoMedia) || isVideoUrl(mediaUrls[0]);
+      const displayVideo = videoMedia || mediaUrls[0];
+      const displayImage = imageMedia || mediaUrls[0];
+
       mediaContainer.innerHTML = `
         <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
           ${isVid
-            ? `<video src="${firstMedia}" controls style="max-height:240px; max-width:100%; border-radius:8px;"></video>`
-            : `<img src="${firstMedia}" alt="preview" onerror="window.handleThumbError(this, ${post.id})" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
+            ? `<video src="${displayVideo}" controls playsinline style="max-height:260px; max-width:100%; border-radius:8px; background:#000; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></video>`
+            : `<img src="${displayImage}" alt="preview" onerror="window.handleThumbError(this, ${post.id})" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
           <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px;">
-            ${mediaUrls.map((url, idx) => `
-              <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
-                <span>📥</span> Descargar ${isVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
-              </button>
-            `).join('')}
+            ${mediaUrls.map((url, idx) => {
+              const urlIsVid = isVideoUrl(url);
+              return `
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
+                  <span>📥</span> Descargar ${urlIsVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -876,6 +893,7 @@ function showPlannerPostDetail(post) {
   const storyBadge = document.getElementById('planner-detail-story-badge');
 
   if (storyBox) {
+    const isReel = post.post_type === 'reel';
     if (mediaUrls.length === 0) {
       if (btnStoryNow) {
         btnStoryNow.disabled = true;
@@ -901,6 +919,19 @@ function showPlannerPostDetail(post) {
         storyBadge.textContent = 'Ya es Story';
         storyBadge.style.background = 'rgba(139,92,246,0.2)';
         storyBadge.style.color = '#a78bfa';
+      }
+    } else if (isReel) {
+      if (btnStoryNow) {
+        btnStoryNow.disabled = false;
+        btnStoryNow.style.opacity = '1';
+        btnStoryNow.style.cursor = 'pointer';
+      }
+      if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
+      if (storyDesc) storyDesc.textContent = '🎬 Este Reel se compartirá en tus Historias directamente como el video que es (Stories Video) tanto en Instagram como en Facebook.';
+      if (storyBadge) {
+        storyBadge.textContent = '🎥 Reel a Story (Video)';
+        storyBadge.style.background = 'rgba(16, 185, 129, 0.18)';
+        storyBadge.style.color = '#10b981';
       }
     } else {
       if (btnStoryNow) {
@@ -1233,7 +1264,9 @@ window.deletePost = async function(id) {
 };
 
 window.repostAsStory = async function(id) {
-  showToast(`Adaptando post #${id} a formato Historia 9:16 con fondo difuminado...`, 'info');
+  const post = (PlannerState.posts || []).find(p => p.id === Number(id));
+  const isReel = post && post.post_type === 'reel';
+  showToast(isReel ? `Cargando video del Reel #${id} para Historias...` : `Adaptando post #${id} a formato Historia 9:16 con fondo difuminado...`, 'info');
   try {
     const res = await fetch(`/api/posts/${id}/repost-story`, { method: 'POST' });
     const json = await res.json();
@@ -1266,7 +1299,7 @@ window.repostAsStory = async function(id) {
       storyRadio.dispatchEvent(new Event('change'));
     }
 
-    // 3. Cargar imagen de historia vertical 9:16 generada
+    // 3. Cargar archivo de video o imagen vertical 9:16 generada
     if (data.mediaUrls && data.mediaUrls.length > 0 && typeof window.setComposerMedia === 'function') {
       window.setComposerMedia(data.mediaUrls);
     }
@@ -1279,7 +1312,7 @@ window.repostAsStory = async function(id) {
       window.updateLivePreviews();
     }
 
-    showToast('Post adaptado a Historia 9:16 y cargado en el Composer', 'success');
+    showToast(data.isVideoStory ? '🎬 Reel cargado en el Composer como Historia (Video 9:16)' : 'Post adaptado a Historia 9:16 y cargado en el Composer', 'success');
   } catch (err) {
     showToast('Error adaptando post: ' + err.message, 'error');
   }
