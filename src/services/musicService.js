@@ -167,9 +167,23 @@ class MusicService {
     }
 
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      // Ya es una ruta local
-      const absPath = path.isAbsolute(url) ? url : path.join(__dirname, '../../', url.replace(/^\/+/, ''));
-      if (fs.existsSync(absPath)) return absPath;
+      const cleanRel = url.split('?')[0].replace(/^[\\\/]+/, '');
+      const baseName = path.basename(cleanRel);
+
+      const candidates = [
+        path.join(__dirname, '../../', cleanRel),
+        path.join(__dirname, '../../uploads/audio', baseName),
+        path.join(__dirname, '../../uploads/audio/cache', baseName),
+        path.join(__dirname, '../../uploads', baseName),
+        url.split('?')[0]
+      ];
+
+      for (const cand of candidates) {
+        if (cand && fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
+          return cand;
+        }
+      }
+
       throw new Error(`Archivo de audio local no encontrado: ${url}`);
     }
 

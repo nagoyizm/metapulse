@@ -36,6 +36,10 @@ class VideoService {
    * Resuelve cualquier ruta o URL de imagen a un archivo local absoluto
    */
   async resolveImageToLocal(imageInput) {
+    if (!imageInput || typeof imageInput !== 'string') {
+      throw new Error('Ruta de imagen no proporcionada o inválida.');
+    }
+
     if (imageInput.startsWith('http://') || imageInput.startsWith('https://')) {
       const tempImg = path.join(this.tempDir, `download_${Date.now()}_img.jpg`);
       const resp = await axios.get(imageInput, { responseType: 'arraybuffer', timeout: 25000 });
@@ -43,17 +47,61 @@ class VideoService {
       return { path: tempImg, isTemp: true };
     }
 
-    const cleanPath = imageInput.replace(/^\/+/, '');
-    let absPath = path.isAbsolute(imageInput) ? imageInput : path.join(__dirname, '../../', cleanPath);
+    // Quitar query params si los tuviera (ej: ?t=123)
+    const urlWithoutQuery = imageInput.split('?')[0];
+    const cleanRel = urlWithoutQuery.replace(/^[\\\/]+/, '');
+    const baseName = path.basename(cleanRel);
 
-    if (!fs.existsSync(absPath)) {
-      // Intentar en uploads
-      const inUploads = path.join(__dirname, '../../uploads', path.basename(cleanPath));
-      if (fs.existsSync(inUploads)) return { path: inUploads, isTemp: false };
-      throw new Error(`No se encontró el archivo de imagen: ${imageInput}`);
+    const candidates = [
+      // 1. Relativo a la raíz del proyecto
+      path.join(__dirname, '../../', cleanRel),
+      // 2. En uploads/processed (muy común para imágenes adaptadas o marcas de agua)
+      path.join(__dirname, '../../uploads/processed', baseName),
+      // 3. En uploads directo
+      path.join(__dirname, '../../uploads', baseName),
+      // 4. En uploads/watermarks
+      path.join(__dirname, '../../uploads/watermarks', baseName),
+      // 5. En uploads/generated
+      path.join(__dirname, '../../uploads/generated', baseName),
+      // 6. En uploads/stories
+      path.join(__dirname, '../../uploads/stories', baseName),
+      // 7. Ruta directa si ya era absoluta en el disco
+      urlWithoutQuery
+    ];
+
+    const extensions = ['', '.jpg', '.jpeg', '.png', '.webp'];
+    for (const cand of candidates) {
+      for (const ext of extensions) {
+        const fullCand = cand + ext;
+        if (fullCand && fs.existsSync(fullCand) && !fs.statSync(fullCand).isDirectory()) {
+          return { path: fullCand, isTemp: false };
+        }
+      }
     }
 
-    return { path: absPath, isTemp: false };
+    // Búsqueda por prefijo si el nombre fue recortado o truncado
+    const searchDirs = [
+      path.join(__dirname, '../../uploads/processed'),
+      path.join(__dirname, '../../uploads'),
+      path.join(__dirname, '../../uploads/watermarks'),
+      path.join(__dirname, '../../uploads/generated'),
+      path.join(__dirname, '../../uploads/stories')
+    ];
+
+    for (const sDir of searchDirs) {
+      if (fs.existsSync(sDir)) {
+        const files = fs.readdirSync(sDir);
+        const match = files.find(f => f === baseName || f.startsWith(baseName));
+        if (match) {
+          const foundPath = path.join(sDir, match);
+          if (fs.existsSync(foundPath) && !fs.statSync(foundPath).isDirectory()) {
+            return { path: foundPath, isTemp: false };
+          }
+        }
+      }
+    }
+
+    throw new Error(`No se encontró el archivo de imagen: ${imageInput}`);
   }
 
   /**
