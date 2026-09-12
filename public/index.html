@@ -27,7 +27,7 @@
         <p style="margin: 6px 0 0; font-size: 0.85rem; color: #94a3b8;">Acceso seguro y privado a la plataforma</p>
       </div>
 
-      <div id="auth-error-box" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 20px; line-height: 1.45;"></div>
+      <div id="auth-error-box" style="display: none; background: #7f1d1d; border: 1px solid #dc2626; color: #ffffff; padding: 12px 14px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 20px; line-height: 1.45;"></div>
 
       <form id="form-auth-login" style="display: flex; flex-direction: column; gap: 18px;">
         <div>
@@ -54,7 +54,7 @@
           </label>
         </div>
 
-        <button type="submit" id="btn-submit-auth-login" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 18px rgba(236,72,153,0.45); margin-top: 6px; transition: opacity 0.2s;">
+        <button type="submit" id="btn-submit-auth-login" style="background: linear-gradient(135deg, #be185d, #6d28d9); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 18px rgba(190,24,93,0.45); margin-top: 6px; transition: opacity 0.2s;">
           <span id="btn-auth-spinner" style="display:none;">⏳</span>
           <span id="btn-auth-text">🔐 Iniciar Sesión</span>
         </button>
@@ -101,7 +101,7 @@
         <button class="nav-item" data-tab="inbox">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>Inbox & Comentarios</span>
-          <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: #ec4899; color: #fff;">0</span>
+          <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: #be185d; color: #fff;">0</span>
         </button>
         <button class="nav-item" data-tab="analytics">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
@@ -302,7 +302,7 @@
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
                       <span>Asistente IA (Copy)</span>
                     </button>
-                    <button type="button" class="btn btn-sm" id="btn-open-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+                    <button type="button" class="btn btn-sm" id="btn-open-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
                       <span>📦 Carga en Lote (Autopilot)</span>
                     </button>
                   </div>
@@ -459,7 +459,7 @@
                         <input type="checkbox" id="chk-also-share-story" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
                         <span>📲 Compartir también como Historia (Story 9:16)</span>
                       </label>
-                      <span class="badge" style="background:linear-gradient(135deg, #ec4899, #8b5cf6); color:white; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:700;">Story 9:16 Auto</span>
+                      <span class="badge" style="background:linear-gradient(135deg, #be185d, #6d28d9); color:white; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:700;">Story 9:16 Auto</span>
                     </div>
                     <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary);">
                       Genera automáticamente una Historia vertical 9:16 con fondo artístico envolvente difuminado a partir de esta imagen para Instagram y Facebook Stories.
@@ -467,7 +467,7 @@
 
                     <!-- Story Timing Options (Hidden by default) -->
                     <div id="story-timing-box" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed rgba(236,72,153,0.3); margin-left:29px;">
-                      <label class="form-label" style="font-size:0.8rem; margin-bottom:6px;">¿En qué horario publicar la Historia?</label>
+                      <span class="form-label" style="display:block; font-size:0.8rem; margin-bottom:6px;">¿En qué horario publicar la Historia?</span>
                       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
                         <label class="radio-pill active" style="font-size:0.8rem;">
                           <input type="radio" name="story_schedule_timing" value="same_time" checked>
@@ -487,7 +487,7 @@
                         </label>
                       </div>
                       <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
-                        <input type="datetime-local" id="story-custom-datetime" class="form-control" style="font-size:0.85rem;">
+                        <input type="datetime-local" id="story-custom-datetime" aria-label="Fecha y hora personalizada para la Historia" class="form-control" style="font-size:0.85rem;">
                       </div>
                     </div>
                   </div>
@@ -532,7 +532,7 @@
                         <!-- Buscador -->
                         <div class="music-search-bar" style="margin: 10px 0 8px 0;">
                           <span class="music-search-icon">🔍</span>
-                          <input type="text" id="music-search-input" class="music-search-input" placeholder="Buscar por nombre, artista o mood...">
+                          <input type="text" id="music-search-input" aria-label="Buscar pista de música" class="music-search-input" placeholder="Buscar por nombre, artista o mood...">
                         </div>
 
                         <!-- Lista de Canciones -->
@@ -541,7 +541,7 @@
 
                       <!-- TAB 2: Subir Canción Propia -->
                       <div id="music-tab-upload" class="music-tab-content" style="display:none;">
-                        <input type="file" id="story-audio-file-input" accept="audio/*" style="display:none;">
+                        <input type="file" id="story-audio-file-input" aria-label="Subir archivo de audio propio" accept="audio/*" style="display:none;">
                         <div class="audio-upload-dropzone" id="story-audio-dropzone">
                           <div style="font-size:1.8rem; margin-bottom:4px;">🎵</div>
                           <p><strong>Haz clic aquí</strong> o arrastra tu archivo de música</p>
@@ -552,7 +552,7 @@
                       <!-- TAB 3: Jamendo API -->
                       <div id="music-tab-jamendo" class="music-tab-content" style="display:none;">
                         <div style="display:flex; gap:8px; margin-bottom:10px;">
-                          <input type="text" id="jamendo-search-input" class="music-search-input" placeholder="Buscar en catálogo libre Jamendo (ej: summer, lofi, upbeat)...">
+                          <input type="text" id="jamendo-search-input" aria-label="Buscar en catálogo Jamendo" class="music-search-input" placeholder="Buscar en catálogo libre Jamendo (ej: summer, lofi, upbeat)...">
                           <button type="button" class="btn btn-primary btn-sm" id="btn-jamendo-search" style="padding:0 14px; white-space:nowrap;">Buscar</button>
                         </div>
                         <div class="music-track-list" id="jamendo-results-list">
@@ -583,7 +583,7 @@
                             <span>✂️ Punto de inicio de la canción:</span>
                             <span id="music-trim-display" style="color:#ec4899; font-weight:700;">0:00s a 0:15s (15s)</span>
                           </div>
-                          <input type="range" id="music-trim-slider" class="audio-trim-slider" min="0" max="120" value="0" step="1">
+                          <input type="range" id="music-trim-slider" aria-label="Punto de inicio de la canción" class="audio-trim-slider" min="0" max="120" value="0" step="1">
                         </div>
 
                         <!-- Duración de la Historia -->
@@ -783,7 +783,7 @@
             <button type="button" class="btn btn-secondary btn-sm" id="btn-repair-meta-thumbs" title="Descargar y almacenar localmente miniaturas expiradas de Meta (URL signature expired)">
               🩹 Reparar Miniaturas
             </button>
-            <button type="button" class="btn btn-sm" id="btn-planner-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
+            <button type="button" class="btn btn-sm" id="btn-planner-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
               📦 Carga en Lote
             </button>
             <button type="button" class="btn btn-primary btn-sm" id="btn-planner-new-post">
@@ -899,7 +899,7 @@
                 <select id="select-schedule-presets" class="form-control" style="font-size:0.85rem; padding:5px 12px; min-width:250px; font-weight:600;">
                   <!-- Se llena dinámicamente -->
                 </select>
-                <span id="badge-active-preset" class="badge" style="background:#10b981; color:#fff; font-size:0.72rem; padding:3px 8px; border-radius:10px;">
+                <span id="badge-active-preset" class="badge" style="background:#047857; color:#fff; font-size:0.72rem; padding:3px 8px; border-radius:10px;">
                   ✅ Horario Activo Vigente
                 </span>
               </div>
@@ -907,7 +907,7 @@
                 <button type="button" class="btn btn-primary btn-sm" id="btn-activate-selected-preset" style="font-size:0.8rem;">
                   ⚡ Activar este Horario
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); padding:4px 8px;">
+                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:rgba(239,68,68,0.12); color:#b91c1c; border:1px solid rgba(239,68,68,0.3); padding:4px 8px;">
                   🗑️
                 </button>
               </div>
@@ -1007,7 +1007,7 @@
                   <span style="font-size:1.15rem;">🏆</span>
                   <h3 style="margin:0;">Publicación Más Exitosa (Top Post)</h3>
                 </div>
-                <span class="badge" id="top-post-score-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.75rem; padding:3px 8px; border-radius:12px;">Puntaje Máximo</span>
+                <span class="badge" id="top-post-score-badge" style="background:#d1fae5; color:#064e3b; font-weight:700; font-size:0.75rem; padding:3px 8px; border-radius:12px;">Puntaje Máximo</span>
               </div>
               <div class="card-body">
                 <div class="top-post-body" id="top-post-content">
@@ -1019,8 +1019,8 @@
                     <div class="top-post-details" style="flex:1; min-width:0;">
                       <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
                         <span class="badge" id="top-post-likes-badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">❤️ 0 Likes</span>
-                        <span class="badge" id="top-post-comments-badge" style="background:rgba(59,130,246,0.12); color:#1d4ed8; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">💬 0 Comentarios</span>
-                        <span class="badge" id="top-post-type-badge" style="background:rgba(168,85,247,0.12); color:#7e22ce; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">🎥 Video</span>
+                        <span class="badge" id="top-post-comments-badge" style="background:#dbeafe; color:#1e3a8a; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">💬 0 Comentarios</span>
+                        <span class="badge" id="top-post-type-badge" style="background:#f3e8ff; color:#581c87; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">🎥 Video</span>
                       </div>
                       <h4 id="top-post-title" style="margin:0 0 6px 0; font-size:0.92rem; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Cargando publicación...</h4>
                       <p id="top-post-caption" style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-secondary); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;"></p>
@@ -1061,7 +1061,7 @@
                 <span style="font-size:1.15rem;">📊</span>
                 <h3 style="margin:0;">Rendimiento Comparativo por Formato</h3>
               </div>
-              <span class="badge" id="format-winner-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">🏆 Ganador: Reels / Video</span>
+              <span class="badge" id="format-winner-badge" style="background:#d1fae5; color:#064e3b; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">🏆 Ganador: Reels / Video</span>
             </div>
             <div class="card-body">
               <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;" id="format-stat-boxes">
@@ -1069,7 +1069,7 @@
                 <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span style="font-weight:700; font-size:0.88rem;">🎥 Reels & Videos</span>
-                    <span class="badge" style="background:rgba(168,85,247,0.15); color:#7e22ce; font-size:0.72rem; padding:2px 6px;">Viral & Shares</span>
+                    <span class="badge" style="background:#f3e8ff; color:#581c87; font-size:0.72rem; padding:2px 6px;">Viral & Shares</span>
                   </div>
                   <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-video-avg-likes">0 likes prom.</div>
                   <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-video-meta">Mayor tasa de envío por DM (Sends)</div>
@@ -1079,7 +1079,7 @@
                 <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span style="font-weight:700; font-size:0.88rem;">🖼️ Carruseles (Multi-foto)</span>
-                    <span class="badge" style="background:rgba(59,130,246,0.15); color:#1d4ed8; font-size:0.72rem; padding:2px 6px;">Retención & Saves</span>
+                    <span class="badge" style="background:#dbeafe; color:#1e3a8a; font-size:0.72rem; padding:2px 6px;">Retención & Saves</span>
                   </div>
                   <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-carousel-avg-likes">0 likes prom.</div>
                   <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-carousel-meta">Mayor tiempo de permanencia en feed</div>
@@ -1089,7 +1089,7 @@
                 <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:14px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span style="font-weight:700; font-size:0.88rem;">📸 Fotos & Flyers 4:5</span>
-                    <span class="badge" style="background:rgba(234,88,12,0.15); color:#c2410c; font-size:0.72rem; padding:2px 6px;">Impacto Rápido</span>
+                    <span class="badge" style="background:#ffedd5; color:#7c2d12; font-size:0.72rem; padding:2px 6px;">Impacto Rápido</span>
                   </div>
                   <div style="font-size:1.3rem; font-weight:800; color:var(--text-primary);" id="fmt-image-avg-likes">0 likes prom.</div>
                   <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;" id="fmt-image-meta">Eficaz con titulares y ofertas claras</div>
@@ -1108,7 +1108,7 @@
                   <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Compara qué horario y franja horaria generan mayor alcance real y retorno</p>
                 </div>
               </div>
-              <span class="badge" id="schedule-winner-badge" style="background:rgba(16, 185, 129, 0.15); color:#047857; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">
+              <span class="badge" id="schedule-winner-badge" style="background:#d1fae5; color:#064e3b; font-weight:700; font-size:0.78rem; padding:4px 10px; border-radius:12px;">
                 🏆 Calculando ganador...
               </span>
             </div>
@@ -1489,7 +1489,7 @@
             <!-- Sidebar: Lista de Conversaciones -->
             <div class="inbox-threads-list">
               <div class="threads-search-bar">
-                <input type="text" id="inbox-search-input" class="form-control" placeholder="🔍 Buscar por nombre o usuario...">
+                <input type="text" id="inbox-search-input" aria-label="Buscar conversaciones por nombre o usuario" class="form-control" placeholder="🔍 Buscar por nombre o usuario...">
               </div>
               <div class="threads-scrollable" id="inbox-conversations-list">
                 <div class="empty-state-small">Cargando conversaciones...</div>
@@ -1537,7 +1537,7 @@
                 </div>
 
                 <div class="chat-input-wrapper">
-                  <textarea id="chat-reply-input" class="form-control" rows="2" placeholder="Escribe o ajusta la respuesta con IA para enviar por Instagram/Messenger... (Enter para enviar)"></textarea>
+                  <textarea id="chat-reply-input" aria-label="Escribir respuesta para enviar por chat o mensaje directo" class="form-control" rows="2" placeholder="Escribe o ajusta la respuesta con IA para enviar por Instagram/Messenger... (Enter para enviar)"></textarea>
                   <div id="chat-insert-feedback" style="display: none; font-size: 0.74rem; color: #c084fc; font-weight: 500;">
                     ✨ Sugerencia cargada en el campo. Puedes ajustarla libremente antes de enviar.
                   </div>
@@ -1615,9 +1615,9 @@
                   <strong>Activar Alertas de WhatsApp</strong>
                   <span>El servidor de Contabo enviará avisos a tu WhatsApp cuando lleguen mensajes o comentarios.</span>
                 </div>
-                <label class="switch" for="chk-whatsapp-enabled">
-                  <input type="checkbox" id="chk-whatsapp-enabled" checked>
-                  <span class="slider round"></span>
+                <label class="switch" for="chk-whatsapp-enabled" aria-label="Activar Alertas de WhatsApp">
+                  <input type="checkbox" id="chk-whatsapp-enabled" aria-label="Activar Alertas de WhatsApp" checked>
+                  <span class="slider round" aria-hidden="true"></span>
                 </label>
               </div>
 
@@ -1972,7 +1972,7 @@
                   Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.
                 </span>
               </div>
-              <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#ec4899; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
+              <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#be185d; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
                 Story 9:16
               </span>
             </div>
@@ -1980,7 +1980,7 @@
               <button type="button" class="btn btn-sm btn-secondary" id="btn-planner-edit-story-composer" title="Cargar adaptado en Composer para previsualizar y editar">
                 <span>📝</span> Maquetar en Composer
               </button>
-              <button type="button" class="btn btn-sm btn-primary" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none; box-shadow: 0 2px 8px rgba(236,72,153,0.35);" title="Crear Story 9:16 y publicar inmediatamente en Meta">
+              <button type="button" class="btn btn-sm btn-primary" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #be185d, #6d28d9); border: none; box-shadow: 0 2px 8px rgba(190,24,93,0.35);" title="Crear Story 9:16 y publicar inmediatamente en Meta">
                 <span>⚡</span> Publicar Historia Ahora
               </button>
             </div>
@@ -1992,7 +1992,7 @@
           </button>
           <div style="display:flex; gap:8px; align-items:center;">
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
-            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #ec4899; font-weight: 600;">📲 Story 9:16</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">📲 Story 9:16</button>
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;" title="Editar horario, texto, título o imagen">✏️ Editar Post</button>
             <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
           </div>
@@ -2018,7 +2018,7 @@
           <!-- Formato y Cuenta -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
-              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Tipo de Publicación:</label>
+              <label class="form-label" for="edit-post-type" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Tipo de Publicación:</label>
               <select id="edit-post-type" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
                 <option value="feed">🖼️ Feed Post (Foto/Video)</option>
                 <option value="story">📱 Story (Historia 9:16)</option>
@@ -2026,7 +2026,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Cuenta Asignada:</label>
+              <label class="form-label" for="edit-post-account" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Cuenta Asignada:</label>
               <select id="edit-post-account" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
                 <!-- Cuentas sincronizadas -->
               </select>
@@ -2036,11 +2036,11 @@
           <!-- Título y Fecha/Hora Programada -->
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
-              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Título / Producto:</label>
+              <label class="form-label" for="edit-post-title" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Título / Producto:</label>
               <input type="text" id="edit-post-title" class="form-control" placeholder="Ej: Helado Melona Melón" style="font-size:0.85rem; padding:7px 10px;">
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Fecha y Hora (Chile):</label>
+              <label class="form-label" for="edit-post-datetime" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Fecha y Hora (Chile):</label>
               <input type="datetime-local" id="edit-post-datetime" class="form-control" style="font-size:0.85rem; padding:7px 10px;">
             </div>
           </div>
@@ -2048,7 +2048,7 @@
           <!-- Texto / Copy -->
           <div class="form-group">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label class="form-label" style="font-size:0.8rem; font-weight:600; margin:0;">Texto del Post & Hashtags:</label>
+              <label class="form-label" for="edit-post-content" style="font-size:0.8rem; font-weight:600; margin:0;">Texto del Post & Hashtags:</label>
               <span id="edit-post-char-count" class="text-muted" style="font-size:0.75rem;">0 caracteres</span>
             </div>
             <textarea id="edit-post-content" class="form-control" rows="6" style="font-size:0.84rem; line-height:1.45; resize:vertical; font-family:inherit;"></textarea>
@@ -2056,7 +2056,7 @@
 
           <!-- Imagen / Multimedia -->
           <div class="form-group">
-            <label class="form-label" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Imagen o Video:</label>
+            <label class="form-label" for="edit-post-media-url" style="font-size:0.8rem; font-weight:600; margin-bottom:4px; display:block;">Imagen o Video:</label>
             <div style="display:flex; gap:12px; align-items:flex-start;">
               <!-- Miniatura previa actual -->
               <div id="edit-post-media-preview" style="width:100px; height:125px; border-radius:6px; overflow:hidden; background:#0f172a; border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -2065,9 +2065,9 @@
               <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
                 <input type="text" id="edit-post-media-url" class="form-control" placeholder="URL o ruta de imagen (ej: /uploads/...)" style="font-size:0.82rem; padding:6px 10px;">
                 <div style="display:flex; gap:8px; align-items:center;">
-                  <label class="btn btn-secondary btn-sm" style="margin:0; cursor:pointer; font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;">
+                  <label class="btn btn-secondary btn-sm" for="edit-post-file-input" style="margin:0; cursor:pointer; font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;">
                     <span>📁</span> Subir nueva foto
-                    <input type="file" id="edit-post-file-input" accept="image/*,video/*" style="display:none;">
+                    <input type="file" id="edit-post-file-input" aria-label="Subir nueva foto o video" accept="image/*,video/*" style="display:none;">
                   </label>
                   <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-clear-media" style="font-size:0.78rem; padding:5px 10px;">Quitar imagen</button>
                 </div>
@@ -2195,7 +2195,7 @@
           <!-- STEP 1: Upload Dropzone -->
           <div id="batch-step-upload">
             <div id="batch-dropzone" style="border: 2px dashed var(--primary); border-radius: 12px; padding: 36px 20px; text-align: center; background: rgba(99, 102, 241, 0.03); cursor: pointer; transition: all 0.2s;">
-              <input type="file" id="batch-file-input" multiple accept="image/*" style="display: none;">
+              <input type="file" id="batch-file-input" aria-label="Seleccionar lote de imágenes" multiple accept="image/*" style="display: none;">
               <div style="font-size: 3rem; margin-bottom: 12px;">📁</div>
               <h4 style="margin: 0 0 6px 0; font-size: 1.1rem;">Arrastra aquí tus afiches o haz clic para seleccionarlos</h4>
               <p style="margin: 0 0 16px 0; font-size: 0.82rem; color: var(--text-secondary);">Selecciona varios archivos a la vez (JPG, PNG, WebP generados en Gemini)</p>
@@ -2242,7 +2242,7 @@
                   <span>📲 Crear y agendar también versión Historia (Story 9:16) para cada afiche</span>
                 </label>
                 <div id="batch-story-timing-box" style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
-                  <span style="color:var(--text-secondary); font-weight:600;">Horario de las Stories:</span>
+                  <label for="batch-story-timing-option" style="color:var(--text-secondary); font-weight:600;">Horario de las Stories:</label>
                   <select id="batch-story-timing-option" class="form-control" style="font-size:0.82rem; padding:4px 10px; width:auto; font-weight:600;">
                     <option value="plus_3h" selected>⏰ 3 horas después del post (+3h)</option>
                     <option value="night_slot">🌙 En la noche de cada día (20:30 hrs)</option>
@@ -2263,7 +2263,7 @@
         <div class="modal-footer" id="batch-modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
           <button type="button" class="btn btn-secondary" id="btn-cancel-batch">Cerrar</button>
           <div style="display: flex; gap: 10px;">
-            <button type="button" class="btn btn-primary" id="btn-confirm-batch-schedule" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700; display: none;">
+            <button type="button" class="btn btn-primary" id="btn-confirm-batch-schedule" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); border: none; font-weight: 700; display: none;">
               🚀 Aprobar y Programar Todo en el Calendario
             </button>
           </div>
@@ -2294,7 +2294,7 @@
           </div>
 
           <div class="form-group" style="margin-bottom: 16px;">
-            <label class="form-label" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; display: block;">
+            <label class="form-label" for="reassign-target-select" style="font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; display: block;">
               Selecciona la Cuenta Destino:
             </label>
             <select id="reassign-target-select" class="form-control" style="font-size: 0.9rem; padding: 8px 12px; font-weight: 600;">
@@ -2303,14 +2303,14 @@
           </div>
 
           <div id="reassign-bulk-options" style="display: none; margin-top: 14px; padding: 14px; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px;">
-            <label class="form-label" style="font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; display: block; color: var(--primary);">
+            <span class="form-label" style="font-size: 0.82rem; font-weight: 700; margin-bottom: 6px; display: block; color: var(--primary);">
               ⚡ Transferencia en Lote (Migrar todo):
-            </label>
+            </span>
             <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 10px 0;">
               Transfiere todas las publicaciones programadas de una cuenta de prueba a tu cuenta definitiva en 1 clic.
             </p>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <span style="font-size: 0.8rem; font-weight: 600;">Desde la cuenta:</span>
+              <label for="reassign-source-select" style="font-size: 0.8rem; font-weight: 600;">Desde la cuenta:</label>
               <select id="reassign-source-select" class="form-control" style="font-size: 0.82rem; padding: 4px 8px; width: auto; font-weight: 600;">
               </select>
             </div>

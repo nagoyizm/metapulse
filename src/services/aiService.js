@@ -1,6 +1,6 @@
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { getSetting } = require('../database/db');
 const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite } = require('../data/campinaKnowledge');
 
@@ -206,10 +206,11 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
     if (!text) return '';
     let cleaned = text;
 
-    // 1. Reemplazar guiones largos y dobles por salto de línea o ".."
-    cleaned = cleaned.replace(/\s*—\s*/g, '.. ');
-    cleaned = cleaned.replace(/\s*–\s*/g, '.. ');
-    cleaned = cleaned.replace(/\s*--\s*/g, '.. ');
+    // 1. Reemplazar guiones largos y dobles por salto de línea o ".." de forma lineal sin backtracking
+    cleaned = cleaned.replaceAll('—', '.. ')
+      .replaceAll('–', '.. ')
+      .replaceAll('--', '.. ')
+      .replace(/[ \t]{2,}/g, ' ');
 
     // 2. Limpieza de vocabulario robótico típico
     const buzzwords = [
@@ -218,8 +219,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       { regex: /sumérgete en\s+/gi, rep: 'conoce ' },
       { regex: /descubre un mundo de\s+/gi, rep: 'descubre ' },
       { regex: /un tapiz de\s+/gi, rep: 'una variedad de ' },
-      { regex: /eleva tu[s]?\s+/gi, rep: 'mejora tus ' },
-      { regex: /desbloquea tu[s]?\s+/gi, rep: 'logra tus ' },
+      { regex: /eleva tus?\s+/gi, rep: 'mejora tus ' },
+      { regex: /desbloquea tus?\s+/gi, rep: 'logra tus ' },
       { regex: /un viaje hacia\s+/gi, rep: 'el camino a ' }
     ];
 
@@ -231,7 +232,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
     const hashtagMatches = cleaned.match(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g);
     if (hashtagMatches && hashtagMatches.length > 6) {
       const keepTags = hashtagMatches.slice(0, 6);
-      cleaned = cleaned.replace(/(#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+\s*)+$/gi, '').trim();
+      cleaned = cleaned.replace(/(#[a-z0-9_áéíóúñ]+\s*)+$/gi, '').trim();
       cleaned += '\n\n' + keepTags.join(' ');
     }
 
@@ -244,7 +245,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
   async humanizeCaption({ caption, brandName = '' }) {
     if (!caption) return { success: false, error: 'Se requiere un texto para auditar.' };
 
-    const firstLine = (caption.split('\n').map(l => l.trim()).filter(Boolean)[0]) || '';
+    const firstLine = caption.split('\n').map(l => l.trim()).find(Boolean) || '';
     const hookLength = firstLine.length;
     const hasEmDash = /[—–]|--/.test(caption);
     const aiBuzzwordsFound = [];
@@ -512,7 +513,9 @@ ${hashtags}`;
    * Generador Especializado para Kmarket: Diseñador Gráfico 4:5 + Copy
    */
   async generateKmarketProduct({ productName, description = '', extraNotes = '' }) {
-    const masterImagePrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${productName}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${productName}${description ? `\nDetalles: ${description}` : ''}${extraNotes ? `\nNotas: ${extraNotes}` : ''}`;
+    const descSection = description ? `\nDetalles: ${description}` : '';
+    const notesSection = extraNotes ? `\nNotas: ${extraNotes}` : '';
+    const masterImagePrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${productName}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${productName}${descSection}${notesSection}`;
 
     const promptForCopy = `
 Eres el copywriter oficial de "Kmarket - Algarrobo". Debes redactar la publicación siguiendo EXACTAMENTE la estructura, tono sobrio, dirección física y moderación de hashtags de este post oficial de Kmarket:
@@ -576,7 +579,9 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
           apiKey
         });
         postCopy = res.fullPost;
-      } catch (e) {
+      } catch (err) {
+        // En caso de fallo o timeout de la API externa de Gemini, se utiliza el copy local estándar verificado
+        console.warn('Fallo llamada a Gemini en generateKmarketProduct, usando fallback local:', err.message);
         postCopy = `🥢✨ Descubre ${productName} en Kmarket Algarrobo ✨🥢\n\n${description || 'Un producto tradicional y apreciado, perfecto para disfrutar de la gastronomía asiática en casa.'}\n\n✨ ¿Qué lo hace especial?\nSu calidad auténtica, sabor inconfundible y la frescura que lo convierten en un favorito indiscutido.\n\n🍜 Perfecto para disfrutar como:\n• Snack o antojo en cualquier momento\n• Para compartir con amigos y familia\n• Acompañando tus momentos de descanso y series\n\n🌿 Una experiencia culinaria única que ahora tienes a pasos de la playa.\n\n📍 Encuéntralo en Kmarket Algarrobo\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo\n\n🧡 ¡Ven a conocerlo y déjate sorprender!\n\n#KmarketAlgarrobo #${productName.replace(/[^a-zA-Z0-9]/g, '')} #KFood #SnacksCoreanos #AlgarroboMoments`;
       }
     } else {
@@ -671,7 +676,9 @@ Estructura a entregar:
           apiKey
         });
         generatedText = res.fullPost;
-      } catch (e) {
+      } catch (err) {
+        // En caso de fallo o indisponibilidad en la API de Gemini, se utiliza el copy local verificado
+        console.warn('Fallo llamada a Gemini en generateCampinaPost, usando fallback local:', err.message);
         generatedText = `🌿✨ ¡Disfruta una escapada de descanso en Cabañas La Campiña! ✨🌿\n\nEste ${targetDate || 'fin de semana'}, ven a desconectarte de la rutina en Cabañas La Campiña 🏡.\n\nReúne a toda la familia o ven en pareja, prepara un rico asado en nuestros quinchos 🥩🔥, recorre nuestros jardines temáticos y senderos naturales ❤️🌿.\n\nPero ojo… 👀 ¡nos van quedando las últimas cabañas y suites disponibles!\n\n📅 ${targetDate || 'Próximo fin de semana'}\n🔥 Quinchos privados para disfrutar en familia\n🌿 Amplias áreas verdes y senderos\n🏡 Últimas cabañas y suites disponibles\n\n📲 Reservas y consultas: +56 9 7900 4253\n\n🌿 ¡Asegura tu estadía y descansa en La Campiña! 🌿\n\n#cabañaslacampiña #algarrobo #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral`;
       }
     } else {
@@ -1207,9 +1214,6 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       height = 1024;
     }
 
-    const isCampina = (accountName || '').toLowerCase().includes('campiña') || (accountName || '').toLowerCase().includes('cabaña');
-    const isKmarket = (accountName || '').toLowerCase().includes('kmarket');
-
     let optimizedPrompt = prompt;
     // Si el usuario ya envió un prompt estructurado (como el prompt maestro de diseñador senior), respetarlo 100% íntegro
     const isCustomMasterPrompt = prompt.toLowerCase().includes('diseñador') || prompt.length > 80;
@@ -1250,9 +1254,11 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
               try {
                 const parsed = new URL(baseImageUrl);
                 localAbsPath = parsed.pathname;
-              } catch (_) {}
+              } catch (_) {
+                // Si la URL no es parseable como URL completa, se mantiene baseImageUrl
+              }
             }
-            const cleanRel = localAbsPath.replace(/^[\\\/]+/, '');
+            const cleanRel = localAbsPath.replace(/^[/\\]+/, '');
 
             const candidates = [
               path.join(__dirname, '../../', cleanRel),
@@ -1276,7 +1282,12 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
             if (fullPath && fs.existsSync(fullPath)) {
               const fileBuf = fs.readFileSync(fullPath);
               const ext = path.extname(fullPath).toLowerCase();
-              const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+              let mimeType = 'image/jpeg';
+              if (ext === '.png') {
+                mimeType = 'image/png';
+              } else if (ext === '.webp') {
+                mimeType = 'image/webp';
+              }
               parts.push({
                 inlineData: {
                   mimeType,
@@ -1301,7 +1312,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
           );
 
           const imgPart = geminiRes.data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-          if (imgPart && imgPart.inlineData?.data) {
+          if (imgPart?.inlineData?.data) {
             const ext = imgPart.inlineData.mimeType?.includes('png') ? 'png' : 'jpg';
             const filename = `gemini_lite_${Date.now()}.${ext}`;
             const destPath = path.join(destDir, filename);
@@ -1332,7 +1343,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     const seed = Math.floor(Math.random() * 1000000);
     let fluxUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
 
-    if (baseImageUrl && baseImageUrl.startsWith('http')) {
+    if (baseImageUrl?.startsWith('http')) {
       fluxUrl += `&image=${encodeURIComponent(baseImageUrl)}`;
     }
 
@@ -1385,9 +1396,11 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       try {
         const parsed = new URL(imagePath);
         cleanRel = parsed.pathname;
-      } catch (_) {}
+      } catch (_) {
+        // Si la URL no es parseable como URL completa, se mantiene la ruta provista
+      }
     }
-    cleanRel = cleanRel.replace(/^[\\\/]+/, '');
+    cleanRel = cleanRel.replace(/^[/\\]+/, '');
 
     const candidates = [
       imagePath,
@@ -1412,10 +1425,15 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
 
     const fileBuf = fs.readFileSync(fullPath);
     const ext = path.extname(fullPath).toLowerCase();
-    const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+    let mimeType = 'image/jpeg';
+    if (ext === '.png') {
+      mimeType = 'image/png';
+    } else if (ext === '.webp') {
+      mimeType = 'image/webp';
+    }
     const apiKey = this.getApiKey();
 
-    const prompt = `Actúa como un Director Creativo Senior y Copywriter publicitario de clase mundial para Kmarket Algarrobo.
+    const prompt = String.raw`Actúa como un Director Creativo Senior y Copywriter publicitario de clase mundial para Kmarket Algarrobo.
 Analiza minuciosamente la imagen del empaque de este producto y extrae la información real del producto.
 Responde estrictamente en formato JSON con la siguiente estructura:
 {
@@ -1562,7 +1580,6 @@ Responde estrictamente en formato JSON con la siguiente estructura:
     const cleanCaption = (postCaption || '').toLowerCase();
     const rawFirst = (customerName || 'amig@').replace(/^@/, '').split(/[\s_.]+/)[0] || 'amig@';
     const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1);
-    const isComment = type === 'comment';
     const greeting = `¡Hola ${firstName}!`;
 
     let postTopicMention = '';
@@ -1857,19 +1874,38 @@ Responde estrictamente en formato JSON con la siguiente estructura:
     const channelName = platform === 'facebook' ? 'Facebook' : 'Instagram';
     const commenter = customerName || 'un seguidor';
 
+    let historyText = '- Sin mensajes previos';
+    if (conversationHistory && conversationHistory.length > 0) {
+      historyText = conversationHistory.map(m => {
+        const sender = m.sender_name || (m.sender_type === 'page' ? 'Nosotros' : 'Cliente');
+        return `- ${sender}: ${m.message_text}`;
+      }).join('\n');
+    }
+
+    let ctaBadge = 'Llamado a la acción';
+    if (profile.id === 'campina') {
+      ctaBadge = 'WhatsApp / Reservas';
+    } else if (profile.id === 'kmarket') {
+      ctaBadge = 'Visítanos en Algarrobo';
+    }
+
+    const contextSection = isComment
+      ? `CONTEXTO DE LA PUBLICACIÓN DONDE SE HIZO EL COMENTARIO:\n- Texto del Post (Caption): "${postCaption || 'Publicación en redes sociales sobre novedades de la marca'}"`
+      : `HISTORIAL RECIENTE DE LA CONVERSACIÓN:\n${historyText}`;
+
+    const businessKnowledge = profile.id === 'campina'
+      ? profile.knowledge
+      : `Negocio: ${profile.name}\nUbicación / Datos: ${profile.address || 'Algarrobo, Chile'}\nEspecialidad: ${profile.specialty || 'Comercio local'}\nReglas críticas:\n${profile.rules.join('\n')}`;
+
+    const targetTypeStr = isComment ? 'un COMENTARIO en una publicación' : 'un MENSAJE DIRECTO (DM)';
+
     return `Eres el Community Manager y Asistente de Atención al Cliente de "${profile.name}" en ${channelName}.
-Tu objetivo es sugerir respuestas impecables, cordiales, atractivas, humanas y vendedoras para ${isComment ? 'un COMENTARIO en una publicación' : 'un MENSAJE DIRECTO (DM)'}.
+Tu objetivo es sugerir respuestas impecables, cordiales, atractivas, humanas y vendedoras para ${targetTypeStr}.
 
 DATOS OFICIALES DEL NEGOCIO:
-${profile.id === 'campina' ? profile.knowledge : `Negocio: ${profile.name}
-Ubicación / Datos: ${profile.address || 'Algarrobo, Chile'}
-Especialidad: ${profile.specialty || 'Comercio local'}
-Reglas críticas:
-${profile.rules.join('\n')}`}
+${businessKnowledge}
 
-${isComment ? `CONTEXTO DE LA PUBLICACIÓN DONDE SE HIZO EL COMENTARIO:
-- Texto del Post (Caption): "${postCaption || 'Publicación en redes sociales sobre novedades de la marca'}"` : `HISTORIAL RECIENTE DE LA CONVERSACIÓN:
-${conversationHistory && conversationHistory.length > 0 ? conversationHistory.map(m => `- ${m.sender_name || (m.sender_type === 'page' ? 'Nosotros' : 'Cliente')}: ${m.message_text}`).join('\n') : '- Sin mensajes previos'}`}
+${contextSection}
 
 MENSAJE O PREGUNTA DEL CLIENTE (${commenter}):
 "${text || 'Hola'}"
@@ -1893,7 +1929,7 @@ IMPORTANTE: Devuelve ÚNICAMENTE un array JSON válido con la siguiente estructu
   },
   {
     "id": "opt_cta",
-    "badge": "${profile.id === 'campina' ? 'WhatsApp / Reservas' : (profile.id === 'kmarket' ? 'Visítanos en Algarrobo' : 'Llamado a la acción')}",
+    "badge": "${ctaBadge}",
     "tone": "Comercial con CTA",
     "text": "..."
   },
