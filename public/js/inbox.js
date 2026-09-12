@@ -75,6 +75,7 @@ function setupInboxSubtabs() {
           showToast(json.error || 'Error al sincronizar', 'error');
         }
       } catch (e) {
+        console.warn('[Inbox] Error de sincronización:', e);
         showToast('Error de conexión al sincronizar', 'error');
       } finally {
         if (icon) icon.classList.remove('spin-animation');
@@ -195,11 +196,42 @@ function switchInboxView(view) {
 // ==========================================
 // 2. CONVERSACIONES Y DMs
 // ==========================================
+function clearActiveChatView() {
+  InboxState.activeConversationId = null;
+  InboxState.messages = [];
+  const headerBar = document.getElementById('chat-header-bar');
+  const footerBar = document.getElementById('chat-footer-bar');
+  const msgsContainer = document.getElementById('chat-messages-container');
+  if (headerBar) headerBar.style.display = 'none';
+  if (footerBar) footerBar.style.display = 'none';
+  if (msgsContainer) {
+    msgsContainer.innerHTML = `
+      <div class="chat-empty-state">
+        <div style="font-size: 2.8rem; margin-bottom: 8px;">✉️</div>
+        <h3>Bandeja de Mensajes Directos</h3>
+        <p>Selecciona un cliente de la lista izquierda para leer la conversación y responderle en vivo.</p>
+      </div>
+    `;
+  }
+}
+
+function syncActiveConversationSelection() {
+  if (InboxState.activeConversationId && !InboxState.conversations.some(c => c.id === InboxState.activeConversationId)) {
+    clearActiveChatView();
+  }
+
+  if (!InboxState.activeConversationId && InboxState.conversations.length > 0) {
+    selectConversation(InboxState.conversations[0].id);
+  } else if (InboxState.activeConversationId) {
+    loadConversationMessages(InboxState.activeConversationId, true);
+  }
+}
+
 async function loadConversations() {
   try {
     const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     const params = new URLSearchParams();
-    if (active && active.pageId) {
+    if (active?.pageId) {
       params.append('accountId', active.pageId);
       if (active.instagramId) params.append('instagramId', active.instagramId);
     }
@@ -210,34 +242,7 @@ async function loadConversations() {
       InboxState.conversations = json.data || [];
       renderConversationsList();
       updateUnreadBadges();
-
-      // Si la conversación activa ya no pertenece a esta cuenta, deseleccionar
-      if (InboxState.activeConversationId && !InboxState.conversations.some(c => c.id === InboxState.activeConversationId)) {
-        InboxState.activeConversationId = null;
-        InboxState.messages = [];
-        const headerBar = document.getElementById('chat-header-bar');
-        const footerBar = document.getElementById('chat-footer-bar');
-        const msgsContainer = document.getElementById('chat-messages-container');
-        if (headerBar) headerBar.style.display = 'none';
-        if (footerBar) footerBar.style.display = 'none';
-        if (msgsContainer) {
-          msgsContainer.innerHTML = `
-            <div class="chat-empty-state">
-              <div style="font-size: 2.8rem; margin-bottom: 8px;">✉️</div>
-              <h3>Bandeja de Mensajes Directos</h3>
-              <p>Selecciona un cliente de la lista izquierda para leer la conversación y responderle en vivo.</p>
-            </div>
-          `;
-        }
-      }
-
-      // Si no hay chat seleccionado y hay chats, seleccionar el primero
-      if (!InboxState.activeConversationId && InboxState.conversations.length > 0) {
-        selectConversation(InboxState.conversations[0].id);
-      } else if (InboxState.activeConversationId) {
-        // Recargar mensajes del chat activo silenciosamente
-        loadConversationMessages(InboxState.activeConversationId, true);
-      }
+      syncActiveConversationSelection();
     }
   } catch (err) {
     console.warn('[Inbox] Error cargando conversaciones:', err);
@@ -360,11 +365,11 @@ async function loadConversationMessages(convId, silent = false) {
 
 function checkAndLoadChatAiSuggestions(convId) {
   const dock = document.getElementById('chat-ai-dock');
-  const lastCustomerMsg = [...InboxState.messages].reverse().find(m => m.sender_type === 'customer');
-  const lastMsg = InboxState.messages[InboxState.messages.length - 1];
+  const hasCustomerMsg = InboxState.messages.some(m => m.sender_type === 'customer');
+  const lastMsg = InboxState.messages.at(-1);
 
   // Si hay mensajes y el último es del cliente (o la conversación está pendiente), mostrar dock de IA
-  if (lastCustomerMsg && (!lastMsg || lastMsg.sender_type === 'customer')) {
+  if (hasCustomerMsg && (!lastMsg || lastMsg.sender_type === 'customer')) {
     ensureChatAiSuggestions(convId);
   } else {
     if (dock) dock.style.display = 'none';
@@ -472,6 +477,12 @@ async function ensureChatAiSuggestions(convId, forceRefresh = false) {
   const conv = InboxState.conversations.find(c => c.id === convId);
   const lastCustomerMsg = [...InboxState.messages].reverse().find(m => m.sender_type === 'customer');
   const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  let customerMessage = 'Hola';
+  if (lastCustomerMsg?.message_text) {
+    customerMessage = lastCustomerMsg.message_text;
+  } else if (conv?.last_message_text) {
+    customerMessage = conv.last_message_text;
+  }
 
   try {
     const res = await fetch('/api/ai/suggest-reply', {
@@ -479,7 +490,7 @@ async function ensureChatAiSuggestions(convId, forceRefresh = false) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'dm',
-        customerMessage: lastCustomerMsg ? lastCustomerMsg.message_text : (conv ? conv.last_message_text : 'Hola'),
+        customerMessage,
         customerName: conv ? conv.participant_name : 'Cliente',
         platform: InboxState.activePlatform,
         accountName: active?.pageName || conv?.account_name || '',
@@ -528,14 +539,15 @@ function renderChatAiSuggestionsDock(convId, data) {
 
 window.applyChatAiSuggestion = function(convId, idx) {
   const data = InboxState.chatSuggestionsCache[convId];
-  if (!data || !data.suggestions || !data.suggestions[idx]) return;
+  const suggestion = data?.suggestions?.[idx];
+  if (!suggestion) return;
 
-  const text = data.suggestions[idx].text;
+  const text = suggestion.text;
   const input = document.getElementById('chat-reply-input');
   if (input) {
     input.value = text;
     input.classList.remove('ai-input-inserted-pulse');
-    void input.offsetWidth; // trigger reflow
+    input.offsetWidth; // trigger reflow
     input.classList.add('ai-input-inserted-pulse');
     setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
     input.focus();
@@ -567,7 +579,12 @@ async function generateAiReplySuggestion() {
   const input = document.getElementById('chat-reply-input');
   if (!input) return;
 
-  const customerText = lastCustomerMsg ? lastCustomerMsg.message_text : (conv ? conv.last_message_text : 'Hola');
+  let customerText = 'Hola';
+  if (lastCustomerMsg?.message_text) {
+    customerText = lastCustomerMsg.message_text;
+  } else if (conv?.last_message_text) {
+    customerText = conv.last_message_text;
+  }
   const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
 
   input.value = 'Generando respuesta con IA adaptada al negocio...';
@@ -594,7 +611,7 @@ async function generateAiReplySuggestion() {
       renderChatAiSuggestionsDock(convId, json);
       input.value = json.reply || json.suggestions[0].text;
       input.classList.remove('ai-input-inserted-pulse');
-      void input.offsetWidth;
+      input.offsetWidth;
       input.classList.add('ai-input-inserted-pulse');
       setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
       const feedback = document.getElementById('chat-insert-feedback');
@@ -604,6 +621,7 @@ async function generateAiReplySuggestion() {
       input.value = json.reply || `¡Hola ${conv?.participant_name ? conv.participant_name.split(' ')[0] : ''}! Muchas gracias por escribirnos. Con gusto te ayudamos con tu consulta, ¿nos puedes indicar un poco más de detalles? 😊`;
     }
   } catch (e) {
+    console.warn('[Inbox] Error generando sugerencia IA para chat:', e);
     input.value = `¡Hola! Gracias por comunicarte con nosotros. Estamos revisando tu consulta y te responderemos a la brevedad posible. 🌟`;
   } finally {
     input.disabled = false;
@@ -620,7 +638,7 @@ async function loadComments() {
     const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     const params = new URLSearchParams();
     params.append('filter', InboxState.commentFilter);
-    if (active && active.pageId) {
+    if (active?.pageId) {
       params.append('accountId', active.pageId);
       if (active.instagramId) params.append('instagramId', active.instagramId);
     }
@@ -770,6 +788,7 @@ async function ensureCommentAiSuggestions(commentId, forceRefresh = false) {
       `;
     }
   } catch (err) {
+    console.warn('[Inbox] Error solicitando sugerencias IA comentario:', err);
     box.innerHTML = `
       <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
         <span>Error de conexión al generar sugerencia IA.</span>
@@ -829,14 +848,15 @@ function renderCommentAiBox(commentId, data) {
 
 window.applyCommentAiSuggestion = function(commentId, idx) {
   const data = InboxState.commentSuggestionsCache[commentId];
-  if (!data || !data.suggestions || !data.suggestions[idx]) return;
+  const suggestion = data?.suggestions?.[idx];
+  if (!suggestion) return;
 
-  const text = data.suggestions[idx].text;
+  const text = suggestion.text;
   const input = document.getElementById(`input-comment-reply-${commentId}`);
   if (input) {
     input.value = text;
     input.classList.remove('ai-input-inserted-pulse');
-    void input.offsetWidth; // trigger reflow
+    input.offsetWidth; // trigger reflow
     input.classList.add('ai-input-inserted-pulse');
     setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
     input.focus();
@@ -907,50 +927,58 @@ window.triggerCommentWhatsApp = async function(commentId) {
 // ==========================================
 // 4. CONFIGURACIÓN DE ALERTAS WHATSAPP
 // ==========================================
+function populateWhatsAppForm(c, service) {
+  const chkEnabled = document.getElementById('chk-whatsapp-enabled');
+  const selectService = document.getElementById('whatsapp-service-type');
+  const inputGreenId = document.getElementById('whatsapp-green-id');
+  const inputGreenToken = document.getElementById('whatsapp-green-token');
+  const inputPhone = document.getElementById('whatsapp-input-phone');
+  const inputKey = document.getElementById('whatsapp-input-key');
+  const chkDms = document.getElementById('chk-notify-dms');
+  const chkComments = document.getElementById('chk-notify-comments');
+  const inputUrl = document.getElementById('whatsapp-public-url');
+
+  if (selectService) selectService.value = service;
+  toggleWhatsAppProviderFields(service);
+
+  if (chkEnabled) chkEnabled.checked = Boolean(c.enabled);
+  if (inputGreenId) inputGreenId.value = c.greenIdInstance || '';
+  if (inputGreenToken) inputGreenToken.value = c.greenApiToken || '';
+  if (inputPhone) inputPhone.value = c.phone || '';
+  if (inputKey) inputKey.value = c.apiKey || '';
+  if (chkDms) chkDms.checked = c.notifyDms !== false;
+  if (chkComments) chkComments.checked = c.notifyComments !== false;
+  if (inputUrl && c.publicUrl) inputUrl.value = c.publicUrl;
+}
+
+function updateWhatsAppStatusUI(c, service) {
+  const indicator = document.getElementById('whatsapp-active-indicator');
+  const syncLabel = document.getElementById('inbox-last-synced-label');
+
+  const isConfigured = (service === 'green-api' && c.greenIdInstance && c.greenApiToken && c.phone) ||
+                       (service === 'callmebot' && c.apiKey && c.phone);
+
+  if (indicator) {
+    indicator.style.display = (c.enabled && isConfigured) ? 'inline-block' : 'none';
+  }
+
+  if (syncLabel && c.lastSynced) {
+    syncLabel.textContent = `Última sincr: ${new Date(c.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+}
+
 async function loadWhatsAppSettings() {
   try {
     const res = await fetch('/api/inbox/settings');
     const json = await res.json();
-    if (json.success && json.data) {
-      InboxState.whatsappConfig = json.data;
-      const c = json.data;
+    if (!json.success || !json.data) return;
 
-      const chkEnabled = document.getElementById('chk-whatsapp-enabled');
-      const selectService = document.getElementById('whatsapp-service-type');
-      const inputGreenId = document.getElementById('whatsapp-green-id');
-      const inputGreenToken = document.getElementById('whatsapp-green-token');
-      const inputPhone = document.getElementById('whatsapp-input-phone');
-      const inputKey = document.getElementById('whatsapp-input-key');
-      const chkDms = document.getElementById('chk-notify-dms');
-      const chkComments = document.getElementById('chk-notify-comments');
-      const inputUrl = document.getElementById('whatsapp-public-url');
-      const indicator = document.getElementById('whatsapp-active-indicator');
-      const syncLabel = document.getElementById('inbox-last-synced-label');
+    InboxState.whatsappConfig = json.data;
+    const c = json.data;
+    const service = c.serviceType || (c.greenIdInstance ? 'green-api' : 'callmebot');
 
-      const service = c.serviceType || (c.greenIdInstance ? 'green-api' : 'callmebot');
-      if (selectService) selectService.value = service;
-      toggleWhatsAppProviderFields(service);
-
-      if (chkEnabled) chkEnabled.checked = !!c.enabled;
-      if (inputGreenId) inputGreenId.value = c.greenIdInstance || '';
-      if (inputGreenToken) inputGreenToken.value = c.greenApiToken || '';
-      if (inputPhone) inputPhone.value = c.phone || '';
-      if (inputKey) inputKey.value = c.apiKey || '';
-      if (chkDms) chkDms.checked = c.notifyDms !== false;
-      if (chkComments) chkComments.checked = c.notifyComments !== false;
-      if (inputUrl && c.publicUrl) inputUrl.value = c.publicUrl;
-
-      const isConfigured = (service === 'green-api' && c.greenIdInstance && c.greenApiToken && c.phone) ||
-                           (service === 'callmebot' && c.apiKey && c.phone);
-
-      if (indicator) {
-        indicator.style.display = (c.enabled && isConfigured) ? 'inline-block' : 'none';
-      }
-
-      if (syncLabel && c.lastSynced) {
-        syncLabel.textContent = `Última sincr: ${new Date(c.lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-      }
-    }
+    populateWhatsAppForm(c, service);
+    updateWhatsAppStatusUI(c, service);
   } catch (err) {
     console.warn('[Inbox] Error cargando ajustes de WhatsApp:', err);
   }
@@ -1084,7 +1112,7 @@ async function updateUnreadBadgesFromApi() {
   try {
     const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     const params = new URLSearchParams();
-    if (active && active.pageId) {
+    if (active?.pageId) {
       params.append('accountId', active.pageId);
       if (active.instagramId) params.append('instagramId', active.instagramId);
     }
@@ -1094,7 +1122,9 @@ async function updateUnreadBadgesFromApi() {
       InboxState.conversations = json.data;
       updateUnreadBadges();
     }
-  } catch (_) {}
+  } catch (err) {
+    // Sondeo de fondo silencioso: se ignora el error de red para no interrumpir al usuario
+  }
 }
 
 function updateUnreadBadges() {
@@ -1152,10 +1182,10 @@ function formatTimeSnippet(dateStr) {
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 // Inicializar cuando el DOM esté listo
