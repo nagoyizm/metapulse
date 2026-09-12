@@ -2393,6 +2393,56 @@ router.post('/inbox/comments/:id/reply', async (req, res) => {
 });
 
 /**
+ * Obtener sugerencias de respuesta IA para un comentario específico
+ * Basadas en el texto de la publicación (post caption) y en el negocio (Campiña / Kmarket / General)
+ */
+router.get('/inbox/comments/:id/ai-suggestions', async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    const comment = getInboxCommentById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Comentario no encontrado' });
+    }
+
+    let postCaption = comment.post_caption || '';
+    if (!postCaption || postCaption.length < 10) {
+      try {
+        const post = db.prepare('SELECT caption FROM posts WHERE meta_post_id = ? OR id = ?').get(comment.post_id, comment.post_id);
+        if (post && post.caption) postCaption = post.caption;
+      } catch (_) {}
+    }
+
+    const accountName = comment.account_name || req.query.accountName || '';
+    const accountId = comment.account_id || req.query.accountId || '';
+
+    const result = await aiService.generateInboxReplySuggestions({
+      type: 'comment',
+      text: comment.comment_text,
+      customerName: comment.from_name,
+      platform: comment.platform || 'instagram',
+      accountName,
+      accountId,
+      postCaption,
+      postPermalink: comment.post_permalink
+    });
+
+    res.json({
+      success: true,
+      data: {
+        commentId,
+        postCaption,
+        businessProfile: result.businessProfile,
+        source: result.source,
+        suggestions: result.suggestions
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+/**
  * Forzar sincronización instantánea de Inbox y despachar alertas
  */
 router.post('/inbox/sync', async (req, res) => {
@@ -2565,50 +2615,54 @@ router.post('/webhooks/meta', async (req, res) => {
 });
 
 /**
- * Sugerencia de respuesta rápida con IA para el chat de Inbox
+ * Sugerencia de respuesta rápida con IA contextualizada para chat de Inbox y comentarios
  */
 router.post('/ai/suggest-reply', async (req, res) => {
   try {
-    const { customerMessage, customerName, platform } = req.body;
-    const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
-    const firstName = (customerName || 'Cliente').split(' ')[0];
+    const {
+      type = 'dm',
+      customerMessage,
+      text,
+      customerName,
+      platform = 'instagram',
+      accountName,
+      accountId,
+      postCaption,
+      conversationId
+    } = req.body;
 
-    if (apiKey) {
+    const messageText = text || customerMessage || 'Hola';
+
+    let history = [];
+    if (conversationId) {
       try {
-        const prompt = `Eres el community manager y asistente de atención al cliente de una tienda en ${platform === 'facebook' ? 'Facebook' : 'Instagram'}.
-El cliente ${firstName} nos envió el siguiente mensaje:
-"${customerMessage || 'Hola'}"
-
-Genera una respuesta breve (máximo 2 a 3 oraciones), sumamente cortés, cálida, profesional y orientada a resolver su duda o concretar la atención.
-Usa 1 o 2 emojis apropiados.
-Responde únicamente con el texto final que se le enviará al cliente, sin comillas ni explicaciones adicionales.`;
-
-        const geminiRes = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-          {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 180 }
-          },
-          { timeout: 7000 }
-        );
-
-        const replyText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (replyText) {
-          return res.json({ success: true, reply: replyText });
-        }
-      } catch (err) {
-        console.warn('[AI Suggest Reply] Error con Gemini API, usando plantilla local:', err.message);
-      }
+        const rawMsgs = getInboxMessagesByConversation(conversationId) || [];
+        history = rawMsgs.slice(-5);
+      } catch (_) {}
     }
 
-    const fallbackReplies = [
-      `¡Hola ${firstName}! Muchas gracias por escribirnos. Con mucho gusto te ayudamos con tu consulta, ¿te gustaría que te enviemos más detalles por aquí? 😊`,
-      `¡Hola ${firstName}! Qué alegría saludarte. Sí, tenemos disponibilidad y podemos coordinarlo de inmediato. ¿Qué dudas tienes? 🌟`,
-      `¡Hola ${firstName}! Gracias por contactarnos. Enseguida revisamos los detalles y te respondemos. ¡Quedamos muy atentos! 🙌`
-    ];
-    const reply = fallbackReplies[Math.floor(Math.random() * fallbackReplies.length)];
+    const result = await aiService.generateInboxReplySuggestions({
+      type,
+      text: messageText,
+      customerName: customerName || 'Cliente',
+      platform,
+      accountName: accountName || '',
+      accountId: accountId || '',
+      postCaption: postCaption || '',
+      conversationHistory: history
+    });
 
-    res.json({ success: true, reply });
+    const primaryReply = result.suggestions && result.suggestions.length > 0
+      ? result.suggestions[0].text
+      : '¡Hola! Muchas gracias por tu mensaje. Te responderemos a la brevedad posible 😊';
+
+    res.json({
+      success: true,
+      reply: primaryReply,
+      suggestions: result.suggestions,
+      businessProfile: result.businessProfile,
+      source: result.source
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

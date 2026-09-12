@@ -12,7 +12,9 @@ const InboxState = {
   commentFilter: 'all',
   whatsappConfig: {},
   pollingTimer: null,
-  searchQuery: ''
+  searchQuery: '',
+  commentSuggestionsCache: {}, // commentId -> { suggestions, businessProfile }
+  chatSuggestionsCache: {}     // convId -> { suggestions, businessProfile }
 };
 
 // Actualizar badge de cuenta activa en Inbox
@@ -117,6 +119,14 @@ function setupInboxSubtabs() {
   const btnAiSuggest = document.getElementById('btn-chat-ai-suggest');
   if (btnAiSuggest) {
     btnAiSuggest.addEventListener('click', generateAiReplySuggestion);
+  }
+
+  // Refrescar dock de sugerencias IA en chat
+  const btnChatDockRefresh = document.getElementById('btn-chat-ai-dock-refresh');
+  if (btnChatDockRefresh) {
+    btnChatDockRefresh.addEventListener('click', () => {
+      regenerateChatAiSuggestions();
+    });
   }
 
   // Ajustes de WhatsApp
@@ -339,11 +349,27 @@ async function loadConversationMessages(convId, silent = false) {
     if (json.success) {
       InboxState.messages = json.data || [];
       renderChatMessages();
+      checkAndLoadChatAiSuggestions(convId);
     }
   } catch (err) {
     if (!silent) {
       container.innerHTML = `<div class="chat-empty-state"><p>Error cargando mensajes: ${err.message}</p></div>`;
     }
+  }
+}
+
+function checkAndLoadChatAiSuggestions(convId) {
+  const dock = document.getElementById('chat-ai-dock');
+  const lastCustomerMsg = [...InboxState.messages].reverse().find(m => m.sender_type === 'customer');
+  const lastMsg = InboxState.messages[InboxState.messages.length - 1];
+
+  // Si hay mensajes y el último es del cliente (o la conversación está pendiente), mostrar dock de IA
+  if (lastCustomerMsg && (!lastMsg || lastMsg.sender_type === 'customer')) {
+    ensureChatAiSuggestions(convId);
+  } else {
+    if (dock) dock.style.display = 'none';
+    const feedback = document.getElementById('chat-insert-feedback');
+    if (feedback) feedback.style.display = 'none';
   }
 }
 
@@ -410,7 +436,12 @@ async function sendActiveChatMessage() {
     const json = await res.json();
     if (json.success) {
       input.value = '';
-      showToast('Mensaje enviado', 'success');
+      showToast('Mensaje enviado exitosamente', 'success');
+
+      const dock = document.getElementById('chat-ai-dock');
+      if (dock) dock.style.display = 'none';
+      const feedback = document.getElementById('chat-insert-feedback');
+      if (feedback) feedback.style.display = 'none';
 
       // Agregar mensaje localmente
       if (json.data) {
@@ -431,15 +462,115 @@ async function sendActiveChatMessage() {
   }
 }
 
+async function ensureChatAiSuggestions(convId, forceRefresh = false) {
+  if (!convId) return;
+  if (!forceRefresh && InboxState.chatSuggestionsCache[convId]) {
+    renderChatAiSuggestionsDock(convId, InboxState.chatSuggestionsCache[convId]);
+    return;
+  }
+
+  const conv = InboxState.conversations.find(c => c.id === convId);
+  const lastCustomerMsg = [...InboxState.messages].reverse().find(m => m.sender_type === 'customer');
+  const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+
+  try {
+    const res = await fetch('/api/ai/suggest-reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'dm',
+        customerMessage: lastCustomerMsg ? lastCustomerMsg.message_text : (conv ? conv.last_message_text : 'Hola'),
+        customerName: conv ? conv.participant_name : 'Cliente',
+        platform: InboxState.activePlatform,
+        accountName: active?.pageName || conv?.account_name || '',
+        accountId: active?.pageId || conv?.account_id || '',
+        conversationId: convId
+      })
+    });
+
+    const json = await res.json();
+    if (json.success && json.suggestions && json.suggestions.length > 0) {
+      InboxState.chatSuggestionsCache[convId] = json;
+      renderChatAiSuggestionsDock(convId, json);
+    }
+  } catch (err) {
+    console.warn('[Inbox] Error generando sugerencias para chat:', err);
+  }
+}
+
+function renderChatAiSuggestionsDock(convId, data) {
+  const dock = document.getElementById('chat-ai-dock');
+  const titleEl = document.getElementById('chat-ai-dock-title');
+  const listEl = document.getElementById('chat-ai-chips-list');
+  if (!dock || !listEl) return;
+
+  const profile = data?.businessProfile || {};
+  const suggestions = data?.suggestions || [];
+
+  if (suggestions.length === 0) {
+    dock.style.display = 'none';
+    return;
+  }
+
+  if (titleEl) {
+    titleEl.innerHTML = `✨ Respuestas Inteligentes IA <span class="comment-ai-context-tag" style="margin-left: 4px;">${profile.emoji || '✨'} ${escapeHtml(profile.tag || profile.name || 'Negocio')}</span>`;
+  }
+
+  listEl.innerHTML = suggestions.map((s, idx) => `
+    <div class="chat-ai-chip" onclick="applyChatAiSuggestion('${convId}', ${idx})" title="${escapeHtml(s.text)}">
+      <span class="comment-ai-tone-pill">${escapeHtml(s.badge || 'Sugerencia')}</span>
+      <span class="chip-text">${escapeHtml(s.text)}</span>
+    </div>
+  `).join('');
+
+  dock.style.display = 'flex';
+}
+
+window.applyChatAiSuggestion = function(convId, idx) {
+  const data = InboxState.chatSuggestionsCache[convId];
+  if (!data || !data.suggestions || !data.suggestions[idx]) return;
+
+  const text = data.suggestions[idx].text;
+  const input = document.getElementById('chat-reply-input');
+  if (input) {
+    input.value = text;
+    input.classList.remove('ai-input-inserted-pulse');
+    void input.offsetWidth; // trigger reflow
+    input.classList.add('ai-input-inserted-pulse');
+    setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
+    input.focus();
+    input.selectionStart = input.selectionEnd = input.value.length;
+  }
+
+  const feedback = document.getElementById('chat-insert-feedback');
+  if (feedback) feedback.style.display = 'block';
+
+  showToast('Respuesta IA cargada en el editor. Puedes ajustarla antes de enviar.', 'info');
+};
+
+window.regenerateChatAiSuggestions = function() {
+  const convId = InboxState.activeConversationId;
+  if (!convId) return;
+  showToast('Generando nuevas sugerencias inteligentes con IA...', 'info');
+  ensureChatAiSuggestions(convId, true);
+};
+
 async function generateAiReplySuggestion() {
-  const conv = InboxState.conversations.find(c => c.id === InboxState.activeConversationId);
+  const convId = InboxState.activeConversationId;
+  if (!convId) {
+    showToast('Selecciona primero una conversación', 'error');
+    return;
+  }
+
+  const conv = InboxState.conversations.find(c => c.id === convId);
   const lastCustomerMsg = [...InboxState.messages].reverse().find(m => m.sender_type === 'customer');
   const input = document.getElementById('chat-reply-input');
   if (!input) return;
 
   const customerText = lastCustomerMsg ? lastCustomerMsg.message_text : (conv ? conv.last_message_text : 'Hola');
+  const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
 
-  input.value = 'Generando respuesta con IA...';
+  input.value = 'Generando respuesta con IA adaptada al negocio...';
   input.disabled = true;
 
   try {
@@ -447,24 +578,37 @@ async function generateAiReplySuggestion() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        type: 'dm',
         customerMessage: customerText,
         customerName: conv ? conv.participant_name : 'Cliente',
-        platform: InboxState.activePlatform
+        platform: InboxState.activePlatform,
+        accountName: active?.pageName || conv?.account_name || '',
+        accountId: active?.pageId || conv?.account_id || '',
+        conversationId: convId
       })
     });
 
     const json = await res.json();
-    if (json.success && json.reply) {
-      input.value = json.reply;
+    if (json.success && json.suggestions && json.suggestions.length > 0) {
+      InboxState.chatSuggestionsCache[convId] = json;
+      renderChatAiSuggestionsDock(convId, json);
+      input.value = json.reply || json.suggestions[0].text;
+      input.classList.remove('ai-input-inserted-pulse');
+      void input.offsetWidth;
+      input.classList.add('ai-input-inserted-pulse');
+      setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
+      const feedback = document.getElementById('chat-insert-feedback');
+      if (feedback) feedback.style.display = 'block';
+      showToast('Sugerencia IA generada y cargada', 'success');
     } else {
-      // Fallback local elegante
-      input.value = `¡Hola ${conv?.participant_name ? conv.participant_name.split(' ')[0] : ''}! Muchas gracias por escribirnos. Con gusto te ayudamos con tu consulta, ¿nos puedes indicar un poco más de detalles? 😊`;
+      input.value = json.reply || `¡Hola ${conv?.participant_name ? conv.participant_name.split(' ')[0] : ''}! Muchas gracias por escribirnos. Con gusto te ayudamos con tu consulta, ¿nos puedes indicar un poco más de detalles? 😊`;
     }
   } catch (e) {
     input.value = `¡Hola! Gracias por comunicarte con nosotros. Estamos revisando tu consulta y te responderemos a la brevedad posible. 🌟`;
   } finally {
     input.disabled = false;
     input.focus();
+    input.selectionStart = input.selectionEnd = input.value.length;
   }
 }
 
@@ -512,7 +656,7 @@ function renderCommentsList() {
     const platformLabel = c.platform === 'facebook' ? 'Facebook' : 'Instagram';
     const platformClass = c.platform === 'facebook' ? 'fb' : 'ig';
     const timeFormatted = formatTimeSnippet(c.created_at);
-    const postSnippet = c.post_caption ? `"${escapeHtml(c.post_caption.slice(0, 60))}..."` : 'Publicación de redes sociales';
+    const postSnippet = c.post_caption ? `"${escapeHtml(c.post_caption.slice(0, 75))}..."` : 'Publicación de redes sociales';
 
     const statusBadge = isAnswered
       ? `<span class="badge badge-success" style="font-size: 0.75rem;">✅ Respondido</span>`
@@ -521,23 +665,34 @@ function renderCommentsList() {
     const replyBox = isAnswered
       ? `
         <div class="comment-answered-box">
-          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Tu respuesta:</div>
-          <div style="font-size: 0.88rem; color: var(--text-primary);">💬 ${escapeHtml(c.reply_text || 'Respuesta enviada')}</div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Tu respuesta enviada:</div>
+          <div style="font-size: 0.88rem; color: var(--text-primary); font-weight: 500;">💬 ${escapeHtml(c.reply_text || 'Respuesta enviada')}</div>
         </div>
       `
       : `
+        <!-- Caja de sugerencias IA estilizadas basadas en el post y negocio -->
+        <div class="comment-ai-box" id="comment-ai-box-${c.id}">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); padding: 4px 0;">
+            <div class="spinner-small" style="width: 14px; height: 14px;"></div>
+            <span>Generando sugerencias inteligentes con IA para este post...</span>
+          </div>
+        </div>
+
         <div class="comment-reply-form" id="comment-form-${c.id}">
-          <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <input type="text" id="input-comment-reply-${c.id}" class="form-control" placeholder="Escribe una respuesta pública..." style="font-size: 0.85rem;">
-            <button type="button" class="btn btn-primary btn-sm" onclick="sendCommentReply('${c.id}', '${c.platform}')">
-              Responder
+          <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
+            <input type="text" id="input-comment-reply-${c.id}" class="form-control" placeholder="Escribe o personaliza la respuesta antes de enviar... (Enter para enviar)" style="font-size: 0.88rem; flex: 1;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommentReply('${c.id}','${c.platform}');}">
+            <button type="button" class="btn btn-primary btn-sm" onclick="sendCommentReply('${c.id}', '${c.platform}')" style="min-width: 105px;">
+              <span>Responder</span> 🚀
             </button>
+          </div>
+          <div id="comment-insert-feedback-${c.id}" style="display: none; font-size: 0.74rem; color: #c084fc; margin-top: 5px; font-weight: 500;">
+            ✨ Sugerencia IA cargada en el editor. Puedes ajustarla libremente antes de enviar.
           </div>
         </div>
       `;
 
     return `
-      <div class="comment-card">
+      <div class="comment-card" id="comment-card-${c.id}">
         <div class="comment-card-header">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="comment-avatar">👤</div>
@@ -554,7 +709,7 @@ function renderCommentsList() {
 
         <div class="comment-card-body">
           <div class="comment-post-ref">
-            📌 <span>Post: ${postSnippet}</span>
+            <span>📌 Post: <strong>${postSnippet}</strong></span>
             ${c.post_permalink ? `<a href="${c.post_permalink}" target="_blank" class="comment-post-link">Ver publicación ↗</a>` : ''}
           </div>
           <div class="comment-main-text">
@@ -565,7 +720,134 @@ function renderCommentsList() {
       </div>
     `;
   }).join('');
+
+  // Cargar sugerencias IA para comentarios pendientes
+  InboxState.comments.forEach(c => {
+    if (c.is_answered !== 1) {
+      ensureCommentAiSuggestions(c.id);
+    }
+  });
 }
+
+async function ensureCommentAiSuggestions(commentId, forceRefresh = false) {
+  const box = document.getElementById(`comment-ai-box-${commentId}`);
+  if (!box) return;
+
+  if (!forceRefresh && InboxState.commentSuggestionsCache[commentId]) {
+    renderCommentAiBox(commentId, InboxState.commentSuggestionsCache[commentId]);
+    return;
+  }
+
+  box.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); padding: 4px 0;">
+      <div class="spinner-small" style="width: 14px; height: 14px;"></div>
+      <span>Generando sugerencias inteligentes con IA...</span>
+    </div>
+  `;
+
+  try {
+    const comment = InboxState.comments.find(c => c.id === commentId);
+    const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const accountName = active?.pageName || comment?.account_name || '';
+    const accountId = active?.pageId || comment?.account_id || '';
+
+    const res = await fetch(`/api/inbox/comments/${commentId}/ai-suggestions?accountName=${encodeURIComponent(accountName)}&accountId=${encodeURIComponent(accountId)}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      InboxState.commentSuggestionsCache[commentId] = json.data;
+      renderCommentAiBox(commentId, json.data);
+    } else {
+      box.innerHTML = `
+        <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
+          <span>No se pudieron generar sugerencias automáticas.</span>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="regenerateCommentAiSuggestions('${commentId}')">Reintentar</button>
+        </div>
+      `;
+    }
+  } catch (err) {
+    box.innerHTML = `
+      <div style="font-size: 0.78rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center;">
+        <span>Error de conexión al generar sugerencia IA.</span>
+        <button type="button" class="btn btn-ghost btn-xs" onclick="regenerateCommentAiSuggestions('${commentId}')">Reintentar</button>
+      </div>
+    `;
+  }
+}
+
+function renderCommentAiBox(commentId, data) {
+  const box = document.getElementById(`comment-ai-box-${commentId}`);
+  if (!box) return;
+
+  const profile = data?.businessProfile || {};
+  const suggestions = data?.suggestions || [];
+
+  if (suggestions.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const emoji = profile.emoji || '✨';
+  const tag = profile.tag || profile.name || 'Negocio';
+
+  box.innerHTML = `
+    <div class="comment-ai-header">
+      <div class="comment-ai-title-row">
+        <span class="comment-ai-badge">✨ Respuestas Sugeridas con IA</span>
+        <span class="comment-ai-context-tag">${emoji} ${escapeHtml(tag)}</span>
+        <span class="comment-ai-context-tag" style="background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border-color: rgba(255, 255, 255, 0.1);">📌 Basada en este post</span>
+      </div>
+      <button type="button" class="comment-ai-refresh-btn" onclick="regenerateCommentAiSuggestions('${commentId}')" title="Generar nuevas opciones con IA">
+        🔄 Regenerar
+      </button>
+    </div>
+
+    <div class="comment-ai-options-list">
+      ${suggestions.map((s, idx) => `
+        <div class="comment-ai-option-item" onclick="applyCommentAiSuggestion('${commentId}', ${idx})" title="Haz clic para cargar en el editor y personalizarla">
+          <div class="comment-ai-option-content">
+            <div class="comment-ai-option-meta">
+              <span class="comment-ai-tone-pill">${escapeHtml(s.badge || 'Sugerencia')}</span>
+              <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 500;">${escapeHtml(s.tone || '')}</span>
+            </div>
+            <p class="comment-ai-option-text">"${escapeHtml(s.text)}"</p>
+          </div>
+          <div class="comment-ai-option-action">
+            <button type="button" class="btn-ai-apply" onclick="event.stopPropagation(); applyCommentAiSuggestion('${commentId}', ${idx})">
+              ✏️ Usar y Editar
+            </button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+window.applyCommentAiSuggestion = function(commentId, idx) {
+  const data = InboxState.commentSuggestionsCache[commentId];
+  if (!data || !data.suggestions || !data.suggestions[idx]) return;
+
+  const text = data.suggestions[idx].text;
+  const input = document.getElementById(`input-comment-reply-${commentId}`);
+  if (input) {
+    input.value = text;
+    input.classList.remove('ai-input-inserted-pulse');
+    void input.offsetWidth; // trigger reflow
+    input.classList.add('ai-input-inserted-pulse');
+    setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
+    input.focus();
+    input.selectionStart = input.selectionEnd = input.value.length;
+  }
+
+  const feedback = document.getElementById(`comment-insert-feedback-${commentId}`);
+  if (feedback) feedback.style.display = 'block';
+
+  showToast('Respuesta IA cargada en el campo. Puedes editarla antes de enviar', 'info');
+};
+
+window.regenerateCommentAiSuggestions = function(commentId) {
+  showToast('Regenerando sugerencias con IA...', 'info');
+  ensureCommentAiSuggestions(commentId, true);
+};
 
 window.sendCommentReply = async function(commentId, platform) {
   const input = document.getElementById(`input-comment-reply-${commentId}`);

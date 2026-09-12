@@ -1486,8 +1486,533 @@ Responde estrictamente en formato JSON con la siguiente estructura:
 
     throw new Error(lastErr ? lastErr.message : 'No se pudo analizar la imagen del producto');
   }
+
+  /**
+   * Obtiene el perfil de negocio estructurado (Campiña, Kmarket o General)
+   */
+  getBusinessProfile(accountName = '', accountId = '') {
+    const defaultPageName = getSetting('meta_page_name') || '';
+    const defaultIg = getSetting('meta_instagram_username') || '';
+    const combined = `${accountName} ${accountId} ${defaultPageName} ${defaultIg}`.toLowerCase();
+
+    const isCampina = combined.includes('campiña') || combined.includes('campina') || combined.includes('cabaña') || combined.includes('cabana');
+    const isKmarket = combined.includes('kmarket') || combined.includes('k-food') || combined.includes('corea');
+
+    if (isCampina) {
+      return {
+        id: 'campina',
+        name: 'Cabañas La Campiña - Algarrobo',
+        tag: 'Cabañas La Campiña',
+        emoji: '🌲',
+        whatsapp: '+56 9 7900 4253',
+        web: 'www.cabanaslacampina.cl',
+        rules: [
+          'NO TIENEN TINAJAS DE AGUA CALIENTE NI HOT TUBS (Prohibido inventar tinajas).',
+          'NO CUENTA CON WI-FI (Concepto de descanso familiar y desconexión total sin pantallas).',
+          'Piscinas al aire libre operan exclusivamente en temporada de verano (diciembre a Semana Santa).',
+          'Cabañas familiares (2 a 5 y 5 a 8 personas) con cocina equipada, calefacción y quincho privado en terraza.',
+          'Suites para parejas (1 a 2 personas) con frigobar, coffee bar y quinchos comunitarios (no admiten mascotas).',
+          'Mascotas permitidas SOLO en cabañas familiares con recargo adicional (NO en suites ni en piscinas).',
+          'Reservas y tarifas exactas por fechas: Invitar cordialmente a escribir al WhatsApp oficial +56 9 7900 4253.'
+        ],
+        knowledge: typeof getCampinaKnowledgePrompt === 'function' ? getCampinaKnowledgePrompt() : ''
+      };
+    }
+
+    if (isKmarket) {
+      return {
+        id: 'kmarket',
+        name: 'Kmarket Algarrobo (@kmarket_algarrobo)',
+        tag: 'Kmarket Algarrobo',
+        emoji: '🍜',
+        address: 'El Boldo 366, local 13, Espacio Algarrobo, Algarrobo, Chile',
+        specialty: 'Alimentos y snacks coreanos e importados (K-Food): Ramyun (Buldak Carbonara, 4 Quesos, Shin Ramyun, Jin Ramen), Helados Samanco crujientes con crema, bebidas Milkis y Bon Bon con fruta, dulces virales Pepero, Choco Pie, Tteokbokki instantáneo.',
+        rules: [
+          'Ubicación física exacta: El Boldo 366, local 13, Espacio Algarrobo, Algarrobo.',
+          'NO es carnicería ni vende carne de asados.',
+          'Invitar a visitarnos en la tienda de Espacio Algarrobo o escribirnos por DM para coordinar productos.'
+        ]
+      };
+    }
+
+    return {
+      id: 'general',
+      name: accountName || defaultPageName || 'MetaPulse Store',
+      tag: accountName || 'Negocio',
+      emoji: '✨',
+      rules: [
+        'Atención sumamente cálida, empática, profesional y rápida.',
+        'Respuestas claras, concisas (máximo 2 a 3 oraciones) y con llamados a la acción precisos.'
+      ]
+    };
+  }
+
+  /**
+   * Generador heurístico inteligente local para respuestas de Inbox & Comentarios
+   */
+  generateLocalInboxSuggestions({
+    type = 'comment',
+    text = '',
+    customerName = 'Cliente',
+    platform = 'instagram',
+    profile,
+    postCaption = ''
+  }) {
+    const cleanText = (text || '').toLowerCase();
+    const cleanCaption = (postCaption || '').toLowerCase();
+    const rawFirst = (customerName || 'amig@').replace(/^@/, '').split(/[\s_.]+/)[0] || 'amig@';
+    const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1);
+    const isComment = type === 'comment';
+    const greeting = `¡Hola ${firstName}!`;
+
+    let postTopicMention = '';
+    if (cleanCaption.includes('buldak') || cleanCaption.includes('carbonara') || cleanCaption.includes('ramen') || cleanCaption.includes('ramyun')) {
+      postTopicMention = 'de nuestros ramyun coreanos';
+    } else if (cleanCaption.includes('samanco') || cleanCaption.includes('helado')) {
+      postTopicMention = 'de los helados Samanco';
+    } else if (cleanCaption.includes('milkis') || cleanCaption.includes('bon bon') || cleanCaption.includes('bebida')) {
+      postTopicMention = 'de nuestras bebidas coreanas';
+    } else if (cleanCaption.includes('cabaña') || cleanCaption.includes('escapada') || cleanCaption.includes('alojamiento')) {
+      postTopicMention = 'de nuestras cabañas en Algarrobo';
+    } else if (cleanCaption.includes('suite') || cleanCaption.includes('pareja')) {
+      postTopicMention = 'de nuestras suites para parejas';
+    }
+
+    // Caso Cabañas La Campiña
+    if (profile.id === 'campina') {
+      const isTinaja = cleanText.includes('tinaja') || cleanText.includes('hot tub') || cleanText.includes('jacuzzi') || cleanText.includes('spa');
+      const isWifi = cleanText.includes('wifi') || cleanText.includes('wi-fi') || cleanText.includes('internet');
+      const isPet = cleanText.includes('mascota') || cleanText.includes('perro') || cleanText.includes('gato') || cleanText.includes('pet');
+      const isPrice = cleanText.includes('precio') || cleanText.includes('cuanto') || cleanText.includes('cuánto') || cleanText.includes('valor') || cleanText.includes('tarifa') || cleanText.includes('costo') || cleanText.includes('$');
+      const isBooking = cleanText.includes('disponib') || cleanText.includes('reserva') || cleanText.includes('fin de semana') || cleanText.includes('fecha') || cleanText.includes('noche') || cleanText.includes('cupo');
+      const isPool = cleanText.includes('piscina') || cleanText.includes('pileta');
+
+      if (isTinaja) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Aclaración importante',
+            tone: 'Resolutiva y amable',
+            text: `${greeting} Te contamos que en Cabañas La Campiña no contamos con tinajas ni hot tubs 🌿 Nuestro concepto está enfocado en el descanso natural, jardines temáticos y quinchos privados para asados. ¡Cualquier otra duda te ayudamos con gusto!`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'WhatsApp / Reservas',
+            tone: 'Orientada a estadía',
+            text: `${greeting} No tenemos servicio de tinajas, pero sí cómodas cabañas y suites rodeadas de naturaleza y senderos para relajarse. Escríbenos a nuestro WhatsApp +56 9 7900 4253 y te enviamos fotos y disponibilidad 📲✨`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} No disponemos de tinajas de agua caliente. Te invitamos a conocer nuestras cabañas y jardines escribiéndonos al WhatsApp +56 9 7900 4253 😊`
+          }
+        ];
+      }
+
+      if (isWifi) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Concepto descanso',
+            text: `${greeting} En Cabañas La Campiña promovemos una desconexión real y descanso genuino, por lo que no contamos con Wi-Fi en el recinto 🌲 Es el lugar ideal para compartir en familia, leer y desconectarse de la rutina.`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'WhatsApp / Reservas',
+            tone: 'Comercial',
+            text: `${greeting} Nuestro concepto desde 1993 es descanso total sin Wi-Fi, para disfrutar la naturaleza de Algarrobo. Si deseas cotizar fechas para tu visita, contáctanos por WhatsApp al +56 9 7900 4253 🌿📲`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} No tenemos Wi-Fi, ¡nuestra propuesta es 100% desconexión y naturaleza! Escríbenos al WhatsApp +56 9 7900 4253 para coordinar tu estadía ✨`
+          }
+        ];
+      }
+
+      if (isPet) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Política de mascotas',
+            text: `${greeting} ¡Sí! Aceptamos mascotas pequeñas y medianas exclusivamente en nuestras cabañas familiares (con un recargo adicional) 🐾 (En suites y área de piscinas no se admiten). ¡Serán muy bienvenidos!`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'WhatsApp / Reservas',
+            tone: 'Coordinación por WhatsApp',
+            text: `${greeting} Puedes venir con tu mascota a nuestras cabañas familiares. Para ver las opciones y condiciones exactas, escríbenos directamente a nuestro WhatsApp +56 9 7900 4253 y lo coordinamos 🐶📲`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} Sí, admitimos mascotas pequeñas y medianas en cabañas con recargo. ¡Escríbenos al WhatsApp +56 9 7900 4253 para reservar con tu regalón! ✨`
+          }
+        ];
+      }
+
+      if (isPool) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Temporada piscinas',
+            text: `${greeting} Nuestras piscinas al aire libre están habilitadas durante la temporada de verano (desde diciembre hasta Semana Santa) ☀️ ¡El resto del año nuestros jardines, senderos y quinchos te esperan para descansar!`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'WhatsApp / Reservas',
+            tone: 'Comercial',
+            text: `${greeting} Las piscinas funcionan en temporada veraniega. Para consultar disponibilidad de cabañas o suites en cualquier época del año, escríbenos a nuestro WhatsApp oficial +56 9 7900 4253 🏊‍♂️📲`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} Las piscinas operan exclusivamente en temporada de verano. ¡Escríbenos al WhatsApp +56 9 7900 4253 para planificar tu viaje! 🌿`
+          }
+        ];
+      }
+
+      if (isPrice || isBooking) {
+        const cabinRef = postTopicMention ? ` respecto a esta publicación ${postTopicMention}` : '';
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Cálida y resolutiva',
+            text: `${greeting} Con mucho gusto te enviamos las tarifas y disponibilidad exacta${cabinRef}. Por favor escríbenos directo a nuestro WhatsApp oficial +56 9 7900 4253 con tus fechas estimadas y número de personas para cotizarte al instante 📲🌲`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'WhatsApp / Reservas',
+            tone: 'Llamado a la acción directo',
+            text: `${greeting} Para cotizaciones y reservas inmediatas, te atendemos de forma personalizada por WhatsApp al +56 9 7900 4253 o en www.cabanaslacampina.cl. ¡Te esperamos en Algarrobo para un descanso inolvidable! ✨`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} Puedes revisar valores y reservar al instante escribiéndonos a nuestro WhatsApp +56 9 7900 4253. ¡Quedamos muy atentos! 🙌`
+          }
+        ];
+      }
+
+      // Default Campiña
+      return [
+        {
+          id: 'opt_rec',
+          badge: 'Recomendada',
+          tone: 'Cálida y acogedora',
+          text: `${greeting} Muchas gracias por tu mensaje y por el cariño 🌿 En Cabañas La Campiña te esperamos con el mejor entorno natural de Algarrobo. Si deseas planear tu descanso o consultar fechas, escríbenos al WhatsApp +56 9 7900 4253 ✨`
+        },
+        {
+          id: 'opt_cta',
+          badge: 'WhatsApp / Reservas',
+          tone: 'Invitación a reservar',
+          text: `${greeting} ¡Gracias por escribirnos! Estamos a tu completa disposición para coordinar tu próxima escapada. Contáctanos al WhatsApp +56 9 7900 4253 y te ayudamos con todo 📲🏡`
+        },
+        {
+          id: 'opt_quick',
+          badge: 'Rápida',
+          tone: 'Agradecimiento breve',
+          text: `${greeting} ¡Muchas gracias por tu comentario! Te esperamos pronto en Cabañas La Campiña para disfrutar y desconectarse 😊🌲`
+        }
+      ];
+    }
+
+    // Caso Kmarket Algarrobo
+    if (profile.id === 'kmarket') {
+      const isWhere = cleanText.includes('donde') || cleanText.includes('dónde') || cleanText.includes('ubicacion') || cleanText.includes('ubicación') || cleanText.includes('direccion') || cleanText.includes('dirección') || cleanText.includes('llegar') || cleanText.includes('queda');
+      const isPrice = cleanText.includes('precio') || cleanText.includes('cuanto') || cleanText.includes('cuánto') || cleanText.includes('valor') || cleanText.includes('cuesta') || cleanText.includes('$');
+      const isDelivery = cleanText.includes('envio') || cleanText.includes('envío') || cleanText.includes('delivery') || cleanText.includes('despacho') || cleanText.includes('domicilio');
+      const isStock = cleanText.includes('stock') || cleanText.includes('tienen') || cleanText.includes('queda') || cleanText.includes('hay') || cleanText.includes('llego') || cleanText.includes('llegó');
+
+      if (isWhere) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Ubicación clara',
+            text: `${greeting} ¡Estamos ubicados en El Boldo 366, local 13, Espacio Algarrobo (Algarrobo, Chile)! 📍 Ven a visitarnos y descubre todas las novedades de snacks, ramyun y bebidas coreanas exclusivas 🍜🇰🇷`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'Visítanos en Algarrobo',
+            tone: 'Invitación a tienda',
+            text: `${greeting} ¡Te esperamos en Espacio Algarrobo! Nuestro local es el número 13 en El Boldo 366. ¡Ven a probar los mejores sabores de Corea aquí mismo en el litoral! 🛍️✨`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} Nos encuentras en El Boldo 366, local 13, Espacio Algarrobo. ¡Te esperamos! 🙌`
+          }
+        ];
+      }
+
+      if (isDelivery) {
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Atención en tienda y DM',
+            text: `${greeting} Por ahora nuestra atención principal es directa en nuestra tienda de Espacio Algarrobo (El Boldo 366, local 13). Si necesitas consultar disponibilidad o coordinar algún producto especial, ¡escríbenos por DM y te ayudamos! 🛍️✨`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'Consultar por DM',
+            tone: 'Comercial DM',
+            text: `${greeting} Te atendemos felices en nuestra tienda de El Boldo 366, local 13. Para coordinaciones de productos, envíanos un mensajito directo por interno y te asesoramos al instante 📩🇰🇷`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} Por el momento atendemos en nuestra tienda en Espacio Algarrobo. ¡Escríbenos por DM para cualquier consulta específica! 😊`
+          }
+        ];
+      }
+
+      if (isPrice || isStock) {
+        const prodMention = postTopicMention ? ` de ${postTopicMention}` : ' de nuestros productos coreanos';
+        return [
+          {
+            id: 'opt_rec',
+            badge: 'Recomendada',
+            tone: 'Entusiasta y precisa',
+            text: `${greeting} ¡Sí, tenemos variedad disponible en nuestra tienda${prodMention}! 🍜🇰🇷 Para confirmar valores exactos de cada variedad o apartar el tuyo, escríbenos por DM o visítanos en El Boldo 366, local 13 (Espacio Algarrobo) ✨`
+          },
+          {
+            id: 'opt_cta',
+            badge: 'Visítanos en Algarrobo',
+            tone: 'Invitación a tienda',
+            text: `${greeting} ¡Están deliciosos! Encuéntralos directo en Kmarket Algarrobo (El Boldo 366, local 13, Espacio Algarrobo). Si quieres consultar stock de algún sabor específico, ¡mándanos un DM y te respondemos de inmediato! 🛍️`
+          },
+          {
+            id: 'opt_quick',
+            badge: 'Rápida',
+            tone: 'Corta y directa',
+            text: `${greeting} ¡Disponible en tienda! Te esperamos en Espacio Algarrobo local 13 o consúltanos por DM. ¡Te va a encantar! 🙌`
+          }
+        ];
+      }
+
+      // Default Kmarket
+      return [
+        {
+          id: 'opt_rec',
+          badge: 'Recomendada',
+          tone: 'Cálida y cercana',
+          text: `${greeting} ¡Muchas gracias por tu comentario! Nos encanta compartir lo mejor de Corea en Algarrobo 🇰🇷✨ Te esperamos en El Boldo 366, local 13 (Espacio Algarrobo) para que pruebes tus favoritos.`
+        },
+        {
+          id: 'opt_cta',
+          badge: 'Visítanos en Algarrobo',
+          tone: 'Invitación comercial',
+          text: `${greeting} Cuando andes por Algarrobo, pasa a visitarnos a Espacio Algarrobo local 13. ¡Tenemos ramyun, helados Samanco, bebidas y muchas cositas virales esperándote! 🍜🍧`
+        },
+        {
+          id: 'opt_quick',
+          badge: 'Rápida',
+          tone: 'Agradecimiento breve',
+          text: `${greeting} ¡Muchas gracias! Te esperamos con mucho gusto en Kmarket Algarrobo 😊🙌`
+        }
+      ];
+    }
+
+    // Caso General
+    return [
+      {
+        id: 'opt_rec',
+        badge: 'Recomendada',
+        tone: 'Cálida y profesional',
+        text: `${greeting} ¡Muchas gracias por escribirnos! Con mucho gusto te ayudamos con tu consulta. ¿Nos puedes indicar más detalles para orientarte de inmediato? 😊`
+      },
+      {
+        id: 'opt_cta',
+        badge: 'Contacto directo',
+        tone: 'Llamado a la acción',
+        text: `${greeting} Si deseas mayor información o atención directa, envíanos un mensajito directo por interno y te asesoramos paso a paso 📲✨`
+      },
+      {
+        id: 'opt_quick',
+        badge: 'Rápida',
+        tone: 'Corta y cordial',
+        text: `${greeting} ¡Gracias por tu mensaje! Quedamos muy atentos para ayudarte en lo que necesites 🙌`
+      }
+    ];
+  }
+
+  /**
+   * Construye el prompt para Gemini / LLM para respuestas contextuales
+   */
+  buildInboxReplyPrompt({ type, text, customerName, platform, profile, postCaption, conversationHistory }) {
+    const isComment = type === 'comment';
+    const channelName = platform === 'facebook' ? 'Facebook' : 'Instagram';
+    const commenter = customerName || 'un seguidor';
+
+    return `Eres el Community Manager y Asistente de Atención al Cliente de "${profile.name}" en ${channelName}.
+Tu objetivo es sugerir respuestas impecables, cordiales, atractivas, humanas y vendedoras para ${isComment ? 'un COMENTARIO en una publicación' : 'un MENSAJE DIRECTO (DM)'}.
+
+DATOS OFICIALES DEL NEGOCIO:
+${profile.id === 'campina' ? profile.knowledge : `Negocio: ${profile.name}
+Ubicación / Datos: ${profile.address || 'Algarrobo, Chile'}
+Especialidad: ${profile.specialty || 'Comercio local'}
+Reglas críticas:
+${profile.rules.join('\n')}`}
+
+${isComment ? `CONTEXTO DE LA PUBLICACIÓN DONDE SE HIZO EL COMENTARIO:
+- Texto del Post (Caption): "${postCaption || 'Publicación en redes sociales sobre novedades de la marca'}"` : `HISTORIAL RECIENTE DE LA CONVERSACIÓN:
+${conversationHistory && conversationHistory.length > 0 ? conversationHistory.map(m => `- ${m.sender_name || (m.sender_type === 'page' ? 'Nosotros' : 'Cliente')}: ${m.message_text}`).join('\n') : '- Sin mensajes previos'}`}
+
+MENSAJE O PREGUNTA DEL CLIENTE (${commenter}):
+"${text || 'Hola'}"
+
+INSTRUCCIONES CLAVE:
+1. Responde de forma precisa a lo que pregunta o comenta el cliente, relacionándolo directamente con el contenido de la publicación y las políticas reales del negocio.
+2. Si es Cabañas La Campiña: NUNCA inventes tinajas ni wifi. Para reservas/precios exactos refiere cordialmente al WhatsApp +56 9 7900 4253 o www.cabanaslacampina.cl.
+3. Si es Kmarket Algarrobo: Menciona que nos encontramos en El Boldo 366, local 13, Espacio Algarrobo, o resuelve con entusiasmo la duda sobre el snack/ramen/bebida coreana.
+4. Genera exactamente 3 opciones estilizadas y listas para enviar:
+   - Opción 1: "Recomendada" -> Cálida, empática, resolutiva y con 1-2 emojis adecuados.
+   - Opción 2: "Comercial / Llamado a la acción" -> Enfocada en invitar a visitar la tienda o escribir al WhatsApp / DM.
+   - Opción 3: "Corta y Rápida" -> 1 o 2 oraciones breves, fresca y directa.
+
+IMPORTANTE: Devuelve ÚNICAMENTE un array JSON válido con la siguiente estructura exacta (sin markdown de código adicional ni explicaciones):
+[
+  {
+    "id": "opt_rec",
+    "badge": "Recomendada",
+    "tone": "Cálida y resolutiva",
+    "text": "..."
+  },
+  {
+    "id": "opt_cta",
+    "badge": "${profile.id === 'campina' ? 'WhatsApp / Reservas' : (profile.id === 'kmarket' ? 'Visítanos en Algarrobo' : 'Llamado a la acción')}",
+    "tone": "Comercial con CTA",
+    "text": "..."
+  },
+  {
+    "id": "opt_quick",
+    "badge": "Rápida",
+    "tone": "Corta y directa",
+    "text": "..."
+  }
+]`;
+  }
+
+  /**
+   * Genera respuestas contextuales y estilizadas para Inbox (DMs) y Comentarios
+   */
+  async generateInboxReplySuggestions({
+    type = 'comment',
+    text = '',
+    customerName = 'Cliente',
+    platform = 'instagram',
+    accountName = '',
+    accountId = '',
+    postCaption = '',
+    postPermalink = '',
+    conversationHistory = []
+  }) {
+    const profile = this.getBusinessProfile(accountName, accountId);
+    const apiKey = this.getApiKey();
+
+    if (apiKey) {
+      try {
+        const prompt = this.buildInboxReplyPrompt({
+          type,
+          text,
+          customerName,
+          platform,
+          profile,
+          postCaption,
+          conversationHistory
+        });
+
+        const configuredModel = getSetting('ai_model') || 'gemini-1.5-flash';
+        const modelsToTry = [configuredModel, 'gemini-1.5-flash', 'gemini-2.0-flash'].filter(m => m && !m.includes('3.5'));
+        const uniqueModels = [...new Set(modelsToTry)];
+
+        for (const m of uniqueModels) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+            const res = await axios.post(
+              url,
+              {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.6,
+                  maxOutputTokens: 1024
+                }
+              },
+              { timeout: 4000 }
+            );
+
+            const rawText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              let clean = rawText.trim();
+              if (clean.startsWith('```json')) clean = clean.slice(7);
+              if (clean.startsWith('```')) clean = clean.slice(3);
+              if (clean.endsWith('```')) clean = clean.slice(0, -3);
+              clean = clean.trim();
+
+              const parsed = JSON.parse(clean);
+              if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].text) {
+                return {
+                  success: true,
+                  source: 'ai_model',
+                  model: m,
+                  businessProfile: {
+                    id: profile.id,
+                    name: profile.name,
+                    tag: profile.tag,
+                    emoji: profile.emoji
+                  },
+                  suggestions: parsed
+                };
+              }
+            }
+          } catch (mErr) {
+            console.warn(`[AI Inbox Reply] Falló modelo ${m}:`, mErr.message);
+          }
+        }
+      } catch (err) {
+        console.warn('[AI Inbox Reply] Error llamando a Gemini, aplicando generador local enriquecido:', err.message);
+      }
+    }
+
+    // Fallback enriquecido garantizado
+    const localSuggestions = this.generateLocalInboxSuggestions({
+      type,
+      text,
+      customerName,
+      platform,
+      profile,
+      postCaption
+    });
+
+    return {
+      success: true,
+      source: 'smart_local',
+      businessProfile: {
+        id: profile.id,
+        name: profile.name,
+        tag: profile.tag,
+        emoji: profile.emoji
+      },
+      suggestions: localSuggestions
+    };
+  }
 }
 
 module.exports = new AIService();
+
 
 

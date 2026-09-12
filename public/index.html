@@ -1523,10 +1523,26 @@
 
               <!-- Chat Footer (Reply Input) -->
               <div class="chat-footer" id="chat-footer-bar" style="display:none;">
+                <!-- AI Smart Suggestions Dock for DM -->
+                <div class="chat-ai-dock" id="chat-ai-dock" style="display: none;">
+                  <div class="chat-ai-dock-header">
+                    <span class="chat-ai-dock-title" id="chat-ai-dock-title">✨ Sugerencias Inteligentes IA:</span>
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-dock-refresh" title="Generar nuevas sugerencias" style="padding: 2px 6px; font-size: 0.72rem;">
+                      🔄 Nuevas
+                    </button>
+                  </div>
+                  <div class="chat-ai-chips-list" id="chat-ai-chips-list">
+                    <!-- Chips de sugerencias IA generados dinámicamente -->
+                  </div>
+                </div>
+
                 <div class="chat-input-wrapper">
-                  <textarea id="chat-reply-input" class="form-control" rows="2" placeholder="Escribe una respuesta para enviar por Instagram/Messenger... (Enter para enviar)"></textarea>
+                  <textarea id="chat-reply-input" class="form-control" rows="2" placeholder="Escribe o ajusta la respuesta con IA para enviar por Instagram/Messenger... (Enter para enviar)"></textarea>
+                  <div id="chat-insert-feedback" style="display: none; font-size: 0.74rem; color: #c084fc; font-weight: 500;">
+                    ✨ Sugerencia cargada en el campo. Puedes ajustarla libremente antes de enviar.
+                  </div>
                   <div class="chat-input-actions">
-                    <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-suggest" title="Sugerir respuesta profesional con IA">
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-suggest" title="Sugerir respuesta profesional con IA adaptada al negocio">
                       ✨ Sugerir con IA
                     </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btn-chat-send">
