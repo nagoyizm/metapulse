@@ -32,6 +32,30 @@ class WhatsAppService {
   }
 
   /**
+   * Verifica si el proveedor configurado (Green-API o CallMeBot) tiene credenciales válidas y teléfono
+   */
+  isConfigured() {
+    const config = this.getConfig();
+    const cleanPhone = this.normalizePhone(config.phone, true);
+    if (!cleanPhone) return false;
+
+    const service = config.serviceType || (config.greenIdInstance ? 'green-api' : 'callmebot');
+    if (service === 'green-api') {
+      return Boolean(config.greenIdInstance && config.greenApiToken);
+    } else {
+      return Boolean(config.apiKey);
+    }
+  }
+
+  /**
+   * Verifica si las notificaciones de WhatsApp están activadas y listas para enviar
+   */
+  isReady() {
+    const config = this.getConfig();
+    return Boolean(config.enabled && this.isConfigured());
+  }
+
+  /**
    * Envía mensaje usando Green-API (instancia propia de WhatsApp)
    */
   async sendViaGreenApi(idInstance, apiToken, phone, text) {

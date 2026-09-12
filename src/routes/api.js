@@ -19,7 +19,9 @@ const {
   upsertInboxComment,
   getInboxComments,
   getInboxCommentById,
-  markCommentAnswered
+  markCommentAnswered,
+  markCommentNotified,
+  markMessageNotified
 } = require('../database/db');
 const metaService = require('../services/metaService');
 const schedulerService = require('../services/schedulerService');
@@ -2355,8 +2357,42 @@ router.get('/inbox/comments', async (req, res) => {
         upsertInboxComment(c);
       }
       comments = getInboxComments(filter, accountId, instagramId);
+      // Despachar notificaciones de WhatsApp para comentarios recién sincronizados
+      setImmediate(() => {
+        inboxSyncService.dispatchPendingWhatsAppNotifications().catch(e => console.error('[Inbox] Error despachando WhatsApp tras sync:', e.message));
+      });
     }
     res.json({ success: true, data: comments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Enviar alerta de WhatsApp para un comentario específico (reintento manual / prueba individual)
+ */
+router.post('/inbox/comments/:id/send-whatsapp', async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    const comment = getInboxCommentById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Comentario no encontrado' });
+    }
+
+    const result = await whatsappService.notifyComment({
+      accountName: comment.account_name || '',
+      authorName: comment.from_name || 'Usuario',
+      commentText: comment.comment_text,
+      postCaption: comment.post_caption,
+      platform: comment.platform
+    });
+
+    markCommentNotified(commentId);
+    res.json({
+      success: true,
+      data: result,
+      message: 'Notificación de WhatsApp enviada exitosamente para este comentario.'
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2448,6 +2484,10 @@ router.get('/inbox/comments/:id/ai-suggestions', async (req, res) => {
 router.post('/inbox/sync', async (req, res) => {
   try {
     const accountId = req.body?.accountId || req.query?.accountId || req.body?.account_id || req.query?.account_id || null;
+    const recheckUnanswered = req.body?.recheckUnanswered || req.query?.recheckUnanswered;
+    if (recheckUnanswered) {
+      inboxSyncService.recoverUnansweredRecentItems();
+    }
     const result = await inboxSyncService.syncAll(accountId);
     res.json(result);
   } catch (err) {

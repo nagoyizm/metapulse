@@ -65,7 +65,7 @@ function setupInboxSubtabs() {
         const res = await fetch('/api/inbox/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: active?.pageId || null })
+          body: JSON.stringify({ accountId: active?.pageId || null, recheckUnanswered: true })
         });
         const json = await res.json();
         if (json.success) {
@@ -704,7 +704,12 @@ function renderCommentsList() {
               <span style="font-size: 0.74rem; color: var(--text-secondary);">${timeFormatted}</span>
             </div>
           </div>
-          <div>${statusBadge}</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.72rem; opacity: 0.9;" onclick="triggerCommentWhatsApp('${c.id}')" title="Reenviar alerta de este comentario a WhatsApp">
+              📲 Avisar a WhatsApp
+            </button>
+            ${statusBadge}
+          </div>
         </div>
 
         <div class="comment-card-body">
@@ -878,6 +883,24 @@ window.sendCommentReply = async function(commentId, platform) {
   } catch (err) {
     showToast(`Error: ${err.message}`, 'error');
     input.disabled = false;
+  }
+};
+
+window.triggerCommentWhatsApp = async function(commentId) {
+  try {
+    showToast('Enviando alerta a WhatsApp... 📲', 'info', 2500);
+    const res = await fetch(`/api/inbox/comments/${commentId}/send-whatsapp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast('🚀 ¡Alerta de este comentario enviada a tu WhatsApp!', 'success', 4500);
+    } else {
+      showToast(json.error || 'No se pudo enviar la alerta de WhatsApp', 'error', 4500);
+    }
+  } catch (err) {
+    showToast(`Error al enviar: ${err.message}`, 'error');
   }
 };
 

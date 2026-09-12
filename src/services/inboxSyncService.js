@@ -27,6 +27,9 @@ class InboxSyncService {
   start() {
     console.log('🔄 Iniciando Inbox & WhatsApp Sync Worker (chequeo cada 90s)...');
 
+    // Recuperar comentarios recientes no respondidos que pudieron quedar silenciados por bug anterior
+    this.recoverUnansweredRecentItems();
+
     // Ejecutar sincronización inicial diferida tras 10 segundos para no bloquear el arranque
     setTimeout(() => {
       this.syncAll().catch(err => console.error('[InboxSync] Error en primera sincronización:', err.message));
@@ -38,6 +41,27 @@ class InboxSyncService {
         console.error('[InboxSync] Error en ciclo cron:', err.message);
       });
     });
+  }
+
+  /**
+   * Recupera comentarios recientes sin responder que pudieron haber quedado erróneamente
+   * marcados como notificados
+   */
+  recoverUnansweredRecentItems() {
+    try {
+      const res = db.prepare(`
+        UPDATE inbox_comments 
+        SET notified_whatsapp = 0 
+        WHERE is_answered = 0 
+          AND notified_whatsapp = 1 
+          AND datetime(created_at) >= datetime('now', '-24 hours')
+      `).run();
+      if (res && res.changes > 0) {
+        console.log(`[InboxSync] 🔄 Se reactivaron ${res.changes} comentarios recientes sin responder para despachar alerta WhatsApp.`);
+      }
+    } catch (e) {
+      console.warn('[InboxSync] Error recuperando comentarios sin responder:', e.message);
+    }
   }
 
   /**
@@ -184,11 +208,17 @@ class InboxSyncService {
     let sent = 0;
     const config = whatsappService.getConfig();
 
-    if (!config.enabled || !config.phone || !config.apiKey) {
-      // Si las notificaciones están apagadas, marcar los mensajes como notificados para no acumular spam
+    // Si el usuario desactivó explícitamente las alertas, marcar como no pendientes para no acumular spam
+    if (!config.enabled) {
       db.prepare("UPDATE inbox_messages SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
       db.prepare("UPDATE inbox_comments SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
-      return { sent: 0, reason: 'WhatsApp desactivado o sin credenciales' };
+      return { sent: 0, reason: 'Notificaciones de WhatsApp desactivadas por el usuario' };
+    }
+
+    // Si están activadas pero faltan credenciales (teléfono, token de Green-API o API key de CallMeBot)
+    if (!whatsappService.isConfigured()) {
+      console.warn('[InboxSync] Notificaciones de WhatsApp habilitadas pero faltan credenciales o teléfono configurado. No se marcan como leídos.');
+      return { sent: 0, reason: 'Faltan credenciales o número de WhatsApp' };
     }
 
     // 1. Notificar DMs no notificados
@@ -198,6 +228,7 @@ class InboxSyncService {
         try {
           const conv = msg.conversation_id ? db.prepare('SELECT account_name FROM inbox_conversations WHERE id = ?').get(msg.conversation_id) : null;
           const accName = conv?.account_name || '';
+          console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para DM de "${msg.sender_name || 'Cliente'}" (${msg.platform})...`);
           await whatsappService.notifyDirectMessage({
             accountName: accName,
             senderName: msg.sender_name || 'Cliente',
@@ -223,6 +254,7 @@ class InboxSyncService {
       const unnotifiedComments = getUnnotifiedComments();
       for (const c of unnotifiedComments) {
         try {
+          console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para comentario de "${c.from_name || 'Usuario'}" (${c.platform})...`);
           await whatsappService.notifyComment({
             accountName: c.account_name || '',
             authorName: c.from_name || 'Usuario',
