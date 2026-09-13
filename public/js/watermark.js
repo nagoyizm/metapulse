@@ -704,15 +704,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnConfirm = document.getElementById('btn-confirm-stamp-logo');
     if (btnConfirm) {
       btnConfirm.onclick = async () => {
-        if (!currentTargetImage) {
+        // Usar las variables globales (_currentTargetImage, _availableWatermarks)
+        // que se actualizan al abrir el modal desde openInteractiveStampModal
+        const targetImg = _currentTargetImage;
+        const watermarks = _availableWatermarks;
+
+        if (!targetImg) {
           showToast('No hay imagen para estampar. Sube o selecciona una foto.', 'warning');
           const baseInput = document.getElementById('stamp-base-file-input');
           if (baseInput) baseInput.click();
           return;
         }
 
-        if (availableWatermarks.length === 0) {
-          showToast('Debes subir un logotipo PNG primero', 'warning');
+        if (watermarks.length === 0) {
+          showToast('Debes subir un logotipo PNG primero en Multimedia & Logos', 'warning');
           const quickInput = document.getElementById('stamp-quick-logo-input');
           if (quickInput) quickInput.click();
           return;
@@ -733,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              imagePath: currentTargetImage,
+              imagePath: targetImg,
               watermarkId: selectedId ? parseInt(selectedId, 10) : undefined,
               scalePercent: stampScale,
               opacity: stampOpacity / 100,
@@ -746,6 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (json.success && json.data?.relativeUrl) {
             const newImageUrl = json.data.relativeUrl;
+            // Guardar la nueva imagen en el composer (no abre nada del PC)
             if (typeof ComposerState !== 'undefined') {
               ComposerState.mediaFiles = [newImageUrl];
             }
@@ -754,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
 
             window.closeInteractiveStamp();
-            showToast('¡Logotipo estampado con éxito y nueva imagen generada!', 'success');
+            showToast('¡Logotipo estampado! La nueva imagen ya está cargada en el redactor ✨', 'success');
 
             if (typeof window.loadMediaGallery === 'function') {
               window.loadMediaGallery();
