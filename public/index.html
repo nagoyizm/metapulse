@@ -2161,82 +2161,99 @@
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Resultado generado común -->
-          <div class="ai-result-box" id="ai-result-box" style="display: none; margin-top: 14px;">
-            <div class="ai-result-header">
-              <label class="form-label" for="ai-generated-text">Texto / Copy del Post:</label>
-              <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">🔄 Regenerar</button>
-            </div>
-            <textarea id="ai-generated-text" class="form-control" rows="8"></textarea>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-secondary" id="btn-cancel-ai">Cancelar</button>
-          <button class="btn btn-primary" id="btn-apply-ai-copy" style="display: none;">
-            Insertar en el Composer →
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DETALLE DE PUBLICACIÓN EN PLANNER -->
   <div class="modal-backdrop" id="modal-planner-detail" style="display: none;">
-    <div class="modal-dialog" style="max-width: 580px;">
-      <div class="modal-content">
-        <div class="modal-header">
+    <div class="modal-dialog" style="max-width: 920px; width: 97%;">
+      <div class="modal-content" style="max-height: 92vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="padding: 14px 20px;">
           <div style="display:flex; align-items:center; gap:8px;">
             <span id="planner-detail-format-badge" class="badge" style="background:var(--primary); color:#fff; font-size:0.75rem;">📱 Story</span>
             <h3 id="planner-detail-title" style="margin:0; font-size:1.05rem;">Detalle de la Publicación</h3>
           </div>
           <button class="modal-close" id="btn-close-planner-detail">&times;</button>
         </div>
-        <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-subtle); padding:10px 14px; border-radius:var(--radius-xs);">
-            <div>
-              <span style="font-size:0.75rem; color:var(--text-secondary);">Fecha / Horario:</span>
-              <div id="planner-detail-datetime" style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">--</div>
+
+        <div style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
+
+          <!-- COLUMNA IZQUIERDA: Preview Mockup -->
+          <div id="planner-preview-col" style="width: 300px; flex-shrink: 0; background: #0a0d14; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 16px 12px; gap: 12px; overflow-y: auto;">
+            <!-- Selector de plataforma para el preview -->
+            <div style="display: flex; gap: 6px; width: 100%;">
+              <button class="btn btn-xs" id="preview-tab-ig" onclick="window.switchPreviewTab('ig')" style="flex:1; background: linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); color:#fff; border:none; font-weight:700; font-size:0.72rem;">📷 Instagram</button>
+              <button class="btn btn-xs" id="preview-tab-fb" onclick="window.switchPreviewTab('fb')" style="flex:1; background: var(--bg-surface-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle); font-size:0.72rem;">📘 Facebook</button>
             </div>
-            <div id="planner-detail-status-pill">
-              <span class="status-pill published">Publicado</span>
-            </div>
+            <!-- Mockup Container -->
+            <div id="planner-mockup-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
           </div>
 
-          <!-- Desglose de Estado de Entrega por Red Social (FB / IG) -->
-          <div id="planner-detail-delivery-breakdown" style="display:none; font-size:0.78rem; border-radius:var(--radius-xs); padding:10px 14px; line-height:1.45;"></div>
+          <!-- COLUMNA DERECHA: Detalles -->
+          <div class="modal-body" style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-width: 0;">
 
-          <div id="planner-detail-media-container" style="text-align:center; max-height:260px; overflow:hidden; border-radius:var(--radius-xs); background:#0f172a; display:flex; align-items:center; justify-content:center;">
-            <!-- Media preview -->
-          </div>
-
-          <div>
-            <span class="form-label" style="font-size:0.78rem;">Texto & Hashtags:</span>
-            <div id="planner-detail-copy" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px; font-size:0.84rem; max-height:140px; overflow-y:auto; white-space:pre-wrap; line-height:1.45;"></div>
-          </div>
-
-          <!-- Opción para Subir / Convertir en Historia 9:16 -->
-          <div id="planner-detail-story-box" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(139,92,246,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.3); border-radius: var(--radius-xs); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-subtle); padding:10px 14px; border-radius:var(--radius-xs);">
               <div>
-                <strong style="font-size:0.88rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
-                  <span>📲</span> Subir como Historia (Story 9:16)
-                </strong>
-                <span id="planner-detail-story-desc" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px; line-height:1.35;">
-                  Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.
+                <span style="font-size:0.75rem; color:var(--text-secondary);">Fecha / Horario:</span>
+                <div id="planner-detail-datetime" style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">--</div>
+              </div>
+              <div id="planner-detail-status-pill">
+                <span class="status-pill published">Publicado</span>
+              </div>
+            </div>
+
+            <!-- Desglose de Estado de Entrega por Red Social -->
+            <div id="planner-detail-delivery-breakdown" style="display:none; font-size:0.78rem; border-radius:var(--radius-xs); padding:10px 14px; line-height:1.45;"></div>
+
+            <!-- Texto y Copy -->
+            <div>
+              <span class="form-label" style="font-size:0.78rem;">Texto &amp; Hashtags:</span>
+              <div id="planner-detail-copy" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px; font-size:0.84rem; max-height:120px; overflow-y:auto; white-space:pre-wrap; line-height:1.45;"></div>
+            </div>
+
+            <!-- Media oculta (se usa solo para la preview) -->
+            <div id="planner-detail-media-container" style="display:none;"></div>
+
+            <!-- Opción de Historia -->
+            <div id="planner-detail-story-box" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(139,92,246,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.3); border-radius: var(--radius-xs); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <div>
+                  <strong style="font-size:0.88rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                    <span>📲</span> Subir como Historia (Story 9:16)
+                  </strong>
+                  <span id="planner-detail-story-desc" style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-top:2px; line-height:1.35;">
+                    Adapta esta publicación automáticamente a formato vertical con fondo difuminado.
+                  </span>
+                </div>
+                <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#be185d; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
+                  Story 9:16
                 </span>
               </div>
-              <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#be185d; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
-                Story 9:16
-              </span>
+              <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-planner-edit-story-composer">
+                  <span>📝</span> Maquetar en Composer
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #be185d, #6d28d9); border: none;">
+                  <span>⚡</span> Publicar Historia Ahora
+                </button>
+              </div>
             </div>
-            <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
-              <button type="button" class="btn btn-sm btn-secondary" id="btn-planner-edit-story-composer" title="Cargar adaptado en Composer para previsualizar y editar">
-                <span>📝</span> Maquetar en Composer
-              </button>
-              <button type="button" class="btn btn-sm btn-primary" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #be185d, #6d28d9); border: none; box-shadow: 0 2px 8px rgba(190,24,93,0.35);" title="Crear Story 9:16 y publicar inmediatamente en Meta">
+
+          </div>
+        </div>
+
+        <div class="modal-footer" style="justify-content: space-between; border-top: 1px solid var(--border-subtle); padding: 12px 20px;">
+          <button type="button" class="btn btn-danger" id="btn-planner-delete-post">
+            🗑️ Desprogramar
+          </button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">📲 Story 9:16</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;">✏️ Editar Post</button>
+            <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+ Meta">
                 <span>⚡</span> Publicar Historia Ahora
               </button>
             </div>
@@ -2708,7 +2725,7 @@
   <script src="js/app.js?v=2.4"></script>
   <script src="js/composer.js?v=2.4"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
-  <script src="js/calendar.js?v=2.4"></script>
+  <script src="js/calendar.js?v=2.5"></script>
   <script src="js/analytics.js?v=2.4"></script>
   <script src="js/watermark.js?v=3.2"></script>
   <script src="js/settings.js?v=2.4"></script>

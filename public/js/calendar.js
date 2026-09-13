@@ -950,7 +950,143 @@ function showPlannerPostDetail(post) {
   }
 
   modal.style.display = 'flex';
+
+  // Renderizar el mockup de preview
+  setTimeout(() => renderPlannerMockup(post, 'ig'), 10);
 }
+
+// Renderiza el mockup visual de preview del post (simula IG / FB)
+let _plannerPreviewPost = null;
+let _plannerPreviewPlatform = 'ig';
+
+function renderPlannerMockup(post, platform) {
+  _plannerPreviewPost = post;
+  _plannerPreviewPlatform = platform || 'ig';
+
+  const container = document.getElementById('planner-mockup-container');
+  if (!container) return;
+
+  let mediaUrls = [];
+  try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
+  const firstMedia = mediaUrls[0] || '';
+  const isVideo = isVideoUrl(firstMedia);
+  const isStory = post.post_type === 'story';
+  const isReel = post.post_type === 'reel';
+  const isStoryFormat = isStory || isReel;
+  const accountName = post.account_name || 'Tu Cuenta';
+  const copy = (post.content || '').slice(0, 180);
+  const truncated = (post.content || '').length > 180 ? '...' : '';
+  const timeStr = formatChileTime(post.scheduled_at || post.published_at);
+  const isScheduled = post.status === 'scheduled';
+  const statusColor = isScheduled ? '#f59e0b' : '#10b981';
+  const statusText = isScheduled ? `⏳ Programado ${timeStr}` : `✅ Publicado ${timeStr}`;
+
+  // Actualizar tabs visuales
+  const tabIg = document.getElementById('preview-tab-ig');
+  const tabFb = document.getElementById('preview-tab-fb');
+  if (tabIg && tabFb) {
+    if (platform === 'ig') {
+      tabIg.style.background = 'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)';
+      tabIg.style.color = '#fff';
+      tabFb.style.background = 'rgba(255,255,255,0.06)';
+      tabFb.style.color = 'rgba(255,255,255,0.5)';
+    } else {
+      tabFb.style.background = '#1877f2';
+      tabFb.style.color = '#fff';
+      tabIg.style.background = 'rgba(255,255,255,0.06)';
+      tabIg.style.color = 'rgba(255,255,255,0.5)';
+    }
+  }
+
+  // Avatar placeholder (inicial de la cuenta)
+  const initial = (accountName[0] || 'A').toUpperCase();
+  const avatarColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+  const avatarColor = avatarColors[accountName.charCodeAt(0) % avatarColors.length];
+
+  const avatarHtml = `<div style="width:32px; height:32px; border-radius:50%; background:${avatarColor}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; color:#fff; flex-shrink:0; ${platform === 'ig' ? 'border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 2px #e1306c;' : ''}">${initial}</div>`;
+
+  let mediaHtml = '';
+  if (firstMedia) {
+    const aspectStyle = isStoryFormat
+      ? 'width:100%; aspect-ratio:9/16; max-height:340px; object-fit:cover;'
+      : 'width:100%; aspect-ratio:4/5; max-height:260px; object-fit:cover;';
+    if (isVideo) {
+      mediaHtml = `<video src="${firstMedia}" style="${aspectStyle} border-radius: 0; background:#000;" preload="metadata" muted playsinline></video>`;
+    } else {
+      mediaHtml = `<img src="${firstMedia}" style="${aspectStyle} border-radius:0; display:block;" alt="post media" onerror="this.style.display='none'">`;
+    }
+  } else {
+    const bg = isStoryFormat ? 'aspect-ratio:9/16; max-height:260px;' : 'aspect-ratio:4/5; max-height:200px;';
+    mediaHtml = `<div style="width:100%; ${bg} background:linear-gradient(135deg, rgba(99,102,241,0.2), rgba(236,72,153,0.2)); display:flex; align-items:center; justify-content:center; font-size:2rem; border-radius:0;">${isStoryFormat ? '📱' : '🖼️'}</div>`;
+  }
+
+  if (platform === 'ig') {
+    container.innerHTML = `
+      <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+        <!-- Header -->
+        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:#fff;">
+          ${avatarHtml}
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:0.75rem; font-weight:700; color:#262626; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${accountName}</div>
+            <div style="font-size:0.62rem; color:${statusColor}; font-weight:600;">${statusText}</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </div>
+        <!-- Media -->
+        ${mediaHtml}
+        <!-- Actions -->
+        <div style="padding:8px 10px 4px; background:#fff;">
+          <div style="display:flex; gap:12px; margin-bottom:6px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </div>
+          ${copy ? `<div style="font-size:0.72rem; color:#262626; line-height:1.45; max-height:60px; overflow:hidden;"><strong style="font-weight:700;">${accountName.split(' ')[0]}</strong> ${copy}${truncated}</div>` : ''}
+        </div>
+      </div>
+    `;
+  } else {
+    // Facebook mockup
+    container.innerHTML = `
+      <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+        <!-- Header FB -->
+        <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff;">
+          ${avatarHtml}
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:0.78rem; font-weight:700; color:#050505;">${accountName}</div>
+            <div style="display:flex; align-items:center; gap:4px; margin-top:1px;">
+              <span style="font-size:0.62rem; color:${statusColor};">${statusText}</span>
+              <span style="font-size:0.62rem; color:#65676b;">· 🌍</span>
+            </div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#65676b" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </div>
+        <!-- Copy antes de la imagen (estilo FB) -->
+        ${copy ? `<div style="padding:0 12px 8px; font-size:0.78rem; color:#050505; line-height:1.45;">${copy}${truncated}</div>` : ''}
+        <!-- Media -->
+        ${mediaHtml}
+        <!-- Reactions bar -->
+        <div style="padding:8px 12px; border-top:1px solid #e4e6eb; background:#fff;">
+          <div style="display:flex; gap:4px; font-size:0.68rem; color:#65676b; margin-bottom:6px;">
+            <span style="background:#1877f2; border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; font-size:0.5rem; color:#fff;">👍</span>
+            <span>Me gusta · Comentar · Compartir</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px solid #e4e6eb;">
+            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">👍 Me gusta</button>
+            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">💬 Comentar</button>
+            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">↗️ Compartir</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+window.switchPreviewTab = function(platform) {
+  if (_plannerPreviewPost) {
+    renderPlannerMockup(_plannerPreviewPost, platform);
+  }
+};
 
 window.showPlannerPostDetailById = function(id) {
   const post = (PlannerState.posts || []).find(p => p.id === Number(id));
