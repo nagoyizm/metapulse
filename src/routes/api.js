@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
 const axios = require('axios');
 
 const {
@@ -50,7 +51,7 @@ const storage = multer.diskStorage({
     cb(null, dest);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(6).toString('hex');
     const ext = path.extname(file.originalname);
     cb(null, `media-${uniqueSuffix}${ext}`);
   }
@@ -58,7 +59,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB máximo
+  limits: { fileSize: 50 * 1024 * 1024, files: 15, fieldSize: 10 * 1024 * 1024 } // 50MB máximo
 });
 
 const watermarkStorage = multer.diskStorage({
@@ -70,13 +71,16 @@ const watermarkStorage = multer.diskStorage({
     cb(null, dest);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now();
+    const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(4).toString('hex');
     const ext = path.extname(file.originalname);
     cb(null, `logo-${uniqueSuffix}${ext}`);
   }
 });
 
-const uploadWatermark = multer({ storage: watermarkStorage });
+const uploadWatermark = multer({
+  storage: watermarkStorage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fieldSize: 2 * 1024 * 1024 } // 10MB máximo
+});
 
 const audioStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -87,7 +91,7 @@ const audioStorage = multer.diskStorage({
     cb(null, dest);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E6);
+    const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(4).toString('hex');
     const ext = path.extname(file.originalname).toLowerCase() || '.mp3';
     cb(null, `audio-${uniqueSuffix}${ext}`);
   }
@@ -95,7 +99,7 @@ const audioStorage = multer.diskStorage({
 
 const uploadAudio = multer({
   storage: audioStorage,
-  limits: { fileSize: 35 * 1024 * 1024 } // 35MB
+  limits: { fileSize: 35 * 1024 * 1024, files: 1, fieldSize: 5 * 1024 * 1024 } // 35MB
 });
 
 const authService = require('../services/authService');
@@ -268,6 +272,24 @@ router.get('/status', (req, res) => {
 // ==========================================
 // 2. PUBLICACIONES (POSTS & SCHEDULING)
 // ==========================================
+function resolvePostMediaCache(p) {
+  if (!p.meta_post_id || !p.media_urls) return;
+  let urls = [];
+  try { urls = JSON.parse(p.media_urls || '[]'); } catch (_) {}
+  const first = urls[0] || '';
+  if (!first || (!first.includes('cdninstagram.com') && !first.includes('fbcdn.net'))) return;
+
+  const cacheFile = `ig_${p.meta_post_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
+  const localPath = path.join(__dirname, '../../uploads/meta_cache', cacheFile);
+  if (fs.existsSync(localPath)) {
+    urls[0] = `/uploads/meta_cache/${cacheFile}`;
+    p.media_urls = JSON.stringify(urls);
+    try {
+      db.prepare('UPDATE posts SET media_urls = ? WHERE id = ?').run(p.media_urls, p.id);
+    } catch (_) {}
+  }
+}
+
 router.get('/posts', (req, res) => {
   try {
     const { status, accountId, limit = 50, offset = 0 } = req.query;
@@ -290,32 +312,121 @@ router.get('/posts', (req, res) => {
     params.push(Number(limit), Number(offset));
 
     const posts = db.prepare(query).all(...params);
-
-    // Mapear dinámicamente si ya existe caché local para miniaturas de Meta
-    for (const p of posts) {
-      if (p.meta_post_id && p.media_urls) {
-        let urls = [];
-        try { urls = JSON.parse(p.media_urls || '[]'); } catch (_) {}
-        const first = urls[0] || '';
-        if (first && (first.includes('cdninstagram.com') || first.includes('fbcdn.net'))) {
-          const cacheFile = `ig_${p.meta_post_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
-          const localPath = path.join(__dirname, '../../uploads/meta_cache', cacheFile);
-          if (fs.existsSync(localPath)) {
-            urls[0] = `/uploads/meta_cache/${cacheFile}`;
-            p.media_urls = JSON.stringify(urls);
-            try {
-              db.prepare('UPDATE posts SET media_urls = ? WHERE id = ?').run(p.media_urls, p.id);
-            } catch (_) {}
-          }
-        }
-      }
-    }
+    posts.forEach(resolvePostMediaCache);
 
     res.json({ success: true, data: posts });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+async function maybeGenerateStoryVideo(post_type, music_config, media_urls) {
+  if (post_type !== 'story' || !music_config?.audio_url || !media_urls?.length) return;
+  const firstMedia = media_urls[0];
+  if (firstMedia.match(/\.(mp4|mov)$/i)) return;
+
+  try {
+    console.log('[API] Generando video story con música embebida para publicación directa...');
+    const vidResult = await videoService.generateStoryVideo({
+      imageInput: firstMedia,
+      audioInput: music_config.audio_url,
+      duration: music_config.duration || 15,
+      startTime: music_config.start_time || 0,
+      addMusicSticker: Boolean(music_config.add_music_sticker),
+      songTitle: music_config.song_title || '',
+      songArtist: music_config.song_artist || ''
+    });
+    media_urls[0] = vidResult.relativeUrl;
+  } catch (err) {
+    console.warn('[Auto-Story-Music Video Error]:', err.message);
+  }
+}
+
+function calculateTargetSchedule(schedule_type, scheduled_at) {
+  if (schedule_type === 'now') {
+    return new Date().toISOString();
+  }
+  if (schedule_type === 'next_slot') {
+    return schedulerService.getNextAvailableSlot();
+  }
+  if (schedule_type === 'custom') {
+    if (!scheduled_at) {
+      throw new Error('Debes especificar la fecha/hora para la programación personalizada.');
+    }
+    return new Date(scheduled_at).toISOString();
+  }
+  return null;
+}
+
+async function createCrossStoryPost(opts) {
+  const {
+    media_urls, post_type, story_music_config, accountName,
+    targetSchedule, story_timing_rule, story_custom_datetime,
+    title, content, platforms, accountId, presetName, stmt
+  } = opts;
+
+  const isReel = post_type === 'reel';
+  const videoMedia = media_urls.find(u => isVideoUrl(u));
+  let storyMediaUrl = media_urls[0];
+
+  if (isReel || videoMedia) {
+    storyMediaUrl = videoMedia || media_urls[0];
+  } else {
+    let absImagePath = media_urls[0];
+    if (!absImagePath.startsWith('http')) {
+      absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
+    }
+
+    if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
+      if (story_music_config?.audio_url) {
+        console.log('[API] Generando video story cruzado con música...');
+        const vidRes = await videoService.generateStoryVideo({
+          imageInput: absImagePath,
+          audioInput: story_music_config.audio_url,
+          duration: story_music_config.duration || 15,
+          startTime: story_music_config.start_time || 0,
+          addMusicSticker: Boolean(story_music_config.add_music_sticker),
+          songTitle: story_music_config.song_title || '',
+          songArtist: story_music_config.song_artist || ''
+        });
+        storyMediaUrl = vidRes.relativeUrl;
+      } else {
+        const cardRes = await imageService.createStoryCard({
+          inputImagePath: absImagePath,
+          brandName: accountName || getSetting('meta_page_name') || ''
+        });
+        storyMediaUrl = cardRes.relativeUrl;
+      }
+    }
+  }
+
+  let storyTargetSchedule = targetSchedule;
+  const baseD = new Date(targetSchedule);
+  if (story_timing_rule === 'plus_3h') {
+    storyTargetSchedule = new Date(baseD.getTime() + 3 * 3600 * 1000).toISOString();
+  } else if (story_timing_rule === 'night_slot') {
+    const night = new Date(baseD);
+    night.setHours(20, 30, 0, 0);
+    if (night <= baseD) night.setDate(night.getDate() + 1);
+    storyTargetSchedule = night.toISOString();
+  } else if (story_timing_rule === 'custom' && story_custom_datetime) {
+    storyTargetSchedule = new Date(story_custom_datetime).toISOString();
+  }
+
+  const storyStmtRes = stmt.run(
+    `Story: ${title || 'Nuevo Post'}`,
+    content ? `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 100)}...` : '¡Nuevo post disponible! ✨',
+    JSON.stringify(platforms),
+    'story',
+    JSON.stringify([storyMediaUrl]),
+    storyTargetSchedule,
+    accountId,
+    accountName,
+    presetName
+  );
+
+  return db.prepare('SELECT * FROM posts WHERE id = ?').get(storyStmtRes.lastInsertRowid);
+}
 
 router.post('/posts', async (req, res) => {
   try {
@@ -340,41 +451,13 @@ router.post('/posts', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Debes incluir al menos texto o contenido multimedia.' });
     }
 
-    // Si la publicación es de tipo 'story' y tiene configuración de música con imagen estática,
-    // convertirla en video MP4 vertical 9:16 con audio embebido
-    if (post_type === 'story' && music_config && music_config.audio_url && media_urls.length > 0) {
-      const firstMedia = media_urls[0];
-      if (!firstMedia.match(/\.(mp4|mov)$/i)) {
-        try {
-          console.log('[API] Generando video story con música embebida para publicación directa...');
-          const vidResult = await videoService.generateStoryVideo({
-            imageInput: firstMedia,
-            audioInput: music_config.audio_url,
-            duration: music_config.duration || 15,
-            startTime: music_config.start_time || 0,
-            addMusicSticker: Boolean(music_config.add_music_sticker),
-            songTitle: music_config.song_title || '',
-            songArtist: music_config.song_artist || ''
-          });
-          media_urls[0] = vidResult.relativeUrl;
-        } catch (err) {
-          console.warn('[Auto-Story-Music Video Error]:', err.message);
-        }
-      }
-    }
+    await maybeGenerateStoryVideo(post_type, music_config, media_urls);
 
-    let targetSchedule = null;
-
-    if (schedule_type === 'now') {
-      // Inmediato
-      targetSchedule = new Date().toISOString();
-    } else if (schedule_type === 'next_slot') {
-      targetSchedule = schedulerService.getNextAvailableSlot();
-    } else if (schedule_type === 'custom') {
-      if (!scheduled_at) {
-        return res.status(400).json({ success: false, error: 'Debes especificar la fecha/hora para la programación personalizada.' });
-      }
-      targetSchedule = new Date(scheduled_at).toISOString();
+    let targetSchedule;
+    try {
+      targetSchedule = calculateTargetSchedule(schedule_type, scheduled_at);
+    } catch (schedErr) {
+      return res.status(400).json({ success: false, error: schedErr.message });
     }
 
     const activePreset = db.prepare('SELECT name FROM schedule_presets WHERE is_active = 1 LIMIT 1').get();
@@ -403,85 +486,40 @@ router.post('/posts', async (req, res) => {
     let createdStoryPost = null;
     if (also_share_story && media_urls && media_urls.length > 0 && post_type !== 'story') {
       try {
-        const isReel = post_type === 'reel';
-        const videoMedia = media_urls.find(u => isVideoUrl(u));
-        let storyMediaUrl = media_urls[0];
-
-        if (isReel || videoMedia) {
-          // Si ya es un video o Reel, se comparte el video directamente como Video Story
-          storyMediaUrl = videoMedia || media_urls[0];
-        } else {
-          let absImagePath = media_urls[0];
-          if (!absImagePath.startsWith('http')) {
-            absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
-          }
-
-          if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
-            // Si incluyó configuración de música para la historia, generamos video story MP4 con audio
-            if (story_music_config && story_music_config.audio_url) {
-              console.log('[API] Generando video story cruzado con música...');
-              const vidRes = await videoService.generateStoryVideo({
-                imageInput: absImagePath,
-                audioInput: story_music_config.audio_url,
-                duration: story_music_config.duration || 15,
-                startTime: story_music_config.start_time || 0,
-                addMusicSticker: Boolean(story_music_config.add_music_sticker),
-                songTitle: story_music_config.song_title || '',
-                songArtist: story_music_config.song_artist || ''
-              });
-              storyMediaUrl = vidRes.relativeUrl;
-            } else {
-              const cardRes = await imageService.createStoryCard({
-                inputImagePath: absImagePath,
-                brandName: accountName || getSetting('meta_page_name') || ''
-              });
-              storyMediaUrl = cardRes.relativeUrl;
-            }
-          }
-        }
-
-        // Calcular horario de la historia
-        let storyTargetSchedule = targetSchedule;
-        const baseD = new Date(targetSchedule);
-        if (story_timing_rule === 'plus_3h') {
-          storyTargetSchedule = new Date(baseD.getTime() + 3 * 3600 * 1000).toISOString();
-        } else if (story_timing_rule === 'night_slot') {
-          const night = new Date(baseD);
-          night.setHours(20, 30, 0, 0);
-          if (night <= baseD) night.setDate(night.getDate() + 1);
-          storyTargetSchedule = night.toISOString();
-        } else if (story_timing_rule === 'custom' && story_custom_datetime) {
-          storyTargetSchedule = new Date(story_custom_datetime).toISOString();
-        }
-
-        const storyStmtRes = stmt.run(
-          `Story: ${title || 'Nuevo Post'}`,
-          content ? `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 100)}...` : '¡Nuevo post disponible! ✨',
-          JSON.stringify(platforms),
-          'story',
-          JSON.stringify([storyMediaUrl]),
-          storyTargetSchedule,
-          accountId,
+        createdStoryPost = await createCrossStoryPost({
+          media_urls,
+          post_type,
+          story_music_config,
           accountName,
-          presetName
-        );
-
-        createdStoryPost = db.prepare('SELECT * FROM posts WHERE id = ?').get(storyStmtRes.lastInsertRowid);
+          targetSchedule,
+          story_timing_rule,
+          story_custom_datetime,
+          title,
+          content,
+          platforms,
+          accountId,
+          presetName,
+          stmt
+        });
       } catch (storyErr) {
         console.warn('[Auto-Story Generation Warning]:', storyErr.message);
       }
     }
 
-    // Si fue programado para 'now', disparar publicación inmediata
     if (schedule_type === 'now') {
       schedulerService.processDuePosts();
     }
 
+    let responseMessage = 'Publicación agendada con éxito';
+    if (createdStoryPost) {
+      responseMessage = '¡Publicación y versión Historia (Story 9:16) agendadas con éxito!';
+    } else if (schedule_type === 'now') {
+      responseMessage = 'Publicación en proceso de envío';
+    }
+
     res.json({
       success: true,
-      message: createdStoryPost 
-        ? '¡Publicación y versión Historia (Story 9:16) agendadas con éxito!' 
-        : (schedule_type === 'now' ? 'Publicación en proceso de envío' : 'Publicación agendada con éxito'),
+      message: responseMessage,
       data: newPost,
       storyPost: createdStoryPost
     });
@@ -502,6 +540,19 @@ router.get('/posts/:id', (req, res) => {
   }
 });
 
+function normalizeScheduleDate(scheduledAt, fallback) {
+  let val = scheduledAt !== undefined ? scheduledAt : fallback;
+  if (!val) return val;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(val)) {
+    return new Date(val + ':00').toISOString();
+  }
+  try {
+    return new Date(val).toISOString();
+  } catch (_) {
+    return val;
+  }
+}
+
 router.put('/posts/:id', (req, res) => {
   try {
     const { title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name } = req.body;
@@ -510,14 +561,7 @@ router.put('/posts/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
     }
 
-    let normalizedScheduledAt = scheduled_at !== undefined ? scheduled_at : post.scheduled_at;
-    if (normalizedScheduledAt && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalizedScheduledAt)) {
-      normalizedScheduledAt = new Date(normalizedScheduledAt + ':00').toISOString();
-    } else if (normalizedScheduledAt) {
-      try {
-        normalizedScheduledAt = new Date(normalizedScheduledAt).toISOString();
-      } catch (_) {}
-    }
+    const normalizedScheduledAt = normalizeScheduleDate(scheduled_at, post.scheduled_at);
 
     db.prepare(`
       UPDATE posts
@@ -679,6 +723,68 @@ router.post('/posts/:id/publish-now', async (req, res) => {
   }
 });
 
+async function resolveStoryMediaForPost(post) {
+  let mediaUrls = [];
+  try {
+    mediaUrls = JSON.parse(post.media_urls || '[]');
+  } catch (_) {}
+
+  const isReel = post.post_type === 'reel';
+  let videoUrl = mediaUrls.find(u => isVideoUrl(u));
+
+  if (isReel && !videoUrl && post.meta_post_id) {
+    try {
+      const creds = metaService.getAccountCredentials(post.account_id);
+      if (creds.pageToken) {
+        const metaRes = await axios.get(`${metaService.graphUrl}/${post.meta_post_id}`, {
+          params: {
+            fields: 'id,media_type,media_url,thumbnail_url',
+            access_token: creds.pageToken
+          },
+          timeout: 10000
+        });
+        if (metaRes.data?.media_url) {
+          videoUrl = metaRes.data.media_url;
+          const updatedList = [videoUrl, ...mediaUrls.filter(u => u !== videoUrl)];
+          db.prepare('UPDATE posts SET media_urls = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(JSON.stringify(updatedList), post.id);
+        }
+      }
+    } catch (err) {
+      console.warn(`[StoryMedia] No se pudo obtener video de Meta para Reel #${post.id}:`, err.message);
+    }
+  }
+
+  const isVideo = Boolean(videoUrl) || (mediaUrls.length > 0 && isVideoUrl(mediaUrls[0]));
+  let storyMediaUrl = '';
+
+  if (isVideo) {
+    storyMediaUrl = videoUrl || mediaUrls[0];
+  } else if (mediaUrls.length > 0) {
+    const firstMedia = mediaUrls[0];
+    try {
+      const inputPath = firstMedia.startsWith('http')
+        ? firstMedia
+        : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
+      const result = await imageService.createStoryCard({
+        inputImagePath: inputPath,
+        brandName: post.account_name || getSetting('meta_page_name') || ''
+      });
+      storyMediaUrl = result.relativeUrl;
+    } catch (err) {
+      console.warn('Error adaptando imagen a historia:', err.message);
+      storyMediaUrl = firstMedia;
+    }
+  }
+
+  return {
+    isReel,
+    isVideo,
+    storyMediaUrl,
+    hasMedia: Boolean(videoUrl || mediaUrls.length > 0)
+  };
+}
+
 router.post('/posts/:id/repost-story', async (req, res) => {
   try {
     const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
@@ -686,61 +792,7 @@ router.post('/posts/:id/repost-story', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
     }
 
-    let mediaUrls = [];
-    try {
-      mediaUrls = JSON.parse(post.media_urls || '[]');
-    } catch (_) {}
-
-    const isReel = post.post_type === 'reel';
-    let videoUrl = mediaUrls.find(u => isVideoUrl(u));
-
-    // Si es un Reel pero no tenemos el archivo de video en mediaUrls (ej: solo se guardó la miniatura JPG),
-    // consultar a Meta Graph API para obtener el enlace de video MP4 fresco
-    if (isReel && !videoUrl && post.meta_post_id) {
-      try {
-        const creds = metaService.getAccountCredentials(post.account_id);
-        if (creds.pageToken) {
-          const metaRes = await axios.get(`${metaService.graphUrl}/${post.meta_post_id}`, {
-            params: {
-              fields: 'id,media_type,media_url,thumbnail_url',
-              access_token: creds.pageToken
-            },
-            timeout: 10000
-          });
-          if (metaRes.data?.media_url) {
-            videoUrl = metaRes.data.media_url;
-            const updatedList = [videoUrl, ...mediaUrls.filter(u => u !== videoUrl)];
-            db.prepare('UPDATE posts SET media_urls = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-              .run(JSON.stringify(updatedList), post.id);
-          }
-        }
-      } catch (err) {
-        console.warn(`[RepostStory] No se pudo obtener video de Meta para Reel #${post.id}:`, err.message);
-      }
-    }
-
-    let storyMediaUrl = '';
-    const isVideo = Boolean(videoUrl) || (mediaUrls.length > 0 && isVideoUrl(mediaUrls[0]));
-
-    if (isVideo) {
-      // Si es Reel o video, se comparte tal cual como video vertical
-      storyMediaUrl = videoUrl || mediaUrls[0];
-    } else if (mediaUrls.length > 0) {
-      const firstMedia = mediaUrls[0];
-      try {
-        const inputPath = firstMedia.startsWith('http')
-          ? firstMedia
-          : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
-        const result = await imageService.createStoryCard({
-          inputImagePath: inputPath,
-          brandName: post.account_name || getSetting('meta_page_name') || ''
-        });
-        storyMediaUrl = result.relativeUrl;
-      } catch (err) {
-        console.warn('Error procesando imagen para historia:', err.message);
-        storyMediaUrl = firstMedia;
-      }
-    }
+    const { isReel, isVideo, storyMediaUrl } = await resolveStoryMediaForPost(post);
 
     const teaserText = isReel
       ? `🎬 ¡MIRA ESTE REEL COMPLETO! ✨\n\n${(post.content || '').slice(0, 100)}...\n\n👉 ¡Toca aquí para ver el video en nuestro feed! 📲`
@@ -769,63 +821,10 @@ router.post('/posts/:id/publish-story-now', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Publicación no encontrada.' });
     }
 
-    let mediaUrls = [];
-    try {
-      mediaUrls = JSON.parse(post.media_urls || '[]');
-    } catch (_) {}
+    const { isReel, storyMediaUrl, hasMedia } = await resolveStoryMediaForPost(post);
 
-    const isReel = post.post_type === 'reel';
-    let videoUrl = mediaUrls.find(u => isVideoUrl(u));
-
-    // Si es un Reel pero no tenemos el archivo de video en mediaUrls (ej: solo se guardó la miniatura JPG),
-    // consultar a Meta Graph API para obtener el enlace de video MP4 fresco
-    if (isReel && !videoUrl && post.meta_post_id) {
-      try {
-        const creds = metaService.getAccountCredentials(post.account_id);
-        if (creds.pageToken) {
-          const metaRes = await axios.get(`${metaService.graphUrl}/${post.meta_post_id}`, {
-            params: {
-              fields: 'id,media_type,media_url,thumbnail_url',
-              access_token: creds.pageToken
-            },
-            timeout: 10000
-          });
-          if (metaRes.data?.media_url) {
-            videoUrl = metaRes.data.media_url;
-            const updatedList = [videoUrl, ...mediaUrls.filter(u => u !== videoUrl)];
-            db.prepare('UPDATE posts SET media_urls = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-              .run(JSON.stringify(updatedList), post.id);
-          }
-        }
-      } catch (err) {
-        console.warn(`[PublishStoryNow] No se pudo obtener video de Meta para Reel #${post.id}:`, err.message);
-      }
-    }
-
-    if (mediaUrls.length === 0 && !videoUrl) {
+    if (!hasMedia) {
       return res.status(400).json({ success: false, error: 'Esta publicación no contiene archivos multimedia para convertir en historia.' });
-    }
-
-    const isVideo = Boolean(videoUrl) || (mediaUrls.length > 0 && isVideoUrl(mediaUrls[0]));
-    let storyMediaUrl = '';
-
-    if (isVideo) {
-      storyMediaUrl = videoUrl || mediaUrls[0];
-    } else {
-      const firstMedia = mediaUrls[0];
-      try {
-        const inputPath = firstMedia.startsWith('http')
-          ? firstMedia
-          : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
-        const result = await imageService.createStoryCard({
-          inputImagePath: inputPath,
-          brandName: post.account_name || getSetting('meta_page_name') || ''
-        });
-        storyMediaUrl = result.relativeUrl;
-      } catch (err) {
-        console.warn('Error adaptando imagen a historia:', err.message);
-        storyMediaUrl = firstMedia;
-      }
     }
 
     const teaserText = isReel
@@ -966,7 +965,7 @@ router.get('/schedule-presets', (req, res) => {
 router.post('/schedule-presets', (req, res) => {
   try {
     const { name, description = '', slots, isActive = false } = req.body;
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ success: false, error: 'Debes asignarle un nombre a este horario/prueba.' });
     }
     if (!Array.isArray(slots) || slots.length === 0) {
@@ -1050,7 +1049,7 @@ router.post('/schedule-presets/:id/activate', (req, res) => {
 
     const tx = db.transaction((arr) => {
       for (const s of arr) {
-        insertSlot.run(s.day_of_week, s.time_slot, s.is_active !== undefined ? (s.is_active ? 1 : 0) : 1, JSON.stringify(s.platforms || ['facebook', 'instagram']));
+        insertSlot.run(s.day_of_week, s.time_slot, s.is_active === false ? 0 : 1, JSON.stringify(s.platforms || ['facebook', 'instagram']));
       }
     });
     tx(parsedSlots);
@@ -1097,6 +1096,97 @@ router.delete('/schedule-presets/:id', (req, res) => {
 // ----------------------------------------------------
 // 3.2 ANALÍTICAS COMPARATIVAS DE HORARIOS (TESTING A/B)
 // ----------------------------------------------------
+function buildPresetAbReport(preset, pIdx, publishedPosts) {
+  let slots = [];
+  try { slots = JSON.parse(preset.slots || '[]'); } catch (_) {}
+
+  // Posts explícitos o vinculados por coincidencia de día/hora
+  const matchingPosts = publishedPosts.filter(p => {
+    if (p.schedule_preset_name && p.schedule_preset_name === preset.name) return true;
+
+    if (p.scheduled_at) {
+      const d = new Date(p.scheduled_at);
+      const day = d.getDay();
+      const hour = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      const time = `${hour}:${min}`;
+      return slots.some(s => s.day_of_week === day && Math.abs(Number.parseInt(s.time_slot, 10) - Number.parseInt(time, 10)) <= 1);
+    }
+    return false;
+  });
+
+  const totalPosts = matchingPosts.length;
+  let totalLikes = 0;
+  let totalComments = 0;
+  let totalReach = 0;
+
+  matchingPosts.forEach((post, i) => {
+    let likes = 0;
+    let comments = 0;
+    let reach = 0;
+
+    try {
+      const resObj = JSON.parse(post.meta_result || '{}');
+      if (resObj.instagram?.id || resObj.facebook?.id) {
+        likes = 12 + ((post.id * 7) % 25);
+        comments = 1 + ((post.id * 3) % 6);
+        reach = 140 + ((post.id * 33) % 280);
+      }
+    } catch (_err) {
+      // Ignorar error de parsing en resultados legacy o malformados de Meta
+    }
+
+    if (likes === 0) {
+      const hourWeight = slots.some(s => Number.parseInt(s.time_slot, 10) >= 18) ? 1.4 : 1.0;
+      likes = Math.round((14 + (pIdx === 0 ? 8 : 4) + (i % 5)) * hourWeight);
+      comments = Math.round((2 + (i % 3)) * hourWeight);
+      reach = Math.round(likes * 12.5);
+    }
+
+    totalLikes += likes;
+    totalComments += comments;
+    totalReach += reach;
+  });
+
+  const count = Math.max(totalPosts, 1);
+  const avgLikes = Math.round(totalLikes / count);
+  const avgComments = Math.round((totalComments / count) * 10) / 10;
+  const avgReach = Math.round(totalReach / count);
+  const engagementRate = avgReach > 0 ? ((avgLikes + avgComments) / avgReach * 100).toFixed(1) + '%' : '4.2%';
+
+  const fallbackLikes = pIdx === 0 ? 28 : 19;
+  const finalLikes = totalPosts > 0 ? avgLikes : fallbackLikes;
+
+  const fallbackComments = pIdx === 0 ? 3.4 : 2.1;
+  const finalComments = totalPosts > 0 ? avgComments : fallbackComments;
+
+  const fallbackReach = pIdx === 0 ? 520 : 390;
+  const finalReach = totalPosts > 0 ? avgReach : fallbackReach;
+
+  const fallbackRate = pIdx === 0 ? '6.0%' : '4.8%';
+  const finalRate = totalPosts > 0 ? engagementRate : fallbackRate;
+
+  const fallbackScore = pIdx === 0 ? 73 : 48;
+  const finalScore = totalPosts > 0 ? (avgLikes * 2 + avgComments * 5) : fallbackScore;
+
+  const dayMap = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  return {
+    id: preset.id,
+    name: preset.name,
+    description: preset.description,
+    isActive: Boolean(preset.is_active),
+    slotsCount: slots.length,
+    slotsList: slots.map(s => `${dayMap[s.day_of_week]} ${s.time_slot}`),
+    postsCount: totalPosts,
+    avgLikes: finalLikes,
+    avgComments: finalComments,
+    avgReach: finalReach,
+    engagementRate: finalRate,
+    score: finalScore
+  };
+}
+
 router.get('/meta/schedule-analytics', async (req, res) => {
   try {
     const presets = db.prepare('SELECT * FROM schedule_presets ORDER BY id ASC').all();
@@ -1107,94 +1197,14 @@ router.get('/meta/schedule-analytics', async (req, res) => {
       ORDER BY created_at DESC
     `).all();
 
-    // Mapeo por preset
-    const presetReports = presets.map((preset, pIdx) => {
-      let slots = [];
-      try { slots = JSON.parse(preset.slots || '[]'); } catch (_) {}
+    const presetReports = presets.map((preset, pIdx) => buildPresetAbReport(preset, pIdx, publishedPosts));
 
-      // Posts explícitos o vinculados por coincidencia de día/hora
-      const matchingPosts = publishedPosts.filter(p => {
-        if (p.schedule_preset_name && p.schedule_preset_name === preset.name) return true;
-        
-        // Coincidencia con slot del preset
-        if (p.scheduled_at) {
-          const d = new Date(p.scheduled_at);
-          const day = d.getDay();
-          const hour = String(d.getHours()).padStart(2, '0');
-          const min = String(d.getMinutes()).padStart(2, '0');
-          const time = `${hour}:${min}`;
-          return slots.some(s => s.day_of_week === day && Math.abs(parseInt(s.time_slot) - parseInt(time)) <= 1);
-        }
-        return false;
-      });
-
-      const totalPosts = matchingPosts.length;
-      
-      // Métricas calculadas o modeladas con heurística basada en horario estelar
-      let totalLikes = 0;
-      let totalComments = 0;
-      let totalReach = 0;
-
-      matchingPosts.forEach((post, i) => {
-        let likes = 0;
-        let comments = 0;
-        let reach = 0;
-
-        try {
-          const resObj = JSON.parse(post.meta_result || '{}');
-          if (resObj.instagram?.id || resObj.facebook?.id) {
-            likes = 12 + ((post.id * 7) % 25);
-            comments = 1 + ((post.id * 3) % 6);
-            reach = 140 + ((post.id * 33) % 280);
-          }
-        } catch (_) {}
-
-        if (likes === 0) {
-          // Si es simulación o pendiente, calcular peso según slot
-          const hourWeight = slots.some(s => parseInt(s.time_slot) >= 18) ? 1.4 : 1.0;
-          likes = Math.round((14 + (pIdx === 0 ? 8 : 4) + (i % 5)) * hourWeight);
-          comments = Math.round((2 + (i % 3)) * hourWeight);
-          reach = Math.round(likes * 12.5);
-        }
-
-        totalLikes += likes;
-        totalComments += comments;
-        totalReach += reach;
-      });
-
-      const count = Math.max(totalPosts, 1);
-      const avgLikes = Math.round(totalLikes / count);
-      const avgComments = Math.round((totalComments / count) * 10) / 10;
-      const avgReach = Math.round(totalReach / count);
-      const engagementRate = avgReach > 0 ? ((avgLikes + avgComments) / avgReach * 100).toFixed(1) + '%' : '4.2%';
-
-      return {
-        id: preset.id,
-        name: preset.name,
-        description: preset.description,
-        isActive: Boolean(preset.is_active),
-        slotsCount: slots.length,
-        slotsList: slots.map(s => {
-          const dayMap = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-          return `${dayMap[s.day_of_week]} ${s.time_slot}`;
-        }),
-        postsCount: totalPosts,
-        avgLikes: totalPosts > 0 ? avgLikes : (pIdx === 0 ? 28 : 19),
-        avgComments: totalPosts > 0 ? avgComments : (pIdx === 0 ? 3.4 : 2.1),
-        avgReach: totalPosts > 0 ? avgReach : (pIdx === 0 ? 520 : 390),
-        engagementRate: totalPosts > 0 ? engagementRate : (pIdx === 0 ? '6.0%' : '4.8%'),
-        score: totalPosts > 0 ? (avgLikes * 2 + avgComments * 5) : (pIdx === 0 ? 73 : 48)
-      };
-    });
-
-    // Determinar ganador A/B
     let winner = null;
     if (presetReports.length > 0) {
       winner = [...presetReports].sort((a, b) => b.score - a.score)[0];
       winner.isWinner = true;
     }
 
-    // Mejores franjas horarias detectadas
     const timeSlotsHeatmap = [
       { window: 'Almuerzo (12:30 - 14:00)', day: 'Miércoles / Sábado', score: 'Alta conversión', tip: 'Ideal para productos de impulso gastronómico y golosinas' },
       { window: 'Noche (19:00 - 21:00)', day: 'Lunes a Viernes', score: 'Mayor alcance orgánico', tip: 'Máxima interacción en Reels y publicaciones con historias' },
@@ -1291,7 +1301,9 @@ router.post('/meta/detect-accounts', async (req, res) => {
     if (pages && pages.length > 0) {
       try {
         setSetting('cached_managed_accounts', JSON.stringify(pages));
-      } catch (_) {}
+      } catch (_err) {
+        // Ignorar error al escribir la caché en settings
+      }
     }
     res.json({ success: true, data: pages });
   } catch (err) {
@@ -1310,7 +1322,8 @@ router.post('/meta/toggle-hide-account', (req, res) => {
     try {
       const hiddenStr = getSetting('hidden_account_ids');
       if (hiddenStr) hiddenIds = JSON.parse(hiddenStr);
-    } catch (e) {
+    } catch (_err) {
+      // Usar lista vacía si el valor almacenado es inválido o no es JSON
       hiddenIds = [];
     }
 
@@ -1360,7 +1373,7 @@ router.get('/meta/insights', async (req, res) => {
 
 router.get('/meta/live-posts', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit, 10) || 25;
+    const limit = Number.parseInt(req.query.limit, 10) || 25;
     const posts = await metaService.getLiveInstagramPosts(limit);
     res.json({ success: true, data: posts });
   } catch (err) {
@@ -1485,6 +1498,35 @@ router.post('/ai/kmarket-product', async (req, res) => {
   }
 });
 
+async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWatermark]') {
+  if (getSetting('auto_stamp_seal') === 'false' || !result?.url) return;
+  try {
+    const activeAccId = accountId || getSetting('meta_page_id') || '';
+    const wmRow = activeAccId 
+      ? db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccId)
+      : db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
+    if (!wmRow) return;
+
+    const wmPath = path.join(__dirname, '../../uploads/watermarks', wmRow.filename);
+    const cleanGenPath = result.url.replace(/^[\\/]+/, '');
+    const genFullPath = path.join(__dirname, '../../', cleanGenPath);
+    if (fs.existsSync(wmPath) && fs.existsSync(genFullPath)) {
+      const stamped = await imageService.applyWatermark({
+        inputImagePath: genFullPath,
+        watermarkPath: wmPath,
+        position: 'bottom-right',
+        opacity: 1.0,
+        scalePercent: 18
+      });
+      result.url = stamped.relativeUrl;
+      result.filename = stamped.filename;
+      console.log(`${logPrefix} ✅ Sello oficial estampado con relieve en ${result.url}`);
+    }
+  } catch (stampErr) {
+    console.warn(`${logPrefix} No se pudo auto-estampar sello:`, stampErr.message);
+  }
+}
+
 router.post('/ai/generate-image', async (req, res) => {
   try {
     const { prompt, format = 'feed', model = 'gemini-3.1-flash-image', baseImageUrl } = req.body;
@@ -1513,34 +1555,7 @@ router.post('/ai/generate-image', async (req, res) => {
       baseImageUrl
     });
 
-    // Auto-estampar sello oficial si no está desactivado explícitamente y existe sello para esta cuenta
-    if (getSetting('auto_stamp_seal') !== 'false') {
-      try {
-        const activeAccountId = req.body.account_id || getSetting('meta_page_id') || '';
-        const wmRow = activeAccountId 
-          ? db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId)
-          : db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
-        if (wmRow) {
-          const wmPath = path.join(__dirname, '../../uploads/watermarks', wmRow.filename);
-          const cleanGen = result.url.replace(/^[\\\/]+/, '');
-          const genFullPath = path.join(__dirname, '../../', cleanGen);
-          if (fs.existsSync(wmPath) && fs.existsSync(genFullPath)) {
-            const stamped = await imageService.applyWatermark({
-              inputImagePath: genFullPath,
-              watermarkPath: wmPath,
-              position: 'bottom-right',
-              opacity: 1.0,
-              scalePercent: 18
-            });
-            result.url = stamped.relativeUrl;
-            result.filename = stamped.filename;
-            console.log(`[AI Image] ✅ Sello oficial estampado con relieve en ${result.url}`);
-          }
-        }
-      } catch (stampErr) {
-        console.warn('No se pudo auto-estampar sello:', stampErr.message);
-      }
-    }
+    await tryAutoStampWatermark(result, req.body.account_id, '[AI Image]');
 
     // Registrar en media_items para que aparezca en la galería multimedia
     try {
@@ -1972,34 +1987,7 @@ router.post('/ai/kmarket-designer-poster', async (req, res) => {
       scannedData
     });
 
-    // Auto-estampar sello oficial si no está explícitamente desactivado y existe sello para esta cuenta
-    if (getSetting('auto_stamp_seal') !== 'false') {
-      try {
-        const activeAccId = req.body.account_id || getSetting('meta_page_id') || '';
-        const wmRow = activeAccId 
-          ? db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccId)
-          : db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
-        if (wmRow) {
-          const wmPath = path.join(__dirname, '../../uploads/watermarks', wmRow.filename);
-          const cleanGenPath = result.url.replace(/^[\\\/]+/, '');
-          const genFullPath = path.join(__dirname, '../../', cleanGenPath);
-          if (fs.existsSync(wmPath) && fs.existsSync(genFullPath)) {
-            const stamped = await imageService.applyWatermark({
-              inputImagePath: genFullPath,
-              watermarkPath: wmPath,
-              position: 'bottom-right',
-              opacity: 1.0,
-              scalePercent: 18
-            });
-            result.url = stamped.relativeUrl;
-            result.filename = stamped.filename;
-            console.log(`[Kmarket Poster] ✅ Sello oficial estampado con relieve en ${result.url}`);
-          }
-        }
-      } catch (stampErr) {
-        console.warn('No se pudo auto-estampar sello:', stampErr.message);
-      }
-    }
+    await tryAutoStampWatermark(result, req.body.account_id, '[Kmarket Poster]');
 
     // Registrar en media_items para uso inmediato
     try {
@@ -2025,6 +2013,59 @@ router.post('/ai/kmarket-designer-poster', async (req, res) => {
  * ==========================================
  */
 
+async function processSingleAutopilotItem(file, i, shouldStamp, wmPath, slotTime) {
+  const rawUrl = `/uploads/${file.filename}`;
+  let finalImageUrl = rawUrl;
+
+  // Aplicar sello oficial si está configurado
+  if (shouldStamp && fs.existsSync(wmPath) && fs.existsSync(file.path)) {
+    try {
+      const stamped = await imageService.applyWatermark({
+        inputImagePath: file.path,
+        watermarkPath: wmPath,
+        position: 'bottom-right',
+        opacity: 1.0,
+        scalePercent: 18
+      });
+      finalImageUrl = stamped.relativeUrl;
+    } catch (stampErr) {
+      console.warn(`[Batch Autopilot] Fallo al estampar sello en ${file.filename}:`, stampErr.message);
+    }
+  }
+
+  // Analizar producto con visión para extraer nombre y redactar el copy oficial
+  let detectedProduct = 'Producto Kmarket';
+  let detectedBrand = 'Kmarket';
+  let copyPost = '';
+
+  try {
+    const scanRes = await aiService.scanProductFromImage(file.path);
+    if (scanRes?.data) {
+      detectedProduct = scanRes.data.productName || detectedProduct;
+      detectedBrand = scanRes.data.brand || detectedBrand;
+      copyPost = scanRes.data.copyPost || '';
+    }
+  } catch (scanErr) {
+    console.warn(`[Batch Autopilot] Visión IA no pudo escanear ${file.filename}, usando plantilla oficial:`, scanErr.message);
+  }
+
+  // Si no se obtuvo copy por visión o timeout, generar con plantilla oficial de Kmarket
+  if (!copyPost) {
+    copyPost = `🥢✨ Descubre este imperdible sabor en Kmarket Algarrobo ✨🥢\n\nUn favorito de las tiendas de conveniencia coreanas, ideal para disfrutar en casa y compartir con quienes más quieres.\n\n✨ ¿Qué lo hace especial?\nSu calidad auténtica, sabor inconfundible y la frescura que lo convierten en un clásico indiscutido.\n\n❄️ Perfecto para disfrutar como:\n• Snack dulce o antojo de media tarde\n• Acompañando tus momentos de descanso y series\n• Para compartir con amigos y familia\n\n🌿 Una experiencia gastronómica asiática que ahora tienes a pasos de la playa.\n\n📍 Encuéntralo en Kmarket Algarrobo\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo\n\n🧡 ¡Ven por el tuyo y déjate sorprender!\n\n#KmarketAlgarrobo #KFood #ComidaCoreana #SnacksCoreanos #AlgarroboMoments`;
+  }
+
+  return {
+    id: `batch-${Date.now()}-${i}`,
+    originalFilename: file.originalname,
+    imageUrl: finalImageUrl,
+    productName: detectedProduct,
+    brand: detectedBrand,
+    content: copyPost,
+    scheduledAt: slotTime,
+    platforms: ['instagram', 'facebook']
+  };
+}
+
 /**
  * POST /api/batch/process-images
  * Recibe un lote de imágenes (ej: generadas en Gemini Web), estampa el sello oficial de Kmarket,
@@ -2046,64 +2087,12 @@ router.post('/batch/process-images', upload.array('files', 15), async (req, res)
 
     // 2. Calcular los próximos slots disponibles para la cantidad de imágenes
     const availableSlots = slotService.getAvailableSlots(files.length);
-
     const processedItems = [];
 
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const rawUrl = `/uploads/${file.filename}`;
-      let finalImageUrl = rawUrl;
-
-      // Aplicar sello oficial si está configurado
-      if (shouldStamp && fs.existsSync(wmPath) && fs.existsSync(file.path)) {
-        try {
-          const stamped = await imageService.applyWatermark({
-            inputImagePath: file.path,
-            watermarkPath: wmPath,
-            position: 'bottom-right',
-            opacity: 1.0,
-            scalePercent: 18
-          });
-          finalImageUrl = stamped.relativeUrl;
-        } catch (stampErr) {
-          console.warn(`[Batch Autopilot] Fallo al estampar sello en ${file.filename}:`, stampErr.message);
-        }
-      }
-
-      // Analizar producto con visión para extraer nombre y redactar el copy oficial
-      let detectedProduct = 'Producto Kmarket';
-      let detectedBrand = 'Kmarket';
-      let copyPost = '';
-
-      try {
-        const scanRes = await aiService.scanProductFromImage(file.path);
-        if (scanRes && scanRes.data) {
-          detectedProduct = scanRes.data.productName || detectedProduct;
-          detectedBrand = scanRes.data.brand || detectedBrand;
-          copyPost = scanRes.data.copyPost || '';
-        }
-      } catch (scanErr) {
-        console.warn(`[Batch Autopilot] Visión IA no pudo escanear ${file.filename}, usando plantilla oficial:`, scanErr.message);
-      }
-
-      // Si no se obtuvo copy por visión o timeout, generar con plantilla oficial de Kmarket
-      if (!copyPost) {
-        copyPost = `🥢✨ Descubre este imperdible sabor en Kmarket Algarrobo ✨🥢\n\nUn favorito de las tiendas de conveniencia coreanas, ideal para disfrutar en casa y compartir con quienes más quieres.\n\n✨ ¿Qué lo hace especial?\nSu calidad auténtica, sabor inconfundible y la frescura que lo convierten en un clásico indiscutido.\n\n❄️ Perfecto para disfrutar como:\n• Snack dulce o antojo de media tarde\n• Acompañando tus momentos de descanso y series\n• Para compartir con amigos y familia\n\n🌿 Una experiencia gastronómica asiática que ahora tienes a pasos de la playa.\n\n📍 Encuéntralo en Kmarket Algarrobo\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo\n\n🧡 ¡Ven por el tuyo y déjate sorprender!\n\n#KmarketAlgarrobo #KFood #ComidaCoreana #SnacksCoreanos #AlgarroboMoments`;
-      }
-
-      // Asignar el slot calculado
       const slotTime = availableSlots[i] || new Date(Date.now() + (i + 1) * 24 * 3600 * 1000).toISOString().slice(0, 19);
-
-      processedItems.push({
-        id: `batch-${Date.now()}-${i}`,
-        originalFilename: file.originalname,
-        imageUrl: finalImageUrl,
-        productName: detectedProduct,
-        brand: detectedBrand,
-        content: copyPost,
-        scheduledAt: slotTime,
-        platforms: ['instagram', 'facebook']
-      });
+      const item = await processSingleAutopilotItem(files[i], i, shouldStamp, wmPath, slotTime);
+      processedItems.push(item);
     }
 
     res.json({
@@ -2116,6 +2105,87 @@ router.post('/batch/process-images', upload.array('files', 15), async (req, res)
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+function calculateBatchStorySchedule(baseD, story_timing_rule) {
+  if (story_timing_rule === 'plus_3h') {
+    return new Date(baseD.getTime() + 3 * 3600 * 1000).toISOString();
+  }
+  if (story_timing_rule === 'night_slot') {
+    const night = new Date(baseD);
+    night.setHours(20, 30, 0, 0);
+    if (night.getTime() <= baseD.getTime()) {
+      night.setDate(night.getDate() + 1);
+    }
+    return night.toISOString();
+  }
+  if (story_timing_rule === 'next_day') {
+    const next = new Date(baseD);
+    next.setDate(next.getDate() + 1);
+    next.setHours(11, 0, 0, 0);
+    return next.toISOString();
+  }
+  return baseD.toISOString();
+}
+
+async function insertSingleBatchPost(p, ctx) {
+  const { insertStmt, include_stories, story_timing_rule, activeAccountId, activeAccountName, presetName } = ctx;
+  const title = p.productName || `Publicación ${activeAccountName || 'Nueva'}`;
+  const content = (p.content || '').trim();
+  const platforms = JSON.stringify(p.platforms || ['instagram', 'facebook']);
+  const mediaUrls = JSON.stringify(p.imageUrl ? [p.imageUrl] : []);
+  const rawScheduledAt = p.scheduledAt;
+  let scheduledAt = null;
+  if (rawScheduledAt) {
+    scheduledAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawScheduledAt)
+      ? new Date(rawScheduledAt + ':00').toISOString()
+      : new Date(rawScheduledAt).toISOString();
+  }
+
+  if (!content || !scheduledAt) {
+    return { feed: 0, story: 0 };
+  }
+
+  // 1. Programar post del Feed
+  insertStmt.run(title, content, platforms, 'feed', mediaUrls, scheduledAt, activeAccountId, activeAccountName, presetName);
+  let story = 0;
+
+  // 2. Si se solicitó crear también la Historia complementaria
+  if (include_stories && p.imageUrl) {
+    try {
+      let absImagePath = p.imageUrl;
+      if (!absImagePath.startsWith('http')) {
+        absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
+      }
+
+      let storyMediaUrl = p.imageUrl;
+      if (fs.existsSync(absImagePath)) {
+        const storyCard = await imageService.createStoryCard({
+          inputImagePath: absImagePath,
+          brandName: activeAccountName
+        });
+        storyMediaUrl = storyCard.relativeUrl;
+      }
+
+      const storyScheduledAt = calculateBatchStorySchedule(new Date(scheduledAt), story_timing_rule);
+      insertStmt.run(
+        `Story: ${title}`,
+        `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 110)}...`,
+        platforms,
+        'story',
+        JSON.stringify([storyMediaUrl]),
+        storyScheduledAt,
+        activeAccountId,
+        activeAccountName,
+        presetName
+      );
+      story = 1;
+    } catch (storyErr) {
+      console.warn('[Batch Story Creation Warning]:', storyErr.message);
+    }
+  }
+
+  return { feed: 1, story };
+}
 
 /**
  * POST /api/batch/confirm-schedule
@@ -2141,79 +2211,12 @@ router.post('/batch/confirm-schedule', async (req, res) => {
     let scheduledFeedCount = 0;
     let scheduledStoryCount = 0;
 
+    const ctx = { insertStmt, include_stories, story_timing_rule, activeAccountId, activeAccountName, presetName };
+
     for (const p of posts) {
-      const title = p.productName || `Publicación ${activeAccountName || 'Nueva'}`;
-      const content = (p.content || '').trim();
-      const platforms = JSON.stringify(p.platforms || ['instagram', 'facebook']);
-      const mediaUrls = JSON.stringify(p.imageUrl ? [p.imageUrl] : []);
-      const rawScheduledAt = p.scheduledAt;
-      let scheduledAt = null;
-      if (rawScheduledAt) {
-        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawScheduledAt)) {
-          scheduledAt = new Date(rawScheduledAt + ':00').toISOString();
-        } else {
-          scheduledAt = new Date(rawScheduledAt).toISOString();
-        }
-      }
-
-      if (content && scheduledAt) {
-        // 1. Programar post del Feed
-        insertStmt.run(title, content, platforms, 'feed', mediaUrls, scheduledAt, activeAccountId, activeAccountName, presetName);
-        scheduledFeedCount++;
-
-        // 2. Si se solicitó crear también la Historia complementaria
-        if (include_stories && p.imageUrl) {
-          try {
-            let absImagePath = p.imageUrl;
-            if (!absImagePath.startsWith('http')) {
-              absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
-            }
-
-            let storyMediaUrl = p.imageUrl;
-            if (fs.existsSync(absImagePath)) {
-              const storyCard = await imageService.createStoryCard({
-                inputImagePath: absImagePath,
-                brandName: activeAccountName
-              });
-              storyMediaUrl = storyCard.relativeUrl;
-            }
-
-            // Calcular horario de la historia según la regla
-            let storyScheduledAt = scheduledAt;
-            const baseD = new Date(scheduledAt);
-            if (story_timing_rule === 'plus_3h') {
-              storyScheduledAt = new Date(baseD.getTime() + 3 * 3600 * 1000).toISOString();
-            } else if (story_timing_rule === 'night_slot') {
-              const night = new Date(baseD);
-              night.setHours(20, 30, 0, 0);
-              if (night.getTime() <= baseD.getTime()) {
-                night.setDate(night.getDate() + 1);
-              }
-              storyScheduledAt = night.toISOString();
-            } else if (story_timing_rule === 'next_day') {
-              const next = new Date(baseD);
-              next.setDate(next.getDate() + 1);
-              next.setHours(11, 0, 0, 0);
-              storyScheduledAt = next.toISOString();
-            }
-
-            insertStmt.run(
-              `Story: ${title}`,
-              `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 110)}...`,
-              platforms,
-              'story',
-              JSON.stringify([storyMediaUrl]),
-              storyScheduledAt,
-              activeAccountId,
-              activeAccountName,
-              presetName
-            );
-            scheduledStoryCount++;
-          } catch (storyErr) {
-            console.warn('[Batch Story Creation Warning]:', storyErr.message);
-          }
-        }
-      }
+      const { feed, story } = await insertSingleBatchPost(p, ctx);
+      scheduledFeedCount += feed;
+      scheduledStoryCount += story;
     }
 
     const totalScheduled = scheduledFeedCount + scheduledStoryCount;
@@ -2295,7 +2298,7 @@ router.post('/inbox/conversations/:id/reply', async (req, res) => {
     const convId = req.params.id;
     const { text, platform } = req.body;
 
-    if (!text || !text.trim()) {
+    if (!text?.trim()) {
       return res.status(400).json({ success: false, error: 'El mensaje de respuesta no puede estar vacío.' });
     }
 
@@ -2406,7 +2409,7 @@ router.post('/inbox/comments/:id/reply', async (req, res) => {
     const commentId = req.params.id;
     const { text, platform } = req.body;
 
-    if (!text || !text.trim()) {
+    if (!text?.trim()) {
       return res.status(400).json({ success: false, error: 'La respuesta no puede estar vacía.' });
     }
 
@@ -2444,8 +2447,10 @@ router.get('/inbox/comments/:id/ai-suggestions', async (req, res) => {
     if (!postCaption || postCaption.length < 10) {
       try {
         const post = db.prepare('SELECT caption FROM posts WHERE meta_post_id = ? OR id = ?').get(comment.post_id, comment.post_id);
-        if (post && post.caption) postCaption = post.caption;
-      } catch (_) {}
+        if (post?.caption) postCaption = post.caption;
+      } catch (_err) {
+        // Ignorar error al buscar post caption de respaldo
+      }
     }
 
     const accountName = comment.account_name || req.query.accountName || '';
@@ -2678,7 +2683,9 @@ router.post('/ai/suggest-reply', async (req, res) => {
       try {
         const rawMsgs = getInboxMessagesByConversation(conversationId) || [];
         history = rawMsgs.slice(-5);
-      } catch (_) {}
+      } catch (_err) {
+        // Ignorar error si no se pueden recuperar mensajes previos de la conversación
+      }
     }
 
     const result = await aiService.generateInboxReplySuggestions({

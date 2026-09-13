@@ -15,7 +15,7 @@ class WhatsAppService {
       greenApiToken: (getSetting('whatsapp_green_api_token') || process.env.GREEN_API_TOKEN || '').trim(),
       notifyDms: getSetting('whatsapp_notify_dms') !== 'false',
       notifyComments: getSetting('whatsapp_notify_comments') !== 'false',
-      publicUrl: (getSetting('public_url_base') || process.env.PUBLIC_URL_BASE || '').trim() || 'http://37.60.235.111:3000'
+      publicUrl: (getSetting('public_url_base') || process.env.PUBLIC_URL_BASE || '').trim() || 'https://37.60.235.111:3000'
     };
   }
 
@@ -24,7 +24,7 @@ class WhatsAppService {
    */
   normalizePhone(phone, forGreenApi = false) {
     if (!phone) return '';
-    const digitsOnly = phone.replace(/[^0-9]/g, '');
+    const digitsOnly = phone.replace(/\D/g, '');
     if (forGreenApi) {
       return digitsOnly;
     }

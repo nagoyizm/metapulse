@@ -547,7 +547,7 @@ window.applyChatAiSuggestion = function(convId, idx) {
   if (input) {
     input.value = text;
     input.classList.remove('ai-input-inserted-pulse');
-    input.offsetWidth; // trigger reflow
+    input.getBoundingClientRect(); // trigger reflow
     input.classList.add('ai-input-inserted-pulse');
     setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
     input.focus();
@@ -611,7 +611,7 @@ async function generateAiReplySuggestion() {
       renderChatAiSuggestionsDock(convId, json);
       input.value = json.reply || json.suggestions[0].text;
       input.classList.remove('ai-input-inserted-pulse');
-      input.offsetWidth;
+      input.getBoundingClientRect(); // trigger reflow
       input.classList.add('ai-input-inserted-pulse');
       setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
       const feedback = document.getElementById('chat-insert-feedback');
@@ -856,7 +856,7 @@ window.applyCommentAiSuggestion = function(commentId, idx) {
   if (input) {
     input.value = text;
     input.classList.remove('ai-input-inserted-pulse');
-    input.offsetWidth; // trigger reflow
+    input.getBoundingClientRect(); // trigger reflow
     input.classList.add('ai-input-inserted-pulse');
     setTimeout(() => input.classList.remove('ai-input-inserted-pulse'), 1200);
     input.focus();

@@ -16,10 +16,8 @@ const {
 } = require('../database/db');
 
 class InboxSyncService {
-  constructor() {
-    this.cronTask = null;
-    this.isSyncing = false;
-  }
+  cronTask = null;
+  isSyncing = false;
 
   /**
    * Inicia el demonio de sincronización periódica
@@ -101,7 +99,9 @@ class InboxSyncService {
               accountsToSync = parsed.filter(p => !p.isHidden).map(p => metaService.getAccountCredentials(p));
             }
           }
-        } catch (_) {}
+        } catch (err) {
+          // Ignorado si cached_managed_accounts está vacío o no es JSON válido
+        }
 
         if (accountsToSync.length === 0) {
           accountsToSync = [metaService.getConfig()];
@@ -147,30 +147,33 @@ class InboxSyncService {
       const conversations = await metaService.getConversations(15, creds);
 
       for (const conv of conversations) {
-        if (!conv.account_id) conv.account_id = creds.pageId || creds.instagramId || null;
-        if (!conv.account_name) conv.account_name = creds.pageName || null;
-
-        // Guardar o actualizar la conversación en SQLite
-        upsertConversation(conv);
-
-        // Obtener los mensajes del hilo
-        const messages = await metaService.getConversationMessages(conv.id, conv.platform, creds);
-        for (const msg of messages) {
-          if (!msg.account_id) msg.account_id = conv.account_id;
-          // Comprobar si ya existe
-          const exists = db.prepare('SELECT id, notified_whatsapp FROM inbox_messages WHERE id = ?').get(msg.id);
-          if (!exists) {
-            upsertInboxMessage(msg);
-            if (msg.sender_type === 'customer') {
-              newMessages++;
-            }
-          }
-        }
+        newMessages += await this.syncSingleConversation(conv, creds);
       }
     } catch (err) {
       console.warn('[InboxSync] Error sincronizando conversaciones:', err.message);
     }
     return { newMessages };
+  }
+
+  async syncSingleConversation(conv, creds) {
+    let count = 0;
+    if (!conv.account_id) conv.account_id = creds.pageId || creds.instagramId || null;
+    if (!conv.account_name) conv.account_name = creds.pageName || null;
+
+    upsertConversation(conv);
+
+    const messages = await metaService.getConversationMessages(conv.id, conv.platform, creds);
+    for (const msg of messages) {
+      if (!msg.account_id) msg.account_id = conv.account_id;
+      const exists = db.prepare('SELECT id, notified_whatsapp FROM inbox_messages WHERE id = ?').get(msg.id);
+      if (!exists) {
+        upsertInboxMessage(msg);
+        if (msg.sender_type === 'customer') {
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
   /**
@@ -201,6 +204,65 @@ class InboxSyncService {
     return { newComments };
   }
 
+  async dispatchPendingDMs(config) {
+    let sent = 0;
+    if (!config.notifyDms) {
+      db.prepare("UPDATE inbox_messages SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
+      return sent;
+    }
+
+    const unnotifiedMsgs = getUnnotifiedMessages();
+    for (const msg of unnotifiedMsgs) {
+      try {
+        const conv = msg.conversation_id ? db.prepare('SELECT account_name FROM inbox_conversations WHERE id = ?').get(msg.conversation_id) : null;
+        const accName = conv?.account_name || '';
+        console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para DM de "${msg.sender_name || 'Cliente'}" (${msg.platform})...`);
+        await whatsappService.notifyDirectMessage({
+          accountName: accName,
+          senderName: msg.sender_name || 'Cliente',
+          messageText: msg.message_text,
+          platform: msg.platform
+        });
+        markMessageNotified(msg.id);
+        sent++;
+        await new Promise(r => setTimeout(r, 800));
+      } catch (err) {
+        console.error(`[InboxSync] Error notificando mensaje ${msg.id} a WhatsApp:`, err.message);
+        markMessageNotified(msg.id);
+      }
+    }
+    return sent;
+  }
+
+  async dispatchPendingComments(config) {
+    let sent = 0;
+    if (!config.notifyComments) {
+      db.prepare("UPDATE inbox_comments SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
+      return sent;
+    }
+
+    const unnotifiedComments = getUnnotifiedComments();
+    for (const c of unnotifiedComments) {
+      try {
+        console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para comentario de "${c.from_name || 'Usuario'}" (${c.platform})...`);
+        await whatsappService.notifyComment({
+          accountName: c.account_name || '',
+          authorName: c.from_name || 'Usuario',
+          commentText: c.comment_text,
+          postCaption: c.post_caption,
+          platform: c.platform
+        });
+        markCommentNotified(c.id);
+        sent++;
+        await new Promise(r => setTimeout(r, 800));
+      } catch (err) {
+        console.error(`[InboxSync] Error notificando comentario ${c.id} a WhatsApp:`, err.message);
+        markCommentNotified(c.id);
+      }
+    }
+    return sent;
+  }
+
   /**
    * Revisa mensajes y comentarios nuevos sin notificar y envía el WhatsApp
    */
@@ -221,58 +283,8 @@ class InboxSyncService {
       return { sent: 0, reason: 'Faltan credenciales o número de WhatsApp' };
     }
 
-    // 1. Notificar DMs no notificados
-    if (config.notifyDms) {
-      const unnotifiedMsgs = getUnnotifiedMessages();
-      for (const msg of unnotifiedMsgs) {
-        try {
-          const conv = msg.conversation_id ? db.prepare('SELECT account_name FROM inbox_conversations WHERE id = ?').get(msg.conversation_id) : null;
-          const accName = conv?.account_name || '';
-          console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para DM de "${msg.sender_name || 'Cliente'}" (${msg.platform})...`);
-          await whatsappService.notifyDirectMessage({
-            accountName: accName,
-            senderName: msg.sender_name || 'Cliente',
-            messageText: msg.message_text,
-            platform: msg.platform
-          });
-          markMessageNotified(msg.id);
-          sent++;
-          // Pequeña pausa de 800ms entre envíos para no saturar la API
-          await new Promise(r => setTimeout(r, 800));
-        } catch (err) {
-          console.error(`[InboxSync] Error notificando mensaje ${msg.id} a WhatsApp:`, err.message);
-          // Marcar de todos modos para evitar bucle infinito de reintentos
-          markMessageNotified(msg.id);
-        }
-      }
-    } else {
-      db.prepare("UPDATE inbox_messages SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
-    }
-
-    // 2. Notificar Comentarios no notificados
-    if (config.notifyComments) {
-      const unnotifiedComments = getUnnotifiedComments();
-      for (const c of unnotifiedComments) {
-        try {
-          console.log(`[InboxSync] 📱 Enviando notificación WhatsApp para comentario de "${c.from_name || 'Usuario'}" (${c.platform})...`);
-          await whatsappService.notifyComment({
-            accountName: c.account_name || '',
-            authorName: c.from_name || 'Usuario',
-            commentText: c.comment_text,
-            postCaption: c.post_caption,
-            platform: c.platform
-          });
-          markCommentNotified(c.id);
-          sent++;
-          await new Promise(r => setTimeout(r, 800));
-        } catch (err) {
-          console.error(`[InboxSync] Error notificando comentario ${c.id} a WhatsApp:`, err.message);
-          markCommentNotified(c.id);
-        }
-      }
-    } else {
-      db.prepare("UPDATE inbox_comments SET notified_whatsapp = 1 WHERE notified_whatsapp = 0").run();
-    }
+    sent += await this.dispatchPendingDMs(config);
+    sent += await this.dispatchPendingComments(config);
 
     return { sent };
   }
