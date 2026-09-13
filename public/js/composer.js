@@ -1294,6 +1294,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOpenGeminiWebCampina = document.getElementById('btn-open-gemini-web-campina');
   const btnGenerateCampinaDirectPoster = document.getElementById('btn-generate-campina-direct-poster');
   const btnModalGenerateCampinaImage = document.getElementById('btn-modal-generate-campina-image');
+  const btnGenerateCampinaEditorialFlyer = document.getElementById('btn-generate-campina-editorial-flyer');
+  const chkCampinaRespectBg = document.getElementById('chk-campina-respect-bg');
+  const campinaExtraElementsWrap = document.getElementById('campina-extra-elements-wrap');
+  const campinaExtraElements = document.getElementById('campina-extra-elements');
+  const campinaHeroHeadline = document.getElementById('campina-hero-headline');
+  const campinaSublineHeadline = document.getElementById('campina-subline-headline');
   const campinaAiImgPreview = document.getElementById('campina-ai-img-preview');
   const campinaAiImgResult = document.getElementById('campina-ai-img-result');
 
@@ -1302,6 +1308,13 @@ document.addEventListener('DOMContentLoaded', () => {
       campinaBgImg.style.display = 'none';
       if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'block';
     };
+  }
+
+  // Toggle de elementos extra según checkbox de preservación de fondo
+  if (chkCampinaRespectBg && campinaExtraElementsWrap) {
+    chkCampinaRespectBg.addEventListener('change', () => {
+      campinaExtraElementsWrap.style.display = chkCampinaRespectBg.checked ? 'none' : 'block';
+    });
   }
 
   function syncCampinaModalThumb() {
@@ -1394,6 +1407,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const theme = document.getElementById('campina-theme').value.trim();
       const format = document.getElementById('campina-format').value;
       const targetDate = document.getElementById('campina-date').value.trim();
+      const heroHeadline = campinaHeroHeadline?.value?.trim() || '';
+      const sublineHeadline = campinaSublineHeadline?.value?.trim() || '';
+      const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
+      const extraElements = campinaExtraElements?.value?.trim() || '';
 
       if (!theme) {
         showToast('Ingresa el tema o enfoque (ej: Asado en quincho privado, descanso en suites...)', 'error');
@@ -1407,7 +1424,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/ai/campina-content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ theme, format, targetDate })
+          body: JSON.stringify({
+            theme,
+            format,
+            targetDate,
+            heroHeadline,
+            sublineHeadline,
+            respectBackground,
+            extraElements
+          })
         });
         const json = await res.json();
 
@@ -1415,6 +1440,13 @@ document.addEventListener('DOMContentLoaded', () => {
           aiGeneratedText.value = json.data.content;
           aiResultBox.style.display = 'block';
           btnApplyAiCopy.style.display = 'inline-flex';
+
+          if (json.data.heroHeadline && campinaHeroHeadline && !campinaHeroHeadline.value.trim()) {
+            campinaHeroHeadline.value = json.data.heroHeadline;
+          }
+          if (json.data.sublineHeadline && campinaSublineHeadline && !campinaSublineHeadline.value.trim()) {
+            campinaSublineHeadline.value = json.data.sublineHeadline;
+          }
 
           if (json.data.masterImagePrompt) {
             if (campinaImagePromptText) campinaImagePromptText.value = json.data.masterImagePrompt;
@@ -1469,6 +1501,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const theme = document.getElementById('campina-theme')?.value.trim();
     const targetDate = document.getElementById('campina-date')?.value.trim();
     const targetImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null);
+    const heroHeadline = campinaHeroHeadline?.value?.trim() || '';
+    const sublineHeadline = campinaSublineHeadline?.value?.trim() || '';
+    const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
+    const extraElements = campinaExtraElements?.value?.trim() || '';
 
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
@@ -1493,6 +1529,10 @@ document.addEventListener('DOMContentLoaded', () => {
           baseImageUrl: targetImg,
           theme: theme || 'Escapada de descanso en la naturaleza',
           targetDate: targetDate || '',
+          heroHeadline,
+          sublineHeadline,
+          respectBackground,
+          extraElements,
           account_id: accountId
         })
       });
@@ -1526,6 +1566,69 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (btnModalGenerateCampinaImage) {
     btnModalGenerateCampinaImage.addEventListener('click', handleGenerateCampinaDirectPoster);
+  }
+
+  // Generar Afiche Editorial 100% Real (Sin IA, tipografía vectorial nítida con Sharp/SVG)
+  const handleGenerateCampinaEditorialFlyer = async () => {
+    const targetImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null);
+    if (!targetImg) {
+      showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para crear el afiche editorial', 'warning');
+      return;
+    }
+
+    const headline = campinaHeroHeadline?.value?.trim() || 'DESCONEXIÓN TOTAL';
+    const subline = campinaSublineHeadline?.value?.trim() || 'Quinchos privados • Cabañas y suites • Algarrobo';
+
+    if (btnGenerateCampinaEditorialFlyer) {
+      btnGenerateCampinaEditorialFlyer.disabled = true;
+      btnGenerateCampinaEditorialFlyer.innerHTML = '<span>⚡ Componiendo Afiche Editorial...</span>';
+    }
+    showToast('Componiendo afiche editorial 4:5 sobre tu foto 100% real...', 'info');
+
+    try {
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      const accountSelect = document.getElementById('global-account-select');
+      const accountId = activeAcc?.pageId || accountSelect?.value || '';
+
+      const res = await fetch('/api/media/create-campina-flyer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseImageUrl: targetImg,
+          headline,
+          subline,
+          badgeText: 'CABAÑAS LA CAMPIÑA • ALGARROBO',
+          style: 'editorial',
+          account_id: accountId
+        })
+      });
+      const json = await res.json();
+
+      if (json.success && json.data?.url) {
+        ComposerState.mediaFiles = [json.data.url];
+        renderMediaPreviews();
+        updateLivePreviews();
+
+        if (campinaAiImgResult) campinaAiImgResult.src = json.data.url;
+        if (campinaAiImgPreview) campinaAiImgPreview.style.display = 'block';
+        if (campinaImagePromptBox) campinaImagePromptBox.style.display = 'block';
+
+        showToast('¡Afiche editorial 100% real compuesto y cargado al editor!', 'success');
+      } else {
+        showToast('Error componiendo afiche: ' + (json.error || 'Desconocido'), 'error');
+      }
+    } catch (err) {
+      showToast('Error de conexión: ' + err.message, 'error');
+    } finally {
+      if (btnGenerateCampinaEditorialFlyer) {
+        btnGenerateCampinaEditorialFlyer.disabled = false;
+        btnGenerateCampinaEditorialFlyer.innerHTML = '<span>📐 Afiche Editorial (Foto 100% Real)</span>';
+      }
+    }
+  };
+
+  if (btnGenerateCampinaEditorialFlyer) {
+    btnGenerateCampinaEditorialFlyer.addEventListener('click', handleGenerateCampinaEditorialFlyer);
   }
 
   // Aplicar texto generado en el editor

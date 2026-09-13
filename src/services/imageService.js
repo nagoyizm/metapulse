@@ -435,8 +435,8 @@ class ImageService {
    */
   async createEditorialCampinaFlyer({
     inputImagePath,
-    headline = 'Tu escapada perfecta en la naturaleza',
-    subline = 'Tinajas calientes bajo las estrellas • Quinchos privados • A minutos de la playa',
+    headline = 'DESCONEXIÓN TOTAL',
+    subline = 'Quinchos privados • Cabañas familiares y suites • Algarrobo',
     badgeText = 'CABAÑAS LA CAMPIÑA • ALGARROBO',
     style = 'editorial'
   }) {
@@ -452,77 +452,77 @@ class ImageService {
       .resize(width, height, { fit: 'cover', position: 'center' })
       .toBuffer();
 
-    const safeHeadline = (headline || 'DESCONEXIÓN EN EL BOSQUE')
+    const safeHeadline = (headline || 'DESCONEXIÓN EN LA NATURALEZA')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const safeSubline = (subline || 'Tinajas de agua caliente • Entorno natural • Algarrobo')
+    const safeSubline = (subline || 'Quinchos privados • Bosque de pinos • Desconexión familiar')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const safeBadge = (badgeText || 'CABAÑAS LA CAMPIÑA • ALGARROBO')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // 2. Definir estilos tipográficos sobrios
+    // 2. Definir estilos tipográficos editoriales sobrios
     const isSerif = style === 'editorial' || style === 'rustic';
     const titleFont = isSerif
       ? "'Instrument Serif', 'Georgia', 'Playfair Display', 'Times New Roman', serif"
       : "'Outfit', 'Segoe UI', -apple-system, sans-serif";
 
-    // 3. Crear overlay SVG vectorial de alta jerarquía visual (estilo revista / canvas-design)
+    // 3. Crear overlay SVG vectorial de alta jerarquía visual (estilo revista Kinfolk / Canvas Design)
     const svgOverlay = `
       <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="topVignette" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#000000" stop-opacity="0.80"/>
-            <stop offset="60%" stop-color="#000000" stop-opacity="0.25"/>
+            <stop offset="0%" stop-color="#000000" stop-opacity="0.75"/>
+            <stop offset="60%" stop-color="#000000" stop-opacity="0.20"/>
             <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
           </linearGradient>
           <linearGradient id="bottomVignette" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-            <stop offset="35%" stop-color="#050B0A" stop-opacity="0.60"/>
-            <stop offset="70%" stop-color="#050B0A" stop-opacity="0.90"/>
+            <stop offset="30%" stop-color="#050B0A" stop-opacity="0.55"/>
+            <stop offset="65%" stop-color="#050B0A" stop-opacity="0.88"/>
             <stop offset="100%" stop-color="#020504" stop-opacity="0.98"/>
           </linearGradient>
           <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.7"/>
+            <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.8"/>
           </filter>
         </defs>
 
         <!-- Sombra superior para el badge -->
-        <rect x="0" y="0" width="${width}" height="220" fill="url(#topVignette)"/>
+        <rect x="0" y="0" width="${width}" height="200" fill="url(#topVignette)"/>
 
         <!-- Sombra inferior profunda para jerarquía de texto -->
-        <rect x="0" y="${height - 520}" width="${width}" height="520" fill="url(#bottomVignette)"/>
+        <rect x="0" y="${height - 480}" width="${width}" height="480" fill="url(#bottomVignette)"/>
 
         <!-- Marco fino interior (Margen elegante de imprenta) -->
-        <rect x="36" y="36" width="${width - 72}" height="${height - 72}" rx="8" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+        <rect x="36" y="36" width="${width - 72}" height="${height - 72}" rx="6" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.2"/>
 
         <!-- Badge Superior Sobrio -->
-        <g transform="translate(${width / 2}, 85)">
-          <rect x="-210" y="-18" width="420" height="36" rx="18" fill="rgba(15, 23, 42, 0.65)" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1"/>
-          <text x="0" y="5" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#E2E8F0" text-anchor="middle" letter-spacing="3">
+        <g transform="translate(${width / 2}, 80)">
+          <rect x="-190" y="-17" width="380" height="34" rx="17" fill="rgba(15, 23, 42, 0.65)" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1"/>
+          <text x="0" y="5" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#E2E8F0" text-anchor="middle" letter-spacing="3">
             ${safeBadge.toUpperCase()}
           </text>
         </g>
 
-        <!-- Titular Principal con tipografía sobria y jerarquía visual -->
-        <g transform="translate(${width / 2}, ${height - 290})" filter="url(#subtleGlow)">
-          <text x="0" y="0" font-family="${titleFont}" font-size="54" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="0.5">
-            ${safeHeadline}
+        <!-- Titular Principal Hero con máxima jerarquía visual -->
+        <g transform="translate(${width / 2}, ${height - 250})" filter="url(#subtleGlow)">
+          <text x="0" y="0" font-family="${titleFont}" font-size="58" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">
+            ${safeHeadline.toUpperCase()}
           </text>
         </g>
 
         <!-- Línea divisoria minimalista -->
-        <line x1="${width / 2 - 80}" y1="${height - 235}" x2="${width / 2 + 80}" y2="${height - 235}" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <line x1="${width / 2 - 60}" y1="${height - 200}" x2="${width / 2 + 60}" y2="${height - 200}" stroke="rgba(255,255,255,0.4)" stroke-width="1.2"/>
 
-        <!-- Subtítulo o atributos de descanso -->
-        <g transform="translate(${width / 2}, ${height - 180})">
-          <text x="0" y="0" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="22" font-weight="400" fill="#CBD5E1" text-anchor="middle" letter-spacing="0.8">
+        <!-- Subtítulo editorial con respiro visual (1 sola línea limpia) -->
+        <g transform="translate(${width / 2}, ${height - 150})">
+          <text x="0" y="0" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="22" font-weight="400" fill="#E2E8F0" text-anchor="middle" letter-spacing="1.2">
             ${safeSubline}
           </text>
         </g>
 
-        <!-- Pie de flyer: Ubicación & Reservas -->
-        <g transform="translate(${width / 2}, ${height - 95})">
-          <text x="0" y="0" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#94A3B8" text-anchor="middle" letter-spacing="2">
-            ALGARROBO, CHILE • RESERVAS DIRECTAS POR WHATSAPP
+        <!-- Pie de flyer: Ubicación & WhatsApp Reservas -->
+        <g transform="translate(${width / 2}, ${height - 85})">
+          <text x="0" y="0" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="14" font-weight="600" fill="#94A3B8" text-anchor="middle" letter-spacing="2">
+            ALGARROBO, CHILE • RESERVAS WHATSAPP: +56 9 7900 4253
           </text>
         </g>
       </svg>

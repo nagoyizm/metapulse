@@ -1704,11 +1704,29 @@ router.post('/ai/generate-image', async (req, res) => {
 
 router.post('/ai/campina-content', async (req, res) => {
   try {
-    const { theme, format, targetDate, extraNotes } = req.body;
+    const {
+      theme,
+      format,
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground = true,
+      extraElements = ''
+    } = req.body;
     if (!theme) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
-    const result = await aiService.generateCampinaContent({ theme, format, targetDate, extraNotes });
+    const result = await aiService.generateCampinaContent({
+      theme,
+      format,
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground: Boolean(respectBackground),
+      extraElements
+    });
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -2088,12 +2106,16 @@ router.post('/media/create-ad-poster', async (req, res) => {
 // 1. Maquetador Editorial 4:5 sobre foto real (Cabañas La Campiña - Costo $0)
 router.post('/media/create-campina-flyer', async (req, res) => {
   try {
-    const { imagePath, headline, subline, badgeText, style } = req.body;
-    if (!imagePath) {
+    const { imagePath, baseImageUrl, headline, subline, badgeText, style, account_id, account_name } = req.body;
+    const targetImage = imagePath || baseImageUrl;
+    if (!targetImage) {
       return res.status(400).json({ success: false, error: 'Se requiere imagePath para generar el flyer.' });
     }
 
-    const absImagePath = path.join(__dirname, '../../', imagePath.replace(/^\//, ''));
+    const absImagePath = path.isAbsolute(targetImage)
+      ? targetImage
+      : path.join(__dirname, '../../', targetImage.replace(/^\//, ''));
+
     const flyer = await imageService.createEditorialCampinaFlyer({
       inputImagePath: absImagePath,
       headline,
@@ -2102,7 +2124,24 @@ router.post('/media/create-campina-flyer', async (req, res) => {
       style
     });
 
-    res.json({ success: true, data: flyer });
+    const flyerData = {
+      ...flyer,
+      url: flyer.relativeUrl
+    };
+
+    // Registrar en media_items para uso inmediato en composer
+    try {
+      const activeAccountId = account_id || getSetting('meta_page_id') || '';
+      const activeAccountName = account_name || 'Cabañas La Campiña';
+      db.prepare(`
+        INSERT INTO media_items (filename, original_name, filepath, mime_type, width, height, account_id, account_name)
+        VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?)
+      `).run(flyer.filename, `Editorial-Campina-${(headline || 'Afiche').slice(0, 20)}.jpg`, flyerData.url, flyer.width, flyer.height, activeAccountId, activeAccountName);
+    } catch (dbErr) {
+      console.warn('No se pudo registrar media_item:', dbErr.message);
+    }
+
+    res.json({ success: true, data: flyerData });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2146,7 +2185,16 @@ router.post('/ai/kmarket-designer-poster', async (req, res) => {
 // 3. Diseñador Senior Cabañas La Campiña con Gemini (Afiche Publicitario 4:5 sobre Foto de Fondo)
 router.post('/ai/campina-designer-poster', async (req, res) => {
   try {
-    const { baseImageUrl, theme, targetDate, extraNotes } = req.body;
+    const {
+      baseImageUrl,
+      theme,
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground = true,
+      extraElements = ''
+    } = req.body;
     if (!baseImageUrl && !theme) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar la foto de fondo o el tema del afiche.' });
     }
@@ -2155,7 +2203,11 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       baseImageUrl,
       theme,
       targetDate,
-      extraNotes
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground: Boolean(respectBackground),
+      extraElements
     });
 
     await tryAutoStampWatermark(result, req.body.account_id, '[La Campiña Poster]');
@@ -2166,7 +2218,7 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       db.prepare(`
         INSERT INTO media_items (filename, original_name, filepath, mime_type, width, height, account_id, account_name)
         VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?)
-      `).run(result.filename, `Afiche-Campina-${(theme || 'Escapada').slice(0, 20)}.jpg`, result.url, result.width, result.height, activeAccountId, activeAccountName);
+      `).run(result.filename, `Afiche-Campina-${(heroHeadline || theme || 'Escapada').slice(0, 20)}.jpg`, result.url, result.width, result.height, activeAccountId, activeAccountName);
     } catch (dbErr) {
       console.warn('No se pudo registrar media_item:', dbErr.message);
     }

@@ -1989,6 +1989,20 @@
                   <div id="campina-bg-status" class="text-muted" style="font-size:0.75rem;">Adjunta la foto real que deseas usar como base para el afiche 4:5.</div>
                 </div>
               </div>
+
+              <!-- Fidelidad del Fondo Real (Checkbox) -->
+              <div style="margin-top:12px; padding:10px 12px; background:rgba(0,0,0,0.12); border-radius:6px; border:1px solid var(--border-subtle);">
+                <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; font-size:0.82rem; font-weight:600; color:var(--text-primary);">
+                  <input type="checkbox" id="chk-campina-respect-bg" checked style="accent-color:var(--success); width:16px; height:16px;">
+                  <span>🔒 Mantener foto de fondo 100% intacta (Cero modificaciones o invenciones de IA)</span>
+                </label>
+                <div id="campina-extra-elements-wrap" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle);">
+                  <label class="form-label" for="campina-extra-elements" style="font-size:0.75rem; color:var(--warning); margin-bottom:4px;">
+                    ⚠️ Elementos específicos que autorizas incorporar (opcional):
+                  </label>
+                  <input type="text" id="campina-extra-elements" class="form-control form-control-sm" placeholder="Ej: Humo suave de asado a las brasas, iluminación cálida de atardecer...">
+                </div>
+              </div>
             </div>
             
             <div class="form-grid-2">
@@ -2010,15 +2024,39 @@
               <textarea id="campina-theme" class="form-control" rows="2" placeholder="Ej: Asado familiar en quincho privado, desconexión de pantallas en los jardines temáticos, escapada de descanso en suites de pareja..."></textarea>
             </div>
 
+            <!-- Jerarquía Tipográfica y Marketing (Anti AI-Slop) -->
+            <div class="card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.85rem;">⚡ Jerarquía Publicitaria (Tipografía de Revista Boutique):</span>
+                <span class="badge" style="background:rgba(59, 130, 246, 0.15); color:var(--primary); font-size:0.72rem;">Anti AI-Slop</span>
+              </div>
+              <div class="form-grid-2" style="margin-bottom:6px;">
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-hero-headline" style="font-size:0.75rem;">Titular Hero (2 a 3 palabras clave):</label>
+                  <input type="text" id="campina-hero-headline" class="form-control form-control-sm" placeholder="Ej: ESCAPADA NATURAL">
+                </div>
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-subline-headline" style="font-size:0.75rem;">Subtítulo Editorial (1 sola línea corta):</label>
+                  <input type="text" id="campina-subline-headline" class="form-control form-control-sm" placeholder="Ej: Cabañas, quinchos privados y bosque en Algarrobo">
+                </div>
+              </div>
+              <div class="text-muted" style="font-size:0.73rem; line-height:1.3;">
+                💡 <em>La foto solo lleva el titular contundente y subtítulo para máxima legibilidad. Todo el texto largo y detalles van al copy del post.</em>
+              </div>
+            </div>
+
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-              <button class="btn btn-ai" style="flex:1;" id="btn-generate-campina-ai">
+              <button class="btn btn-ai" style="flex:1; min-width:200px;" id="btn-generate-campina-ai">
                 <span>🏡 Generar Guión, Copy + Prompt 4:5</span>
               </button>
-              <button class="btn btn-primary" style="flex:1;" id="btn-generate-campina-direct-poster">
-                <span>🎨 Generar Afiche 4:5 con Gemini</span>
+              <button class="btn btn-primary" style="flex:1; min-width:180px;" id="btn-generate-campina-direct-poster" title="Genera el afiche 4:5 con Gemini sobre la foto">
+                <span>🎨 Generar con Gemini</span>
               </button>
-              <button type="button" class="btn btn-secondary" id="btn-open-gemini-web-campina" title="Abrir Gemini Web con el prompt maestro copiado">
-                <span>🌐 Abrir Gemini Web</span>
+              <button class="btn btn-secondary" style="flex:1; min-width:190px;" id="btn-generate-campina-editorial-flyer" title="Monta tipografía vectorial nítida sobre la foto 100% real sin tocar el fondo">
+                <span>📐 Afiche Editorial (Foto 100% Real)</span>
+              </button>
+              <button type="button" class="btn btn-ghost" id="btn-open-gemini-web-campina" title="Abrir Gemini Web con el prompt maestro copiado">
+                <span>🌐 Gemini Web</span>
               </button>
             </div>
 

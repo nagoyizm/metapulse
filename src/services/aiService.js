@@ -599,32 +599,141 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
   }
 
   /**
-   * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
+   * Extrae la jerarquía tipográfica y publicitaria óptima para Cabañas La Campiña
+   * (Hero Headline de 2 a 3 palabras + Subtítulo editorial con respiro)
    */
-  buildCampinaImagePrompt({ theme, targetDate = '', extraNotes = '' }) {
-    const occasion = targetDate ? ` (${targetDate})` : '';
-    const notes = extraNotes ? `\n- Notas adicionales: "${extraNotes}"` : '';
+  extractCampinaVisualHierarchy(theme = '', targetDate = '') {
+    const text = (theme || '').toLowerCase();
 
-    return `necesito que te comportes como un diseñador grafico senior experto en marketing turístico y publicidad de hospitalidad boutique.
-Hacer una imagen publicitaria de dimensiones 4:5 vertical para instagram utilizando la imagen de fondo adjunta como escenografía real (cabaña de madera rústica, quincho con asado, terraza acogedora, senderos naturales o jardines temáticos de Cabañas La Campiña en Algarrobo, Chile).
-- Enfoque / Tema principal: "${theme}"${occasion}${notes}
-- Puesta en escena y atmósfera: Realzar la imagen de fondo con iluminación cinematográfica cálida ("golden hour" o sol de mañana entre pinos y vegetación), transmitiendo descanso, paz, desconexión familiar y calidez hogareña.
-- Tipografía display publicitaria: Usar un titular principal con una fuente display sólida, limpia y elegante de alto contraste (tonos blanco crema o madera noble) con relieve publicitario sutil o sombra difusa que asegure 100% de legibilidad sobre el fondo. Subtítulo con fuente de menor tamaño pero refinada y respiro visual para poner la frase de valor editorial (ej: "Tu refugio de descanso y naturaleza en Algarrobo" o "Momentos únicos alrededor del quincho").
-- Todo texto en español impecable.
-- PROHIBIDO terminantemente inventar tinajas de agua caliente o hot tubs (no existen en el complejo). Solo instalaciones reales: quinchos privados en terraza, cabañas familiares (2 a 8 personas), suites de pareja, áreas verdes y desconexión sin pantallas (sin Wi-Fi).
-- No hacer llamadas de venta agresivas ni poner nada como "comprar ahora" o "precio bomba". Mantener tono acogedor, hospitalario e inspiracional.
-- Incluir de manera sobria y elegante en una esquina o franja: "CABAÑAS LA CAMPIÑA • ALGARROBO" y en pequeño: "WhatsApp Reservas: +56 9 7900 4253".`.trim();
+    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne')) {
+      return {
+        hero: 'MOMENTOS AL FUEGO',
+        keyword: 'AL FUEGO',
+        subline: 'Quinchos privados y naturaleza en Algarrobo'
+      };
+    }
+    if (text.includes('desconex') || text.includes('descanso') || text.includes('pantalla') || text.includes('estrés') || text.includes('silencio')) {
+      return {
+        hero: 'DESCONEXIÓN TOTAL',
+        keyword: 'DESCONEXIÓN',
+        subline: 'Senderos de pinos y jardines temáticos sin pantallas'
+      };
+    }
+    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos')) {
+      return {
+        hero: 'ESCAPADA EN PAREJA',
+        keyword: 'ESCAPADA',
+        subline: 'Suites acogedoras y tranquilidad a minutos del mar'
+      };
+    }
+    if (text.includes('familia') || text.includes('niño') || text.includes('juego') || text.includes('hijos')) {
+      return {
+        hero: 'TIEMPO EN FAMILIA',
+        keyword: 'EN FAMILIA',
+        subline: 'Cabañas amplias de 2 a 8 personas y áreas verdes'
+      };
+    }
+    if (text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18')) {
+      return {
+        hero: 'VIVE EL 18',
+        keyword: 'EL 18',
+        subline: 'El mejor asado campestre en tu quincho privado'
+      };
+    }
+    if (text.includes('verano') || text.includes('playa') || text.includes('sol') || text.includes('vacaciones')) {
+      return {
+        hero: 'TU VERANO EN CALMA',
+        keyword: 'VERANO',
+        subline: 'Naturaleza y brisa marina en Algarrobo'
+      };
+    }
+
+    return {
+      hero: 'TU REFUGIO NATURAL',
+      keyword: 'REFUGIO',
+      subline: 'Cabañas, quinchos privados y bosque en Algarrobo'
+    };
+  }
+
+  /**
+   * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
+   * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte editorial
+   */
+  buildCampinaImagePrompt({
+    theme,
+    targetDate = '',
+    extraNotes = '',
+    heroHeadline = '',
+    sublineHeadline = '',
+    respectBackground = true,
+    extraElements = ''
+  }) {
+    const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
+    const hero = (heroHeadline || hierarchy.hero).toUpperCase();
+    const subline = sublineHeadline || hierarchy.subline;
+    const keyword = hierarchy.keyword;
+
+    const backgroundDirective = respectBackground
+      ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
+- CONSERVA LA FOTOGRAFÍA ADJUNTA INTACTA: La imagen adjunta muestra las instalaciones reales del recinto (cabaña de madera rústica, quincho, terraza o vegetación nativa de Algarrobo).
+- PROHIBIDO redibujar la arquitectura, cambiar las maderas, inventar muebles, agregar cabañas ficticias o alterar la vegetación. Mantén el fondo fotográfico 100% real sin alucinaciones de IA.
+- Solo aplica etalonaje cinematográfico cálido y natural ("golden hour" sutil o luz matinal diáfana), mejorando nitidez orgánica y profundidad sin modificar la escena.`
+      : `1. BASE ESCÉNICA REAL CON ELEMENTOS AUTORIZADOS:
+- Toma la fotografía adjunta como base escénica del lugar.
+- Si incorporas elementos adicionales, únicamente agrega: "${extraElements || 'humo suave de asado a las brasas o iluminación cálida de atardecer'}". CERO modificaciones al resto de la arquitectura ni a la vegetación.`;
+
+    return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest).
+
+OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) para Instagram de "Cabañas La Campiña" (Algarrobo, Chile), utilizando la fotografía adjunta.
+
+${backgroundDirective}
+- PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
+
+2. TÉCNICAS DE MARKETING Y JERARQUÍA TIPOGRÁFICA SENIOR (CERO "AI SLOP"):
+- REGLA DE ORO: La publicidad de alto rendimiento NO lleva párrafos largos, NO lleva viñetas, NO lleva listas apretadas ni fuentes sintéticas de IA deformadas. El texto dentro de la imagen debe ser minimalista, elegante y con amplio respiro visual ("menos es más").
+- TITULAR HERO (Jerarquía visual dominante, máximo 2 a 3 palabras):
+  "${hero}"
+  Tipografía: Display geométrica moderna o editorial serif de revista boutique, sólida, de alto contraste en tono blanco crema o madera noble, con sombra difusa sutil para garantizar lectura impecable sobre el fondo. Jerarquizar la palabra clave "${keyword}" con mayor presencia tipográfica.
+- SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
+  "${subline}"
+  Tipografía: Sans-serif limpia y ligera, con amplio espaciado entre letras (letter-spacing elegante).
+- IDENTIDAD DISCRETA:
+  En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
+- CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
+
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche 4:5 de alta gama listo para pauta publicitaria.`.trim();
   }
 
   /**
    * Generador Especializado para Cabañas La Campiña: Guión Reel / Video + Copy de Fechas + Prompt Maestro 4:5
    * Fundamentado 100% en la información oficial de www.cabanaslacampina.cl
    */
-  async generateCampinaContent({ theme, format = 'reel', targetDate = '', extraNotes = '' }) {
+  async generateCampinaContent({
+    theme,
+    format = 'reel',
+    targetDate = '',
+    extraNotes = '',
+    heroHeadline = '',
+    sublineHeadline = '',
+    respectBackground = true,
+    extraElements = ''
+  }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
-    const masterImagePrompt = this.buildCampinaImagePrompt({ theme, targetDate, extraNotes });
+    const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
+    const finalHero = heroHeadline || hierarchy.hero;
+    const finalSubline = sublineHeadline || hierarchy.subline;
+
+    const masterImagePrompt = this.buildCampinaImagePrompt({
+      theme,
+      targetDate,
+      extraNotes,
+      heroHeadline: finalHero,
+      sublineHeadline: finalSubline,
+      respectBackground,
+      extraElements
+    });
 
     const systemPrompt = `
 ${campinaKnowledge}
@@ -708,6 +817,8 @@ Estructura a entregar:
       theme,
       format,
       masterImagePrompt,
+      heroHeadline: finalHero,
+      sublineHeadline: finalSubline,
       content: generatedText
     };
   }
@@ -715,8 +826,25 @@ Estructura a entregar:
   /**
    * Generador Directo de Afiche 4:5 con Gemini sobre Foto de Fondo para Cabañas La Campiña
    */
-  async generateCampinaDesignerPoster({ baseImageUrl, theme = '', targetDate = '', extraNotes = '' }) {
-    const designerPrompt = this.buildCampinaImagePrompt({ theme, targetDate, extraNotes });
+  async generateCampinaDesignerPoster({
+    baseImageUrl,
+    theme = '',
+    targetDate = '',
+    extraNotes = '',
+    heroHeadline = '',
+    sublineHeadline = '',
+    respectBackground = true,
+    extraElements = ''
+  }) {
+    const designerPrompt = this.buildCampinaImagePrompt({
+      theme,
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground,
+      extraElements
+    });
 
     return await this.generateDirectImage({
       prompt: designerPrompt,
