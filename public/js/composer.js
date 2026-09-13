@@ -777,8 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
           accountName,
           also_share_story: alsoShareStory,
           story_timing_rule: storyTimingRule,
-          story_custom_datetime: storyCustomDatetime,
-          music_config: postType === 'story' ? musicConfigPayload : null,
+          music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
           story_music_config: alsoShareStory ? musicConfigPayload : null
         })
       });
