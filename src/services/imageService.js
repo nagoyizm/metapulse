@@ -46,7 +46,9 @@ class ImageService {
     position = 'bottom-right',
     opacity = 0.85,
     scalePercent = 18,
-    marginPercent = 3
+    marginPercent = 3,
+    xPercent = null,
+    yPercent = null
   }) {
     if (!fs.existsSync(inputImagePath)) {
       throw new Error(`La imagen base no existe: ${inputImagePath}`);
@@ -60,13 +62,25 @@ class ImageService {
     const baseHeight = baseMeta.height;
 
     // Calcular tamaño proporcional del logo
-    const targetLogoWidth = Math.max(50, Math.round(baseWidth * (scalePercent / 100)));
+    const targetLogoWidth = Math.max(30, Math.round(baseWidth * (scalePercent / 100)));
     const margin = Math.round(baseWidth * (marginPercent / 100));
 
-    // Redimensionar logo y aplicar opacidad si es necesario
+    // Redimensionar logo y asegurar canal alpha
     let logoBuffer = await sharp(watermarkPath)
       .resize({ width: targetLogoWidth, fit: 'inside' })
+      .ensureAlpha()
       .toBuffer();
+
+    // Aplicar opacidad real con multiplicación de canal alpha si opacity < 1
+    const parsedOpacity = Number(opacity);
+    if (!isNaN(parsedOpacity) && parsedOpacity < 1 && parsedOpacity > 0) {
+      const alphaVal = Math.max(0, Math.min(255, Math.round(parsedOpacity * 255)));
+      const alphaMask = Buffer.from([255, 255, 255, alphaVal]);
+      logoBuffer = await sharp(logoBuffer)
+        .composite([{ input: alphaMask, raw: { width: 1, height: 1, channels: 4 }, tile: true, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+    }
 
     const logoMeta = await sharp(logoBuffer).metadata();
     const logoWidth = logoMeta.width;
@@ -76,28 +90,33 @@ class ImageService {
     let left = margin;
     let top = margin;
 
-    switch (position) {
-      case 'top-left':
-        left = margin;
-        top = margin;
-        break;
-      case 'top-right':
-        left = baseWidth - logoWidth - margin;
-        top = margin;
-        break;
-      case 'bottom-left':
-        left = margin;
-        top = baseHeight - logoHeight - margin;
-        break;
-      case 'center':
-        left = Math.round((baseWidth - logoWidth) / 2);
-        top = Math.round((baseHeight - logoHeight) / 2);
-        break;
-      case 'bottom-right':
-      default:
-        left = baseWidth - logoWidth - margin;
-        top = baseHeight - logoHeight - margin;
-        break;
+    if (xPercent !== null && xPercent !== undefined && yPercent !== null && yPercent !== undefined) {
+      left = Math.round(baseWidth * (Number(xPercent) / 100));
+      top = Math.round(baseHeight * (Number(yPercent) / 100));
+    } else {
+      switch (position) {
+        case 'top-left':
+          left = margin;
+          top = margin;
+          break;
+        case 'top-right':
+          left = baseWidth - logoWidth - margin;
+          top = margin;
+          break;
+        case 'bottom-left':
+          left = margin;
+          top = baseHeight - logoHeight - margin;
+          break;
+        case 'center':
+          left = Math.round((baseWidth - logoWidth) / 2);
+          top = Math.round((baseHeight - logoHeight) / 2);
+          break;
+        case 'bottom-right':
+        default:
+          left = baseWidth - logoWidth - margin;
+          top = baseHeight - logoHeight - margin;
+          break;
+      }
     }
 
     // Asegurar que no quede fuera de los límites
@@ -110,22 +129,24 @@ class ImageService {
 
     // Crear sombra suave y realista bajo el logo (estilo sticker comercial integrado)
     const compositeLayers = [];
-    try {
-      const shadowBuffer = await sharp(logoBuffer)
-        .ensureAlpha()
-        .linear(0, 0)
-        .blur(Math.max(3, Math.round(targetLogoWidth * 0.025)))
-        .png()
-        .toBuffer();
+    if (parsedOpacity > 0.35) {
+      try {
+        const shadowBuffer = await sharp(logoBuffer)
+          .ensureAlpha()
+          .linear(0, 0)
+          .blur(Math.max(3, Math.round(targetLogoWidth * 0.025)))
+          .png()
+          .toBuffer();
 
-      compositeLayers.push({
-        input: shadowBuffer,
-        top: Math.min(baseHeight - logoHeight, Math.round(top + Math.max(3, Math.round(targetLogoWidth * 0.02)))),
-        left: Math.min(baseWidth - logoWidth, Math.round(left + Math.max(1, Math.round(targetLogoWidth * 0.01)))),
-        blend: 'over'
-      });
-    } catch (sErr) {
-      console.warn('No se pudo generar sombra de marca de agua:', sErr.message);
+        compositeLayers.push({
+          input: shadowBuffer,
+          top: Math.min(baseHeight - logoHeight, Math.round(top + Math.max(2, Math.round(targetLogoWidth * 0.015)))),
+          left: Math.min(baseWidth - logoWidth, Math.round(left + Math.max(1, Math.round(targetLogoWidth * 0.01)))),
+          blend: 'over'
+        });
+      } catch (sErr) {
+        console.warn('No se pudo generar sombra de marca de agua:', sErr.message);
+      }
     }
 
     compositeLayers.push({
@@ -143,7 +164,9 @@ class ImageService {
     return {
       outputPath,
       filename: outputFilename,
-      relativeUrl: `/uploads/processed/${outputFilename}`
+      relativeUrl: `/uploads/processed/${outputFilename}`,
+      width: baseWidth,
+      height: baseHeight
     };
   }
 

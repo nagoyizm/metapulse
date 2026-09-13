@@ -320,6 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCreateAdPoster) {
       btnCreateAdPoster.style.display = (hasMedia && !isCampina && !isKmarket) ? 'inline-flex' : 'none';
     }
+    const wmBtn = document.getElementById('btn-watermark-overlay');
+    if (wmBtn) {
+      wmBtn.style.display = hasMedia ? 'inline-flex' : 'none';
+    }
   }
 
   const savedUseAi = localStorage.getItem('metapulse_use_flux_image') === 'true';
@@ -648,38 +652,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 8. Botón de Estampar Marca de Agua en Composer
+  // 8. Botón de Estampar Marca de Agua / Logotipo en Composer
   const btnWatermarkOverlay = document.getElementById('btn-watermark-overlay');
   if (btnWatermarkOverlay) {
-    btnWatermarkOverlay.addEventListener('click', async () => {
-      if (ComposerState.mediaFiles.length === 0) {
-        showToast('Debes tener al menos una imagen subida', 'error');
-        return;
-      }
-      showToast('Aplicando logotipo/marca de agua...', 'info');
-      try {
-        const targetImage = ComposerState.mediaFiles[0];
-        const res = await fetch('/api/watermark/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imagePath: targetImage,
-            position: 'bottom-right',
-            opacity: 0.85,
-            scalePercent: 18
-          })
-        });
-        const json = await res.json();
-        if (json.success && json.data) {
-          ComposerState.mediaFiles[0] = json.data.relativeUrl;
-          renderMediaPreviews();
-          updateLivePreviews();
-          showToast('¡Logotipo estampado con éxito!', 'success');
-        } else {
-          showToast('Error aplicando marca de agua: ' + (json.error || 'Asegúrate de subir un logo primero'), 'error');
-        }
-      } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+    btnWatermarkOverlay.addEventListener('click', () => {
+      if (typeof window.openInteractiveStampModal === 'function') {
+        window.openInteractiveStampModal();
+      } else {
+        showToast('Abriendo posicionador de logo...', 'info');
       }
     });
   }

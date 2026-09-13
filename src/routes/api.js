@@ -2003,7 +2003,7 @@ router.get('/watermarks', (req, res) => {
 
 router.post('/watermark/apply', async (req, res) => {
   try {
-    const { imagePath, watermarkId, position, opacity, scalePercent } = req.body;
+    const { imagePath, watermarkId, position, opacity, scalePercent, xPercent, yPercent } = req.body;
     const activeAccountId = req.body.account_id || getSetting('meta_page_id') || '';
 
     let watermarkRow;
@@ -2019,16 +2019,31 @@ router.post('/watermark/apply', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado para esta cuenta.' });
     }
 
-    const absImagePath = path.join(__dirname, '../../', imagePath.replace(/^\//, ''));
+    const absImagePath = path.isAbsolute(imagePath)
+      ? imagePath
+      : path.join(__dirname, '../../', imagePath.replace(/^\//, ''));
     const absWatermarkPath = path.join(__dirname, '../../uploads/watermarks', watermarkRow.filename);
 
     const processed = await imageService.applyWatermark({
       inputImagePath: absImagePath,
       watermarkPath: absWatermarkPath,
       position,
-      opacity: Number(opacity) || 0.85,
-      scalePercent: Number(scalePercent) || 18
+      opacity: opacity !== undefined ? Number(opacity) : 0.85,
+      scalePercent: scalePercent !== undefined ? Number(scalePercent) : 18,
+      xPercent: xPercent !== undefined && xPercent !== null ? Number(xPercent) : null,
+      yPercent: yPercent !== undefined && yPercent !== null ? Number(yPercent) : null
     });
+
+    // Registrar en media_items para uso inmediato en composer
+    try {
+      const activeAccountName = watermarkRow.account_name || getSetting('meta_page_name') || '';
+      db.prepare(`
+        INSERT INTO media_items (filename, original_name, filepath, mime_type, width, height, account_id, account_name)
+        VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?)
+      `).run(processed.filename, `Stamped-${path.basename(imagePath)}`, processed.relativeUrl, processed.width, processed.height, activeAccountId, activeAccountName);
+    } catch (dbErr) {
+      console.warn('No se pudo registrar media_item estampado:', dbErr.message);
+    }
 
     res.json({ success: true, data: processed });
   } catch (err) {
