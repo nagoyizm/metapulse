@@ -20,6 +20,9 @@ const {
   upsertInboxComment,
   getInboxComments,
   getInboxCommentById,
+  archiveInboxComment,
+  unarchiveInboxComment,
+  getInboxCommentsCount,
   markCommentAnswered,
   markCommentNotified,
   markMessageNotified
@@ -2350,7 +2353,7 @@ router.get('/inbox/comments', async (req, res) => {
     const accountId = req.query.accountId || req.query.account_id || getSetting('meta_page_id');
     const instagramId = req.query.instagramId || req.query.instagram_id || getSetting('meta_instagram_id');
     let comments = getInboxComments(filter, accountId, instagramId);
-    if (comments.length === 0 && accountId && accountId !== 'all') {
+    if (comments.length === 0 && accountId && accountId !== 'all' && filter !== 'archived') {
       // Sincronizar desde Meta / simulación para esta cuenta
       const creds = metaService.getAccountCredentials(accountId);
       const metaComments = await metaService.getRecentComments(30, creds);
@@ -2365,7 +2368,49 @@ router.get('/inbox/comments', async (req, res) => {
         inboxSyncService.dispatchPendingWhatsAppNotifications().catch(e => console.error('[Inbox] Error despachando WhatsApp tras sync:', e.message));
       });
     }
-    res.json({ success: true, data: comments });
+    const unansweredCount = getInboxCommentsCount(accountId, instagramId);
+    res.json({ success: true, data: comments, unansweredCount });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Archivar un comentario en la plataforma
+ * (Exclusivo de MetaPulse: NO archiva ni elimina el comentario en Instagram o Facebook)
+ */
+router.post('/inbox/comments/:id/archive', async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    const comment = getInboxCommentById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Comentario no encontrado' });
+    }
+    archiveInboxComment(commentId);
+    res.json({
+      success: true,
+      message: 'Comentario archivado en la plataforma exitosamente (permanece intacto en Instagram/Facebook).'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * Desarchivar un comentario y restaurarlo al queue activo de la plataforma
+ */
+router.post('/inbox/comments/:id/unarchive', async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    const comment = getInboxCommentById(commentId);
+    if (!comment) {
+      return res.status(404).json({ success: false, error: 'Comentario no encontrado' });
+    }
+    unarchiveInboxComment(commentId);
+    res.json({
+      success: true,
+      message: 'Comentario desarchivado y restaurado en la bandeja activa.'
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

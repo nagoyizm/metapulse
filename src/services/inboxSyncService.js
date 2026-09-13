@@ -52,6 +52,7 @@ class InboxSyncService {
         SET notified_whatsapp = 0 
         WHERE is_answered = 0 
           AND notified_whatsapp = 1 
+          AND (is_archived = 0 OR is_archived IS NULL)
           AND datetime(created_at) >= datetime('now', '-24 hours')
       `).run();
       if (res && res.changes > 0) {

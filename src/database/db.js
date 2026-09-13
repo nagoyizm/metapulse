@@ -136,6 +136,7 @@ function initializeDatabase() {
       is_answered INTEGER DEFAULT 0,
       reply_text TEXT,
       notified_whatsapp INTEGER DEFAULT 0,
+      is_archived INTEGER DEFAULT 0,
       created_local_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
@@ -169,6 +170,9 @@ function initializeDatabase() {
   } catch (_) {}
   try {
     db.prepare('ALTER TABLE inbox_comments ADD COLUMN account_name TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE inbox_comments ADD COLUMN is_archived INTEGER DEFAULT 0').run();
   } catch (_) {}
   try {
     db.prepare('ALTER TABLE inbox_conversations ADD COLUMN account_name TEXT').run();
@@ -426,8 +430,8 @@ function upsertInboxComment(c) {
   const stmt = db.prepare(`
     INSERT INTO inbox_comments (
       id, platform, account_id, account_name, post_id, post_caption, post_media_url, post_permalink,
-      from_id, from_name, comment_text, created_at, reply_count, is_answered, reply_text, notified_whatsapp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      from_id, from_name, comment_text, created_at, reply_count, is_answered, reply_text, notified_whatsapp, is_archived
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       account_id = COALESCE(excluded.account_id, inbox_comments.account_id),
       account_name = COALESCE(excluded.account_name, inbox_comments.account_name),
@@ -451,7 +455,8 @@ function upsertInboxComment(c) {
     c.reply_count || 0,
     c.is_answered ? 1 : 0,
     c.reply_text || null,
-    c.notified_whatsapp ? 1 : 0
+    c.notified_whatsapp ? 1 : 0,
+    c.is_archived ? 1 : 0
   );
 }
 
@@ -467,17 +472,48 @@ function getInboxComments(filter = 'all', accountId = null, instagramId = null) 
       params.push(String(accountId));
     }
   }
-  if (filter === 'unanswered') {
-    query += ' AND is_answered = 0';
-  } else if (filter === 'answered') {
-    query += ' AND is_answered = 1';
+
+  if (filter === 'archived') {
+    query += ' AND is_archived = 1';
+  } else {
+    query += ' AND (is_archived = 0 OR is_archived IS NULL)';
+    if (filter === 'unanswered') {
+      query += ' AND is_answered = 0';
+    } else if (filter === 'answered') {
+      query += ' AND is_answered = 1';
+    }
   }
+
   query += ' ORDER BY datetime(created_at) DESC';
   return db.prepare(query).all(...params);
 }
 
 function getInboxCommentById(id) {
   return db.prepare('SELECT * FROM inbox_comments WHERE id = ?').get(id);
+}
+
+function archiveInboxComment(id) {
+  return db.prepare('UPDATE inbox_comments SET is_archived = 1 WHERE id = ?').run(id);
+}
+
+function unarchiveInboxComment(id) {
+  return db.prepare('UPDATE inbox_comments SET is_archived = 0 WHERE id = ?').run(id);
+}
+
+function getInboxCommentsCount(accountId = null, instagramId = null) {
+  let query = 'SELECT COUNT(*) as count FROM inbox_comments WHERE is_answered = 0 AND (is_archived = 0 OR is_archived IS NULL)';
+  const params = [];
+  if (accountId && accountId !== 'all') {
+    if (instagramId && String(instagramId) !== String(accountId)) {
+      query += ' AND (account_id = ? OR account_id = ?)';
+      params.push(String(accountId), String(instagramId));
+    } else {
+      query += ' AND account_id = ?';
+      params.push(String(accountId));
+    }
+  }
+  const row = db.prepare(query).get(...params);
+  return row ? row.count : 0;
 }
 
 function markCommentAnswered(commentId, replyText) {
@@ -491,7 +527,7 @@ function markCommentAnswered(commentId, replyText) {
 function getUnnotifiedComments() {
   return db.prepare(`
     SELECT * FROM inbox_comments
-    WHERE notified_whatsapp = 0
+    WHERE notified_whatsapp = 0 AND (is_archived = 0 OR is_archived IS NULL)
     ORDER BY created_at ASC
   `).all();
 }
@@ -517,6 +553,9 @@ module.exports = {
   upsertInboxComment,
   getInboxComments,
   getInboxCommentById,
+  archiveInboxComment,
+  unarchiveInboxComment,
+  getInboxCommentsCount,
   markCommentAnswered,
   getUnnotifiedComments,
   markCommentNotified

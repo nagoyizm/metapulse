@@ -99,7 +99,7 @@ function setupInboxSubtabs() {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       InboxState.commentFilter = btn.dataset.commentFilter;
-      renderCommentsList();
+      loadComments();
     });
   });
 
@@ -646,6 +646,9 @@ async function loadComments() {
     const json = await res.json();
     if (json.success) {
       InboxState.comments = json.data || [];
+      if (typeof json.unansweredCount === 'number') {
+        InboxState.unansweredCommentsCount = json.unansweredCount;
+      }
       renderCommentsList();
       updateUnreadBadges();
     }
@@ -659,11 +662,29 @@ function renderCommentsList() {
   if (!container) return;
 
   if (InboxState.comments.length === 0) {
+    let emptyIcon = '💬';
+    let emptyTitle = 'No hay comentarios en este filtro';
+    let emptyDesc = 'Cuando tus seguidores comenten tus publicaciones de Instagram o Facebook, aparecerán aquí para responderles.';
+
+    if (InboxState.commentFilter === 'archived') {
+      emptyIcon = '📦';
+      emptyTitle = 'No hay comentarios archivados';
+      emptyDesc = 'Los comentarios que decidas no responder puedes archivarlos desde la bandeja para mantener tu queue limpio sin eliminarlos de tus redes.';
+    } else if (InboxState.commentFilter === 'unanswered') {
+      emptyIcon = '✨';
+      emptyTitle = '¡Bandeja al día!';
+      emptyDesc = 'No tienes comentarios pendientes de respuesta en este momento.';
+    } else if (InboxState.commentFilter === 'answered') {
+      emptyIcon = '📬';
+      emptyTitle = 'Sin respuestas registradas';
+      emptyDesc = 'Los comentarios que hayas respondido desde la plataforma aparecerán listados aquí.';
+    }
+
     container.innerHTML = `
       <div class="empty-state-card" style="text-align: center; padding: 40px; background: var(--bg-surface); border-radius: 12px; border: 1px solid var(--border-subtle);">
-        <span style="font-size: 2.5rem; display: block; margin-bottom: 12px;">💬</span>
-        <h4 style="margin: 0 0 6px 0;">No hay comentarios en este filtro</h4>
-        <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">Cuando tus seguidores comenten tus publicaciones de Instagram o Facebook, aparecerán aquí para responderles.</p>
+        <span style="font-size: 2.5rem; display: block; margin-bottom: 12px;">${emptyIcon}</span>
+        <h4 style="margin: 0 0 6px 0;">${emptyTitle}</h4>
+        <p style="color: var(--text-secondary); margin: 0; font-size: 0.85rem;">${emptyDesc}</p>
       </div>
     `;
     return;
@@ -671,23 +692,64 @@ function renderCommentsList() {
 
   container.innerHTML = InboxState.comments.map(c => {
     const isAnswered = c.is_answered === 1;
+    const isArchived = c.is_archived === 1;
     const platformLabel = c.platform === 'facebook' ? 'Facebook' : 'Instagram';
     const platformClass = c.platform === 'facebook' ? 'fb' : 'ig';
     const timeFormatted = formatTimeSnippet(c.created_at);
     const postSnippet = c.post_caption ? `"${escapeHtml(c.post_caption.slice(0, 75))}..."` : 'Publicación de redes sociales';
 
-    const statusBadge = isAnswered
-      ? `<span class="badge badge-success" style="font-size: 0.75rem;">✅ Respondido</span>`
-      : `<span class="badge badge-accent" style="font-size: 0.75rem;">⏳ Pendiente</span>`;
+    let statusBadge = '';
+    if (isArchived) {
+      statusBadge = `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); font-size: 0.74rem;">📦 Archivado</span>`;
+    } else if (isAnswered) {
+      statusBadge = `<span class="badge badge-success" style="font-size: 0.75rem;">✅ Respondido</span>`;
+    } else {
+      statusBadge = `<span class="badge badge-accent" style="font-size: 0.75rem;">⏳ Pendiente</span>`;
+    }
 
-    const replyBox = isAnswered
-      ? `
+    const archiveBtn = isArchived
+      ? `<button type="button" class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.72rem;" onclick="unarchiveComment('${c.id}')" title="Desarchivar y restaurar a la bandeja activa">
+           📂 Desarchivar
+         </button>`
+      : `<button type="button" class="btn btn-ghost btn-sm btn-archive-comment" style="padding: 3px 8px; font-size: 0.72rem; color: var(--text-secondary);" onclick="archiveComment('${c.id}')" title="Archivar comentario en la plataforma (no se elimina en redes)">
+           📦 Archivar
+         </button>`;
+
+    let replyBox = '';
+    if (isAnswered) {
+      replyBox = `
         <div class="comment-answered-box">
           <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Tu respuesta enviada:</div>
           <div style="font-size: 0.88rem; color: var(--text-primary); font-weight: 500;">💬 ${escapeHtml(c.reply_text || 'Respuesta enviada')}</div>
         </div>
-      `
-      : `
+      `;
+    } else if (isArchived) {
+      replyBox = `
+        <div class="comment-archived-box" style="background: rgba(148, 163, 184, 0.08); border: 1px dashed rgba(148, 163, 184, 0.25); border-radius: 8px; padding: 10px 14px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            📦 Comentario <strong>archivado</strong> en MetaPulse (retirado del queue activo; permanece intacto en tus redes).
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" style="padding: 3px 10px; font-size: 0.72rem;" onclick="unarchiveComment('${c.id}')">
+              📂 Desarchivar
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" style="padding: 3px 8px; font-size: 0.72rem;" onclick="toggleArchivedReplyForm('${c.id}')">
+              💬 Responder igual
+            </button>
+          </div>
+        </div>
+
+        <div class="comment-reply-form" id="comment-form-${c.id}" style="display: none; margin-top: 10px;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="input-comment-reply-${c.id}" class="form-control" placeholder="Escribe una respuesta para este comentario archivado... (Enter para enviar)" style="font-size: 0.88rem; flex: 1;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommentReply('${c.id}','${c.platform}');}">
+            <button type="button" class="btn btn-primary btn-sm" onclick="sendCommentReply('${c.id}', '${c.platform}')" style="min-width: 105px;">
+              <span>Responder</span> 🚀
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      replyBox = `
         <!-- Caja de sugerencias IA estilizadas basadas en el post y negocio -->
         <div class="comment-ai-box" id="comment-ai-box-${c.id}">
           <div style="display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-secondary); padding: 4px 0;">
@@ -708,12 +770,13 @@ function renderCommentsList() {
           </div>
         </div>
       `;
+    }
 
     return `
-      <div class="comment-card" id="comment-card-${c.id}">
+      <div class="comment-card ${isArchived ? 'is-archived' : ''}" id="comment-card-${c.id}">
         <div class="comment-card-header">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="comment-avatar">👤</div>
+            <div class="comment-avatar">${isArchived ? '📦' : '👤'}</div>
             <div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <strong style="font-size: 0.92rem;">${escapeHtml(c.from_name || 'Usuario')}</strong>
@@ -726,6 +789,7 @@ function renderCommentsList() {
             <button type="button" class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.72rem; opacity: 0.9;" onclick="triggerCommentWhatsApp('${c.id}')" title="Reenviar alerta de este comentario a WhatsApp">
               📲 Avisar a WhatsApp
             </button>
+            ${archiveBtn}
             ${statusBadge}
           </div>
         </div>
@@ -744,9 +808,9 @@ function renderCommentsList() {
     `;
   }).join('');
 
-  // Cargar sugerencias IA para comentarios pendientes
+  // Cargar sugerencias IA para comentarios pendientes (no archivados)
   InboxState.comments.forEach(c => {
-    if (c.is_answered !== 1) {
+    if (c.is_answered !== 1 && c.is_archived !== 1) {
       ensureCommentAiSuggestions(c.id);
     }
   });
@@ -921,6 +985,83 @@ window.triggerCommentWhatsApp = async function(commentId) {
     }
   } catch (err) {
     showToast(`Error al enviar: ${err.message}`, 'error');
+  }
+};
+
+window.toggleArchivedReplyForm = function(commentId) {
+  const form = document.getElementById(`comment-form-${commentId}`);
+  if (!form) return;
+  const isHidden = form.style.display === 'none';
+  form.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    const input = document.getElementById(`input-comment-reply-${commentId}`);
+    if (input) input.focus();
+  }
+};
+
+window.archiveComment = async function(commentId) {
+  const card = document.getElementById(`comment-card-${commentId}`);
+  try {
+    const res = await fetch(`/api/inbox/comments/${commentId}/archive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast('📦 Comentario archivado en la plataforma (no se borra de tus redes)', 'info', 3500);
+      if (card && InboxState.commentFilter !== 'archived') {
+        card.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.96) translateY(-6px)';
+        setTimeout(() => {
+          InboxState.comments = InboxState.comments.filter(c => c.id !== commentId);
+          if (typeof InboxState.unansweredCommentsCount === 'number' && InboxState.unansweredCommentsCount > 0) {
+            InboxState.unansweredCommentsCount--;
+          }
+          renderCommentsList();
+          updateUnreadBadges();
+        }, 250);
+      } else {
+        await loadComments();
+      }
+    } else {
+      showToast(json.error || 'Error al archivar comentario', 'error');
+    }
+  } catch (err) {
+    showToast(`Error al archivar: ${err.message}`, 'error');
+  }
+};
+
+window.unarchiveComment = async function(commentId) {
+  const card = document.getElementById(`comment-card-${commentId}`);
+  try {
+    const res = await fetch(`/api/inbox/comments/${commentId}/unarchive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const json = await res.json();
+    if (json.success) {
+      showToast('📂 Comentario desarchivado y restaurado en tu queue activo', 'success', 3500);
+      if (card && InboxState.commentFilter === 'archived') {
+        card.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.96) translateY(-6px)';
+        setTimeout(() => {
+          InboxState.comments = InboxState.comments.filter(c => c.id !== commentId);
+          if (typeof InboxState.unansweredCommentsCount === 'number') {
+            InboxState.unansweredCommentsCount++;
+          }
+          renderCommentsList();
+          updateUnreadBadges();
+        }, 250);
+      } else {
+        await loadComments();
+      }
+    } else {
+      showToast(json.error || 'Error al desarchivar comentario', 'error');
+    }
+  } catch (err) {
+    showToast(`Error al desarchivar: ${err.message}`, 'error');
   }
 };
 
@@ -1116,12 +1257,22 @@ async function updateUnreadBadgesFromApi() {
       params.append('accountId', active.pageId);
       if (active.instagramId) params.append('instagramId', active.instagramId);
     }
-    const res = await fetch(`/api/inbox/conversations${params.toString() ? '?' + params.toString() : ''}`);
-    const json = await res.json();
-    if (json.success && json.data) {
-      InboxState.conversations = json.data;
-      updateUnreadBadges();
+    const [convRes, cmtRes] = await Promise.all([
+      fetch(`/api/inbox/conversations${params.toString() ? '?' + params.toString() : ''}`),
+      fetch(`/api/inbox/comments?${params.toString() ? params.toString() + '&' : ''}filter=unanswered`)
+    ]);
+    const [convJson, cmtJson] = await Promise.all([convRes.json(), cmtRes.json()]);
+    if (convJson.success && convJson.data) {
+      InboxState.conversations = convJson.data;
     }
+    if (cmtJson.success) {
+      if (typeof cmtJson.unansweredCount === 'number') {
+        InboxState.unansweredCommentsCount = cmtJson.unansweredCount;
+      } else if (Array.isArray(cmtJson.data)) {
+        InboxState.unansweredCommentsCount = cmtJson.data.length;
+      }
+    }
+    updateUnreadBadges();
   } catch (err) {
     // Sondeo de fondo silencioso: se ignora el error de red para no interrumpir al usuario
   }
@@ -1129,7 +1280,9 @@ async function updateUnreadBadgesFromApi() {
 
 function updateUnreadBadges() {
   const unreadDms = InboxState.conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-  const unreadComments = InboxState.comments.filter(c => c.is_answered === 0).length;
+  const unreadComments = typeof InboxState.unansweredCommentsCount === 'number'
+    ? InboxState.unansweredCommentsCount
+    : InboxState.comments.filter(c => c.is_answered === 0 && !c.is_archived).length;
   const totalUnread = unreadDms + unreadComments;
 
   const sidebarBadge = document.getElementById('sidebar-inbox-badge');

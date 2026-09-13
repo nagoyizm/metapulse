@@ -10,6 +10,10 @@ const {
   getInboxMessagesByConversation,
   upsertInboxComment,
   getInboxComments,
+  getInboxCommentById,
+  archiveInboxComment,
+  unarchiveInboxComment,
+  getInboxCommentsCount,
   markCommentAnswered
 } = require('./src/database/db');
 
@@ -90,7 +94,61 @@ async function runTests() {
   if (!answeredCmt || answeredCmt.is_answered !== 1) throw new Error('Fallo al marcar comentario como respondido');
   console.log('✅ Comentario marcado como respondido exitosamente');
 
-  // 7. Probar normalización de teléfono en WhatsAppService
+  // 7. Probar archivar comentario en la plataforma
+  const testArchiveCmtId = 'test_archive_' + Date.now();
+  upsertInboxComment({
+    id: testArchiveCmtId,
+    platform: 'instagram',
+    post_id: 'post_arch',
+    post_caption: 'Post con comentario que el usuario no desea responder',
+    from_id: 'troll_999',
+    from_name: 'spam_user',
+    comment_text: 'Spam no deseado o consulta que no requiere respuesta',
+    created_at: new Date().toISOString()
+  });
+
+  // Verificar que aparece en 'unanswered' antes de archivar
+  let pendingBefore = getInboxComments('unanswered');
+  if (!pendingBefore.some(c => c.id === testArchiveCmtId)) throw new Error('El comentario nuevo debe estar en unanswered');
+
+  // Archivar
+  archiveInboxComment(testArchiveCmtId);
+  console.log('✅ Comentario archivado en BD exitosamente');
+
+  // Verificar que NO aparece en 'unanswered' ni en 'all'
+  let pendingAfter = getInboxComments('unanswered');
+  let allAfter = getInboxComments('all');
+  if (pendingAfter.some(c => c.id === testArchiveCmtId)) throw new Error('El comentario archivado NO debe aparecer en el queue de unanswered');
+  if (allAfter.some(c => c.id === testArchiveCmtId)) throw new Error('El comentario archivado NO debe aparecer en el queue de all');
+  console.log('✅ Comentario archivado retirado con éxito de las colas activas (unanswered y all)');
+
+  // Verificar que SÍ aparece en 'archived'
+  let archivedList = getInboxComments('archived');
+  const foundArchived = archivedList.find(c => c.id === testArchiveCmtId);
+  if (!foundArchived || foundArchived.is_archived !== 1) throw new Error('El comentario debe aparecer en el filtro archived');
+  console.log('✅ Comentario archivado encontrado en la lista de archivados');
+
+  // Probar que un upsert (simulación de sincronización Meta) no desarchive el comentario
+  upsertInboxComment({
+    id: testArchiveCmtId,
+    platform: 'instagram',
+    post_id: 'post_arch',
+    from_id: 'troll_999',
+    from_name: 'spam_user',
+    comment_text: 'Spam no deseado o consulta que no requiere respuesta',
+    created_at: new Date().toISOString()
+  });
+  const afterSync = getInboxCommentById(testArchiveCmtId);
+  if (afterSync.is_archived !== 1) throw new Error('La sincronización de Meta no debe desarchivar un comentario archivado');
+  console.log('✅ Estado archivado protegido contra sobreescritura en sincronizaciones');
+
+  // Desarchivar
+  unarchiveInboxComment(testArchiveCmtId);
+  let pendingRestored = getInboxComments('unanswered');
+  if (!pendingRestored.some(c => c.id === testArchiveCmtId)) throw new Error('El comentario desarchivado debe volver a unanswered');
+  console.log('✅ Comentario desarchivado y restaurado en queue activo exitosamente');
+
+  // 8. Probar normalización de teléfono en WhatsAppService
   const cleanPhone = whatsappService.normalizePhone('+56 9 8765 4321');
   console.log(`✅ Normalización de teléfono WhatsApp: "+56 9 8765 4321" -> "${cleanPhone}"`);
   if (cleanPhone !== '+56987654321') throw new Error(`Teléfono no normalizado como se esperaba: ${cleanPhone}`);
