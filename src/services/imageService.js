@@ -50,14 +50,49 @@ class ImageService {
     xPercent = null,
     yPercent = null
   }) {
-    if (!fs.existsSync(inputImagePath)) {
-      throw new Error(`La imagen base no existe: ${inputImagePath}`);
-    }
-    if (!fs.existsSync(watermarkPath)) {
-      throw new Error(`El logotipo/marca de agua no existe: ${watermarkPath}`);
+    // 1. Resolver ruta de imagen base con soporte para URLs y rutas relativas
+    let resolvedInputPath = inputImagePath;
+    if (resolvedInputPath.startsWith('http://') || resolvedInputPath.startsWith('https://')) {
+      try {
+        const parsedUrl = new URL(resolvedInputPath);
+        resolvedInputPath = path.join(__dirname, '../../', parsedUrl.pathname.replace(/^\/+/, ''));
+      } catch (_) {}
+    } else if (!path.isAbsolute(resolvedInputPath)) {
+      resolvedInputPath = path.join(__dirname, '../../', resolvedInputPath.replace(/^\/+/, ''));
     }
 
-    const baseMeta = await sharp(inputImagePath).metadata();
+    if (!fs.existsSync(resolvedInputPath)) {
+      const baseFilename = path.basename(resolvedInputPath);
+      const candidates = [
+        path.join(this.processedDir, baseFilename),
+        path.join(this.uploadsDir, baseFilename),
+        path.join(this.uploadsDir, 'generated', baseFilename),
+        path.join(this.uploadsDir, 'media', baseFilename),
+        path.join(this.uploadsDir, 'watermarks', baseFilename)
+      ];
+      const found = candidates.find(c => fs.existsSync(c));
+      if (found) {
+        resolvedInputPath = found;
+      } else {
+        throw new Error(`La imagen base no existe: ${inputImagePath}`);
+      }
+    }
+
+    // 2. Resolver ruta de marca de agua / logotipo
+    let resolvedWatermarkPath = watermarkPath;
+    if (!path.isAbsolute(resolvedWatermarkPath)) {
+      resolvedWatermarkPath = path.join(__dirname, '../../', resolvedWatermarkPath.replace(/^\/+/, ''));
+    }
+    if (!fs.existsSync(resolvedWatermarkPath)) {
+      const fallbackWm = path.join(__dirname, '../../uploads/watermarks', path.basename(resolvedWatermarkPath));
+      if (fs.existsSync(fallbackWm)) {
+        resolvedWatermarkPath = fallbackWm;
+      } else {
+        throw new Error(`El logotipo/marca de agua no existe: ${watermarkPath}`);
+      }
+    }
+
+    const baseMeta = await sharp(resolvedInputPath).metadata();
     const baseWidth = baseMeta.width;
     const baseHeight = baseMeta.height;
 
@@ -156,7 +191,7 @@ class ImageService {
       blend: 'over'
     });
 
-    await sharp(inputImagePath)
+    await sharp(resolvedInputPath)
       .composite(compositeLayers)
       .jpeg({ quality: 92 })
       .toFile(outputPath);

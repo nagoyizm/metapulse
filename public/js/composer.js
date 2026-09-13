@@ -280,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       mediaPreviewGrid.appendChild(div);
     });
+    if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
   }
 
   window.renderMediaPreviews = renderMediaPreviews;
@@ -659,7 +660,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof window.openInteractiveStampModal === 'function') {
         window.openInteractiveStampModal();
       } else {
-        showToast('Abriendo posicionador de logo...', 'info');
+        const modal = document.getElementById('modal-interactive-stamp');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.style.zIndex = '99999';
+        }
       }
     });
   }

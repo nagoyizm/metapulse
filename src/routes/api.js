@@ -1989,10 +1989,12 @@ router.post('/watermark/upload-logo', uploadWatermark.single('logo'), (req, res)
 router.get('/watermarks', (req, res) => {
   try {
     const filterAccountId = req.query.account_id || (req.query.all === 'true' ? null : getSetting('meta_page_id'));
-    let watermarks;
+    let watermarks = [];
     if (filterAccountId && req.query.all !== 'true') {
       watermarks = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, created_at DESC').all(filterAccountId);
-    } else {
+    }
+    // Fallback si la cuenta específica aún no tiene logo propio registrado
+    if (!watermarks || watermarks.length === 0) {
       watermarks = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, created_at DESC').all();
     }
     res.json({ success: true, data: watermarks, filterAccountId: filterAccountId || 'all' });
@@ -2009,14 +2011,16 @@ router.post('/watermark/apply', async (req, res) => {
     let watermarkRow;
     if (watermarkId) {
       watermarkRow = db.prepare('SELECT * FROM watermarks WHERE id = ?').get(watermarkId);
-    } else if (activeAccountId) {
+    }
+    if (!watermarkRow && activeAccountId) {
       watermarkRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
-    } else {
+    }
+    if (!watermarkRow) {
       watermarkRow = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
     }
 
     if (!watermarkRow) {
-      return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado para esta cuenta.' });
+      return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado en Multimedia & Logos. Sube uno primero.' });
     }
 
     const absImagePath = path.isAbsolute(imagePath)

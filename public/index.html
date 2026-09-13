@@ -410,7 +410,7 @@
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
                         ✨ Póster 4:5
                       </button>
-                      <button type="button" class="btn btn-ghost btn-sm" id="btn-watermark-overlay" style="display: none;">
+                      <button type="button" class="btn btn-ghost btn-sm" id="btn-watermark-overlay" style="display: none;" onclick="if (typeof window.openInteractiveStampModal === 'function') window.openInteractiveStampModal();">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
                         Estampar Logo
                       </button>
@@ -2419,7 +2419,7 @@
   </div>
 
   <!-- MODAL ESTAMPAR LOGO INTERACTIVO (ARRASTRAR Y POSICIONAR) -->
-  <div class="modal-backdrop" id="modal-interactive-stamp" style="display: none;">
+  <div class="modal-backdrop" id="modal-interactive-stamp" style="display: none; z-index: 99999;">
     <div class="modal-dialog" style="max-width: 880px; width: 95%;">
       <div class="modal-content" style="max-height: 92vh; display: flex; flex-direction: column;">
         <div class="modal-header" style="background: var(--bg-surface-subtle); border-bottom: 1px solid var(--border-subtle); padding: 14px 20px;">
@@ -2430,7 +2430,7 @@
               <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Arrastra el logotipo libremente sobre la foto para ubicarlo con precisión milimétrica antes de publicar o agregar música.</p>
             </div>
           </div>
-          <button class="modal-close" id="btn-close-stamp-modal">&times;</button>
+          <button class="modal-close" id="btn-close-stamp-modal" onclick="if (typeof window.closeInteractiveStamp === 'function') window.closeInteractiveStamp();">&times;</button>
         </div>
 
         <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1;">
@@ -2459,11 +2459,11 @@
           <div style="display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
             <!-- Escenario interactivo -->
             <div style="flex: 1; min-width: 320px; display:flex; justify-content:center; align-items:center; background: #080c14; border-radius: 8px; padding: 14px; border: 1px solid var(--border-subtle); overflow: hidden; min-height: 420px;">
-              <div id="stamp-stage-wrap" style="position: relative; display: inline-block; max-width: 100%; max-height: 520px; user-select: none; line-height: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.7); border-radius: 6px; overflow: hidden;">
+              <div id="stamp-stage-wrap" style="position: relative; display: inline-block; max-width: 100%; max-height: 520px; min-width: 260px; min-height: 320px; user-select: none; line-height: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.7); border-radius: 6px; overflow: hidden; background: #111;">
                 <img id="stamp-stage-bg" src="" alt="Fondo" style="max-width: 100%; max-height: 520px; display: block; object-fit: contain; pointer-events: none;">
                 
                 <!-- Logo Arrastrable Interactivo -->
-                <div id="stamp-stage-logo" style="position: absolute; top: 78%; left: 78%; cursor: grab; z-index: 20; touch-action: none; display: flex; align-items: center; justify-content: center; transform: translate3d(0,0,0);">
+                <div id="stamp-stage-logo" style="position: absolute; top: 75%; left: 75%; width: 90px; min-width: 40px; min-height: 40px; cursor: grab; z-index: 20; touch-action: none; display: flex; align-items: center; justify-content: center; transform: translate3d(0,0,0);">
                   <img id="stamp-stage-logo-img" src="" alt="Logo" style="width: 100%; height: auto; display: block; pointer-events: none; filter: drop-shadow(0 3px 10px rgba(0,0,0,0.5));">
                   <div class="stamp-logo-guide" style="position: absolute; inset: -4px; border: 1.5px dashed #3b82f6; border-radius: 4px; pointer-events: none; background: rgba(59, 130, 246, 0.12);"></div>
                   <div class="stamp-drag-badge" style="position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: #2563eb; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.4);">✋ Arrastra aquí</div>
@@ -2514,7 +2514,7 @@
         </div>
 
         <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-stamp-modal">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-stamp-modal" onclick="if (typeof window.closeInteractiveStamp === 'function') window.closeInteractiveStamp();">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-stamp-logo" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); font-weight: 700; padding:8px 18px;">
             ✨ Estampar y Generar Nueva Imagen
           </button>
@@ -2690,15 +2690,15 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JS SCRIPTS -->
-  <script src="js/auth.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/composer.js"></script>
-  <script src="js/storyMusic.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/analytics.js"></script>
-  <script src="js/watermark.js"></script>
-  <script src="js/settings.js"></script>
-  <script src="js/batchScheduler.js"></script>
-  <script src="js/inbox.js"></script>
+  <script src="js/auth.js?v=2.2"></script>
+  <script src="js/app.js?v=2.2"></script>
+  <script src="js/composer.js?v=2.2"></script>
+  <script src="js/storyMusic.js?v=2.2"></script>
+  <script src="js/calendar.js?v=2.2"></script>
+  <script src="js/analytics.js?v=2.2"></script>
+  <script src="js/watermark.js?v=2.2"></script>
+  <script src="js/settings.js?v=2.2"></script>
+  <script src="js/batchScheduler.js?v=2.2"></script>
+  <script src="js/inbox.js?v=2.2"></script>
 </body>
 </html>

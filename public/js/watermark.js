@@ -236,24 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===========================================================================
   // POSICIONADOR INTERACTIVO DE LOGOTIPO (ARRASTRAR Y ESTAMPAR)
   // ===========================================================================
-  const modalInteractiveStamp = document.getElementById('modal-interactive-stamp');
-  const btnCloseStampModal = document.getElementById('btn-close-stamp-modal');
-  const btnCancelStampModal = document.getElementById('btn-cancel-stamp-modal');
-  const stampLogoSelect = document.getElementById('stamp-logo-select');
-  const stampStageWrap = document.getElementById('stamp-stage-wrap');
-  const stampStageBg = document.getElementById('stamp-stage-bg');
-  const stampStageLogo = document.getElementById('stamp-stage-logo');
-  const stampStageLogoImg = document.getElementById('stamp-stage-logo-img');
-  const stampSliderScale = document.getElementById('stamp-slider-scale');
-  const stampScaleVal = document.getElementById('stamp-scale-val');
-  const stampSliderOpacity = document.getElementById('stamp-slider-opacity');
-  const stampOpacityVal = document.getElementById('stamp-opacity-val');
-  const stampCoordX = document.getElementById('stamp-coord-x');
-  const stampCoordY = document.getElementById('stamp-coord-y');
-  const btnConfirmStampLogo = document.getElementById('btn-confirm-stamp-logo');
-  const stampQuickLogoInput = document.getElementById('stamp-quick-logo-input');
-  const btnStampUploadNewLogo = document.getElementById('btn-stamp-upload-new-logo');
-
   let currentTargetImage = '';
   let availableWatermarks = [];
   let stampXPercent = 78;
@@ -266,45 +248,53 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragInitLeft = 0;
   let dragInitTop = 0;
 
-  const closeInteractiveStamp = () => {
-    if (modalInteractiveStamp) modalInteractiveStamp.style.display = 'none';
+  window.closeInteractiveStamp = function() {
+    const modal = document.getElementById('modal-interactive-stamp');
+    if (modal) modal.style.display = 'none';
   };
 
-  if (btnCloseStampModal) btnCloseStampModal.addEventListener('click', closeInteractiveStamp);
-  if (btnCancelStampModal) btnCancelStampModal.addEventListener('click', closeInteractiveStamp);
-
   function syncStampPosition() {
-    if (!stampStageWrap || !stampStageLogo) return;
-    const stageW = stampStageWrap.clientWidth;
-    const stageH = stampStageWrap.clientHeight;
+    const stageWrap = document.getElementById('stamp-stage-wrap');
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    const coordX = document.getElementById('stamp-coord-x');
+    const coordY = document.getElementById('stamp-coord-y');
+    if (!stageWrap || !stageLogo) return;
+
+    const stageW = stageWrap.clientWidth;
+    const stageH = stageWrap.clientHeight;
     if (stageW <= 0 || stageH <= 0) return;
 
     const logoW = Math.max(24, Math.round(stageW * (stampScale / 100)));
-    stampStageLogo.style.width = logoW + 'px';
-    stampStageLogo.style.opacity = (stampOpacity / 100).toString();
+    stageLogo.style.width = logoW + 'px';
+    stageLogo.style.opacity = (stampOpacity / 100).toString();
 
-    const logoH = stampStageLogo.offsetHeight || Math.round(logoW * 0.6);
+    const logoH = stageLogo.offsetHeight || Math.round(logoW * 0.6);
     const maxLeft = Math.max(0, stageW - logoW);
     const maxTop = Math.max(0, stageH - logoH);
 
     const left = Math.max(0, Math.min(maxLeft, Math.round(stageW * (stampXPercent / 100))));
     const top = Math.max(0, Math.min(maxTop, Math.round(stageH * (stampYPercent / 100))));
 
-    stampStageLogo.style.left = left + 'px';
-    stampStageLogo.style.top = top + 'px';
+    stageLogo.style.left = left + 'px';
+    stageLogo.style.top = top + 'px';
 
-    if (stampCoordX) stampCoordX.textContent = Math.round((left / stageW) * 100) + '%';
-    if (stampCoordY) stampCoordY.textContent = Math.round((top / stageH) * 100) + '%';
+    if (coordX) coordX.textContent = Math.round((left / stageW) * 100) + '%';
+    if (coordY) coordY.textContent = Math.round((top / stageH) * 100) + '%';
   }
 
   function snapStampToPreset(pos) {
-    if (!stampStageWrap || !stampStageLogo) return;
-    const stageW = stampStageWrap.clientWidth;
-    const stageH = stampStageWrap.clientHeight;
+    const stageWrap = document.getElementById('stamp-stage-wrap');
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    const coordX = document.getElementById('stamp-coord-x');
+    const coordY = document.getElementById('stamp-coord-y');
+    if (!stageWrap || !stageLogo) return;
+
+    const stageW = stageWrap.clientWidth;
+    const stageH = stageWrap.clientHeight;
     if (stageW <= 0 || stageH <= 0) return;
 
-    const logoW = stampStageLogo.offsetWidth || Math.round(stageW * (stampScale / 100));
-    const logoH = stampStageLogo.offsetHeight || Math.round(logoW * 0.6);
+    const logoW = stageLogo.offsetWidth || Math.round(stageW * (stampScale / 100));
+    const logoH = stageLogo.offsetHeight || Math.round(logoW * 0.6);
     const margin = Math.round(stageW * 0.035);
 
     let left = margin;
@@ -342,11 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
     stampXPercent = Math.round((left / stageW) * 1000) / 10;
     stampYPercent = Math.round((top / stageH) * 1000) / 10;
 
-    stampStageLogo.style.left = left + 'px';
-    stampStageLogo.style.top = top + 'px';
+    stageLogo.style.left = left + 'px';
+    stageLogo.style.top = top + 'px';
 
-    if (stampCoordX) stampCoordX.textContent = Math.round(stampXPercent) + '%';
-    if (stampCoordY) stampCoordY.textContent = Math.round(stampYPercent) + '%';
+    if (coordX) coordX.textContent = Math.round(stampXPercent) + '%';
+    if (coordY) coordY.textContent = Math.round(stampYPercent) + '%';
 
     document.querySelectorAll('.btn-stamp-snap').forEach(b => {
       b.classList.toggle('active', b.dataset.pos === pos);
@@ -355,26 +345,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Eventos de arrastre para el logo
   function onPointerDown(e) {
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    if (!stageLogo) return;
     isDraggingStamp = true;
     const pt = e.touches ? e.touches[0] : e;
     dragStartX = pt.clientX;
     dragStartY = pt.clientY;
-    dragInitLeft = stampStageLogo.offsetLeft;
-    dragInitTop = stampStageLogo.offsetTop;
-    stampStageLogo.style.cursor = 'grabbing';
+    dragInitLeft = stageLogo.offsetLeft;
+    dragInitTop = stageLogo.offsetTop;
+    stageLogo.style.cursor = 'grabbing';
     e.preventDefault();
   }
 
   function onPointerMove(e) {
     if (!isDraggingStamp) return;
+    const stageWrap = document.getElementById('stamp-stage-wrap');
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    const coordX = document.getElementById('stamp-coord-x');
+    const coordY = document.getElementById('stamp-coord-y');
+    if (!stageWrap || !stageLogo) return;
+
     const pt = e.touches ? e.touches[0] : e;
     const dx = pt.clientX - dragStartX;
     const dy = pt.clientY - dragStartY;
 
-    const stageW = stampStageWrap.clientWidth;
-    const stageH = stampStageWrap.clientHeight;
-    const logoW = stampStageLogo.offsetWidth;
-    const logoH = stampStageLogo.offsetHeight;
+    const stageW = stageWrap.clientWidth;
+    const stageH = stageWrap.clientHeight;
+    const logoW = stageLogo.offsetWidth;
+    const logoH = stageLogo.offsetHeight;
 
     const maxLeft = Math.max(0, stageW - logoW);
     const maxTop = Math.max(0, stageH - logoH);
@@ -382,14 +380,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const newLeft = Math.max(0, Math.min(maxLeft, dragInitLeft + dx));
     const newTop = Math.max(0, Math.min(maxTop, dragInitTop + dy));
 
-    stampStageLogo.style.left = newLeft + 'px';
-    stampStageLogo.style.top = newTop + 'px';
+    stageLogo.style.left = newLeft + 'px';
+    stageLogo.style.top = newTop + 'px';
 
     stampXPercent = Math.round((newLeft / stageW) * 1000) / 10;
     stampYPercent = Math.round((newTop / stageH) * 1000) / 10;
 
-    if (stampCoordX) stampCoordX.textContent = Math.round(stampXPercent) + '%';
-    if (stampCoordY) stampCoordY.textContent = Math.round(stampYPercent) + '%';
+    if (coordX) coordX.textContent = Math.round(stampXPercent) + '%';
+    if (coordY) coordY.textContent = Math.round(stampYPercent) + '%';
 
     document.querySelectorAll('.btn-stamp-snap').forEach(b => b.classList.remove('active'));
     e.preventDefault();
@@ -398,110 +396,44 @@ document.addEventListener('DOMContentLoaded', () => {
   function onPointerUp() {
     if (isDraggingStamp) {
       isDraggingStamp = false;
-      if (stampStageLogo) stampStageLogo.style.cursor = 'grab';
+      const stageLogo = document.getElementById('stamp-stage-logo');
+      if (stageLogo) stageLogo.style.cursor = 'grab';
     }
   }
 
-  if (stampStageLogo) {
-    stampStageLogo.addEventListener('mousedown', onPointerDown);
-    stampStageLogo.addEventListener('touchstart', onPointerDown, { passive: false });
-  }
-  window.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('touchmove', onPointerMove, { passive: false });
-  window.addEventListener('mouseup', onPointerUp);
-  window.addEventListener('touchend', onPointerUp);
-
-  // Sliders
-  if (stampSliderScale) {
-    stampSliderScale.addEventListener('input', () => {
-      stampScale = parseInt(stampSliderScale.value, 10) || 18;
-      if (stampScaleVal) stampScaleVal.textContent = `${stampScale}%`;
-      syncStampPosition();
-    });
-  }
-
-  if (stampSliderOpacity) {
-    stampSliderOpacity.addEventListener('input', () => {
-      stampOpacity = parseInt(stampSliderOpacity.value, 10) || 90;
-      if (stampOpacityVal) stampOpacityVal.textContent = `${stampOpacity}%`;
-      if (stampStageLogo) stampStageLogo.style.opacity = (stampOpacity / 100).toString();
-    });
-  }
-
-  // Presets rápidos
-  document.querySelectorAll('.btn-stamp-snap').forEach(btn => {
-    btn.addEventListener('click', () => {
-      snapStampToPreset(btn.dataset.pos);
-    });
-  });
-
-  // Selector de Logo
-  if (stampLogoSelect) {
-    stampLogoSelect.addEventListener('change', () => {
-      const selectedId = stampLogoSelect.value;
-      const found = availableWatermarks.find(w => String(w.id) === String(selectedId));
-      if (found && stampStageLogoImg) {
-        stampStageLogoImg.src = found.filepath;
-      }
-    });
-  }
-
-  // Subir logo desde el modal
-  if (btnStampUploadNewLogo && stampQuickLogoInput) {
-    btnStampUploadNewLogo.addEventListener('click', () => {
-      stampQuickLogoInput.click();
-    });
-
-    stampQuickLogoInput.addEventListener('change', async () => {
-      if (!stampQuickLogoInput.files || stampQuickLogoInput.files.length === 0) return;
-      const file = stampQuickLogoInput.files[0];
-      const formData = new FormData();
-      formData.append('logo', file);
-      formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
-
-      showToast('Subiendo nuevo logotipo...', 'info');
-      try {
-        const res = await fetch('/api/watermark/upload-logo', {
-          method: 'POST',
-          body: formData
-        });
-        const json = await res.json();
-        if (json.success) {
-          showToast('¡Logotipo subido y listo para estampar!', 'success');
-          await loadWatermarksForStampModal();
-        } else {
-          showToast('Error subiendo logo: ' + json.error, 'error');
-        }
-      } catch (err) {
-        showToast('Error de conexión: ' + err.message, 'error');
-      }
-    });
-  }
-
+  // Carga de logos desde el backend con soporte multi-cuenta y fallback global
   async function loadWatermarksForStampModal() {
     try {
-      const res = await fetch('/api/watermarks');
+      const res = await fetch('/api/watermarks?all=true');
       const json = await res.json();
       if (!json.success) return;
 
       availableWatermarks = json.data || [];
-      if (!stampLogoSelect) return;
+      const select = document.getElementById('stamp-logo-select');
+      const stageLogo = document.getElementById('stamp-stage-logo');
+      const stageLogoImg = document.getElementById('stamp-stage-logo-img');
+
+      if (!select) return;
 
       if (availableWatermarks.length === 0) {
-        stampLogoSelect.innerHTML = '<option value="">(Sin logos subidos aún)</option>';
-        if (stampStageLogo) stampStageLogo.style.display = 'none';
+        select.innerHTML = '<option value="">(Sin logos subidos aún en Multimedia & Logos)</option>';
+        if (stageLogo) stageLogo.style.display = 'none';
         return;
       }
 
-      stampLogoSelect.innerHTML = availableWatermarks.map(w => {
+      select.innerHTML = availableWatermarks.map((w, idx) => {
         const isDef = w.is_default ? ' ★ (Defecto)' : '';
-        return `<option value="${w.id}">${w.name}${isDef}</option>`;
+        const accInfo = w.account_name ? ` [${w.account_name}]` : '';
+        return `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}${accInfo}</option>`;
       }).join('');
 
       const activeLogo = availableWatermarks[0];
-      if (stampStageLogoImg && activeLogo) {
-        stampStageLogoImg.src = activeLogo.filepath;
-        if (stampStageLogo) stampStageLogo.style.display = 'flex';
+      if (stageLogoImg && activeLogo) {
+        stageLogoImg.src = activeLogo.filepath;
+        if (stageLogo) stageLogo.style.display = 'flex';
+        setTimeout(() => {
+          syncStampPosition();
+        }, 50);
       }
     } catch (err) {
       console.warn('Error cargando logos para el modal:', err);
@@ -510,93 +442,226 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Abrir Modal de Estampado Interactivo
   window.openInteractiveStampModal = async function() {
-    if (!ComposerState.mediaFiles || ComposerState.mediaFiles.length === 0) {
+    let targetImg = '';
+    if (typeof ComposerState !== 'undefined' && ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+      targetImg = ComposerState.mediaFiles[0];
+    }
+    if (!targetImg) {
+      const previewEl = document.querySelector('#media-preview-grid img');
+      if (previewEl && previewEl.src) targetImg = previewEl.src;
+    }
+    if (!targetImg) {
+      const campinaEl = document.getElementById('campina-bg-img');
+      if (campinaEl && campinaEl.src && campinaEl.style.display !== 'none') targetImg = campinaEl.src;
+    }
+
+    if (!targetImg) {
       showToast('Debes tener al menos una foto en el redactor para estampar el logo', 'warning');
       return;
     }
 
-    currentTargetImage = ComposerState.mediaFiles[0];
-    if (modalInteractiveStamp) modalInteractiveStamp.style.display = 'flex';
+    if (typeof ComposerState !== 'undefined' && (!ComposerState.mediaFiles || ComposerState.mediaFiles.length === 0)) {
+      ComposerState.mediaFiles = [targetImg];
+    }
+
+    currentTargetImage = targetImg;
+
+    const modal = document.getElementById('modal-interactive-stamp');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.style.zIndex = '99999';
+    }
 
     await loadWatermarksForStampModal();
 
-    if (stampStageBg) {
-      stampStageBg.onload = () => {
-        setTimeout(() => {
-          syncStampPosition();
-          snapStampToPreset('bottom-right');
-        }, 60);
-      };
-      stampStageBg.src = currentTargetImage;
+    const stageBg = document.getElementById('stamp-stage-bg');
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    const stageLogoImg = document.getElementById('stamp-stage-logo-img');
+
+    const triggerPositioning = () => {
+      setTimeout(() => {
+        syncStampPosition();
+        snapStampToPreset('bottom-right');
+      }, 40);
+      setTimeout(() => {
+        syncStampPosition();
+      }, 150);
+    };
+
+    if (stageBg) {
+      stageBg.onload = triggerPositioning;
+      stageBg.src = currentTargetImage;
+      if (stageBg.complete && stageBg.naturalWidth > 0) {
+        triggerPositioning();
+      }
     }
 
-    if (stampStageLogoImg) {
-      stampStageLogoImg.onload = () => {
+    if (stageLogoImg) {
+      stageLogoImg.onload = () => {
         syncStampPosition();
       };
+      if (stageLogoImg.complete && stageLogoImg.naturalWidth > 0) {
+        syncStampPosition();
+      }
     }
   };
 
-  // Botón Confirmar Estampado y Generar Nueva Imagen
-  if (btnConfirmStampLogo) {
-    btnConfirmStampLogo.addEventListener('click', async () => {
-      if (!currentTargetImage) {
-        showToast('No hay imagen para estampar', 'error');
-        return;
-      }
+  function initInteractiveStampListeners() {
+    const stageLogo = document.getElementById('stamp-stage-logo');
+    if (stageLogo) {
+      stageLogo.removeEventListener('mousedown', onPointerDown);
+      stageLogo.addEventListener('mousedown', onPointerDown);
+      stageLogo.removeEventListener('touchstart', onPointerDown);
+      stageLogo.addEventListener('touchstart', onPointerDown, { passive: false });
+    }
 
-      if (availableWatermarks.length === 0) {
-        showToast('Debes subir un logotipo PNG primero', 'warning');
-        if (stampQuickLogoInput) stampQuickLogoInput.click();
-        return;
-      }
+    window.removeEventListener('mousemove', onPointerMove);
+    window.addEventListener('mousemove', onPointerMove);
+    window.removeEventListener('touchmove', onPointerMove);
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.removeEventListener('mouseup', onPointerUp);
+    window.addEventListener('mouseup', onPointerUp);
+    window.removeEventListener('touchend', onPointerUp);
+    window.addEventListener('touchend', onPointerUp);
 
-      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
-      const accountSelect = document.getElementById('global-account-select');
-      const accountId = activeAcc?.pageId || accountSelect?.value || '';
+    const sliderScale = document.getElementById('stamp-slider-scale');
+    const scaleVal = document.getElementById('stamp-scale-val');
+    if (sliderScale) {
+      sliderScale.oninput = () => {
+        stampScale = parseInt(sliderScale.value, 10) || 18;
+        if (scaleVal) scaleVal.textContent = `${stampScale}%`;
+        syncStampPosition();
+      };
+    }
 
-      btnConfirmStampLogo.disabled = true;
-      btnConfirmStampLogo.innerHTML = '<span>⚡ Estampando logotipo...</span>';
-      showToast('Generando nueva imagen con el logotipo estampado...', 'info');
+    const sliderOpacity = document.getElementById('stamp-slider-opacity');
+    const opacityVal = document.getElementById('stamp-opacity-val');
+    if (sliderOpacity) {
+      sliderOpacity.oninput = () => {
+        stampOpacity = parseInt(sliderOpacity.value, 10) || 90;
+        if (opacityVal) opacityVal.textContent = `${stampOpacity}%`;
+        const sLogo = document.getElementById('stamp-stage-logo');
+        if (sLogo) sLogo.style.opacity = (stampOpacity / 100).toString();
+      };
+    }
 
-      try {
-        const selectedId = stampLogoSelect ? stampLogoSelect.value : '';
-        const res = await fetch('/api/watermark/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imagePath: currentTargetImage,
-            watermarkId: selectedId ? parseInt(selectedId, 10) : undefined,
-            scalePercent: stampScale,
-            opacity: stampOpacity / 100,
-            xPercent: stampXPercent,
-            yPercent: stampYPercent,
-            account_id: accountId
-          })
-        });
-        const json = await res.json();
-
-        if (json.success && json.data?.relativeUrl) {
-          const newImageUrl = json.data.relativeUrl;
-          ComposerState.mediaFiles[0] = newImageUrl;
-          renderMediaPreviews();
-          updateLivePreviews();
-
-          closeInteractiveStamp();
-          showToast('¡Logotipo estampado con éxito y nueva imagen generada!', 'success');
-
-          if (typeof window.loadMediaGallery === 'function') {
-            window.loadMediaGallery();
-          }
-        } else {
-          showToast('Error estampando logotipo: ' + (json.error || 'Desconocido'), 'error');
-        }
-      } catch (err) {
-        showToast('Error de conexión: ' + err.message, 'error');
-      } finally {
-        btnConfirmStampLogo.disabled = false;
-        btnConfirmStampLogo.innerHTML = '<span>✨ Estampar y Generar Nueva Imagen</span>';
-      }
+    document.querySelectorAll('.btn-stamp-snap').forEach(btn => {
+      btn.onclick = () => {
+        snapStampToPreset(btn.dataset.pos);
+      };
     });
+
+    const select = document.getElementById('stamp-logo-select');
+    if (select) {
+      select.onchange = () => {
+        const found = availableWatermarks.find(w => String(w.id) === String(select.value));
+        const sLogoImg = document.getElementById('stamp-stage-logo-img');
+        if (found && sLogoImg) {
+          sLogoImg.src = found.filepath;
+          setTimeout(syncStampPosition, 40);
+        }
+      };
+    }
+
+    const btnUpload = document.getElementById('btn-stamp-upload-new-logo');
+    const inputUpload = document.getElementById('stamp-quick-logo-input');
+    if (btnUpload && inputUpload) {
+      btnUpload.onclick = () => inputUpload.click();
+      inputUpload.onchange = async () => {
+        if (!inputUpload.files || inputUpload.files.length === 0) return;
+        const file = inputUpload.files[0];
+        const formData = new FormData();
+        formData.append('logo', file);
+        formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
+
+        showToast('Subiendo nuevo logotipo...', 'info');
+        try {
+          const res = await fetch('/api/watermark/upload-logo', {
+            method: 'POST',
+            body: formData
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast('¡Logotipo subido y listo para estampar!', 'success');
+            await loadWatermarksForStampModal();
+          } else {
+            showToast('Error subiendo logo: ' + json.error, 'error');
+          }
+        } catch (err) {
+          showToast('Error de conexión: ' + err.message, 'error');
+        }
+      };
+    }
+
+    const btnConfirm = document.getElementById('btn-confirm-stamp-logo');
+    if (btnConfirm) {
+      btnConfirm.onclick = async () => {
+        if (!currentTargetImage) {
+          showToast('No hay imagen para estampar', 'error');
+          return;
+        }
+
+        if (availableWatermarks.length === 0) {
+          showToast('Debes subir un logotipo PNG primero', 'warning');
+          const quickInput = document.getElementById('stamp-quick-logo-input');
+          if (quickInput) quickInput.click();
+          return;
+        }
+
+        const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+        const accountSelect = document.getElementById('global-account-select');
+        const accountId = activeAcc?.pageId || accountSelect?.value || '';
+
+        btnConfirm.disabled = true;
+        btnConfirm.innerHTML = '<span>⚡ Estampando logotipo...</span>';
+        showToast('Generando nueva imagen con el logotipo estampado...', 'info');
+
+        try {
+          const sel = document.getElementById('stamp-logo-select');
+          const selectedId = sel ? sel.value : '';
+          const res = await fetch('/api/watermark/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imagePath: currentTargetImage,
+              watermarkId: selectedId ? parseInt(selectedId, 10) : undefined,
+              scalePercent: stampScale,
+              opacity: stampOpacity / 100,
+              xPercent: stampXPercent,
+              yPercent: stampYPercent,
+              account_id: accountId
+            })
+          });
+          const json = await res.json();
+
+          if (json.success && json.data?.relativeUrl) {
+            const newImageUrl = json.data.relativeUrl;
+            if (typeof ComposerState !== 'undefined') {
+              ComposerState.mediaFiles = [newImageUrl];
+            }
+            if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
+            if (typeof updateLivePreviews === 'function') updateLivePreviews();
+            if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
+
+            window.closeInteractiveStamp();
+            showToast('¡Logotipo estampado con éxito y nueva imagen generada!', 'success');
+
+            if (typeof window.loadMediaGallery === 'function') {
+              window.loadMediaGallery();
+            }
+          } else {
+            showToast('Error estampando logotipo: ' + (json.error || 'Desconocido'), 'error');
+          }
+        } catch (err) {
+          showToast('Error de conexión: ' + err.message, 'error');
+        } finally {
+          btnConfirm.disabled = false;
+          btnConfirm.innerHTML = '<span>✨ Estampar y Generar Nueva Imagen</span>';
+        }
+      };
+    }
   }
+
+  initInteractiveStampListeners();
+  document.addEventListener('DOMContentLoaded', initInteractiveStampListeners);
 });
