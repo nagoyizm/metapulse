@@ -599,13 +599,32 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
   }
 
   /**
-   * Generador Especializado para Cabañas La Campiña: Guión Reel / Video + Copy de Fechas
+   * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
+   */
+  buildCampinaImagePrompt({ theme, targetDate = '', extraNotes = '' }) {
+    const occasion = targetDate ? ` (${targetDate})` : '';
+    const notes = extraNotes ? `\n- Notas adicionales: "${extraNotes}"` : '';
+
+    return `necesito que te comportes como un diseñador grafico senior experto en marketing turístico y publicidad de hospitalidad boutique.
+Hacer una imagen publicitaria de dimensiones 4:5 vertical para instagram utilizando la imagen de fondo adjunta como escenografía real (cabaña de madera rústica, quincho con asado, terraza acogedora, senderos naturales o jardines temáticos de Cabañas La Campiña en Algarrobo, Chile).
+- Enfoque / Tema principal: "${theme}"${occasion}${notes}
+- Puesta en escena y atmósfera: Realzar la imagen de fondo con iluminación cinematográfica cálida ("golden hour" o sol de mañana entre pinos y vegetación), transmitiendo descanso, paz, desconexión familiar y calidez hogareña.
+- Tipografía display publicitaria: Usar un titular principal con una fuente display sólida, limpia y elegante de alto contraste (tonos blanco crema o madera noble) con relieve publicitario sutil o sombra difusa que asegure 100% de legibilidad sobre el fondo. Subtítulo con fuente de menor tamaño pero refinada y respiro visual para poner la frase de valor editorial (ej: "Tu refugio de descanso y naturaleza en Algarrobo" o "Momentos únicos alrededor del quincho").
+- Todo texto en español impecable.
+- PROHIBIDO terminantemente inventar tinajas de agua caliente o hot tubs (no existen en el complejo). Solo instalaciones reales: quinchos privados en terraza, cabañas familiares (2 a 8 personas), suites de pareja, áreas verdes y desconexión sin pantallas (sin Wi-Fi).
+- No hacer llamadas de venta agresivas ni poner nada como "comprar ahora" o "precio bomba". Mantener tono acogedor, hospitalario e inspiracional.
+- Incluir de manera sobria y elegante en una esquina o franja: "CABAÑAS LA CAMPIÑA • ALGARROBO" y en pequeño: "WhatsApp Reservas: +56 9 7900 4253".`.trim();
+  }
+
+  /**
+   * Generador Especializado para Cabañas La Campiña: Guión Reel / Video + Copy de Fechas + Prompt Maestro 4:5
    * Fundamentado 100% en la información oficial de www.cabanaslacampina.cl
    */
   async generateCampinaContent({ theme, format = 'reel', targetDate = '', extraNotes = '' }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
+    const masterImagePrompt = this.buildCampinaImagePrompt({ theme, targetDate, extraNotes });
 
     const systemPrompt = `
 ${campinaKnowledge}
@@ -688,8 +707,24 @@ Estructura a entregar:
     return {
       theme,
       format,
+      masterImagePrompt,
       content: generatedText
     };
+  }
+
+  /**
+   * Generador Directo de Afiche 4:5 con Gemini sobre Foto de Fondo para Cabañas La Campiña
+   */
+  async generateCampinaDesignerPoster({ baseImageUrl, theme = '', targetDate = '', extraNotes = '' }) {
+    const designerPrompt = this.buildCampinaImagePrompt({ theme, targetDate, extraNotes });
+
+    return await this.generateDirectImage({
+      prompt: designerPrompt,
+      format: 'feed',
+      model: 'gemini-3.1-flash-image',
+      accountName: 'Cabañas La Campiña',
+      baseImageUrl
+    });
   }
 
   /**

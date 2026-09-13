@@ -2143,6 +2143,40 @@ router.post('/ai/kmarket-designer-poster', async (req, res) => {
   }
 });
 
+// 3. Diseñador Senior Cabañas La Campiña con Gemini (Afiche Publicitario 4:5 sobre Foto de Fondo)
+router.post('/ai/campina-designer-poster', async (req, res) => {
+  try {
+    const { baseImageUrl, theme, targetDate, extraNotes } = req.body;
+    if (!baseImageUrl && !theme) {
+      return res.status(400).json({ success: false, error: 'Debes proporcionar la foto de fondo o el tema del afiche.' });
+    }
+
+    const result = await aiService.generateCampinaDesignerPoster({
+      baseImageUrl,
+      theme,
+      targetDate,
+      extraNotes
+    });
+
+    await tryAutoStampWatermark(result, req.body.account_id, '[La Campiña Poster]');
+
+    try {
+      const activeAccountId = req.body.account_id || getSetting('meta_page_id') || '';
+      const activeAccountName = req.body.account_name || 'Cabañas La Campiña';
+      db.prepare(`
+        INSERT INTO media_items (filename, original_name, filepath, mime_type, width, height, account_id, account_name)
+        VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?)
+      `).run(result.filename, `Afiche-Campina-${(theme || 'Escapada').slice(0, 20)}.jpg`, result.url, result.width, result.height, activeAccountId, activeAccountName);
+    } catch (dbErr) {
+      console.warn('No se pudo registrar media_item:', dbErr.message);
+    }
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 /**
  * ==========================================
  * 8. IMPORTADOR Y PROGRAMADOR EN LOTE (BATCH AUTOPILOT)

@@ -894,6 +894,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mode === 'kmarket' && typeof syncKmarketModalThumb === 'function') {
       syncKmarketModalThumb();
     }
+    if (mode === 'campina' && typeof syncCampinaModalThumb === 'function') {
+      syncCampinaModalThumb();
+    }
   }
 
   document.querySelectorAll('.preview-tab[data-ai-mode]').forEach(tab => {
@@ -1275,7 +1278,117 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 3. Generador Especializado La Campiña (Reels & Fechas)
+  // =======================================================
+  // FOTO DE FONDO & GENERADOR DE AFICHES CABAÑAS LA CAMPIÑA
+  // =======================================================
+  let campinaBackgroundImagePath = '';
+  const campinaBgFileInput = document.getElementById('campina-bg-file-input');
+  const btnSelectCampinaBg = document.getElementById('btn-select-campina-bg');
+  const btnUseComposerBg = document.getElementById('btn-use-composer-bg');
+  const campinaBgImg = document.getElementById('campina-bg-img');
+  const campinaBgPlaceholder = document.getElementById('campina-bg-placeholder');
+  const campinaBgStatus = document.getElementById('campina-bg-status');
+  const campinaImagePromptBox = document.getElementById('campina-image-prompt-box');
+  const campinaImagePromptText = document.getElementById('campina-image-prompt-text');
+  const btnCopyCampinaImagePrompt = document.getElementById('btn-copy-campina-image-prompt');
+  const btnOpenGeminiWebCampina = document.getElementById('btn-open-gemini-web-campina');
+  const btnGenerateCampinaDirectPoster = document.getElementById('btn-generate-campina-direct-poster');
+  const btnModalGenerateCampinaImage = document.getElementById('btn-modal-generate-campina-image');
+  const campinaAiImgPreview = document.getElementById('campina-ai-img-preview');
+  const campinaAiImgResult = document.getElementById('campina-ai-img-result');
+
+  if (campinaBgImg) {
+    campinaBgImg.onerror = () => {
+      campinaBgImg.style.display = 'none';
+      if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'block';
+    };
+  }
+
+  function syncCampinaModalThumb() {
+    if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+      campinaBackgroundImagePath = ComposerState.mediaFiles[0];
+      if (campinaBgImg) {
+        campinaBgImg.src = campinaBackgroundImagePath;
+        campinaBgImg.style.display = 'block';
+      }
+      if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'none';
+      if (campinaBgStatus) campinaBgStatus.innerHTML = 'Foto sincronizada desde el editor. Lista como base escénica.';
+    }
+  }
+
+  if (btnSelectCampinaBg && campinaBgFileInput) {
+    btnSelectCampinaBg.addEventListener('click', () => {
+      campinaBgFileInput.click();
+    });
+  }
+
+  if (btnUseComposerBg) {
+    btnUseComposerBg.addEventListener('click', () => {
+      if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+        syncCampinaModalThumb();
+        showToast('Foto del editor vinculada como fondo para el afiche', 'info');
+      } else {
+        showToast('No hay ninguna foto cargada en el editor aún', 'warning');
+      }
+    });
+  }
+
+  if (campinaBgFileInput) {
+    campinaBgFileInput.addEventListener('change', async () => {
+      if (!campinaBgFileInput.files || campinaBgFileInput.files.length === 0) return;
+      const file = campinaBgFileInput.files[0];
+
+      try {
+        const localPreview = URL.createObjectURL(file);
+        if (campinaBgImg) {
+          campinaBgImg.src = localPreview;
+          campinaBgImg.style.display = 'block';
+        }
+        if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'none';
+      } catch (_) {}
+
+      if (campinaBgStatus) campinaBgStatus.textContent = `Subiendo foto "${file.name}"...`;
+
+      const formData = new FormData();
+      formData.append('files', file);
+
+      try {
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+          const uploadedUrl = json.data[0].url || json.data[0].filepath;
+          campinaBackgroundImagePath = uploadedUrl;
+          if (campinaBgImg) {
+            campinaBgImg.src = uploadedUrl;
+            campinaBgImg.style.display = 'block';
+          }
+          if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'none';
+          if (campinaBgStatus) {
+            campinaBgStatus.innerHTML = `✅ Foto de fondo lista (<strong>${file.name}</strong>).`;
+          }
+
+          if (!ComposerState.mediaFiles.includes(uploadedUrl)) {
+            ComposerState.mediaFiles.unshift(uploadedUrl);
+            renderMediaPreviews();
+            updateLivePreviews();
+          }
+
+          showToast('Foto de fondo cargada exitosamente', 'success');
+        } else {
+          showToast('Error al subir: ' + (json.error || 'Desconocido'), 'error');
+          if (campinaBgStatus) campinaBgStatus.textContent = 'Error al subir foto.';
+        }
+      } catch (err) {
+        showToast('Error subiendo foto: ' + err.message, 'error');
+        if (campinaBgStatus) campinaBgStatus.textContent = 'Error al subir foto.';
+      }
+    });
+  }
+
+  // 3. Generador Especializado La Campiña (Reels, Copy & Prompt Maestro 4:5)
   if (btnGenerateCampinaAi) {
     btnGenerateCampinaAi.addEventListener('click', async () => {
       const theme = document.getElementById('campina-theme').value.trim();
@@ -1288,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       btnGenerateCampinaAi.disabled = true;
-      btnGenerateCampinaAi.innerHTML = '<span>⚡ Generando Guión y Copy con Gemini...</span>';
+      btnGenerateCampinaAi.innerHTML = '<span>⚡ Generando Guión, Copy y Prompt con Gemini...</span>';
 
       try {
         const res = await fetch('/api/ai/campina-content', {
@@ -1302,7 +1415,13 @@ document.addEventListener('DOMContentLoaded', () => {
           aiGeneratedText.value = json.data.content;
           aiResultBox.style.display = 'block';
           btnApplyAiCopy.style.display = 'inline-flex';
-          showToast('¡Guión y Copy para La Campiña generados con éxito!', 'success');
+
+          if (json.data.masterImagePrompt) {
+            if (campinaImagePromptText) campinaImagePromptText.value = json.data.masterImagePrompt;
+            if (campinaImagePromptBox) campinaImagePromptBox.style.display = 'block';
+          }
+
+          showToast('¡Guión, Copy y Prompt 4:5 generados con éxito!', 'success');
         } else {
           showToast('Error: ' + json.error, 'error');
         }
@@ -1310,9 +1429,103 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Error: ' + e.message, 'error');
       } finally {
         btnGenerateCampinaAi.disabled = false;
-        btnGenerateCampinaAi.innerHTML = '<span>🏡 Generar Guión y Copy La Campiña</span>';
+        btnGenerateCampinaAi.innerHTML = '<span>🏡 Generar Guión, Copy + Prompt 4:5</span>';
       }
     });
+  }
+
+  // Copiar Prompt Maestro de La Campiña
+  if (btnCopyCampinaImagePrompt) {
+    btnCopyCampinaImagePrompt.addEventListener('click', async () => {
+      if (!campinaImagePromptText?.value) return;
+      try {
+        await navigator.clipboard.writeText(campinaImagePromptText.value);
+        showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
+        btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
+        setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
+      } catch (e) {
+        campinaImagePromptText.select();
+        document.execCommand('copy');
+        showToast('📋 ¡Prompt copiado al portapapeles!', 'success');
+      }
+    });
+  }
+
+  // Abrir Gemini Web con el Prompt de La Campiña
+  if (btnOpenGeminiWebCampina) {
+    btnOpenGeminiWebCampina.addEventListener('click', async () => {
+      const promptToCopy = campinaImagePromptText?.value || document.getElementById('campina-theme')?.value || 'Afiche publicitario 4:5 para Cabañas La Campiña';
+      try {
+        await navigator.clipboard.writeText(promptToCopy);
+        showToast('📋 ¡Prompt copiado! Abre Gemini Web, adjunta tu foto de fondo y pega (Ctrl+V)', 'success');
+      } catch (_) {}
+
+      window.open('https://gemini.google.com', 'GeminiWebCampina', 'width=760,height=880,menubar=no,toolbar=no,location=yes,status=no,resizable=yes,scrollbars=yes');
+    });
+  }
+
+  // Generar Afiche 4:5 Directo con Gemini sobre Foto de Fondo
+  const handleGenerateCampinaDirectPoster = async () => {
+    const theme = document.getElementById('campina-theme')?.value.trim();
+    const targetDate = document.getElementById('campina-date')?.value.trim();
+    const targetImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null);
+
+    if (!targetImg) {
+      showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
+      return;
+    }
+
+    if (btnGenerateCampinaDirectPoster) {
+      btnGenerateCampinaDirectPoster.disabled = true;
+      btnGenerateCampinaDirectPoster.innerHTML = '<span>⚡ Diseñando Afiche 4:5 con Gemini...</span>';
+    }
+    showToast('Diseñando afiche publicitario 4:5 con Gemini sobre la foto de fondo...', 'info');
+
+    try {
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      const accountSelect = document.getElementById('global-account-select');
+      const accountId = activeAcc?.pageId || accountSelect?.value || '';
+
+      const res = await fetch('/api/ai/campina-designer-poster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseImageUrl: targetImg,
+          theme: theme || 'Escapada de descanso en la naturaleza',
+          targetDate: targetDate || '',
+          account_id: accountId
+        })
+      });
+      const json = await res.json();
+
+      if (json.success && json.data?.url) {
+        ComposerState.mediaFiles = [json.data.url];
+        renderMediaPreviews();
+        updateLivePreviews();
+
+        if (campinaAiImgResult) campinaAiImgResult.src = json.data.url;
+        if (campinaAiImgPreview) campinaAiImgPreview.style.display = 'block';
+        if (campinaImagePromptBox) campinaImagePromptBox.style.display = 'block';
+
+        showToast('¡Afiche publicitario 4:5 generado y cargado al editor!', 'success');
+      } else {
+        showToast('Error generando afiche: ' + (json.error || 'Desconocido'), 'error');
+      }
+    } catch (err) {
+      showToast('Error de conexión: ' + err.message, 'error');
+    } finally {
+      if (btnGenerateCampinaDirectPoster) {
+        btnGenerateCampinaDirectPoster.disabled = false;
+        btnGenerateCampinaDirectPoster.innerHTML = '<span>🎨 Generar Afiche 4:5 con Gemini</span>';
+      }
+    }
+  };
+
+  if (btnGenerateCampinaDirectPoster) {
+    btnGenerateCampinaDirectPoster.addEventListener('click', handleGenerateCampinaDirectPoster);
+  }
+  if (btnModalGenerateCampinaImage) {
+    btnModalGenerateCampinaImage.addEventListener('click', handleGenerateCampinaDirectPoster);
   }
 
   // Aplicar texto generado en el editor

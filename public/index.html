@@ -1955,7 +1955,7 @@
             </div>
           </div>
 
-          <!-- MODO 3: LA CAMPIÑA GUION REEL & FECHAS -->
+          <!-- MODO 3: LA CAMPIÑA GUION REEL, COPY Y PROMPT MAESTRO 4:5 -->
           <div class="ai-mode-pane" id="ai-pane-campina" style="display: none;">
             <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 10px 12px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <div style="font-size: 0.8rem; color: var(--text-primary);">
@@ -1964,10 +1964,36 @@
               </div>
               <button class="btn btn-secondary btn-xs" id="btn-sync-campina-web" title="Re-escanear www.cabanaslacampina.cl">🔄 Sincronizar Web</button>
             </div>
+
+            <!-- Box Foto de Fondo para el Afiche Publicitario 4:5 -->
+            <div class="card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.85rem;">🏡 Foto de Fondo Real (Quincho, Cabaña o Jardín):</span>
+                <span class="badge" style="background:rgba(16, 185, 129, 0.15); color:var(--success); font-size:0.75rem;">Escenografía Base</span>
+              </div>
+              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div id="campina-bg-thumb" style="width:68px; height:68px; border-radius:6px; border:1px dashed var(--border-subtle); overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <img id="campina-bg-img" src="" alt="Fondo La Campiña" style="width:100%; height:100%; object-fit:cover; display:none;">
+                  <span id="campina-bg-placeholder" style="font-size:1.8rem; color:var(--text-muted);">🌲</span>
+                </div>
+                <div style="flex:1; min-width:200px;">
+                  <input type="file" id="campina-bg-file-input" aria-label="Subir foto de fondo para el afiche" accept="image/*" style="display:none;">
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-select-campina-bg">
+                      📁 Subir Foto de Fondo
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-use-composer-bg" style="font-size:0.78rem;">
+                      🖼️ Usar Foto del Editor
+                    </button>
+                  </div>
+                  <div id="campina-bg-status" class="text-muted" style="font-size:0.75rem;">Adjunta la foto real que deseas usar como base para el afiche 4:5.</div>
+                </div>
+              </div>
+            </div>
             
             <div class="form-grid-2">
               <div class="form-group">
-                <label class="form-label" for="campina-format">Formato:</label>
+                <label class="form-label" for="campina-format">Formato del Contenido:</label>
                 <select id="campina-format" class="form-control">
                   <option value="reel">🎥 Guión de Reel / Video (Audio + Tomas + Textos)</option>
                   <option value="feed">🖼️ Publicación de Feed (Foto / Carrusel)</option>
@@ -1975,7 +2001,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="campina-date">Ocasión / Fecha Próxima:</label>
-                <input type="text" id="campina-date" class="form-control" placeholder="Ej: Fin de semana, Feriado, Días de descanso...">
+                <input type="text" id="campina-date" class="form-control" placeholder="Ej: Fin de semana, Feriado, Fiestas Patrias...">
               </div>
             </div>
 
@@ -1984,9 +2010,35 @@
               <textarea id="campina-theme" class="form-control" rows="2" placeholder="Ej: Asado familiar en quincho privado, desconexión de pantallas en los jardines temáticos, escapada de descanso en suites de pareja..."></textarea>
             </div>
 
-            <button class="btn btn-ai btn-full" id="btn-generate-campina-ai">
-              <span>🏡 Generar Guión y Copy La Campiña</span>
-            </button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+              <button class="btn btn-ai" style="flex:1;" id="btn-generate-campina-ai">
+                <span>🏡 Generar Guión, Copy + Prompt 4:5</span>
+              </button>
+              <button class="btn btn-primary" style="flex:1;" id="btn-generate-campina-direct-poster">
+                <span>🎨 Generar Afiche 4:5 con Gemini</span>
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-open-gemini-web-campina" title="Abrir Gemini Web con el prompt maestro copiado">
+                <span>🌐 Abrir Gemini Web</span>
+              </button>
+            </div>
+
+            <!-- Box Prompt Maestro de Imagen para La Campiña -->
+            <div class="card" id="campina-image-prompt-box" style="display:none; margin-top:14px; background:var(--bg-secondary); border: 1px dashed var(--success);">
+              <div class="card-header" style="padding: 8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt Maestro para Gemini (Afiche 4:5 Senior):</strong>
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-campina-image">✨ Generar con Gemini</button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-campina-image-prompt">📋 Copiar Prompt</button>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 8px 12px;">
+                <textarea id="campina-image-prompt-text" aria-label="Prompt maestro para Gemini Cabañas La Campiña" class="form-control" rows="4" style="font-size:0.8rem; font-family:var(--font-mono); line-height:1.4;"></textarea>
+                <div id="campina-ai-img-preview" style="display:none; margin-top:8px; text-align:center;">
+                  <img id="campina-ai-img-result" src="" alt="Afiche La Campiña Generado" style="max-height:180px; border-radius:6px; border:1px solid var(--border-subtle); object-fit:cover;">
+                  <div style="font-size:0.75rem; color:var(--success); margin-top:4px; font-weight:600;">✅ ¡Afiche 4:5 generado con éxito y cargado al Composer!</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Resultado generado común -->
