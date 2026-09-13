@@ -2031,22 +2031,37 @@
                 <span id="campina-typo-vibe-badge" class="badge" style="background:rgba(59, 130, 246, 0.15); color:var(--primary); font-size:0.72rem;">✨ Auto-detectar</span>
               </div>
 
-              <!-- Selector de Estilo Tipográfico -->
-              <div class="form-group" style="margin-bottom:8px;">
-                <label class="form-label" for="campina-typography-style" style="font-size:0.75rem; margin-bottom:3px;">
-                  Estilo Visual de Fuente (Elegido por ti o por la IA):
-                </label>
-                <select id="campina-typography-style" class="form-control form-control-sm">
-                  <option value="auto">✨ Auto-detectar por IA según el tema</option>
-                  <option value="rustic_timber">🪵 Rústico Noble & Madera Tallada (Quinchos, Cabañas, Fuego)</option>
-                  <option value="kinfolk_luxury">✨ Serif Editorial Boutique (Suites, Kinfolk, Lujo Silencioso)</option>
-                  <option value="natgeo_adventure">🏔️ Display Bold Naturaleza (NatGeo, Aventura, Senderos)</option>
-                  <option value="botanical_minimal">🌿 Botánica Minimalista & Zen (Jardines, Desconexión)</option>
-                  <option value="patria_heritage">🇨🇱 Tradición & Folclor Noble (Fiestas Patrias, Campo Chileno)</option>
-                </select>
-                <div id="campina-typo-desc" class="text-muted" style="font-size:0.72rem; margin-top:3px;">
-                  La IA detecta automáticamente si el tema es quincho, escapada de pareja o naturaleza y selecciona la fuente ideal.
+              <!-- Selectores de Estilo Tipográfico y Acabado de Marca -->
+              <div class="form-grid-2" style="margin-bottom:8px;">
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-typography-style" style="font-size:0.75rem; margin-bottom:3px;">
+                    Estilo Visual de Fuente:
+                  </label>
+                  <select id="campina-typography-style" class="form-control form-control-sm">
+                    <option value="auto">✨ Auto-detectar según tema</option>
+                    <option value="rustic_timber">🪵 Rústico Noble & Madera (Quinchos, Cabañas)</option>
+                    <option value="kinfolk_luxury">✨ Serif Editorial Boutique (Suites, Kinfolk)</option>
+                    <option value="natgeo_adventure">🏔️ Display Bold Naturaleza (NatGeo, Senderos)</option>
+                    <option value="botanical_minimal">🌿 Botánica Zen & Minimal (Jardines, Calma)</option>
+                    <option value="patria_heritage">🇨🇱 Tradición Folclórica (Fiestas Patrias, Campo)</option>
+                  </select>
                 </div>
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-brand-treatment" style="font-size:0.75rem; margin-bottom:3px;">
+                    Acabado de Marca & Trazos (Anti-Letra Fome):
+                  </label>
+                  <select id="campina-brand-treatment" class="form-control form-control-sm">
+                    <option value="auto">✨ Auto-acabado según estilo</option>
+                    <option value="brush_stroke">🖌️ Trazo Gestual & Pincelada Orgánica</option>
+                    <option value="gold_foil">⚜️ Pan de Oro & Relieve Boutique</option>
+                    <option value="timber_burn">🪵 Pirograbado & Madera Tallada 3D</option>
+                    <option value="editorial_lockup">📐 Lockup Editorial con Filetes Finos</option>
+                    <option value="solar_rim">☀️ Retroiluminación Solar (Golden Rim)</option>
+                  </select>
+                </div>
+              </div>
+              <div id="campina-typo-desc" class="text-muted" style="font-size:0.72rem; margin-top:2px; margin-bottom:8px;">
+                La IA detecta automáticamente la tipografía y el acabado de autor para que el afiche parezca diseñado por una agencia y no letras planas pegadas.
               </div>
 
               <!-- Alternativas de Eslogan Generadas por IA -->

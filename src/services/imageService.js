@@ -439,7 +439,8 @@ class ImageService {
     subline = 'Quinchos privados • Cabañas familiares y suites • Algarrobo',
     badgeText = 'CABAÑAS LA CAMPIÑA • ALGARROBO',
     style = 'editorial',
-    typographyStyle = 'rustic_timber'
+    typographyStyle = 'rustic_timber',
+    brandTreatment = 'auto'
   }) {
     if (!fs.existsSync(inputImagePath)) {
       throw new Error(`La imagen base no existe: ${inputImagePath}`);
@@ -462,6 +463,9 @@ class ImageService {
 
     // 2. Configuración específica según estilo tipográfico seleccionado
     const chosenStyle = typographyStyle || (style === 'rustic' ? 'rustic_timber' : (style === 'nature' ? 'natgeo_adventure' : 'kinfolk_luxury'));
+    const activeTreatment = (!brandTreatment || brandTreatment === 'auto')
+      ? (chosenStyle === 'kinfolk_luxury' ? 'gold_foil' : (chosenStyle === 'patria_heritage' || chosenStyle === 'rustic_timber' ? 'brush_stroke' : 'editorial_lockup'))
+      : brandTreatment;
     
     let titleFont = "'Instrument Serif', 'Georgia', 'Playfair Display', serif";
     let titleSize = 60;
@@ -546,6 +550,40 @@ class ImageService {
       filterAttr = 'filter="url(#heritageShadow)"';
     }
 
+    // Tratamiento de Marca (Acabados de autor para evitar letras planas)
+    if (activeTreatment === 'gold_foil') {
+      titleColor = 'url(#goldFoilGrad)';
+      badgeBorder = 'rgba(212, 175, 55, 0.65)';
+      dividerColor = 'rgba(212, 175, 55, 0.85)';
+    } else if (activeTreatment === 'timber_burn') {
+      titleColor = 'url(#timberGrad)';
+      badgeBorder = 'rgba(217, 119, 6, 0.65)';
+      dividerColor = 'rgba(217, 119, 6, 0.75)';
+    }
+
+    // Trazo de apoyo gráfico según tratamiento
+    let brushStrokeSvg = '';
+    if (activeTreatment === 'brush_stroke') {
+      brushStrokeSvg = `
+        <!-- Trazo gestual orgánico de autor (Dynamic Brush Ribbon) -->
+        <path d="M -180 18 C -100 10, 60 22, 180 12 C 150 28, 30 32, -160 30 Z" fill="url(#brushGrad)" opacity="0.9" filter="url(#subtleGlow)"/>
+      `;
+    }
+
+    // Composición Dual-Weight para titulares de marca (ej: "18 EN PAREJA")
+    const words = safeHeadline.trim().split(/\s+/);
+    let headlineSvgContent = '';
+    if (words.length > 1 && /^\d+$/.test(words[0])) {
+      const numPart = words[0];
+      const restPart = words.slice(1).join(' ').toUpperCase();
+      headlineSvgContent = `
+        <tspan font-size="${Math.round(titleSize * 1.3)}" font-weight="900" fill="${activeTreatment === 'gold_foil' ? 'url(#goldFoilGrad)' : '#FFF'}">${numPart} </tspan>
+        <tspan font-size="${Math.round(titleSize * 0.88)}" font-weight="600" letter-spacing="4px" fill="${titleColor}">${restPart}</tspan>
+      `;
+    } else {
+      headlineSvgContent = `<tspan>${safeHeadline.toUpperCase()}</tspan>`;
+    }
+
     // 3. Crear overlay SVG vectorial de alta jerarquía visual (estilo revista Kinfolk / Canvas Design)
     const svgOverlay = `
       <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -561,6 +599,26 @@ class ImageService {
             <stop offset="65%" stop-color="#050B0A" stop-opacity="0.88"/>
             <stop offset="100%" stop-color="#020504" stop-opacity="0.98"/>
           </linearGradient>
+          <linearGradient id="goldFoilGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#F7E08B"/>
+            <stop offset="25%" stop-color="#D4AF37"/>
+            <stop offset="50%" stop-color="#FFF8D6"/>
+            <stop offset="75%" stop-color="#AA771C"/>
+            <stop offset="100%" stop-color="#E5C158"/>
+          </linearGradient>
+          <linearGradient id="brushGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#DC2626" stop-opacity="0.90"/>
+            <stop offset="50%" stop-color="#EA580C" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.85"/>
+          </linearGradient>
+          <linearGradient id="timberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#FEF3C7"/>
+            <stop offset="55%" stop-color="#F59E0B"/>
+            <stop offset="100%" stop-color="#92400E"/>
+          </linearGradient>
+          <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.8"/>
+          </filter>
           ${filterDefs}
         </defs>
 
@@ -581,10 +639,11 @@ class ImageService {
           </text>
         </g>
 
-        <!-- Titular Principal Hero con máxima jerarquía visual -->
+        <!-- Titular Principal Hero con máxima jerarquía visual y acabados de marca -->
         <g transform="translate(${width / 2}, ${height - 250})" ${filterAttr}>
+          ${brushStrokeSvg}
           <text x="0" y="0" font-family="${titleFont}" font-size="${titleSize}" font-weight="${titleWeight}" fill="${titleColor}" text-anchor="middle" letter-spacing="${titleLetterSpacing}">
-            ${safeHeadline.toUpperCase()}
+            ${headlineSvgContent}
           </text>
         </g>
 

@@ -1301,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const campinaHeroHeadline = document.getElementById('campina-hero-headline');
   const campinaSublineHeadline = document.getElementById('campina-subline-headline');
   const campinaTypographyStyle = document.getElementById('campina-typography-style');
+  const campinaBrandTreatment = document.getElementById('campina-brand-treatment');
   const campinaTypoVibeBadge = document.getElementById('campina-typo-vibe-badge');
   const campinaTypoDesc = document.getElementById('campina-typo-desc');
   const campinaSloganAlternativesWrap = document.getElementById('campina-slogan-alternatives-wrap');
@@ -1347,6 +1348,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const campinaTreatmentDescriptions = {
+    auto: '✨ Auto-acabado: La IA analiza el estilo y escoge pincelada gestual, pan de oro o madera tallada según el ambiente.',
+    brush_stroke: '🖌️ Trazo de autor: Pincelada orgánica viva ("dry brushstroke") en tonos cálidos que subraya y dinamiza el eslogan.',
+    gold_foil: '⚜️ Pan de oro: Letras con textura de foil dorado en relieve, bisel pulido y brillo cálido Kinfolk.',
+    timber_burn: '🪵 Madera tallada 3D: Rótulo con volumen de pirograbado o bajo relieve rústico y textura de veta de madera.',
+    editorial_lockup: '📐 Lockup editorial: Composición con filetes geométricos finos, micro-divisores y equilibrio de revista de diseño.',
+    solar_rim: '☀️ Golden rim: Retroiluminación solar en las aristas superiores del texto, fusionándolo con la luz del bosque.'
+  };
+
   function updateCampinaTypoInfo(styleKey) {
     const info = campinaTypoDescriptions[styleKey] || campinaTypoDescriptions.auto;
     if (campinaTypoVibeBadge) {
@@ -1355,7 +1365,11 @@ document.addEventListener('DOMContentLoaded', () => {
       campinaTypoVibeBadge.style.color = info.textColor;
     }
     if (campinaTypoDesc) {
-      campinaTypoDesc.textContent = info.desc;
+      const treatmentVal = campinaBrandTreatment?.value || 'auto';
+      const treatmentText = treatmentVal !== 'auto'
+        ? `<br><span style="color:var(--text-secondary); font-weight:500;">${campinaTreatmentDescriptions[treatmentVal] || ''}</span>`
+        : '';
+      campinaTypoDesc.innerHTML = `${info.desc}${treatmentText}`;
     }
   }
 
@@ -1368,6 +1382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
     const extraElements = campinaExtraElements?.value?.trim() || '';
     const typographyStyle = campinaTypographyStyle?.value || 'auto';
+    const brandTreatment = campinaBrandTreatment?.value || 'auto';
 
     if (!campinaImagePromptText) return;
 
@@ -1382,7 +1397,8 @@ document.addEventListener('DOMContentLoaded', () => {
           sublineHeadline,
           respectBackground,
           extraElements,
-          typographyStyle
+          typographyStyle,
+          brandTreatment
         })
       });
       const json = await res.json();
@@ -1414,6 +1430,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (campinaTypographyStyle) {
     campinaTypographyStyle.addEventListener('change', () => {
       updateCampinaTypoInfo(campinaTypographyStyle.value);
+      syncCampinaMasterPromptLive();
+    });
+  }
+
+  if (campinaBrandTreatment) {
+    campinaBrandTreatment.addEventListener('change', () => {
+      updateCampinaTypoInfo(campinaTypographyStyle?.value || 'auto');
       syncCampinaMasterPromptLive();
     });
   }
@@ -1586,6 +1609,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
       const extraElements = campinaExtraElements?.value?.trim() || '';
       const typographyStyle = campinaTypographyStyle?.value || 'auto';
+      const brandTreatment = campinaBrandTreatment?.value || 'auto';
 
       if (!theme) {
         showToast('Ingresa el tema o enfoque (ej: Asado en quincho privado, descanso en suites...)', 'error');
@@ -1607,7 +1631,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sublineHeadline,
             respectBackground,
             extraElements,
-            typographyStyle
+            typographyStyle,
+            brandTreatment
           })
         });
         const json = await res.json();
@@ -1690,6 +1715,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
     const extraElements = campinaExtraElements?.value?.trim() || '';
     const typographyStyle = campinaTypographyStyle?.value || 'auto';
+    const brandTreatment = campinaBrandTreatment?.value || 'auto';
 
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
@@ -1719,6 +1745,7 @@ document.addEventListener('DOMContentLoaded', () => {
           respectBackground,
           extraElements,
           typographyStyle,
+          brandTreatment,
           customPrompt: campinaImagePromptText?.value || '',
           account_id: accountId
         })
@@ -1766,6 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const headline = campinaHeroHeadline?.value?.trim() || 'DESCONEXIÓN TOTAL';
     const subline = campinaSublineHeadline?.value?.trim() || 'Quinchos privados • Cabañas y suites • Algarrobo';
     const typographyStyle = campinaTypographyStyle?.value === 'auto' ? 'rustic_timber' : (campinaTypographyStyle?.value || 'rustic_timber');
+    const brandTreatment = campinaBrandTreatment?.value || 'auto';
 
     if (btnGenerateCampinaEditorialFlyer) {
       btnGenerateCampinaEditorialFlyer.disabled = true;
@@ -1788,6 +1816,7 @@ document.addEventListener('DOMContentLoaded', () => {
           badgeText: 'CABAÑAS LA CAMPIÑA • ALGARROBO',
           style: 'editorial',
           typographyStyle,
+          brandTreatment,
           account_id: accountId
         })
       });

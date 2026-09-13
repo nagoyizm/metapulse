@@ -700,7 +700,19 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     let primarySubline = 'Cabañas, quinchos privados y bosque en Algarrobo';
     let alternatives = [];
 
-    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne') || text.includes('fuego')) {
+    const isPatria = text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18');
+    const isPareja = text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos');
+
+    if (isPatria && isPareja) {
+      primaryHero = '18 EN PAREJA';
+      primaryKeyword = '18';
+      primarySubline = 'Suites acogedoras y descanso íntimo en Algarrobo';
+      alternatives = [
+        { hero: '18 EN PAREJA', subline: 'Suites acogedoras y descanso íntimo en Algarrobo', style: 'patria_heritage' },
+        { hero: 'ESCAPADA DIECIOCHERA', subline: 'Tranquilidad, asado y naturaleza para dos', style: 'rustic_timber' },
+        { hero: 'FIESTAS EN SUITES', subline: 'El 18 a minutos del mar en Cabañas La Campiña', style: 'kinfolk_luxury' }
+      ];
+    } else if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne') || text.includes('fuego')) {
       primaryHero = 'MOMENTOS AL FUEGO';
       primaryKeyword = 'AL FUEGO';
       primarySubline = 'Quinchos privados y bosque nativo en Algarrobo';
@@ -736,7 +748,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         { hero: 'RECUERDOS DE BOSQUE', subline: 'Juegos al aire libre, quinchos y naturaleza en Algarrobo', style: 'rustic_timber' },
         { hero: 'COMPARTIR EN CALMA', subline: 'Espacio, tranquilidad y desconexión para todos', style: 'botanical_minimal' }
       ];
-    } else if (text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18')) {
+    } else if (isPatria) {
       primaryHero = 'VIVE EL 18';
       primaryKeyword = 'EL 18';
       primarySubline = 'El mejor asado campestre en tu quincho privado';
@@ -772,6 +784,51 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
   }
 
   /**
+   * Catálogo de Tratamientos y Acabados de Marca para el Eslogan Publicitario
+   * Añade trazos gestuales, pan de oro, pirograbado o ribetes de autor para evitar letras planas.
+   */
+  getCampinaBrandTreatments() {
+    return [
+      {
+        id: 'auto',
+        name: '✨ Auto-seleccionar acabado de marca',
+        shortName: 'Auto Acabado',
+        description: 'La IA analiza el concepto y selecciona el tratamiento de rótulo (pincelada, pan de oro o relieve en madera) que mejor ensamble con el ambiente de la fotografía.'
+      },
+      {
+        id: 'brush_stroke',
+        name: '🖌️ Trazo Gestual & Pincelada Orgánica (Marca Artesanal)',
+        shortName: 'Trazo de Pincel',
+        artDirection: 'Incorpora un trazo gestual orgánico de pincel seco ("dry brushstroke") en tono tierra cálido, terracota o carbón sutil que subraya o enmarca la palabra clave. Aporta dinamismo de marca artesanal contemporánea y textura viva.'
+      },
+      {
+        id: 'gold_foil',
+        name: '⚜️ Pan de Oro & Relieve de Viña Boutique (Lujo Sutil)',
+        shortName: 'Pan de Oro',
+        artDirection: 'Aplica a las letras una textura luminosa de pan de oro envejecido o foil dorado sutil con bisel pulido ("warm gold foil embossing"). Refleja la luz dorada del atardecer con elegancia de etiqueta de vino reserva de alta gama.'
+      },
+      {
+        id: 'timber_burn',
+        name: '🪵 Pirograbado & Madera Tallada 3D (Lodge Noble)',
+        shortName: 'Madera Tallada',
+        artDirection: 'Trata el titular con volumen de pirograbado o grabado en bajorrelieve sobre madera noble, con sombra interna cálida y micro-textura de fibra de pino o roble, luciendo como una talla arquitectónica real del lodge.'
+      },
+      {
+        id: 'editorial_lockup',
+        name: '📐 Lockup Editorial con Filetes Finos (Revista)',
+        shortName: 'Ribetes Editoriales',
+        artDirection: 'Compón el titular como un lockup de portada de revista de diseño, con finos filetes geométricos (hairlines de 1px), micro-divisores elegantes y equilibrio arquitectónico que enmarcan la frase con sofisticación.'
+      },
+      {
+        id: 'solar_rim',
+        name: '☀️ Retroiluminación Solar (Luz Cinematográfica)',
+        shortName: 'Luz Solar Rim',
+        artDirection: 'Integra las letras en la atmósfera de la foto con un halo de luz solar volumétrica ("backlit golden rim lighting") que baña los bordes del texto, como si el sol filtrado entre los árboles iluminara físicamente el rótulo.'
+      }
+    ];
+  }
+
+  /**
    * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
    * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte tipográfica de autor
    */
@@ -783,19 +840,37 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     sublineHeadline = '',
     respectBackground = true,
     extraElements = '',
-    typographyStyle = 'auto'
+    typographyStyle = 'auto',
+    brandTreatment = 'auto'
   }) {
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
-    const hero = (heroHeadline || hierarchy.hero).toUpperCase();
+    const hero = (heroHeadline || hierarchy.hero).toUpperCase().trim();
     const subline = sublineHeadline || hierarchy.subline;
-    const keyword = hierarchy.keyword;
+
+    // Extraer la palabra clave REAL del titular actual (evita discrepancias con el tema)
+    let keyword = hierarchy.keyword;
+    if (heroHeadline && heroHeadline.trim()) {
+      const cleanWords = heroHeadline.trim().replace(/[^\w\s\dáéíóúÁÉÍÓÚñÑ]/g, '').split(/\s+/).filter(Boolean);
+      const numWord = cleanWords.find(w => /\d+/.test(w));
+      if (numWord) {
+        keyword = numWord;
+      } else {
+        const sorted = [...cleanWords].sort((a, b) => b.length - a.length);
+        keyword = sorted[0] || hero;
+      }
+    }
 
     const stylesCatalog = this.getCampinaTypographyStyles();
     const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
       ? hierarchy.detectedStyle
       : typographyStyle;
-    
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : (activeStyleKey === 'rustic_timber' || activeStyleKey === 'patria_heritage' ? 'brush_stroke' : 'editorial_lockup'))
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
 
     const backgroundDirective = respectBackground
       ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
@@ -806,26 +881,40 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
 - Toma la fotografía adjunta como base escénica del lugar.
 - Si incorporas elementos adicionales, únicamente agrega: "${extraElements || 'humo suave de asado a las brasas o iluminación cálida de atardecer'}". CERO modificaciones al resto de la arquitectura ni a la vegetación.`;
 
-    return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest).
+    return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
 
 OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) para Instagram de "Cabañas La Campiña" (Algarrobo, Chile), utilizando la fotografía adjunta.
 
 ${backgroundDirective}
 - PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
 
-2. DIRECCIÓN DE ARTE TIPOGRÁFICA DE ALTA GAMA (CERO "AI SLOP" Y FUENTES GENÉRICAS):
-- ESTILO TIPOGRÁFICO ASIGNADO: "${matchedStyle.name}"
-- CONCEPTO Y PERSONALIDAD: ${matchedStyle.vibe}
-- TRATAMIENTO VISUAL DE FUENTE:
-  ${matchedStyle.description}
-  IMPORTANTE: CERO letras sintéticas, derretidas o genéricas de IA. El titular debe parecer diseñado por una agencia de diseño suiza o boutique editorial, perfectamente integrado y legible sobre la fotografía.
+2. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
+- REGLA DE ORO DE BRANDING (COMO DISEÑAN LAS GRANDES MARCAS SUS ESLÓGANS):
+  PROHIBIDO poner texto plano, aburrido, monocromático o letras simples pegadas que parezcan de Word.
+  Debes diseñar el titular exactamente como lo hacen las grandes agencias con los eslogans de marcas icónicas: UN LOCKUP / EMBLEMA PUBLICITARIO con personalidad, dinamismo y acabado artesanal de alta gama:
 
-- REGLA DE ORO PUBLICITARIA ("MENOS ES MÁS"):
-  La publicidad de alto rendimiento NO lleva párrafos largos, NO lleva viñetas, NO lleva listas apretadas ni fuentes sintéticas de IA deformadas. El texto dentro de la imagen debe ser minimalista, contundente y con amplio respiro visual.
+  a) CONTRASTE TIPOGRÁFICO INTERNO (DUAL-WEIGHT & COMPOSICIÓN DE MARCA):
+     Dentro del titular "${hero}", NO uses todas las letras iguales.
+     - La palabra/cifra clave "${keyword.toUpperCase()}" debe ser la estrella visual indiscutible: mayor tamaño, grosor contundente o caligrafía de autor expresiva.
+     - Las palabras complementarias deben equilibrar la composición con menor peso, estilo sans-serif refinado o serif clásica con amplio espaciado (letter-spacing abierto).
 
-- TITULAR HERO (Jerarquía visual dominante, máximo 2 a 3 palabras):
-  "${hero}"
-  Aplica el estilo tipográfico "${matchedStyle.shortName}". Jerarquiza la palabra clave "${keyword}" con mayor presencia tipográfica y contraste luminoso.
+  b) TRATAMIENTO DE MARCA & TRAZOS DINÁMICOS ("${matchedTreatment.name}"):
+     ${matchedTreatment.artDirection}
+     - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) para darle movimiento y factura artística.
+
+  c) TEXTURA, VOLUMEN Y COLOR (NO COLOR SÓLIDO PLANO):
+     El texto debe tener degradados cromáticos orgánicos, textura de imprenta / pigmento natural o foil dorado/bronce con micro-relieve y bisel cálido ("warm bevel"). Debe sentirse material y tridimensional.
+
+  d) INTEGRACIÓN CINEMATOGRÁFICA CON LA FOTOGRAFÍA:
+     El rótulo debe convivir físicamente con la escena: iluminación perimetral dorada ("golden hour rim lighting") en las aristas superiores de las letras y sombra de contacto suave ("ambient occlusion shadow") proyectada sutilmente sobre el fondo para despegar el rótulo con máxima legibilidad.
+
+  e) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
+     ${matchedStyle.description}
+     CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
+
+3. JERARQUÍA DE CONTENIDO:
+- TITULAR HERO (Rótulo publicitario dominante):
+  "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
 
 - SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
   "${subline}"
@@ -836,7 +925,7 @@ ${backgroundDirective}
 
 - CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 de alta gama con tipografía preciosa e impactante.`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
   }
 
   /**
@@ -852,7 +941,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     sublineHeadline = '',
     respectBackground = true,
     extraElements = '',
-    typographyStyle = 'auto'
+    typographyStyle = 'auto',
+    brandTreatment = 'auto'
   }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
@@ -868,6 +958,12 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     const stylesCatalog = this.getCampinaTypographyStyles();
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : (activeStyleKey === 'rustic_timber' || activeStyleKey === 'patria_heritage' ? 'brush_stroke' : 'editorial_lockup'))
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
     const masterImagePrompt = this.buildCampinaImagePrompt({
       theme,
       targetDate,
@@ -876,7 +972,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
       sublineHeadline: finalSubline,
       respectBackground,
       extraElements,
-      typographyStyle: activeStyleKey
+      typographyStyle: activeStyleKey,
+      brandTreatment: activeTreatmentKey
     });
 
     const systemPrompt = `
@@ -961,8 +1058,11 @@ Estructura a entregar:
       typographyStyle: activeStyleKey,
       typographyStyleName: matchedStyle.name,
       typographyVibe: matchedStyle.vibe,
+      brandTreatment: activeTreatmentKey,
+      brandTreatmentName: matchedTreatment.name,
       sloganAlternatives: hierarchy.alternatives,
       allTypographyStyles: stylesCatalog,
+      allBrandTreatments: treatmentsCatalog,
       content: generatedText
     };
   }
@@ -980,6 +1080,7 @@ Estructura a entregar:
     respectBackground = true,
     extraElements = '',
     typographyStyle = 'auto',
+    brandTreatment = 'auto',
     customPrompt = ''
   }) {
     const designerPrompt = customPrompt?.trim() || this.buildCampinaImagePrompt({
@@ -990,7 +1091,8 @@ Estructura a entregar:
       sublineHeadline,
       respectBackground,
       extraElements,
-      typographyStyle
+      typographyStyle,
+      brandTreatment
     });
 
     return await this.generateDirectImage({

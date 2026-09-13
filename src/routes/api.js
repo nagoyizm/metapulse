@@ -1711,6 +1711,15 @@ router.get('/ai/campina-typography-styles', (req, res) => {
   }
 });
 
+router.get('/ai/campina-brand-treatments', (req, res) => {
+  try {
+    const treatments = aiService.getCampinaBrandTreatments();
+    res.json({ success: true, data: treatments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/campina-refresh-prompt', (req, res) => {
   try {
     const {
@@ -1721,7 +1730,8 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
       sublineHeadline,
       respectBackground = true,
       extraElements = '',
-      typographyStyle = 'auto'
+      typographyStyle = 'auto',
+      brandTreatment = 'auto'
     } = req.body;
 
     const masterImagePrompt = aiService.buildCampinaImagePrompt({
@@ -1732,7 +1742,8 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
       sublineHeadline,
       respectBackground: Boolean(respectBackground),
       extraElements,
-      typographyStyle
+      typographyStyle,
+      brandTreatment
     });
 
     res.json({ success: true, data: { masterImagePrompt } });
@@ -1752,7 +1763,8 @@ router.post('/ai/campina-content', async (req, res) => {
       sublineHeadline,
       respectBackground = true,
       extraElements = '',
-      typographyStyle = 'auto'
+      typographyStyle = 'auto',
+      brandTreatment = 'auto'
     } = req.body;
     if (!theme) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
@@ -1766,7 +1778,8 @@ router.post('/ai/campina-content', async (req, res) => {
       sublineHeadline,
       respectBackground: Boolean(respectBackground),
       extraElements,
-      typographyStyle
+      typographyStyle,
+      brandTreatment
     });
     res.json({ success: true, data: result });
   } catch (err) {
@@ -2147,7 +2160,7 @@ router.post('/media/create-ad-poster', async (req, res) => {
 // 1. Maquetador Editorial 4:5 sobre foto real (Cabañas La Campiña - Costo $0)
 router.post('/media/create-campina-flyer', async (req, res) => {
   try {
-    const { imagePath, baseImageUrl, headline, subline, badgeText, style, typographyStyle, account_id, account_name } = req.body;
+    const { imagePath, baseImageUrl, headline, subline, badgeText, style, typographyStyle, brandTreatment = 'auto', account_id, account_name } = req.body;
     const targetImage = imagePath || baseImageUrl;
     if (!targetImage) {
       return res.status(400).json({ success: false, error: 'Se requiere imagePath para generar el flyer.' });
@@ -2163,7 +2176,8 @@ router.post('/media/create-campina-flyer', async (req, res) => {
       subline,
       badgeText,
       style,
-      typographyStyle
+      typographyStyle,
+      brandTreatment
     });
 
     const flyerData = {
@@ -2237,6 +2251,7 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       respectBackground = true,
       extraElements = '',
       typographyStyle = 'auto',
+      brandTreatment = 'auto',
       customPrompt = ''
     } = req.body;
     if (!baseImageUrl && !theme && !customPrompt) {
@@ -2253,6 +2268,7 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       respectBackground: Boolean(respectBackground),
       extraElements,
       typographyStyle,
+      brandTreatment,
       customPrompt
     });
 
