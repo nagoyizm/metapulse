@@ -93,6 +93,7 @@ window.useMediaAsPostAndStory = function(filePath) {
   if (chkStory) {
     chkStory.checked = true;
     if (storyTimingBox) storyTimingBox.style.display = 'block';
+    if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
   }
   if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
   if (typeof updateLivePreviews === 'function') updateLivePreviews();

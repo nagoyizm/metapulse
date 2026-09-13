@@ -493,20 +493,20 @@
                   </div>
 
                   <!-- Story Music & FFmpeg Audio Integration (Simulator for Instagram Music Stories) -->
-                  <div class="form-group story-music-section" id="story-music-section">
+                  <div class="form-group story-music-section" id="story-music-section" style="display: none;">
                     <div class="story-music-header">
                       <div class="story-music-title-wrap">
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
                           <input type="checkbox" id="chk-story-music-enabled" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
-                          <span id="story-music-title-text">🎵 Añadir Música al Post (Video Feed MP4 con Audio)</span>
+                          <span id="story-music-title-text">🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)</span>
                         </label>
                       </div>
                       <span class="story-music-badge-ffmpeg" id="story-music-badge-text">
-                        <span>⚡ FFmpeg Feed Video</span>
+                        <span>⚡ FFmpeg Story Video</span>
                       </span>
                     </div>
                     <p id="story-music-desc-text" style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                      Convierte tu imagen en un video MP4 con música manteniendo su proporción original (1:1 o 4:5). Se publica como Post en el Feed de Facebook e Instagram con audio real sin convertirlo en Reel vertical.
+                      Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con música de fondo embebida, simulando que fue subida con audio desde la app de Instagram para que suene con volumen real.
                     </p>
 
                     <!-- Drawer de Selección de Música (Oculto hasta activar) -->
@@ -588,12 +588,11 @@
 
                         <!-- Duración del Video -->
                         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                          <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);" id="music-duration-label">Duración del Post:</span>
+                          <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);" id="music-duration-label">Duración Story:</span>
                           <div class="duration-pills">
                             <span class="duration-pill" data-duration="10">10s</span>
                             <span class="duration-pill active" data-duration="15">15s (Estándar)</span>
                             <span class="duration-pill" data-duration="30">30s</span>
-                            <span class="duration-pill" data-duration="60">60s (Feed)</span>
                           </div>
                         </div>
 
@@ -605,7 +604,7 @@
 
                         <!-- Botón de Generación Instantánea con FFmpeg -->
                         <button type="button" class="btn-generate-story-video" id="btn-generate-story-video">
-                          ⚡ Generar Video Feed con Audio Ahora
+                          ⚡ Generar Video Story con Audio Ahora
                         </button>
 
                         <!-- Indicador de Éxito -->

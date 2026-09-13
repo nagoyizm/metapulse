@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 11. Generar Video (Feed o Story) MP4 con FFmpeg
+  // 11. Generar Video Story MP4 con FFmpeg
   btnGenerateVideo.addEventListener('click', async () => {
     if (!StoryMusicState.selectedTrack) {
       if (typeof showToast === 'function') showToast('Por favor selecciona primero una canción o audio.', 'warning');
@@ -430,25 +430,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const baseImage = ComposerState.mediaFiles[0];
     const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
     const currentPostType = postTypeRadio ? postTypeRadio.value : 'feed';
-    const isFeed = currentPostType === 'feed';
+    const isDirectStory = currentPostType === 'story';
 
     btnGenerateVideo.disabled = true;
-    btnGenerateVideo.innerHTML = isFeed
-      ? '⏳ Codificando video Feed MP4 con FFmpeg...'
-      : '⏳ Codificando video Story MP4 con FFmpeg...';
+    btnGenerateVideo.innerHTML = '⏳ Codificando video Story MP4 con FFmpeg...';
     stopAudio();
 
     if (typeof showToast === 'function') {
-      showToast(isFeed
-        ? 'Generando Video Feed con música en proporción y calidad original... (~2-4s)'
-        : 'Generando Video Story vertical 9:16 con FFmpeg... (~2-4s)', 'info');
+      showToast('Generando Video Story vertical 9:16 con FFmpeg... (~2-4s)', 'info');
     }
 
     try {
       const payload = {
         image_url: baseImage,
         audio_url: StoryMusicState.selectedTrack.streamUrl,
-        post_type: currentPostType,
+        post_type: 'story',
         duration: StoryMusicState.duration,
         start_time: StoryMusicState.startTime,
         add_music_sticker: StoryMusicState.addSticker,
@@ -466,16 +462,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (json.success && json.data) {
         StoryMusicState.generatedVideoUrl = json.data.relativeUrl;
         
-        // Reemplazar la imagen en el composer con el video MP4 generado
-        ComposerState.mediaFiles[0] = json.data.relativeUrl;
-        if (typeof window.renderMediaPreviews === 'function') {
-          window.renderMediaPreviews();
-        }
-        if (typeof window.updateComposerPreviews === 'function') {
-          window.updateComposerPreviews();
+        // Si el post principal es una Story directa, reemplazar la imagen por el video en ComposerState
+        if (isDirectStory) {
+          ComposerState.mediaFiles[0] = json.data.relativeUrl;
+          if (typeof window.renderMediaPreviews === 'function') window.renderMediaPreviews();
+          if (typeof window.updateComposerPreviews === 'function') window.updateComposerPreviews();
         }
 
-        // Actualizar mockup de Instagram Story con el video si corresponde
+        // Actualizar mockup de Instagram Story con el video real
         const mockStoryMedia = document.getElementById('mock-story-media');
         if (mockStoryMedia) {
           mockStoryMedia.innerHTML = `
@@ -489,9 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const sizeMb = (json.data.sizeBytes / 1024 / 1024).toFixed(2);
           const statusText = videoSuccessBox.querySelector('.video-status-text');
           if (statusText) {
-            statusText.textContent = isFeed
-              ? `¡Video Feed MP4 listo! (${json.data.duration}s • ${sizeMb} MB • Proporción Original ${json.data.width || ''}x${json.data.height || ''})`
-              : `¡Video Story MP4 listo! (${json.data.duration}s • ${sizeMb} MB • H.264/AAC)`;
+            statusText.textContent = `¡Video Story MP4 listo! (${json.data.duration}s • ${sizeMb} MB • 1080x1920 H.264/AAC)`;
           }
         }
         if (videoDownloadLink) {
@@ -500,19 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (typeof showToast === 'function') {
-          showToast(isFeed
-            ? '¡Video Feed con música generado con éxito! El preview de Facebook e Instagram ahora reproduce tu post con audio.'
-            : '¡Video Story con música generado con éxito!', 'success');
+          showToast('¡Video Story con música generado con éxito!', 'success');
         }
 
-        // Cambiar pestaña del preview para que el usuario aprecie el resultado
-        if (isFeed) {
-          const fbTab = document.querySelector('.preview-tab[data-preview="fb"]');
-          if (fbTab) fbTab.click();
-        } else {
-          const storyTab = document.querySelector('.preview-tab[data-preview="story"]');
-          if (storyTab) storyTab.click();
-        }
+        // Cambiar pestaña del preview a Story para que el usuario aprecie el resultado
+        const storyTab = document.querySelector('.preview-tab[data-preview="story"]');
+        if (storyTab) storyTab.click();
       } else {
         if (typeof showToast === 'function') {
           showToast('Error al generar video: ' + (json.error || 'Error en FFmpeg'), 'error');
@@ -524,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       btnGenerateVideo.disabled = false;
-      updateMusicSectionLabels();
+      btnGenerateVideo.innerHTML = '⚡ Generar Video Story con Audio Ahora';
     }
   });
 
@@ -560,62 +545,85 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Actualización dinámica de textos de la sección de música según el tipo de post
-  function updateMusicSectionLabels() {
+  // Sincronización de visibilidad entre formato de Post, Cross-Share Story y Añadir Música
+  function syncStorySectionsVisibility() {
     const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
-    const currentPostType = postTypeRadio ? postTypeRadio.value : 'feed';
-    const isFeed = currentPostType === 'feed';
-    const isStory = currentPostType === 'story';
-    const isCarousel = currentPostType === 'carousel';
+    const postType = postTypeRadio ? postTypeRadio.value : 'feed';
+    const isDirectStory = postType === 'story';
+    const chkAlsoShare = document.getElementById('chk-also-share-story');
+    const isCrossStoryChecked = Boolean(chkAlsoShare && chkAlsoShare.checked);
 
-    const titleText = document.getElementById('story-music-title-text');
-    const badgeText = document.getElementById('story-music-badge-text');
-    const descText = document.getElementById('story-music-desc-text');
-    const durationLabel = document.getElementById('music-duration-label');
-    const btnGen = document.getElementById('btn-generate-story-video');
+    const crossShareSection = document.getElementById('story-cross-share-section');
+    const musicSection = document.getElementById('story-music-section');
+    const storyTimingBox = document.getElementById('story-timing-box');
 
-    if (isCarousel) {
-      section.style.display = 'none';
-      return;
+    // 1. Tarjeta "Compartir también como Historia (Story 9:16)":
+    // Si ya estamos haciendo una Historia directa, esta tarjeta desaparece por completo
+    if (crossShareSection) {
+      if (isDirectStory) {
+        crossShareSection.style.display = 'none';
+        if (chkAlsoShare) chkAlsoShare.checked = false;
+        if (storyTimingBox) storyTimingBox.style.display = 'none';
+      } else {
+        crossShareSection.style.display = 'block';
+      }
     }
 
-    section.style.display = 'block';
+    // 2. Tarjeta "Añadir Música a la Historia":
+    // Se despliega ÚNICAMENTE cuando:
+    // - Estamos haciendo una Historia directa (isDirectStory === true)
+    //   O
+    // - Marcamos el tick en "Compartir también como Historia" (!isDirectStory && isCrossStoryChecked)
+    const shouldShowMusic = isDirectStory || (!isDirectStory && isCrossStoryChecked);
 
-    if (isFeed) {
-      if (titleText) titleText.textContent = '🎵 Añadir Música al Post (Video Feed MP4 con Audio)';
-      if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Feed Post (Formato Original)</span>';
-      if (descText) descText.textContent = 'Convierte tu imagen en un video MP4 con música de fondo embebida manteniendo su proporción original (1:1 cuadrado, 4:5 o paisaje). Se publica como Post en el Feed de Facebook e Instagram con sonido real sin convertirlo en Reel ni recortarlo a 9:16.';
-      if (durationLabel) durationLabel.textContent = 'Duración del Post:';
-      if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Feed con Audio Ahora';
-    } else {
-      if (titleText) titleText.textContent = '🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)';
-      if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Story Video (9:16)</span>';
-      if (descText) descText.textContent = 'Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con fondo difuminado y música embebida para Instagram y Facebook Stories.';
-      if (durationLabel) durationLabel.textContent = 'Duración Story:';
-      if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Story con Audio Ahora';
+    if (musicSection) {
+      musicSection.style.display = shouldShowMusic ? 'block' : 'none';
+
+      if (!shouldShowMusic) {
+        // Al ocultarse, desactivar el switch para evitar que quede seleccionado residualmente
+        if (chkEnable) chkEnable.checked = false;
+        if (drawer) drawer.style.display = 'none';
+        StoryMusicState.enabled = false;
+        stopAudio();
+        updateMockupMusicOverlay();
+      } else {
+        // Etiquetas claras para Historia 9:16
+        const titleText = document.getElementById('story-music-title-text');
+        const badgeText = document.getElementById('story-music-badge-text');
+        const descText = document.getElementById('story-music-desc-text');
+        const durationLabel = document.getElementById('music-duration-label');
+        const btnGen = document.getElementById('btn-generate-story-video');
+
+        if (titleText) titleText.textContent = '🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)';
+        if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Story Video</span>';
+        if (descText) descText.textContent = isDirectStory
+          ? 'Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con música de fondo embebida, simulando que fue subida con audio desde la app de Instagram para que suene con volumen real.'
+          : 'Convierte la Historia vertical generada (1080x1920) en un video MP4 con música de fondo embebida para que suene con volumen real en Instagram y Facebook Stories.';
+        if (durationLabel) durationLabel.textContent = 'Duración Story:';
+        if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Story con Audio Ahora';
+      }
     }
   }
 
-  window.updateMusicSectionLabels = updateMusicSectionLabels;
+  window.syncStorySectionsVisibility = syncStorySectionsVisibility;
+  window.updateMusicSectionLabels = syncStorySectionsVisibility;
 
   // Observador de cambio de formato de post en Composer
   document.querySelectorAll('input[name="post_type"]').forEach(r => {
     r.addEventListener('change', () => {
-      updateMusicSectionLabels();
+      syncStorySectionsVisibility();
     });
   });
 
   const chkAlsoShare = document.getElementById('chk-also-share-story');
   if (chkAlsoShare) {
     chkAlsoShare.addEventListener('change', () => {
-      if (chkAlsoShare.checked) {
-        section.style.display = 'block';
-      }
+      syncStorySectionsVisibility();
     });
   }
 
-  // Inicializar etiquetas al cargar
-  updateMusicSectionLabels();
+  // Sincronizar visibilidad al cargar la página
+  syncStorySectionsVisibility();
 
   // Reset function
   window.resetStoryMusic = function() {
@@ -626,6 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
     drawer.style.display = 'none';
     if (videoSuccessBox) videoSuccessBox.style.display = 'none';
     updateMockupMusicOverlay();
-    updateMusicSectionLabels();
+    syncStorySectionsVisibility();
   };
 });

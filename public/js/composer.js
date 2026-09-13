@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         switchPreviewTab('fb');
       }
-      if (typeof window.updateMusicSectionLabels === 'function') {
-        window.updateMusicSectionLabels();
+      if (typeof window.syncStorySectionsVisibility === 'function') {
+        window.syncStorySectionsVisibility();
       }
     });
   });
@@ -226,9 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const wmBtn = document.getElementById('btn-watermark-overlay');
         if (wmBtn) wmBtn.style.display = 'inline-flex';
 
-        const storySection = document.getElementById('story-cross-share-section');
-        if (storySection) {
-          storySection.style.display = 'block';
+        if (typeof window.syncStorySectionsVisibility === 'function') {
+          window.syncStorySectionsVisibility();
         }
       } else {
         showToast('Error subiendo media: ' + (json.error || 'Error desconocido'), 'error');
@@ -693,6 +692,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chkAlsoShareStory && storyTimingBox) {
     chkAlsoShareStory.addEventListener('change', () => {
       storyTimingBox.style.display = chkAlsoShareStory.checked ? 'block' : 'none';
+      if (typeof window.syncStorySectionsVisibility === 'function') {
+        window.syncStorySectionsVisibility();
+      }
     });
   }
 
@@ -776,7 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
           also_share_story: alsoShareStory,
           story_timing_rule: storyTimingRule,
           story_custom_datetime: storyCustomDatetime,
-          music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
+          music_config: postType === 'story' ? musicConfigPayload : null,
           story_music_config: alsoShareStory ? musicConfigPayload : null
         })
       });
@@ -790,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
         if (storyTimingBox) storyTimingBox.style.display = 'none';
         if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
+        if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
         ComposerState.mediaFiles = [];
         renderMediaPreviews();
         updateLivePreviews();
@@ -812,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
     if (storyTimingBox) storyTimingBox.style.display = 'none';
     if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
+    if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
     postTitle.value = '';
     ComposerState.mediaFiles = [];
     renderMediaPreviews();
