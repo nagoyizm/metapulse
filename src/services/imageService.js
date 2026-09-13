@@ -438,7 +438,8 @@ class ImageService {
     headline = 'DESCONEXIÓN TOTAL',
     subline = 'Quinchos privados • Cabañas familiares y suites • Algarrobo',
     badgeText = 'CABAÑAS LA CAMPIÑA • ALGARROBO',
-    style = 'editorial'
+    style = 'editorial',
+    typographyStyle = 'rustic_timber'
   }) {
     if (!fs.existsSync(inputImagePath)) {
       throw new Error(`La imagen base no existe: ${inputImagePath}`);
@@ -459,11 +460,91 @@ class ImageService {
     const safeBadge = (badgeText || 'CABAÑAS LA CAMPIÑA • ALGARROBO')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // 2. Definir estilos tipográficos editoriales sobrios
-    const isSerif = style === 'editorial' || style === 'rustic';
-    const titleFont = isSerif
-      ? "'Instrument Serif', 'Georgia', 'Playfair Display', 'Times New Roman', serif"
-      : "'Outfit', 'Segoe UI', -apple-system, sans-serif";
+    // 2. Configuración específica según estilo tipográfico seleccionado
+    const chosenStyle = typographyStyle || (style === 'rustic' ? 'rustic_timber' : (style === 'nature' ? 'natgeo_adventure' : 'kinfolk_luxury'));
+    
+    let titleFont = "'Instrument Serif', 'Georgia', 'Playfair Display', serif";
+    let titleSize = 60;
+    let titleWeight = 700;
+    let titleLetterSpacing = '2px';
+    let titleColor = '#FFFFFF';
+    let badgeBorder = 'rgba(255, 255, 255, 0.35)';
+    let dividerColor = 'rgba(255, 255, 255, 0.45)';
+    let filterDefs = '';
+    let filterAttr = 'filter="url(#subtleGlow)"';
+
+    if (chosenStyle === 'rustic_timber') {
+      titleFont = "'Cinzel Decorative', 'Cinzel', 'Georgia', serif";
+      titleSize = 54;
+      titleWeight = 800;
+      titleLetterSpacing = '2.5px';
+      titleColor = '#FFF8EE';
+      badgeBorder = 'rgba(217, 119, 6, 0.6)';
+      dividerColor = 'rgba(217, 119, 6, 0.7)';
+      filterDefs = `
+        <filter id="timberShadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#220D00" flood-opacity="0.95"/>
+          <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.9"/>
+        </filter>
+      `;
+      filterAttr = 'filter="url(#timberShadow)"';
+    } else if (chosenStyle === 'kinfolk_luxury') {
+      titleFont = "'Instrument Serif', 'Playfair Display', 'Bodoni MT', serif";
+      titleSize = 64;
+      titleWeight = 400;
+      titleLetterSpacing = '3.5px';
+      titleColor = '#FFFFFF';
+      badgeBorder = 'rgba(255, 255, 255, 0.4)';
+      dividerColor = 'rgba(255, 255, 255, 0.55)';
+      filterDefs = `
+        <filter id="luxuryGlow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.85"/>
+        </filter>
+      `;
+      filterAttr = 'filter="url(#luxuryGlow)"';
+    } else if (chosenStyle === 'natgeo_adventure') {
+      titleFont = "'Outfit', 'Impact', 'Arial Black', sans-serif";
+      titleSize = 66;
+      titleWeight = 900;
+      titleLetterSpacing = '0.5px';
+      titleColor = '#FFFFFF';
+      badgeBorder = 'rgba(16, 185, 129, 0.7)';
+      dividerColor = 'rgba(16, 185, 129, 0.85)';
+      filterDefs = `
+        <filter id="deepSolidShadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.95"/>
+        </filter>
+      `;
+      filterAttr = 'filter="url(#deepSolidShadow)"';
+    } else if (chosenStyle === 'botanical_minimal') {
+      titleFont = "'Plus Jakarta Sans', 'Inter', 'Segoe UI', sans-serif";
+      titleSize = 42;
+      titleWeight = 300;
+      titleLetterSpacing = '7px';
+      titleColor = '#F8FAFC';
+      badgeBorder = 'rgba(14, 165, 233, 0.5)';
+      dividerColor = 'rgba(14, 165, 233, 0.6)';
+      filterDefs = `
+        <filter id="zenGlow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.75"/>
+        </filter>
+      `;
+      filterAttr = 'filter="url(#zenGlow)"';
+    } else if (chosenStyle === 'patria_heritage') {
+      titleFont = "'Cinzel', 'Playfair Display', serif";
+      titleSize = 56;
+      titleWeight = 800;
+      titleLetterSpacing = '2.5px';
+      titleColor = '#FFF7ED';
+      badgeBorder = 'rgba(239, 68, 68, 0.65)';
+      dividerColor = 'rgba(239, 68, 68, 0.75)';
+      filterDefs = `
+        <filter id="heritageShadow" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#1A0000" flood-opacity="0.9"/>
+        </filter>
+      `;
+      filterAttr = 'filter="url(#heritageShadow)"';
+    }
 
     // 3. Crear overlay SVG vectorial de alta jerarquía visual (estilo revista Kinfolk / Canvas Design)
     const svgOverlay = `
@@ -480,9 +561,7 @@ class ImageService {
             <stop offset="65%" stop-color="#050B0A" stop-opacity="0.88"/>
             <stop offset="100%" stop-color="#020504" stop-opacity="0.98"/>
           </linearGradient>
-          <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
-            <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000000" flood-opacity="0.8"/>
-          </filter>
+          ${filterDefs}
         </defs>
 
         <!-- Sombra superior para el badge -->
@@ -496,21 +575,21 @@ class ImageService {
 
         <!-- Badge Superior Sobrio -->
         <g transform="translate(${width / 2}, 80)">
-          <rect x="-190" y="-17" width="380" height="34" rx="17" fill="rgba(15, 23, 42, 0.65)" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1"/>
+          <rect x="-195" y="-17" width="390" height="34" rx="17" fill="rgba(15, 23, 42, 0.70)" stroke="${badgeBorder}" stroke-width="1.2"/>
           <text x="0" y="5" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#E2E8F0" text-anchor="middle" letter-spacing="3">
             ${safeBadge.toUpperCase()}
           </text>
         </g>
 
         <!-- Titular Principal Hero con máxima jerarquía visual -->
-        <g transform="translate(${width / 2}, ${height - 250})" filter="url(#subtleGlow)">
-          <text x="0" y="0" font-family="${titleFont}" font-size="58" font-weight="700" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">
+        <g transform="translate(${width / 2}, ${height - 250})" ${filterAttr}>
+          <text x="0" y="0" font-family="${titleFont}" font-size="${titleSize}" font-weight="${titleWeight}" fill="${titleColor}" text-anchor="middle" letter-spacing="${titleLetterSpacing}">
             ${safeHeadline.toUpperCase()}
           </text>
         </g>
 
         <!-- Línea divisoria minimalista -->
-        <line x1="${width / 2 - 60}" y1="${height - 200}" x2="${width / 2 + 60}" y2="${height - 200}" stroke="rgba(255,255,255,0.4)" stroke-width="1.2"/>
+        <line x1="${width / 2 - 60}" y1="${height - 200}" x2="${width / 2 + 60}" y2="${height - 200}" stroke="${dividerColor}" stroke-width="1.5"/>
 
         <!-- Subtítulo editorial con respiro visual (1 sola línea limpia) -->
         <g transform="translate(${width / 2}, ${height - 150})">

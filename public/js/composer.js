@@ -1300,8 +1300,117 @@ document.addEventListener('DOMContentLoaded', () => {
   const campinaExtraElements = document.getElementById('campina-extra-elements');
   const campinaHeroHeadline = document.getElementById('campina-hero-headline');
   const campinaSublineHeadline = document.getElementById('campina-subline-headline');
+  const campinaTypographyStyle = document.getElementById('campina-typography-style');
+  const campinaTypoVibeBadge = document.getElementById('campina-typo-vibe-badge');
+  const campinaTypoDesc = document.getElementById('campina-typo-desc');
+  const campinaSloganAlternativesWrap = document.getElementById('campina-slogan-alternatives-wrap');
+  const campinaSloganPills = document.getElementById('campina-slogan-pills');
   const campinaAiImgPreview = document.getElementById('campina-ai-img-preview');
   const campinaAiImgResult = document.getElementById('campina-ai-img-result');
+
+  const campinaTypoDescriptions = {
+    auto: {
+      name: '✨ Auto-detectar',
+      desc: 'La IA detecta automáticamente si el tema es quincho, escapada de pareja o naturaleza y selecciona la fuente ideal.',
+      badgeColor: 'rgba(59, 130, 246, 0.15)',
+      textColor: '#3b82f6'
+    },
+    rustic_timber: {
+      name: '🪵 Rústico Noble',
+      desc: 'Tipografía display robusta inspirada en rótulos tallados en madera noble o forja rústica. Bisel cálido y sombra natural proyectada.',
+      badgeColor: 'rgba(217, 119, 6, 0.15)',
+      textColor: '#d97706'
+    },
+    kinfolk_luxury: {
+      name: '✨ Serif Boutique',
+      desc: 'Serif de altísimo contraste con ligaduras refinadas y elegancia editorial contemporánea. Tono blanco marfil y resplandor sutil.',
+      badgeColor: 'rgba(168, 85, 247, 0.15)',
+      textColor: '#a855f7'
+    },
+    natgeo_adventure: {
+      name: '🏔️ Bold Naturaleza',
+      desc: 'Sans-serif condensada monumental, mayúsculas geométricas de gran peso visual, trazo limpio y sombra arquitectónica sólida.',
+      badgeColor: 'rgba(16, 185, 129, 0.15)',
+      textColor: '#10b981'
+    },
+    botanical_minimal: {
+      name: '🌿 Botánica Zen',
+      desc: 'Sans-serif geométrica refinada, ligera y sumamente espaciada (letter-spacing amplio). Elegancia zen y máximo respiro visual.',
+      badgeColor: 'rgba(14, 165, 233, 0.15)',
+      textColor: '#0ea5e9'
+    },
+    patria_heritage: {
+      name: '🇨🇱 Tradición Chilena',
+      desc: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.',
+      badgeColor: 'rgba(239, 68, 68, 0.15)',
+      textColor: '#ef4444'
+    }
+  };
+
+  function updateCampinaTypoInfo(styleKey) {
+    const info = campinaTypoDescriptions[styleKey] || campinaTypoDescriptions.auto;
+    if (campinaTypoVibeBadge) {
+      campinaTypoVibeBadge.textContent = info.name;
+      campinaTypoVibeBadge.style.background = info.badgeColor;
+      campinaTypoVibeBadge.style.color = info.textColor;
+    }
+    if (campinaTypoDesc) {
+      campinaTypoDesc.textContent = info.desc;
+    }
+  }
+
+  if (campinaTypographyStyle) {
+    campinaTypographyStyle.addEventListener('change', () => {
+      updateCampinaTypoInfo(campinaTypographyStyle.value);
+    });
+  }
+
+  function renderCampinaSloganAlternatives(alternatives = []) {
+    if (!campinaSloganAlternativesWrap || !campinaSloganPills) return;
+    if (!alternatives || alternatives.length === 0) {
+      campinaSloganAlternativesWrap.style.display = 'none';
+      return;
+    }
+
+    campinaSloganPills.innerHTML = '';
+    alternatives.forEach((alt) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:all 0.15s ease;';
+      
+      const styleInfo = campinaTypoDescriptions[alt.style] || { name: alt.style, badgeColor: 'rgba(255,255,255,0.08)', textColor: '#E2E8F0' };
+      
+      item.innerHTML = `
+        <div style="flex:1; min-width:0; padding-right:8px;">
+          <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:1px;">${alt.hero}</strong>
+          <div style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${alt.subline}</div>
+        </div>
+        <span class="badge" style="font-size:0.65rem; background:${styleInfo.badgeColor}; color:${styleInfo.textColor}; flex-shrink:0;">${styleInfo.name}</span>
+      `;
+
+      item.addEventListener('mouseenter', () => {
+        item.style.borderColor = 'var(--primary)';
+        item.style.background = 'rgba(59, 130, 246, 0.08)';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.borderColor = 'var(--border-subtle)';
+        item.style.background = 'var(--bg-secondary)';
+      });
+
+      item.addEventListener('click', () => {
+        if (campinaHeroHeadline) campinaHeroHeadline.value = alt.hero;
+        if (campinaSublineHeadline) campinaSublineHeadline.value = alt.subline;
+        if (campinaTypographyStyle && alt.style) {
+          campinaTypographyStyle.value = alt.style;
+          updateCampinaTypoInfo(alt.style);
+        }
+        showToast(`Eslogan aplicado: "${alt.hero}"`, 'info');
+      });
+
+      campinaSloganPills.appendChild(item);
+    });
+
+    campinaSloganAlternativesWrap.style.display = 'block';
+  }
 
   if (campinaBgImg) {
     campinaBgImg.onerror = () => {
@@ -1411,6 +1520,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const sublineHeadline = campinaSublineHeadline?.value?.trim() || '';
       const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
       const extraElements = campinaExtraElements?.value?.trim() || '';
+      const typographyStyle = campinaTypographyStyle?.value || 'auto';
 
       if (!theme) {
         showToast('Ingresa el tema o enfoque (ej: Asado en quincho privado, descanso en suites...)', 'error');
@@ -1418,7 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       btnGenerateCampinaAi.disabled = true;
-      btnGenerateCampinaAi.innerHTML = '<span>⚡ Generando Guión, Copy y Prompt con Gemini...</span>';
+      btnGenerateCampinaAi.innerHTML = '<span>⚡ Generando Guión, Copy, Prompt y Eslogans con Gemini...</span>';
 
       try {
         const res = await fetch('/api/ai/campina-content', {
@@ -1431,7 +1541,8 @@ document.addEventListener('DOMContentLoaded', () => {
             heroHeadline,
             sublineHeadline,
             respectBackground,
-            extraElements
+            extraElements,
+            typographyStyle
           })
         });
         const json = await res.json();
@@ -1448,12 +1559,20 @@ document.addEventListener('DOMContentLoaded', () => {
             campinaSublineHeadline.value = json.data.sublineHeadline;
           }
 
+          if (json.data.typographyStyle && (!campinaTypographyStyle.value || campinaTypographyStyle.value === 'auto')) {
+            updateCampinaTypoInfo(json.data.typographyStyle);
+          }
+
+          if (json.data.sloganAlternatives) {
+            renderCampinaSloganAlternatives(json.data.sloganAlternatives);
+          }
+
           if (json.data.masterImagePrompt) {
             if (campinaImagePromptText) campinaImagePromptText.value = json.data.masterImagePrompt;
             if (campinaImagePromptBox) campinaImagePromptBox.style.display = 'block';
           }
 
-          showToast('¡Guión, Copy y Prompt 4:5 generados con éxito!', 'success');
+          showToast('¡Guión, Copy, Prompt 4:5 y Eslogans generados con éxito!', 'success');
         } else {
           showToast('Error: ' + json.error, 'error');
         }
@@ -1505,6 +1624,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sublineHeadline = campinaSublineHeadline?.value?.trim() || '';
     const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
     const extraElements = campinaExtraElements?.value?.trim() || '';
+    const typographyStyle = campinaTypographyStyle?.value || 'auto';
 
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
@@ -1533,6 +1653,7 @@ document.addEventListener('DOMContentLoaded', () => {
           sublineHeadline,
           respectBackground,
           extraElements,
+          typographyStyle,
           account_id: accountId
         })
       });
@@ -1556,7 +1677,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       if (btnGenerateCampinaDirectPoster) {
         btnGenerateCampinaDirectPoster.disabled = false;
-        btnGenerateCampinaDirectPoster.innerHTML = '<span>🎨 Generar Afiche 4:5 con Gemini</span>';
+        btnGenerateCampinaDirectPoster.innerHTML = '<span>🎨 Generar con Gemini</span>';
       }
     }
   };
@@ -1578,6 +1699,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const headline = campinaHeroHeadline?.value?.trim() || 'DESCONEXIÓN TOTAL';
     const subline = campinaSublineHeadline?.value?.trim() || 'Quinchos privados • Cabañas y suites • Algarrobo';
+    const typographyStyle = campinaTypographyStyle?.value === 'auto' ? 'rustic_timber' : (campinaTypographyStyle?.value || 'rustic_timber');
 
     if (btnGenerateCampinaEditorialFlyer) {
       btnGenerateCampinaEditorialFlyer.disabled = true;
@@ -1599,6 +1721,7 @@ document.addEventListener('DOMContentLoaded', () => {
           subline,
           badgeText: 'CABAÑAS LA CAMPIÑA • ALGARROBO',
           style: 'editorial',
+          typographyStyle,
           account_id: accountId
         })
       });

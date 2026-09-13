@@ -599,65 +599,181 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
   }
 
   /**
+   * Catálogo Maestro de Estilos Tipográficos para Cabañas La Campiña
+   * Erradica las fuentes genéricas y "AI Slop", aplicando dirección de arte publicitaria con carácter.
+   */
+  getCampinaTypographyStyles() {
+    return [
+      {
+        id: 'auto',
+        name: '✨ Auto-detectar por IA según el tema',
+        shortName: 'Auto-detectar',
+        vibe: 'La IA analiza el enfoque y escoge la tipografía óptima',
+        icon: '✨',
+        badgeColor: 'rgba(59, 130, 246, 0.15)',
+        textColorCss: '#3b82f6',
+        description: 'Analiza si el tema es quincho, escapada de pareja, naturaleza o festivo y selecciona la fuente ideal.'
+      },
+      {
+        id: 'rustic_timber',
+        name: '🪵 Rústico Noble & Madera Tallada (Lodge Craft)',
+        shortName: 'Rústico Noble',
+        vibe: 'Cabañas rústicas, quinchos privados, asados al fuego',
+        icon: '🪵',
+        badgeColor: 'rgba(217, 119, 6, 0.15)',
+        textColorCss: '#d97706',
+        description: 'Tipografía display robusta inspirada en rótulos tallados en madera noble o forja rústica. Bisel cálido y sombra natural proyectada.'
+      },
+      {
+        id: 'kinfolk_luxury',
+        name: '✨ Serif Editorial Boutique (Kinfolk / Vogue Living)',
+        shortName: 'Serif Boutique',
+        vibe: 'Suites de pareja, descanso sereno, lujo silencioso',
+        icon: '✨',
+        badgeColor: 'rgba(168, 85, 247, 0.15)',
+        textColorCss: '#a855f7',
+        description: 'Serif de altísimo contraste con ligaduras refinadas y elegancia editorial contemporánea. Tono blanco marfil y resplandor sutil.'
+      },
+      {
+        id: 'natgeo_adventure',
+        name: '🏔️ Display Bold Naturaleza (National Geographic / Adventure)',
+        shortName: 'Bold Naturaleza',
+        vibe: 'Senderos de pinos, aire libre, vacaciones familiares enérgicas',
+        icon: '🏔️',
+        badgeColor: 'rgba(16, 185, 129, 0.15)',
+        textColorCss: '#10b981',
+        description: 'Sans-serif condensada monumental, mayúsculas geométricas de gran peso visual, trazo limpio y sombra arquitectónica sólida.'
+      },
+      {
+        id: 'botanical_minimal',
+        name: '🌿 Botánica Minimalista & Zen (Estilo Aēsop / Cereal)',
+        shortName: 'Botánica Zen',
+        vibe: 'Jardines temáticos, silencio, desconexión sin pantallas',
+        icon: '🌿',
+        badgeColor: 'rgba(14, 165, 233, 0.15)',
+        textColorCss: '#0ea5e9',
+        description: 'Sans-serif geométrica refinada, ligera y sumamente espaciada (letter-spacing amplio). Elegancia zen y máximo respiro visual.'
+      },
+      {
+        id: 'patria_heritage',
+        name: '🇨🇱 Tradición & Folclor Noble (Fiestas Patrias & Campo Chileno)',
+        shortName: 'Tradición Chilena',
+        vibe: '18 de septiembre, fonda familiar, asados dieciocheros',
+        icon: '🇨🇱',
+        badgeColor: 'rgba(239, 68, 68, 0.15)',
+        textColorCss: '#ef4444',
+        description: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.'
+      }
+    ];
+  }
+
+  detectCampinaTypographyStyle(theme = '', targetDate = '') {
+    const text = `${theme} ${targetDate}`.toLowerCase();
+    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+      return 'patria_heritage';
+    }
+    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne') || text.includes('fuego') || text.includes('leña')) {
+      return 'rustic_timber';
+    }
+    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos') || text.includes('aniversario') || text.includes('vino')) {
+      return 'kinfolk_luxury';
+    }
+    if (text.includes('sendero') || text.includes('caminar') || text.includes('aventura') || text.includes('bosque') || text.includes('familia') || text.includes('niño') || text.includes('juego') || text.includes('vacaciones')) {
+      return 'natgeo_adventure';
+    }
+    if (text.includes('silencio') || text.includes('pantalla') || text.includes('paz') || text.includes('jardín') || text.includes('zen') || text.includes('lectura') || text.includes('desconex')) {
+      return 'botanical_minimal';
+    }
+    return 'rustic_timber';
+  }
+
+  /**
    * Extrae la jerarquía tipográfica y publicitaria óptima para Cabañas La Campiña
-   * (Hero Headline de 2 a 3 palabras + Subtítulo editorial con respiro)
+   * (Hero Headline de 2 a 3 palabras + Subtítulo editorial con respiro + Alternativas de Eslogan)
    */
   extractCampinaVisualHierarchy(theme = '', targetDate = '') {
-    const text = (theme || '').toLowerCase();
+    const text = `${theme} ${targetDate}`.toLowerCase();
+    const detectedStyle = this.detectCampinaTypographyStyle(theme, targetDate);
 
-    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne')) {
-      return {
-        hero: 'MOMENTOS AL FUEGO',
-        keyword: 'AL FUEGO',
-        subline: 'Quinchos privados y naturaleza en Algarrobo'
-      };
-    }
-    if (text.includes('desconex') || text.includes('descanso') || text.includes('pantalla') || text.includes('estrés') || text.includes('silencio')) {
-      return {
-        hero: 'DESCONEXIÓN TOTAL',
-        keyword: 'DESCONEXIÓN',
-        subline: 'Senderos de pinos y jardines temáticos sin pantallas'
-      };
-    }
-    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos')) {
-      return {
-        hero: 'ESCAPADA EN PAREJA',
-        keyword: 'ESCAPADA',
-        subline: 'Suites acogedoras y tranquilidad a minutos del mar'
-      };
-    }
-    if (text.includes('familia') || text.includes('niño') || text.includes('juego') || text.includes('hijos')) {
-      return {
-        hero: 'TIEMPO EN FAMILIA',
-        keyword: 'EN FAMILIA',
-        subline: 'Cabañas amplias de 2 a 8 personas y áreas verdes'
-      };
-    }
-    if (text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18')) {
-      return {
-        hero: 'VIVE EL 18',
-        keyword: 'EL 18',
-        subline: 'El mejor asado campestre en tu quincho privado'
-      };
-    }
-    if (text.includes('verano') || text.includes('playa') || text.includes('sol') || text.includes('vacaciones')) {
-      return {
-        hero: 'TU VERANO EN CALMA',
-        keyword: 'VERANO',
-        subline: 'Naturaleza y brisa marina en Algarrobo'
-      };
+    let primaryHero = 'TU REFUGIO NATURAL';
+    let primaryKeyword = 'REFUGIO';
+    let primarySubline = 'Cabañas, quinchos privados y bosque en Algarrobo';
+    let alternatives = [];
+
+    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne') || text.includes('fuego')) {
+      primaryHero = 'MOMENTOS AL FUEGO';
+      primaryKeyword = 'AL FUEGO';
+      primarySubline = 'Quinchos privados y bosque nativo en Algarrobo';
+      alternatives = [
+        { hero: 'MOMENTOS AL FUEGO', subline: 'Quinchos privados y bosque nativo en Algarrobo', style: 'rustic_timber' },
+        { hero: 'EL ARTE DEL ASADO', subline: 'Tu quincho exclusivo entre pinos y tranquilidad', style: 'rustic_timber' },
+        { hero: 'SABOR Y CALMA', subline: 'Tardes de asado y encuentro familiar en Algarrobo', style: 'kinfolk_luxury' }
+      ];
+    } else if (text.includes('desconex') || text.includes('descanso') || text.includes('pantalla') || text.includes('silencio') || text.includes('zen') || text.includes('estrés')) {
+      primaryHero = 'DESCONEXIÓN TOTAL';
+      primaryKeyword = 'DESCONEXIÓN';
+      primarySubline = 'Senderos de pinos y jardines temáticos sin pantallas';
+      alternatives = [
+        { hero: 'DESCONEXIÓN TOTAL', subline: 'Senderos de pinos y jardines temáticos sin pantallas', style: 'botanical_minimal' },
+        { hero: 'RESPIRA NATURALEZA', subline: 'Paz absoluta y descanso a minutos del mar', style: 'botanical_minimal' },
+        { hero: 'PAUSA Y SILENCIO', subline: 'El refugio que tu mente necesita en Algarrobo', style: 'kinfolk_luxury' }
+      ];
+    } else if (text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos')) {
+      primaryHero = 'ESCAPADA EN PAREJA';
+      primaryKeyword = 'ESCAPADA';
+      primarySubline = 'Suites acogedoras y tranquilidad a minutos del mar';
+      alternatives = [
+        { hero: 'ESCAPADA EN PAREJA', subline: 'Suites acogedoras y tranquilidad a minutos del mar', style: 'kinfolk_luxury' },
+        { hero: 'SOLO USTEDES DOS', subline: 'Atardeceres cálidos y descanso íntimo en Algarrobo', style: 'kinfolk_luxury' },
+        { hero: 'REFUGIO ROMÁNTICO', subline: 'Noches estrelladas y bosque en Cabañas La Campiña', style: 'rustic_timber' }
+      ];
+    } else if (text.includes('familia') || text.includes('niño') || text.includes('juego') || text.includes('hijos')) {
+      primaryHero = 'TIEMPO EN FAMILIA';
+      primaryKeyword = 'EN FAMILIA';
+      primarySubline = 'Cabañas amplias de 2 a 8 personas y áreas verdes';
+      alternatives = [
+        { hero: 'TIEMPO EN FAMILIA', subline: 'Cabañas amplias de 2 a 8 personas y áreas verdes', style: 'natgeo_adventure' },
+        { hero: 'RECUERDOS DE BOSQUE', subline: 'Juegos al aire libre, quinchos y naturaleza en Algarrobo', style: 'rustic_timber' },
+        { hero: 'COMPARTIR EN CALMA', subline: 'Espacio, tranquilidad y desconexión para todos', style: 'botanical_minimal' }
+      ];
+    } else if (text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18')) {
+      primaryHero = 'VIVE EL 18';
+      primaryKeyword = 'EL 18';
+      primarySubline = 'El mejor asado campestre en tu quincho privado';
+      alternatives = [
+        { hero: 'VIVE EL 18', subline: 'El mejor asado campestre en tu quincho privado', style: 'patria_heritage' },
+        { hero: '18 EN LA CAMPIÑA', subline: 'Tradición familiar, asados y naturaleza en Algarrobo', style: 'patria_heritage' },
+        { hero: 'FIESTAS EN FAMILIA', subline: 'Cabañas y quinchos privados para celebrar en grande', style: 'rustic_timber' }
+      ];
+    } else if (text.includes('verano') || text.includes('playa') || text.includes('sol') || text.includes('vacaciones')) {
+      primaryHero = 'TU VERANO EN CALMA';
+      primaryKeyword = 'VERANO';
+      primarySubline = 'Naturaleza y brisa marina en Algarrobo';
+      alternatives = [
+        { hero: 'TU VERANO EN CALMA', subline: 'Naturaleza y brisa marina en Algarrobo', style: 'natgeo_adventure' },
+        { hero: 'REFUGIO DE VERANO', subline: 'El frescor del bosque a minutos de la playa', style: 'kinfolk_luxury' },
+        { hero: 'DESCANSO COSTEÑO', subline: 'Cabañas familiares y tardes de quincho en Algarrobo', style: 'rustic_timber' }
+      ];
+    } else {
+      alternatives = [
+        { hero: 'TU REFUGIO NATURAL', subline: 'Cabañas, quinchos privados y bosque en Algarrobo', style: 'rustic_timber' },
+        { hero: 'DESCONEXIÓN Y CALMA', subline: 'Descanso sin pantallas entre pinos y aire puro', style: 'botanical_minimal' },
+        { hero: 'MOMENTOS ÚNICOS', subline: 'Cabañas de descanso y quinchos en Algarrobo', style: 'kinfolk_luxury' }
+      ];
     }
 
     return {
-      hero: 'TU REFUGIO NATURAL',
-      keyword: 'REFUGIO',
-      subline: 'Cabañas, quinchos privados y bosque en Algarrobo'
+      hero: primaryHero,
+      keyword: primaryKeyword,
+      subline: primarySubline,
+      detectedStyle,
+      alternatives
     };
   }
 
   /**
    * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
-   * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte editorial
+   * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte tipográfica de autor
    */
   buildCampinaImagePrompt({
     theme,
@@ -666,12 +782,20 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     heroHeadline = '',
     sublineHeadline = '',
     respectBackground = true,
-    extraElements = ''
+    extraElements = '',
+    typographyStyle = 'auto'
   }) {
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
     const hero = (heroHeadline || hierarchy.hero).toUpperCase();
     const subline = sublineHeadline || hierarchy.subline;
     const keyword = hierarchy.keyword;
+
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
+      ? hierarchy.detectedStyle
+      : typographyStyle;
+    
+    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
     const backgroundDirective = respectBackground
       ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
@@ -689,19 +813,30 @@ OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) par
 ${backgroundDirective}
 - PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
 
-2. TÉCNICAS DE MARKETING Y JERARQUÍA TIPOGRÁFICA SENIOR (CERO "AI SLOP"):
-- REGLA DE ORO: La publicidad de alto rendimiento NO lleva párrafos largos, NO lleva viñetas, NO lleva listas apretadas ni fuentes sintéticas de IA deformadas. El texto dentro de la imagen debe ser minimalista, elegante y con amplio respiro visual ("menos es más").
+2. DIRECCIÓN DE ARTE TIPOGRÁFICA DE ALTA GAMA (CERO "AI SLOP" Y FUENTES GENÉRICAS):
+- ESTILO TIPOGRÁFICO ASIGNADO: "${matchedStyle.name}"
+- CONCEPTO Y PERSONALIDAD: ${matchedStyle.vibe}
+- TRATAMIENTO VISUAL DE FUENTE:
+  ${matchedStyle.description}
+  IMPORTANTE: CERO letras sintéticas, derretidas o genéricas de IA. El titular debe parecer diseñado por una agencia de diseño suiza o boutique editorial, perfectamente integrado y legible sobre la fotografía.
+
+- REGLA DE ORO PUBLICITARIA ("MENOS ES MÁS"):
+  La publicidad de alto rendimiento NO lleva párrafos largos, NO lleva viñetas, NO lleva listas apretadas ni fuentes sintéticas de IA deformadas. El texto dentro de la imagen debe ser minimalista, contundente y con amplio respiro visual.
+
 - TITULAR HERO (Jerarquía visual dominante, máximo 2 a 3 palabras):
   "${hero}"
-  Tipografía: Display geométrica moderna o editorial serif de revista boutique, sólida, de alto contraste en tono blanco crema o madera noble, con sombra difusa sutil para garantizar lectura impecable sobre el fondo. Jerarquizar la palabra clave "${keyword}" con mayor presencia tipográfica.
+  Aplica el estilo tipográfico "${matchedStyle.shortName}". Jerarquiza la palabra clave "${keyword}" con mayor presencia tipográfica y contraste luminoso.
+
 - SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
   "${subline}"
-  Tipografía: Sans-serif limpia y ligera, con amplio espaciado entre letras (letter-spacing elegante).
+  Tipografía: Sans-serif limpia, ligera y con amplio espaciado entre letras (letter-spacing elegante).
+
 - IDENTIDAD DISCRETA:
   En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
+
 - CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche 4:5 de alta gama listo para pauta publicitaria.`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 de alta gama con tipografía preciosa e impactante.`.trim();
   }
 
   /**
@@ -716,7 +851,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     heroHeadline = '',
     sublineHeadline = '',
     respectBackground = true,
-    extraElements = ''
+    extraElements = '',
+    typographyStyle = 'auto'
   }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
@@ -725,6 +861,13 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     const finalHero = heroHeadline || hierarchy.hero;
     const finalSubline = sublineHeadline || hierarchy.subline;
 
+    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
+      ? hierarchy.detectedStyle
+      : typographyStyle;
+    
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
+
     const masterImagePrompt = this.buildCampinaImagePrompt({
       theme,
       targetDate,
@@ -732,7 +875,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
       heroHeadline: finalHero,
       sublineHeadline: finalSubline,
       respectBackground,
-      extraElements
+      extraElements,
+      typographyStyle: activeStyleKey
     });
 
     const systemPrompt = `
@@ -763,11 +907,6 @@ Si todavía no tienes dónde pasar estas Fiestas Patrias, no dejes pasar la opor
 
 #cabañaslacampiña #algarrobo #fiestaspatrias #18deseptiembre #18septiembre #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral
 """
-
-DATOS DEL CONTENIDO A GENERAR AHORA:
-- Tema / Enfoque: "${theme}"
-- Fecha / Ocasión: "${targetDate || 'próximo fin de semana'}"
-${extraNotes ? `- Notas adicionales: "${extraNotes}"` : ''}
 
 REGLAS ESTRICTAS:
 - Solo instalaciones reales: quinchos privados en terraza de cabañas o comunes en suites, amplias áreas verdes y jardines temáticos (Puente Rojo, Duendecitos, Pinos), cabañas familiares (2 a 8 personas), suites para parejas, juegos infantiles, sin Wi-Fi (desconexión).
@@ -819,6 +958,11 @@ Estructura a entregar:
       masterImagePrompt,
       heroHeadline: finalHero,
       sublineHeadline: finalSubline,
+      typographyStyle: activeStyleKey,
+      typographyStyleName: matchedStyle.name,
+      typographyVibe: matchedStyle.vibe,
+      sloganAlternatives: hierarchy.alternatives,
+      allTypographyStyles: stylesCatalog,
       content: generatedText
     };
   }
@@ -834,7 +978,8 @@ Estructura a entregar:
     heroHeadline = '',
     sublineHeadline = '',
     respectBackground = true,
-    extraElements = ''
+    extraElements = '',
+    typographyStyle = 'auto'
   }) {
     const designerPrompt = this.buildCampinaImagePrompt({
       theme,
@@ -843,7 +988,8 @@ Estructura a entregar:
       heroHeadline,
       sublineHeadline,
       respectBackground,
-      extraElements
+      extraElements,
+      typographyStyle
     });
 
     return await this.generateDirectImage({

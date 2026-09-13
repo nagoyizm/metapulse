@@ -1702,6 +1702,15 @@ router.post('/ai/generate-image', async (req, res) => {
   }
 });
 
+router.get('/ai/campina-typography-styles', (req, res) => {
+  try {
+    const styles = aiService.getCampinaTypographyStyles();
+    res.json({ success: true, data: styles });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/campina-content', async (req, res) => {
   try {
     const {
@@ -1712,7 +1721,8 @@ router.post('/ai/campina-content', async (req, res) => {
       heroHeadline,
       sublineHeadline,
       respectBackground = true,
-      extraElements = ''
+      extraElements = '',
+      typographyStyle = 'auto'
     } = req.body;
     if (!theme) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
@@ -1725,7 +1735,8 @@ router.post('/ai/campina-content', async (req, res) => {
       heroHeadline,
       sublineHeadline,
       respectBackground: Boolean(respectBackground),
-      extraElements
+      extraElements,
+      typographyStyle
     });
     res.json({ success: true, data: result });
   } catch (err) {
@@ -2106,7 +2117,7 @@ router.post('/media/create-ad-poster', async (req, res) => {
 // 1. Maquetador Editorial 4:5 sobre foto real (Cabañas La Campiña - Costo $0)
 router.post('/media/create-campina-flyer', async (req, res) => {
   try {
-    const { imagePath, baseImageUrl, headline, subline, badgeText, style, account_id, account_name } = req.body;
+    const { imagePath, baseImageUrl, headline, subline, badgeText, style, typographyStyle, account_id, account_name } = req.body;
     const targetImage = imagePath || baseImageUrl;
     if (!targetImage) {
       return res.status(400).json({ success: false, error: 'Se requiere imagePath para generar el flyer.' });
@@ -2121,7 +2132,8 @@ router.post('/media/create-campina-flyer', async (req, res) => {
       headline,
       subline,
       badgeText,
-      style
+      style,
+      typographyStyle
     });
 
     const flyerData = {
@@ -2193,7 +2205,8 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       heroHeadline,
       sublineHeadline,
       respectBackground = true,
-      extraElements = ''
+      extraElements = '',
+      typographyStyle = 'auto'
     } = req.body;
     if (!baseImageUrl && !theme) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar la foto de fondo o el tema del afiche.' });
@@ -2207,7 +2220,8 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       heroHeadline,
       sublineHeadline,
       respectBackground: Boolean(respectBackground),
-      extraElements
+      extraElements,
+      typographyStyle
     });
 
     await tryAutoStampWatermark(result, req.body.account_id, '[La Campiña Poster]');
