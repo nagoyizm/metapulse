@@ -2161,7 +2161,29 @@
                 </div>
               </div>
             </div>
+          </div>
 
+          <!-- Resultado generado común -->
+          <div class="ai-result-box" id="ai-result-box" style="display: none; margin-top: 14px;">
+            <div class="ai-result-header">
+              <label class="form-label" for="ai-generated-text">Texto / Copy del Post:</label>
+              <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">🔄 Regenerar</button>
+            </div>
+            <textarea id="ai-generated-text" class="form-control" rows="8"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-ai">Cancelar</button>
+          <button class="btn btn-primary" id="btn-apply-ai-copy" style="display: none;">
+            Insertar en el Composer →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETALLE DE PUBLICACIÓN EN PLANNER (PREVIEW MOCKUP IG/FB) -->
   <div class="modal-backdrop" id="modal-planner-detail" style="display: none;">
     <div class="modal-dialog" style="max-width: 920px; width: 97%;">
       <div class="modal-content" style="max-height: 92vh; display: flex; flex-direction: column;">
@@ -2247,26 +2269,6 @@
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
             <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">📲 Story 9:16</button>
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;">✏️ Editar Post</button>
-            <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
- Meta">
-                <span>⚡</span> Publicar Historia Ahora
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer" style="justify-content: space-between;">
-          <button type="button" class="btn btn-danger" id="btn-planner-delete-post">
-            🗑️ Desprogramar / Eliminar
-          </button>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
-            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">📲 Story 9:16</button>
-            <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;" title="Editar horario, texto, título o imagen">✏️ Editar Post</button>
             <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
           </div>
         </div>
@@ -2725,7 +2727,7 @@
   <script src="js/app.js?v=2.4"></script>
   <script src="js/composer.js?v=2.4"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
-  <script src="js/calendar.js?v=2.5"></script>
+  <script src="js/calendar.js?v=2.6"></script>
   <script src="js/analytics.js?v=2.4"></script>
   <script src="js/watermark.js?v=3.2"></script>
   <script src="js/settings.js?v=2.4"></script>

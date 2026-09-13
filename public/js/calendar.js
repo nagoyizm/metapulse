@@ -198,11 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPlannerDetailEdit = document.getElementById('btn-planner-detail-edit');
 
   function closeModal() {
-    if (modalDetail) {
-      modalDetail.style.display = 'none';
-      modalDetail._currentPost = null;
+    const md = document.getElementById('modal-planner-detail');
+    if (md) {
+      md.style.display = 'none';
+      md.style.cssText = 'display:none !important;';
+      md._currentPost = null;
     }
   }
+  window.closePlannerDetailModal = closeModal;
 
   if (btnCloseDetail) btnCloseDetail.addEventListener('click', closeModal);
   if (btnDetailCloseFooter) btnDetailCloseFooter.addEventListener('click', closeModal);
@@ -745,7 +748,13 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
 // Abre el modal de detalle al hacer clic en un post del Planner
 function showPlannerPostDetail(post) {
   const modal = document.getElementById('modal-planner-detail');
-  if (!modal) return;
+  if (!modal) {
+    console.error('[MetaPulse] modal-planner-detail no encontrado');
+    return;
+  }
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
   modal._currentPost = post;
 
   const isStory = post.post_type === 'story';
@@ -949,10 +958,10 @@ function showPlannerPostDetail(post) {
     }
   }
 
-  modal.style.display = 'flex';
+  modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index:2147483647 !important; background:rgba(15,23,42,0.85) !important; align-items:center !important; justify-content:center !important; padding:16px !important; box-sizing:border-box !important;';
 
   // Renderizar el mockup de preview
-  setTimeout(() => renderPlannerMockup(post, 'ig'), 10);
+  setTimeout(() => renderPlannerMockup(post, 'ig'), 20);
 }
 
 // Renderiza el mockup visual de preview del post (simula IG / FB)
@@ -1089,9 +1098,26 @@ window.switchPreviewTab = function(platform) {
 };
 
 window.showPlannerPostDetailById = function(id) {
-  const post = (PlannerState.posts || []).find(p => p.id === Number(id));
+  console.log('[MetaPulse] showPlannerPostDetailById llamado con ID:', id);
+  const numId = Number(id);
+  const post = (PlannerState.posts || []).find(p => Number(p.id) === numId);
   if (post) {
     showPlannerPostDetail(post);
+  } else {
+    console.warn('[MetaPulse] Post no encontrado en memoria local, consultando API...', id);
+    fetch(`/api/posts/${id}`)
+      .then(res => res.json())
+      .then(json => {
+        const p = json?.data || (json?.id ? json : null);
+        if (p) {
+          showPlannerPostDetail(p);
+        } else if (typeof showToast === 'function') {
+          showToast('No se encontró la publicación', 'warning');
+        }
+      })
+      .catch(err => {
+        console.error('Error al obtener post:', err);
+      });
   }
 };
 
@@ -1170,13 +1196,13 @@ function renderQueueTable(posts) {
     });
 
     return `
-      <tr>
+      <tr style="cursor:pointer;" onclick="if (!event.target.closest('button, a, input, select')) window.showPlannerPostDetailById(${post.id});" title="Click para ver detalle y vista previa IG/FB">
         <td><strong>#${post.id}</strong></td>
         <td><span class="badge" style="background: rgba(99,102,241,0.12); color: var(--primary); font-size: 0.75rem; font-weight:600; white-space:nowrap;">🏢 ${escapeHtml(post.account_name || 'Cuenta General')}</span></td>
         <td>📅 ${scheduleDate}</td>
         <td><div style="display:flex;gap:4px;align-items:center;">${platformBadges}</div></td>
         <td><span class="badge badge-accent">${(post.post_type || 'feed').toUpperCase()}</span></td>
-        <td style="cursor:pointer;" onclick="window.showPlannerPostDetailById(${post.id})" title="Click para ver detalle y opciones de Historia 9:16">
+        <td>
           <div style="display:flex; gap:10px; align-items:center;">
             ${mediaThumb}
             <div style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -1187,6 +1213,7 @@ function renderQueueTable(posts) {
         <td>${statusPill}</td>
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-xs" onclick="window.showPlannerPostDetailById(${post.id})" title="Ver detalle y vista previa (Mockup IG/FB)" style="font-weight:700;">👁️ Ver</button>
             ${post.status === 'scheduled' ? `
               <button class="btn btn-primary btn-xs" onclick="publishPostNow(${post.id})" title="Publicar Ahora">⚡ Enviar</button>
             ` : ''}
