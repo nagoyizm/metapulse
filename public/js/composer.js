@@ -762,6 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const storyStrategy = document.querySelector('input[name="story_strategy"]:checked')?.value || 'single';
     const storyTimingRule = document.querySelector('input[name="story_schedule_timing"]:checked')?.value || 'same_time';
     const storyCustomDatetime = document.getElementById('story-custom-datetime')?.value || null;
+    const storyMonthlyExtension = document.getElementById('chk-story-monthly-extension') ? Boolean(document.getElementById('chk-story-monthly-extension').checked) : true;
 
     btnSubmitPost.disabled = true;
     showToast('Procesando solicitud de publicación...', 'info');
@@ -798,6 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
           story_strategy: storyStrategy,
           story_timing_rule: storyTimingRule,
           story_custom_datetime: storyCustomDatetime,
+          story_monthly_extension: storyMonthlyExtension,
           music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
           story_music_config: alsoShareStory ? musicConfigPayload : null
         })
@@ -816,6 +818,8 @@ document.addEventListener('DOMContentLoaded', () => {
           defaultStrat.checked = true;
           defaultStrat.dispatchEvent(new Event('change'));
         }
+        const chkMonthlyExt = document.getElementById('chk-story-monthly-extension');
+        if (chkMonthlyExt) chkMonthlyExt.checked = true;
         if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
         if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
         ComposerState.mediaFiles = [];
@@ -844,6 +848,8 @@ document.addEventListener('DOMContentLoaded', () => {
       defaultStrat.checked = true;
       defaultStrat.dispatchEvent(new Event('change'));
     }
+    const chkMonthlyExt = document.getElementById('chk-story-monthly-extension');
+    if (chkMonthlyExt) chkMonthlyExt.checked = true;
     if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
     if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
     postTitle.value = '';

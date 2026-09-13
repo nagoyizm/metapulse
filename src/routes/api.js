@@ -367,10 +367,13 @@ function calculateTargetSchedule(schedule_type, scheduled_at) {
  * - 'single': 1 historia única según la regla de tiempo elegida.
  * - 'drip3': 3 historias espaciadas (Lanzamiento, Noche +24h, Almuerzo +72h) para testear cuadrantes.
  * - 'evergreen': 5 historias rotativas (Lanzamiento, Noche, Almuerzo, Mañana, Tarde) para mantener la cuenta viva 5 días.
+ * - monthlyExtension: si está activado (por defecto), agrega al menos 1 historia semanal durante el resto del mes (30 días: Día 12, 19 y 26).
  */
-function buildDripSchedules(baseIso, strategy = 'single', timingRule = 'same_time', customDatetime = null) {
+function buildDripSchedules(baseIso, strategy = 'single', timingRule = 'same_time', customDatetime = null, monthlyExtension = true) {
   const baseD = new Date(baseIso);
   const validBase = isNaN(baseD.getTime()) ? new Date() : baseD;
+
+  let baseList = [];
 
   if (strategy === 'single') {
     let s = new Date(validBase);
@@ -382,34 +385,27 @@ function buildDripSchedules(baseIso, strategy = 'single', timingRule = 'same_tim
     } else if (timingRule === 'custom' && customDatetime) {
       s = new Date(customDatetime);
     }
-    return [{ titleSuffix: 'Story', schedule: s.toISOString() }];
-  }
-
-  if (strategy === 'drip3') {
+    baseList = [{ rawTitle: 'Lanzamiento', schedule: s.toISOString() }];
+  } else if (strategy === 'drip3') {
     // 3 Historias espaciadas en slots clave para test de horarios (A/B)
-    // 1. Lanzamiento: mismo horario del post
     const s1 = new Date(validBase);
 
-    // 2. Noche (+1 día, 21:00 hrs)
     const s2 = new Date(validBase);
     s2.setDate(s2.getDate() + 1);
     s2.setHours(21, 0, 0, 0);
     if (s2 <= s1) s2.setDate(s2.getDate() + 1);
 
-    // 3. Almuerzo (+3 días desde el base, 13:30 hrs)
     const s3 = new Date(validBase);
     s3.setDate(s3.getDate() + 3);
     s3.setHours(13, 30, 0, 0);
     if (s3 <= s2) s3.setDate(s2.getDate() + 2);
 
-    return [
-      { titleSuffix: '[Historia 1/3 • Lanzamiento]', schedule: s1.toISOString() },
-      { titleSuffix: '[Historia 2/3 • Slot Noche 21:00]', schedule: s2.toISOString() },
-      { titleSuffix: '[Historia 3/3 • Slot Almuerzo 13:30]', schedule: s3.toISOString() }
+    baseList = [
+      { rawTitle: 'Lanzamiento', schedule: s1.toISOString() },
+      { rawTitle: 'Slot Noche 21:00', schedule: s2.toISOString() },
+      { rawTitle: 'Slot Almuerzo 13:30', schedule: s3.toISOString() }
     ];
-  }
-
-  if (strategy === 'evergreen') {
+  } else if (strategy === 'evergreen') {
     // 5 Historias espaciadas cada 24h-36h rotando los 4 cuadrantes del día
     const s1 = new Date(validBase);
 
@@ -433,22 +429,56 @@ function buildDripSchedules(baseIso, strategy = 'single', timingRule = 'same_tim
     s5.setHours(19, 30, 0, 0);
     if (s5 <= s4) s5.setDate(s4.getDate() + 1);
 
-    return [
-      { titleSuffix: '[Historia 1/5 • Lanzamiento]', schedule: s1.toISOString() },
-      { titleSuffix: '[Historia 2/5 • Slot Noche 21:00]', schedule: s2.toISOString() },
-      { titleSuffix: '[Historia 3/5 • Slot Almuerzo 13:30]', schedule: s3.toISOString() },
-      { titleSuffix: '[Historia 4/5 • Slot Mañana 09:15]', schedule: s4.toISOString() },
-      { titleSuffix: '[Historia 5/5 • Slot Tarde 19:30]', schedule: s5.toISOString() }
+    baseList = [
+      { rawTitle: 'Lanzamiento', schedule: s1.toISOString() },
+      { rawTitle: 'Slot Noche 21:00', schedule: s2.toISOString() },
+      { rawTitle: 'Slot Almuerzo 13:30', schedule: s3.toISOString() },
+      { rawTitle: 'Slot Mañana 09:15', schedule: s4.toISOString() },
+      { rawTitle: 'Slot Tarde 19:30', schedule: s5.toISOString() }
     ];
+  } else {
+    baseList = [{ rawTitle: 'Story', schedule: validBase.toISOString() }];
   }
 
-  return [{ titleSuffix: 'Story', schedule: validBase.toISOString() }];
+  // Si se activa la extensión mensual (30 días), agregar al menos 1 historia semanal en las semanas 2, 3 y 4
+  if (monthlyExtension) {
+    const sW2 = new Date(validBase);
+    sW2.setDate(sW2.getDate() + 11); // Día 12 (~Semana 2)
+    sW2.setHours(20, 30, 0, 0); // Slot estelar noche
+
+    const sW3 = new Date(validBase);
+    sW3.setDate(sW3.getDate() + 18); // Día 19 (~Semana 3)
+    sW3.setHours(13, 30, 0, 0); // Slot estelar almuerzo
+
+    const sW4 = new Date(validBase);
+    sW4.setDate(sW4.getDate() + 25); // Día 26 (~Semana 4)
+    sW4.setHours(21, 0, 0, 0); // Slot estelar noche
+
+    baseList.push(
+      { rawTitle: 'Sem. 2 (Día 12) 20:30', schedule: sW2.toISOString() },
+      { rawTitle: 'Sem. 3 (Día 19) 13:30', schedule: sW3.toISOString() },
+      { rawTitle: 'Sem. 4 (Día 26) 21:00', schedule: sW4.toISOString() }
+    );
+  }
+
+  // Si solo hay 1 historia y sin extensión mensual, mantener título limpio "Story"
+  if (baseList.length === 1 && strategy === 'single') {
+    return [{ titleSuffix: 'Story', schedule: baseList[0].schedule }];
+  }
+
+  // Generar sufijos descriptivos con número total: [Historia 1/X • Nombre]
+  const total = baseList.length;
+  return baseList.map((item, idx) => ({
+    titleSuffix: `[Historia ${idx + 1}/${total} • ${item.rawTitle}]`,
+    schedule: item.schedule
+  }));
 }
 
 async function createCrossStoryPost(opts) {
   const {
     media_urls, post_type, story_music_config, accountName,
     targetSchedule, story_strategy = 'single', story_timing_rule, story_custom_datetime,
+    story_monthly_extension = true,
     title, content, platforms, accountId, presetName, stmt
   } = opts;
 
@@ -487,8 +517,14 @@ async function createCrossStoryPost(opts) {
     }
   }
 
-  const schedules = buildDripSchedules(targetSchedule, story_strategy, story_timing_rule, story_custom_datetime);
-  console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}"...`);
+  const schedules = buildDripSchedules(
+    targetSchedule,
+    story_strategy,
+    story_timing_rule,
+    story_custom_datetime,
+    Boolean(story_monthly_extension)
+  );
+  console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}" (extensión mensual 30d: ${Boolean(story_monthly_extension)})...`);
   const createdStories = [];
 
   for (const item of schedules) {
@@ -527,6 +563,7 @@ router.post('/posts', async (req, res) => {
       story_strategy = 'single',
       story_timing_rule = 'same_time',
       story_custom_datetime = null,
+      story_monthly_extension = true,
       music_config = null,
       story_music_config = null
     } = req.body;
@@ -579,6 +616,7 @@ router.post('/posts', async (req, res) => {
           story_strategy,
           story_timing_rule,
           story_custom_datetime,
+          story_monthly_extension,
           title,
           content,
           platforms,
@@ -598,7 +636,7 @@ router.post('/posts', async (req, res) => {
     let responseMessage = 'Publicación agendada con éxito';
     if (createdStoryPost) {
       if (Array.isArray(createdStoryPost) && createdStoryPost.length > 1) {
-        responseMessage = `¡Publicación y Campaña de ${createdStoryPost.length} Historias agendadas en horarios estratégicos!`;
+        responseMessage = `¡Publicación y Campaña de ${createdStoryPost.length} Historias (distribuidas en 30 días) agendadas con éxito!`;
       } else {
         responseMessage = '¡Publicación y versión Historia (Story 9:16) agendadas con éxito!';
       }
