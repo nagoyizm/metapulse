@@ -1302,6 +1302,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const campinaSublineHeadline = document.getElementById('campina-subline-headline');
   const campinaTypographyStyle = document.getElementById('campina-typography-style');
   const campinaBrandTreatment = document.getElementById('campina-brand-treatment');
+  const campinaColorPalette = document.getElementById('campina-color-palette');
+  const campinaPosterReference = document.getElementById('campina-poster-reference');
+  const campinaArtAnalysisCard = document.getElementById('campina-art-analysis-card');
+  const campinaArtVibeTag = document.getElementById('campina-art-vibe-tag');
+  const campinaArtAnalysisText = document.getElementById('campina-art-analysis-text');
   const campinaTypoVibeBadge = document.getElementById('campina-typo-vibe-badge');
   const campinaTypoDesc = document.getElementById('campina-typo-desc');
   const campinaSloganAlternativesWrap = document.getElementById('campina-slogan-alternatives-wrap');
@@ -1383,6 +1388,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const extraElements = campinaExtraElements?.value?.trim() || '';
     const typographyStyle = campinaTypographyStyle?.value || 'auto';
     const brandTreatment = campinaBrandTreatment?.value || 'auto';
+    const colorPalette = campinaColorPalette?.value || 'auto';
+    const posterReference = campinaPosterReference?.value || 'auto';
 
     if (!campinaImagePromptText) return;
 
@@ -1398,7 +1405,9 @@ document.addEventListener('DOMContentLoaded', () => {
           respectBackground,
           extraElements,
           typographyStyle,
-          brandTreatment
+          brandTreatment,
+          colorPalette,
+          posterReference
         })
       });
       const json = await res.json();
@@ -1439,6 +1448,27 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCampinaTypoInfo(campinaTypographyStyle?.value || 'auto');
       syncCampinaMasterPromptLive();
     });
+  }
+
+  if (campinaColorPalette) {
+    campinaColorPalette.addEventListener('change', () => {
+      syncCampinaMasterPromptLive();
+    });
+  }
+
+  if (campinaPosterReference) {
+    campinaPosterReference.addEventListener('change', () => {
+      syncCampinaMasterPromptLive();
+    });
+  }
+
+  const campinaThemeInput = document.getElementById('campina-theme');
+  const campinaDateInput = document.getElementById('campina-date');
+  if (campinaThemeInput) {
+    campinaThemeInput.addEventListener('input', triggerCampinaPromptDebounced);
+  }
+  if (campinaDateInput) {
+    campinaDateInput.addEventListener('input', triggerCampinaPromptDebounced);
   }
 
   if (campinaHeroHeadline) {
@@ -1610,6 +1640,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const extraElements = campinaExtraElements?.value?.trim() || '';
       const typographyStyle = campinaTypographyStyle?.value || 'auto';
       const brandTreatment = campinaBrandTreatment?.value || 'auto';
+      const colorPalette = campinaColorPalette?.value || 'auto';
+      const posterReference = campinaPosterReference?.value || 'auto';
 
       if (!theme) {
         showToast('Ingresa el tema o enfoque (ej: Asado en quincho privado, descanso en suites...)', 'error');
@@ -1632,7 +1664,9 @@ document.addEventListener('DOMContentLoaded', () => {
             respectBackground,
             extraElements,
             typographyStyle,
-            brandTreatment
+            brandTreatment,
+            colorPalette,
+            posterReference
           })
         });
         const json = await res.json();
@@ -1651,6 +1685,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (json.data.typographyStyle && (!campinaTypographyStyle.value || campinaTypographyStyle.value === 'auto')) {
             updateCampinaTypoInfo(json.data.typographyStyle);
+          }
+
+          if (json.data.artDirectionAnalysis) {
+            if (campinaArtAnalysisCard) campinaArtAnalysisCard.style.display = 'block';
+            if (campinaArtVibeTag) {
+              campinaArtVibeTag.textContent = json.data.posterReferenceName || json.data.artDirectionAnalysis.movement || 'Dirección de Arte IA';
+            }
+            if (campinaArtAnalysisText) {
+              const ana = json.data.artDirectionAnalysis;
+              let html = '';
+              if (ana.concept) html += `<strong>Concepto Visual:</strong> ${ana.concept}<br>`;
+              if (ana.colorVibe || ana.rationale) html += `<strong>Paleta Cromática:</strong> ${ana.colorVibe || ana.rationale}<br>`;
+              if (ana.colors) {
+                html += `<div style="display:flex; gap:6px; margin-top:5px; align-items:center; flex-wrap:wrap;">`;
+                html += `<span style="font-size:0.68rem; color:var(--text-muted); font-weight:600;">Tonos:</span>`;
+                if (ana.colors.primary) {
+                  html += `<span style="display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:4px; font-size:0.65rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);"><span style="width:10px; height:10px; border-radius:2px; background:${ana.colors.primary}; display:inline-block;"></span> ${ana.colors.primary}</span>`;
+                }
+                if (ana.colors.accent) {
+                  html += `<span style="display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:4px; font-size:0.65rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);"><span style="width:10px; height:10px; border-radius:2px; background:${ana.colors.accent}; display:inline-block;"></span> ${ana.colors.accent}</span>`;
+                }
+                if (ana.colors.contrast) {
+                  html += `<span style="display:inline-flex; align-items:center; gap:3px; padding:2px 6px; border-radius:4px; font-size:0.65rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);"><span style="width:10px; height:10px; border-radius:2px; background:${ana.colors.contrast}; display:inline-block;"></span> ${ana.colors.contrast}</span>`;
+                }
+                html += `</div>`;
+              }
+              campinaArtAnalysisText.innerHTML = html;
+            }
           }
 
           if (json.data.sloganAlternatives) {
@@ -1716,6 +1778,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const extraElements = campinaExtraElements?.value?.trim() || '';
     const typographyStyle = campinaTypographyStyle?.value || 'auto';
     const brandTreatment = campinaBrandTreatment?.value || 'auto';
+    const colorPalette = campinaColorPalette?.value || 'auto';
+    const posterReference = campinaPosterReference?.value || 'auto';
 
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
@@ -1746,6 +1810,8 @@ document.addEventListener('DOMContentLoaded', () => {
           extraElements,
           typographyStyle,
           brandTreatment,
+          colorPalette,
+          posterReference,
           customPrompt: campinaImagePromptText?.value || '',
           account_id: accountId
         })
@@ -1794,6 +1860,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const subline = campinaSublineHeadline?.value?.trim() || 'Quinchos privados • Cabañas y suites • Algarrobo';
     const typographyStyle = campinaTypographyStyle?.value === 'auto' ? 'rustic_timber' : (campinaTypographyStyle?.value || 'rustic_timber');
     const brandTreatment = campinaBrandTreatment?.value || 'auto';
+    const colorPalette = campinaColorPalette?.value || 'auto';
+    const posterReference = campinaPosterReference?.value || 'auto';
 
     if (btnGenerateCampinaEditorialFlyer) {
       btnGenerateCampinaEditorialFlyer.disabled = true;
@@ -1817,6 +1885,8 @@ document.addEventListener('DOMContentLoaded', () => {
           style: 'editorial',
           typographyStyle,
           brandTreatment,
+          colorPalette,
+          posterReference,
           account_id: accountId
         })
       });

@@ -829,6 +829,218 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
   }
 
   /**
+   * Catálogo de Paletas Cromáticas Publicitarias adaptadas a la ocasión y entorno
+   * Evita dorados genéricos y aporta pertinencia cultural (ej: Fiestas Patrias en Rojo Carmesí y Azul Prusia)
+   */
+  getCampinaColorPalettes() {
+    return [
+      {
+        id: 'auto',
+        name: '✨ Auto-analizar paleta según ocasión',
+        shortName: 'Auto Paleta',
+        description: 'La IA analiza la ocasión, cultura y entorno de la foto para asignar colores armónicos sin forzar tonos dorados genéricos.'
+      },
+      {
+        id: 'patria_chilena',
+        name: '🇨🇱 Fiestas Patrias: Rojo Carmesí Noble, Blanco Hueso & Azul Prusia',
+        shortName: 'Tradición Chilena',
+        vibe: 'Fiestas Patrias, 18 de septiembre, fondas familiares',
+        primaryColor: 'Blanco Hueso de Imprenta Serigráfica (#F8FAFC) o Rojo Carmesí Chileno Profundo (#B91C1C)',
+        accentColor: 'Azul Prusia / Marino Mate (#1E293B) y Rojo Lacre (#991B1B)',
+        forbiddenColors: 'PROHIBIDO TERMINANTEMENTE usar dorado, amarillo brillante o texturas tipo glitter/oro plástico. La cartelería del 18 chileno es noble, serigráfica y de imprenta artesanal.',
+        artDirection: 'Colores inspirados en la cartelería patrimonial chilena y ferias costeras de mediados del siglo XX: tipografía en blanco hueso serigráfico o rojo carmesí profundo sobre la madera, con trazo o cinta en azul prusia mate. Cero dorado artificial.'
+      },
+      {
+        id: 'tierra_bosque',
+        name: '🌲 Bosque & Lodge: Verde Musgo Profundo, Corteza de Pino & Tiza',
+        shortName: 'Bosque & Lodge',
+        vibe: 'Senderos naturales, bosque de pinos, desconexión y silencio',
+        primaryColor: 'Blanco Tiza Natural (#F1F5F9) con sombras verde musgo (#14532D)',
+        accentColor: 'Tierra Arcillosa Tostada (#78350F) y Verde Salvia (#22C55E)',
+        forbiddenColors: 'Evitar dorados chillones o rojos estridentes.',
+        artDirection: 'Inspirado en la cartelería vintage de Parques Nacionales y botánica alpina: tonos terrosos orgánicos, blanco tiza desgastado y verde bosque profundo que se camuflan elegantemente con la vegetación.'
+      },
+      {
+        id: 'fuego_quincho',
+        name: '🔥 Quincho & Brasa: Carbón Ahumado, Brasa Ámbar & Hierro Fundido',
+        shortName: 'Brasa & Fuego',
+        vibe: 'Asados dieciocheros, quinchos privados, parrilla y leña',
+        primaryColor: 'Carbón Mate Ahumado (#1C1917) con borde blanco marfil (#FFFBEB)',
+        accentColor: 'Brasa Encendida / Ámbar Fuego (#EA580C / #D97706)',
+        forbiddenColors: 'Evitar colores pasteles o dorados de joyería.',
+        artDirection: 'Inspirado en carteles de maestros ahumadores y herrería tradicional: letras con fuerza de forja al fuego, acentos en naranja brasa cálido y trazos de humo tenue.'
+      },
+      {
+        id: 'kinfolk_ivory',
+        name: '✨ Kinfolk Lujo Silencioso: Blanco Marfil, Lino Suave & Carbón Neutro',
+        shortName: 'Kinfolk Marfil',
+        vibe: 'Suites de pareja, descanso íntimo, estética boutique serena',
+        primaryColor: 'Blanco Marfil Puro (#FEFDFB)',
+        accentColor: 'Gris Carbón Neutro (#27272A) con micro-bisel en ocre mineral sutil',
+        forbiddenColors: 'Evitar colores neón o saturaciones excesivas.',
+        artDirection: 'Inspirado en las revistas Kinfolk y Architectural Digest: blanco marfil de altísimo contraste con textura de papel de algodón de 300g, sombra de aireación limpia y cero dorados chillones.'
+      },
+      {
+        id: 'costa_marina',
+        name: '🌊 Costa & Brisa: Índigo Marino, Arena Cálida & Blanco Salitre',
+        shortName: 'Costa Algarrobo',
+        vibe: 'Verano, costa litoral, brisa marina y atardecer en Algarrobo',
+        primaryColor: 'Blanco Espuma Marina (#F8FAFC)',
+        accentColor: 'Azul Índigo Profundo (#0369A1) y Arena Costera (#FDE68A)',
+        forbiddenColors: 'Evitar tonos oscuros fúnebres.',
+        artDirection: 'Inspirado en cartelería náutica clásica de balnearios chilenos de los años 60: frescura marina, tipografía limpia en blanco salitre con acentos en azul océano y arena.'
+      }
+    ];
+  }
+
+  detectCampinaColorPalette(theme = '', targetDate = '') {
+    const text = `${theme} ${targetDate}`.toLowerCase();
+    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+      return 'patria_chilena';
+    }
+    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('fuego') || text.includes('brasa')) {
+      return 'fuego_quincho';
+    }
+    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic')) {
+      return 'kinfolk_ivory';
+    }
+    if (text.includes('playa') || text.includes('verano') || text.includes('mar') || text.includes('costa') || text.includes('sol')) {
+      return 'costa_marina';
+    }
+    return 'tierra_bosque';
+  }
+
+  /**
+   * Catálogo de Referencias Históricas y Editoriales de Afiches Publicitarios
+   */
+  getCampinaPosterReferences() {
+    return [
+      {
+        id: 'auto',
+        name: '✨ Auto-detectar referencia según temática',
+        shortName: 'Auto Referencia'
+      },
+      {
+        id: 'chilean_heritage_print',
+        name: '🇨🇱 Cartelería Patrimonial Chilena & Serigrafía Tradicional',
+        shortName: 'Cartelería Chilena',
+        movement: 'Cartelería de imprenta tipográfica y serigrafía campesina chilena (mediados de siglo XX, ferias de campo tradicionales y vendimias nobles del valle central)',
+        details: 'Tipografía display con remates contundentes, composición central simétrica inspirada en etiquetas de empaque y boletos de fonda patrimonial, trazos de pincelada seca en rojo lacre y azul prusia mate sobre fondo de madera rústica.',
+        mood: 'Celebración auténtica, orgullo campestre y festividad familiar dieciochera.'
+      },
+      {
+        id: 'kinfolk_editorial',
+        name: '📖 Editorial Kinfolk & Hospitalidad Boutique Contemporánea',
+        shortName: 'Kinfolk Boutique',
+        movement: 'Minimalismo nórdico-mediterráneo de revistas de arquitectura y viajes (Kinfolk / Cereal Magazine)',
+        details: 'Tipografía serif de transición con altísimo contraste fino/grueso, ligaduras sutiles, amplios márgenes de aireación visual, blanco marfil puro y sofisticación relajada.',
+        mood: 'Descanso íntimo, desconexión contemplativa y elegancia atemporal.'
+      },
+      {
+        id: 'national_park_vintage',
+        name: '🏔️ Afiches WPA de Parques Naturales & Senderos Outdoor',
+        shortName: 'Parques Naturales',
+        movement: 'Estilo gráfico de carteles serigráficos de parques nacionales (WPA / Anderson Design Group)',
+        details: 'Tipografía condensada bold con mayúsculas monumentales, trazos limpios de corte geométrico, sombras arquitectónicas duras o biseladas, paleta de verdes de pino y arcilla.',
+        mood: 'Aventura en la naturaleza, senderismo y aire libre.'
+      },
+      {
+        id: 'rustic_smokehouse',
+        name: '🪵 Rótulos de Madera Rústica & Maestros del Fuego',
+        shortName: 'Maestros del Fuego',
+        movement: 'Branding artesanal de lodges de montaña y asadores patagónicos / de campo',
+        details: 'Letras talladas con textura de veta de madera, bordes ligeramente orgánicos, acentos de carbón y brasa ardiente.',
+        mood: 'Encuentro alrededor del asado, calidez del fuego y quincho rústico.'
+      }
+    ];
+  }
+
+  detectCampinaPosterReference(theme = '', targetDate = '') {
+    const text = `${theme} ${targetDate}`.toLowerCase();
+    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+      return 'chilean_heritage_print';
+    }
+    if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('fuego') || text.includes('brasa')) {
+      return 'rustic_smokehouse';
+    }
+    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic')) {
+      return 'kinfolk_editorial';
+    }
+    if (text.includes('bosque') || text.includes('sendero') || text.includes('naturaleza') || text.includes('árbol')) {
+      return 'national_park_vintage';
+    }
+    return 'kinfolk_editorial';
+  }
+
+  /**
+   * Análisis Autónomo de Dirección de Arte con IA (Gemini)
+   * Analiza la temática, busca referencias visuales de afiches y define paleta cromática sin sesgos de dorado
+   */
+  async analyzeCampinaArtDirection({ theme, targetDate = '', apiKey }) {
+    if (!apiKey) return null;
+    try {
+      const prompt = `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding, cartelería comercial y diseño editorial para turismo de naturaleza y hotelería boutique ("Cabañas La Campiña", Algarrobo, Chile).
+      
+El usuario quiere crear un afiche publicitario comercial para Instagram (1080x1350 px) con la siguiente temática:
+- Tema: "${theme}"
+- Ocasión/Fecha próxima: "${targetDate || 'Fin de semana'}"
+
+Debes analizar autónomamente referencias históricas y contemporáneas de afiches de alta gama (cartelería patrimonial chilena, serigrafía tradicional, afiches de imprenta, diseño editorial de viajes, festivales outdoor, etc.) y proponer la mejor dirección de arte visual.
+
+REGLA DE ORO DE PALETA CROMÁTICA (CERO DORADO GENÉRICO):
+- PROHIBIDO sugerir dorado o amarillo oro a menos que sea estrictamente coherente (ej: Kinfolk luxury).
+- Si es 18 de septiembre / Fiestas Patrias: los colores deben ser de cartelería tradicional chilena (Rojo Carmesí Noble / Lacre, Blanco Hueso de Imprenta, Azul Prusia / Marino Mate).
+- Si es Quincho / Asado: carbón vegetal, brasa ámbar encendida, hierro forjado.
+- Si es Bosque / Senderos: verde pino, tierra arcillosa, corteza, blanco tiza.
+- Si es Pareja / Suites: blanco marfil, lino suave, carbón neutro.
+
+Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
+{
+  "posterReference": "Nombre de la referencia gráfica de afiche (ej: Cartelería Patrimonial Chilena & Serigrafía Tradicional)",
+  "posterReferenceDetails": "1-2 líneas explicando en qué afiches y movimientos visuales se inspira el diseño",
+  "colorPaletteName": "Nombre evocador de la paleta (ej: 🇨🇱 Rojo Carmesí Noble, Blanco Hueso & Azul Prusia)",
+  "primaryTextColor": "Color exacto o nombre del color para el titular principal (ej: Blanco Hueso de Imprenta #F8FAFC o Rojo Carmesí)",
+  "accentColor": "Color del número o trazo destacado (ej: Rojo Carmesí Chileno #B91C1C y Azul Prusia #1E293B)",
+  "forbiddenColors": "Qué colores están prohibidos para esta pieza (ej: PROHIBIDO dorado o tonos glitter tipo cotillón)",
+  "artDirectionVibe": "Resumen de estilo visual (ej: Imprenta de autor chilena contemporánea)",
+  "recommendedTreatment": "brush_stroke | gold_foil | timber_burn | editorial_lockup | solar_rim",
+  "heroHeadline": "Titular de máximo 2 a 3 palabras clave",
+  "keyword": "La palabra o cifra clave a resaltar",
+  "sublineHeadline": "Subtítulo editorial de máximo 6 palabras"
+}`;
+
+      const configuredModel = getSetting('ai_model') || 'gemini-3.6-flash';
+      const modelsToTry = ['gemini-3.6-flash', configuredModel, 'gemini-2.5-flash', 'gemini-flash-latest'];
+      const uniqueModels = [...new Set(modelsToTry)];
+
+      for (const model of uniqueModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await axios.post(url, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.5,
+              maxOutputTokens: 1024,
+              responseMimeType: 'application/json'
+            }
+          }, { timeout: 8000 });
+
+          const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text);
+            if (parsed.heroHeadline) return parsed;
+          }
+        } catch (e) {
+          // continuar con el siguiente modelo
+        }
+      }
+    } catch (err) {
+      console.warn('[Campina] Error en analyzeCampinaArtDirection:', err.message);
+    }
+    return null;
+  }
+
+  /**
    * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
    * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte tipográfica de autor
    */
@@ -841,14 +1053,17 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     respectBackground = true,
     extraElements = '',
     typographyStyle = 'auto',
-    brandTreatment = 'auto'
+    brandTreatment = 'auto',
+    colorPalette = 'auto',
+    posterReference = 'auto',
+    aiAnalysis = null
   }) {
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
-    const hero = (heroHeadline || hierarchy.hero).toUpperCase().trim();
-    const subline = sublineHeadline || hierarchy.subline;
+    const hero = (heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero).toUpperCase().trim();
+    const subline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
 
     // Extraer la palabra clave REAL del titular actual (evita discrepancias con el tema)
-    let keyword = hierarchy.keyword;
+    let keyword = aiAnalysis?.keyword || hierarchy.keyword;
     if (heroHeadline && heroHeadline.trim()) {
       const cleanWords = heroHeadline.trim().replace(/[^\w\s\dáéíóúÁÉÍÓÚñÑ]/g, '').split(/\s+/).filter(Boolean);
       const numWord = cleanWords.find(w => /\d+/.test(w));
@@ -867,10 +1082,27 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
     const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
     const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : (activeStyleKey === 'rustic_timber' || activeStyleKey === 'patria_heritage' ? 'brush_stroke' : 'editorial_lockup'))
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
       : brandTreatment;
     const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
+    // Paleta de Color Autónoma (Cero dorados forzados)
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
+      ? this.detectCampinaColorPalette(theme, targetDate)
+      : colorPalette;
+    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    // Referencia Gráfica de Afiche Comercial
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+    const activePosterRefKey = (!posterReference || posterReference === 'auto')
+      ? this.detectCampinaPosterReference(theme, targetDate)
+      : posterReference;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
 
     const backgroundDirective = respectBackground
       ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
@@ -881,6 +1113,23 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
 - Toma la fotografía adjunta como base escénica del lugar.
 - Si incorporas elementos adicionales, únicamente agrega: "${extraElements || 'humo suave de asado a las brasas o iluminación cálida de atardecer'}". CERO modificaciones al resto de la arquitectura ni a la vegetación.`;
 
+    const posterRefSection = aiAnalysis?.posterReference
+      ? `- INSPIRACIÓN DE AFICHE: ${aiAnalysis.posterReference} (${aiAnalysis.posterReferenceDetails || ''})`
+      : `- INSPIRACIÓN DE AFICHE: ${matchedPosterRef.name}
+  ${matchedPosterRef.details || matchedPosterRef.movement || ''}
+  Mood: ${matchedPosterRef.mood || ''}`;
+
+    const colorPaletteSection = aiAnalysis?.colorPaletteName
+      ? `- PALETA CROMÁTICA PUBLICITARIA: ${aiAnalysis.colorPaletteName}
+  * Color principal del titular: ${aiAnalysis.primaryTextColor}
+  * Colores de trazos y acentos gráficos: ${aiAnalysis.accentColor}
+  * Restricción estricta de color: ${aiAnalysis.forbiddenColors}`
+      : `- PALETA CROMÁTICA PUBLICITARIA: ${matchedPalette.name}
+  * Color principal del titular: ${matchedPalette.primaryColor}
+  * Colores de trazos y acentos gráficos: ${matchedPalette.accentColor}
+  * Restricción estricta de color: ${matchedPalette.forbiddenColors}
+  ${matchedPalette.artDirection || ''}`;
+
     return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
 
 OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) para Instagram de "Cabañas La Campiña" (Algarrobo, Chile), utilizando la fotografía adjunta.
@@ -888,31 +1137,34 @@ OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) par
 ${backgroundDirective}
 - PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
 
-2. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
+2. REFERENCIA GRÁFICA DE AFICHE COMERCIAL (INSPIRACIÓN DE MARCA):
+${posterRefSection}
+
+3. DIRECCIÓN CROMÁTICA PUBLICITARIA OBLIGATORIA (CERO DORADOS O COLORES FUERA DE CONTEXTO):
+${colorPaletteSection}
+
+4. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
 - REGLA DE ORO DE BRANDING (COMO DISEÑAN LAS GRANDES MARCAS SUS ESLÓGANS):
   PROHIBIDO poner texto plano, aburrido, monocromático o letras simples pegadas que parezcan de Word.
   Debes diseñar el titular exactamente como lo hacen las grandes agencias con los eslogans de marcas icónicas: UN LOCKUP / EMBLEMA PUBLICITARIO con personalidad, dinamismo y acabado artesanal de alta gama:
 
   a) CONTRASTE TIPOGRÁFICO INTERNO (DUAL-WEIGHT & COMPOSICIÓN DE MARCA):
      Dentro del titular "${hero}", NO uses todas las letras iguales.
-     - La palabra/cifra clave "${keyword.toUpperCase()}" debe ser la estrella visual indiscutible: mayor tamaño, grosor contundente o caligrafía de autor expresiva.
-     - Las palabras complementarias deben equilibrar la composición con menor peso, estilo sans-serif refinado o serif clásica con amplio espaciado (letter-spacing abierto).
+     - La palabra/cifra clave "${keyword.toUpperCase()}" debe ser la estrella visual indiscutible: mayor tamaño, grosor contundente o caligrafía de autor expresiva utilizando los tonos de acento de la paleta.
+     - Las palabras complementarias deben equilibrar la composición con menor peso, estilo sans-serif refinado o serif clásica con amplio espaciado (letter-spacing abierto) en el color principal del titular.
 
   b) TRATAMIENTO DE MARCA & TRAZOS DINÁMICOS ("${matchedTreatment.name}"):
      ${matchedTreatment.artDirection}
-     - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) para darle movimiento y factura artística.
+     - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) utilizando los tonos de acento seleccionados para darle movimiento y factura artística.
 
-  c) TEXTURA, VOLUMEN Y COLOR (NO COLOR SÓLIDO PLANO):
-     El texto debe tener degradados cromáticos orgánicos, textura de imprenta / pigmento natural o foil dorado/bronce con micro-relieve y bisel cálido ("warm bevel"). Debe sentirse material y tridimensional.
+  c) TEXTURA, VOLUMEN Y PROFUNDIDAD INTEGRADA:
+     El texto debe tener textura material auténtica (microrrelieve con bisel cálido, tacto de imprenta serigráfica artesanal o tinte orgánico). Debe sentirse material y tridimensional, con sombra de contacto suave ("ambient occlusion shadow") sobre la madera y el fondo.
 
-  d) INTEGRACIÓN CINEMATOGRÁFICA CON LA FOTOGRAFÍA:
-     El rótulo debe convivir físicamente con la escena: iluminación perimetral dorada ("golden hour rim lighting") en las aristas superiores de las letras y sombra de contacto suave ("ambient occlusion shadow") proyectada sutilmente sobre el fondo para despegar el rótulo con máxima legibilidad.
-
-  e) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
+  d) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
      ${matchedStyle.description}
      CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
 
-3. JERARQUÍA DE CONTENIDO:
+5. JERARQUÍA DE CONTENIDO:
 - TITULAR HERO (Rótulo publicitario dominante):
   "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
 
@@ -925,7 +1177,7 @@ ${backgroundDirective}
 
 - CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
   }
 
   /**
@@ -942,14 +1194,23 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     respectBackground = true,
     extraElements = '',
     typographyStyle = 'auto',
-    brandTreatment = 'auto'
+    brandTreatment = 'auto',
+    colorPalette = 'auto',
+    posterReference = 'auto'
   }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
+
+    // 1. Análisis Autónomo de Dirección de Arte con IA (Referencias de Afiche + Paleta Cromática Cultural)
+    let aiAnalysis = null;
+    if (apiKey) {
+      aiAnalysis = await this.analyzeCampinaArtDirection({ theme, targetDate, apiKey });
+    }
+
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
-    const finalHero = heroHeadline || hierarchy.hero;
-    const finalSubline = sublineHeadline || hierarchy.subline;
+    const finalHero = heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero;
+    const finalSubline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
 
     const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
       ? hierarchy.detectedStyle
@@ -959,10 +1220,25 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
     const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
     const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : (activeStyleKey === 'rustic_timber' || activeStyleKey === 'patria_heritage' ? 'brush_stroke' : 'editorial_lockup'))
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
       : brandTreatment;
     const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
+      ? this.detectCampinaColorPalette(theme, targetDate)
+      : colorPalette;
+    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+    const activePosterRefKey = (!posterReference || posterReference === 'auto')
+      ? this.detectCampinaPosterReference(theme, targetDate)
+      : posterReference;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
 
     const masterImagePrompt = this.buildCampinaImagePrompt({
       theme,
@@ -973,7 +1249,10 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
       respectBackground,
       extraElements,
       typographyStyle: activeStyleKey,
-      brandTreatment: activeTreatmentKey
+      brandTreatment: activeTreatmentKey,
+      colorPalette: activePaletteKey,
+      posterReference: activePosterRefKey,
+      aiAnalysis
     });
 
     const systemPrompt = `
@@ -1060,9 +1339,16 @@ Estructura a entregar:
       typographyVibe: matchedStyle.vibe,
       brandTreatment: activeTreatmentKey,
       brandTreatmentName: matchedTreatment.name,
+      colorPalette: activePaletteKey,
+      colorPaletteName: aiAnalysis?.colorPaletteName || matchedPalette.name,
+      posterReference: activePosterRefKey,
+      posterReferenceName: aiAnalysis?.posterReference || matchedPosterRef.name,
+      artDirectionAnalysis: aiAnalysis,
       sloganAlternatives: hierarchy.alternatives,
       allTypographyStyles: stylesCatalog,
       allBrandTreatments: treatmentsCatalog,
+      allColorPalettes: palettesCatalog,
+      allPosterReferences: posterRefsCatalog,
       content: generatedText
     };
   }
@@ -1081,6 +1367,8 @@ Estructura a entregar:
     extraElements = '',
     typographyStyle = 'auto',
     brandTreatment = 'auto',
+    colorPalette = 'auto',
+    posterReference = 'auto',
     customPrompt = ''
   }) {
     const designerPrompt = customPrompt?.trim() || this.buildCampinaImagePrompt({
@@ -1092,7 +1380,9 @@ Estructura a entregar:
       respectBackground,
       extraElements,
       typographyStyle,
-      brandTreatment
+      brandTreatment,
+      colorPalette,
+      posterReference
     });
 
     return await this.generateDirectImage({

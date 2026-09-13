@@ -2059,9 +2059,46 @@
                     <option value="solar_rim">☀️ Retroiluminación Solar (Golden Rim)</option>
                   </select>
                 </div>
+              <!-- Selectores de Paleta Cromática y Referencia de Afiche -->
+              <div class="form-grid-2" style="margin-bottom:8px;">
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-color-palette" style="font-size:0.75rem; margin-bottom:3px;">
+                    🎨 Paleta Cromática Publicitaria (Cero Dorado Forzado):
+                  </label>
+                  <select id="campina-color-palette" class="form-control form-control-sm">
+                    <option value="auto">✨ Auto-analizar paleta según ocasión</option>
+                    <option value="patria_chilena">🇨🇱 Fiestas Patrias (Rojo Carmesí, Blanco Hueso & Azul Prusia)</option>
+                    <option value="tierra_bosque">🌲 Bosque & Lodge (Verde Musgo, Tierra & Tiza)</option>
+                    <option value="fuego_quincho">🔥 Quincho & Brasa (Carbón Ahumado, Brasa & Hierro)</option>
+                    <option value="kinfolk_ivory">✨ Kinfolk Lujo (Blanco Marfil, Lino & Carbón)</option>
+                    <option value="costa_marina">🌊 Costa & Brisa (Índigo Marino, Arena & Blanco Salitre)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="campina-poster-reference" style="font-size:0.75rem; margin-bottom:3px;">
+                    🏛️ Referencia Gráfica de Afiche Comercial:
+                  </label>
+                  <select id="campina-poster-reference" class="form-control form-control-sm">
+                    <option value="auto">✨ Auto-detectar referencia según temática</option>
+                    <option value="chilean_heritage_print">🇨🇱 Cartelería Patrimonial Chilena & Serigrafía (18 de Septiembre)</option>
+                    <option value="kinfolk_editorial">📖 Editorial Kinfolk & Hospitalidad Boutique</option>
+                    <option value="national_park_vintage">🏔️ Afiches WPA Parques Naturales & Senderos</option>
+                    <option value="rustic_smokehouse">🪵 Rótulos de Madera Rústica & Maestros del Fuego</option>
+                  </select>
+                </div>
               </div>
+
+              <!-- Tarjeta de Análisis de Dirección de Arte por IA -->
+              <div id="campina-art-analysis-card" style="display:none; margin-bottom:10px; padding:8px 10px; background:rgba(59, 130, 246, 0.08); border-radius:6px; border:1px solid rgba(59, 130, 246, 0.25);">
+                <div style="font-size:0.75rem; font-weight:600; color:var(--primary); margin-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+                  <span>🧠 Análisis de Dirección de Arte & Referencias (IA):</span>
+                  <span id="campina-art-vibe-tag" class="badge" style="background:rgba(59,130,246,0.18); color:var(--primary); font-size:0.68rem;"></span>
+                </div>
+                <div id="campina-art-analysis-text" style="font-size:0.72rem; color:var(--text-secondary); line-height:1.35;"></div>
+              </div>
+
               <div id="campina-typo-desc" class="text-muted" style="font-size:0.72rem; margin-top:2px; margin-bottom:8px;">
-                La IA detecta automáticamente la tipografía y el acabado de autor para que el afiche parezca diseñado por una agencia y no letras planas pegadas.
+                La IA analiza referencias reales de afiches y paletas culturales para que el afiche tenga personalidad propia y colores coherentes.
               </div>
 
               <!-- Alternativas de Eslogan Generadas por IA -->

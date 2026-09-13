@@ -440,7 +440,8 @@ class ImageService {
     badgeText = 'CABAÑAS LA CAMPIÑA • ALGARROBO',
     style = 'editorial',
     typographyStyle = 'rustic_timber',
-    brandTreatment = 'auto'
+    brandTreatment = 'auto',
+    colorPalette = 'auto'
   }) {
     if (!fs.existsSync(inputImagePath)) {
       throw new Error(`La imagen base no existe: ${inputImagePath}`);
@@ -463,8 +464,13 @@ class ImageService {
 
     // 2. Configuración específica según estilo tipográfico seleccionado
     const chosenStyle = typographyStyle || (style === 'rustic' ? 'rustic_timber' : (style === 'nature' ? 'natgeo_adventure' : 'kinfolk_luxury'));
+    const isPatriaTopic = chosenStyle === 'patria_heritage' || safeHeadline.includes('18') || safeHeadline.toLowerCase().includes('patria');
+    const activePalette = (!colorPalette || colorPalette === 'auto')
+      ? (isPatriaTopic ? 'patria_chilena' : (chosenStyle === 'kinfolk_luxury' ? 'kinfolk_ivory' : (chosenStyle === 'rustic_timber' ? 'fuego_quincho' : 'tierra_bosque')))
+      : colorPalette;
+
     const activeTreatment = (!brandTreatment || brandTreatment === 'auto')
-      ? (chosenStyle === 'kinfolk_luxury' ? 'gold_foil' : (chosenStyle === 'patria_heritage' || chosenStyle === 'rustic_timber' ? 'brush_stroke' : 'editorial_lockup'))
+      ? (activePalette === 'kinfolk_ivory' ? 'gold_foil' : (activePalette === 'patria_chilena' || activePalette === 'fuego_quincho' ? 'brush_stroke' : 'editorial_lockup'))
       : brandTreatment;
     
     let titleFont = "'Instrument Serif', 'Georgia', 'Playfair Display', serif";
@@ -540,8 +546,8 @@ class ImageService {
       titleWeight = 800;
       titleLetterSpacing = '2.5px';
       titleColor = '#FFF7ED';
-      badgeBorder = 'rgba(239, 68, 68, 0.65)';
-      dividerColor = 'rgba(239, 68, 68, 0.75)';
+      badgeBorder = 'rgba(185, 28, 28, 0.75)';
+      dividerColor = 'rgba(185, 28, 28, 0.85)';
       filterDefs = `
         <filter id="heritageShadow" x="-10%" y="-10%" width="120%" height="120%">
           <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#1A0000" flood-opacity="0.9"/>
@@ -550,8 +556,41 @@ class ImageService {
       filterAttr = 'filter="url(#heritageShadow)"';
     }
 
-    // Tratamiento de Marca (Acabados de autor para evitar letras planas)
-    if (activeTreatment === 'gold_foil') {
+    // Configuración de Paleta Cromática y Acentos
+    let brushStops = `
+      <stop offset="0%" stop-color="#DC2626" stop-opacity="0.90"/>
+      <stop offset="50%" stop-color="#EA580C" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.85"/>
+    `;
+
+    if (activePalette === 'patria_chilena') {
+      titleColor = '#FFFDF5';
+      badgeBorder = 'rgba(185, 28, 28, 0.80)';
+      dividerColor = 'rgba(185, 28, 28, 0.90)';
+      brushStops = `
+        <stop offset="0%" stop-color="#B91C1C" stop-opacity="0.95"/>
+        <stop offset="55%" stop-color="#991B1B" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#1E293B" stop-opacity="0.92"/>
+      `;
+    } else if (activePalette === 'tierra_bosque') {
+      titleColor = '#F1F5F9';
+      badgeBorder = 'rgba(34, 197, 94, 0.65)';
+      dividerColor = 'rgba(34, 197, 94, 0.85)';
+      brushStops = `
+        <stop offset="0%" stop-color="#14532D" stop-opacity="0.92"/>
+        <stop offset="60%" stop-color="#166534" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#78350F" stop-opacity="0.88"/>
+      `;
+    } else if (activePalette === 'fuego_quincho') {
+      titleColor = '#FFFBEB';
+      badgeBorder = 'rgba(234, 88, 12, 0.75)';
+      dividerColor = 'rgba(234, 88, 12, 0.85)';
+      brushStops = `
+        <stop offset="0%" stop-color="#EA580C" stop-opacity="0.95"/>
+        <stop offset="50%" stop-color="#D97706" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#1C1917" stop-opacity="0.90"/>
+      `;
+    } else if (activeTreatment === 'gold_foil') {
       titleColor = 'url(#goldFoilGrad)';
       badgeBorder = 'rgba(212, 175, 55, 0.65)';
       dividerColor = 'rgba(212, 175, 55, 0.85)';
@@ -576,8 +615,9 @@ class ImageService {
     if (words.length > 1 && /^\d+$/.test(words[0])) {
       const numPart = words[0];
       const restPart = words.slice(1).join(' ').toUpperCase();
+      const numColor = activePalette === 'patria_chilena' ? '#B91C1C' : (activeTreatment === 'gold_foil' ? 'url(#goldFoilGrad)' : '#FFF');
       headlineSvgContent = `
-        <tspan font-size="${Math.round(titleSize * 1.3)}" font-weight="900" fill="${activeTreatment === 'gold_foil' ? 'url(#goldFoilGrad)' : '#FFF'}">${numPart} </tspan>
+        <tspan font-size="${Math.round(titleSize * 1.3)}" font-weight="900" fill="${numColor}">${numPart} </tspan>
         <tspan font-size="${Math.round(titleSize * 0.88)}" font-weight="600" letter-spacing="4px" fill="${titleColor}">${restPart}</tspan>
       `;
     } else {
@@ -607,9 +647,7 @@ class ImageService {
             <stop offset="100%" stop-color="#E5C158"/>
           </linearGradient>
           <linearGradient id="brushGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#DC2626" stop-opacity="0.90"/>
-            <stop offset="50%" stop-color="#EA580C" stop-opacity="0.95"/>
-            <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.85"/>
+            ${brushStops}
           </linearGradient>
           <linearGradient id="timberGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stop-color="#FEF3C7"/>
