@@ -1359,10 +1359,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let campinaPromptDebounceTimer = null;
+  async function syncCampinaMasterPromptLive() {
+    const theme = document.getElementById('campina-theme')?.value.trim();
+    const targetDate = document.getElementById('campina-date')?.value.trim();
+    const heroHeadline = campinaHeroHeadline?.value?.trim() || '';
+    const sublineHeadline = campinaSublineHeadline?.value?.trim() || '';
+    const respectBackground = chkCampinaRespectBg ? chkCampinaRespectBg.checked : true;
+    const extraElements = campinaExtraElements?.value?.trim() || '';
+    const typographyStyle = campinaTypographyStyle?.value || 'auto';
+
+    if (!campinaImagePromptText) return;
+
+    try {
+      const res = await fetch('/api/ai/campina-refresh-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme: theme || 'Descanso en la naturaleza',
+          targetDate,
+          heroHeadline,
+          sublineHeadline,
+          respectBackground,
+          extraElements,
+          typographyStyle
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data?.masterImagePrompt) {
+        campinaImagePromptText.value = json.data.masterImagePrompt;
+        if (campinaImagePromptBox) campinaImagePromptBox.style.display = 'block';
+
+        // Destello visual sutil para confirmar que el prompt maestro fue sincronizado
+        campinaImagePromptText.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+        campinaImagePromptText.style.borderColor = 'var(--success)';
+        campinaImagePromptText.style.boxShadow = '0 0 0 2px rgba(16, 185, 129, 0.4)';
+        setTimeout(() => {
+          campinaImagePromptText.style.borderColor = '';
+          campinaImagePromptText.style.boxShadow = '';
+        }, 600);
+      }
+    } catch (e) {
+      console.warn('[Campina] Error sincronizando prompt maestro en vivo:', e.message);
+    }
+  }
+
+  function triggerCampinaPromptDebounced() {
+    clearTimeout(campinaPromptDebounceTimer);
+    campinaPromptDebounceTimer = setTimeout(() => {
+      syncCampinaMasterPromptLive();
+    }, 450);
+  }
+
   if (campinaTypographyStyle) {
     campinaTypographyStyle.addEventListener('change', () => {
       updateCampinaTypoInfo(campinaTypographyStyle.value);
+      syncCampinaMasterPromptLive();
     });
+  }
+
+  if (campinaHeroHeadline) {
+    campinaHeroHeadline.addEventListener('input', triggerCampinaPromptDebounced);
+  }
+  if (campinaSublineHeadline) {
+    campinaSublineHeadline.addEventListener('input', triggerCampinaPromptDebounced);
+  }
+  if (campinaExtraElements) {
+    campinaExtraElements.addEventListener('input', triggerCampinaPromptDebounced);
   }
 
   function renderCampinaSloganAlternatives(alternatives = []) {
@@ -1396,14 +1459,15 @@ document.addEventListener('DOMContentLoaded', () => {
         item.style.background = 'var(--bg-secondary)';
       });
 
-      item.addEventListener('click', () => {
+      item.addEventListener('click', async () => {
         if (campinaHeroHeadline) campinaHeroHeadline.value = alt.hero;
         if (campinaSublineHeadline) campinaSublineHeadline.value = alt.subline;
         if (campinaTypographyStyle && alt.style) {
           campinaTypographyStyle.value = alt.style;
           updateCampinaTypoInfo(alt.style);
         }
-        showToast(`Eslogan aplicado: "${alt.hero}"`, 'info');
+        await syncCampinaMasterPromptLive();
+        showToast(`✨ Eslogan "${alt.hero}" transferido al Prompt Maestro de Gemini`, 'success');
       });
 
       campinaSloganPills.appendChild(item);
@@ -1423,6 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chkCampinaRespectBg && campinaExtraElementsWrap) {
     chkCampinaRespectBg.addEventListener('change', () => {
       campinaExtraElementsWrap.style.display = chkCampinaRespectBg.checked ? 'none' : 'block';
+      syncCampinaMasterPromptLive();
     });
   }
 
@@ -1654,6 +1719,7 @@ document.addEventListener('DOMContentLoaded', () => {
           respectBackground,
           extraElements,
           typographyStyle,
+          customPrompt: campinaImagePromptText?.value || '',
           account_id: accountId
         })
       });

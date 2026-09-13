@@ -1711,6 +1711,36 @@ router.get('/ai/campina-typography-styles', (req, res) => {
   }
 });
 
+router.post('/ai/campina-refresh-prompt', (req, res) => {
+  try {
+    const {
+      theme,
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground = true,
+      extraElements = '',
+      typographyStyle = 'auto'
+    } = req.body;
+
+    const masterImagePrompt = aiService.buildCampinaImagePrompt({
+      theme: theme || 'Descanso en la naturaleza',
+      targetDate,
+      extraNotes,
+      heroHeadline,
+      sublineHeadline,
+      respectBackground: Boolean(respectBackground),
+      extraElements,
+      typographyStyle
+    });
+
+    res.json({ success: true, data: { masterImagePrompt } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/campina-content', async (req, res) => {
   try {
     const {
@@ -2206,9 +2236,10 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       sublineHeadline,
       respectBackground = true,
       extraElements = '',
-      typographyStyle = 'auto'
+      typographyStyle = 'auto',
+      customPrompt = ''
     } = req.body;
-    if (!baseImageUrl && !theme) {
+    if (!baseImageUrl && !theme && !customPrompt) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar la foto de fondo o el tema del afiche.' });
     }
 
@@ -2221,7 +2252,8 @@ router.post('/ai/campina-designer-poster', async (req, res) => {
       sublineHeadline,
       respectBackground: Boolean(respectBackground),
       extraElements,
-      typographyStyle
+      typographyStyle,
+      customPrompt
     });
 
     await tryAutoStampWatermark(result, req.body.account_id, '[La Campiña Poster]');

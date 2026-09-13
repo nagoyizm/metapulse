@@ -979,9 +979,10 @@ Estructura a entregar:
     sublineHeadline = '',
     respectBackground = true,
     extraElements = '',
-    typographyStyle = 'auto'
+    typographyStyle = 'auto',
+    customPrompt = ''
   }) {
-    const designerPrompt = this.buildCampinaImagePrompt({
+    const designerPrompt = customPrompt?.trim() || this.buildCampinaImagePrompt({
       theme,
       targetDate,
       extraNotes,
