@@ -441,42 +441,43 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Abrir Modal de Estampado Interactivo
-  window.openInteractiveStampModal = async function() {
-    let targetImg = '';
-    if (typeof ComposerState !== 'undefined' && ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
-      targetImg = ComposerState.mediaFiles[0];
-    }
-    if (!targetImg) {
-      const previewEl = document.querySelector('#media-preview-grid img');
-      if (previewEl && previewEl.src) targetImg = previewEl.src;
-    }
-    if (!targetImg) {
-      const campinaEl = document.getElementById('campina-bg-img');
-      if (campinaEl && campinaEl.src && campinaEl.style.display !== 'none') targetImg = campinaEl.src;
-    }
-
-    if (!targetImg) {
-      showToast('Debes tener al menos una foto en el redactor para estampar el logo', 'warning');
-      return;
-    }
-
-    if (typeof ComposerState !== 'undefined' && (!ComposerState.mediaFiles || ComposerState.mediaFiles.length === 0)) {
-      ComposerState.mediaFiles = [targetImg];
-    }
-
-    currentTargetImage = targetImg;
-
+  window.openInteractiveStampModal = function(forcedImage) {
     const modal = document.getElementById('modal-interactive-stamp');
     if (modal) {
       modal.style.display = 'flex';
       modal.style.zIndex = '99999';
     }
 
-    await loadWatermarksForStampModal();
+    let targetImg = forcedImage || '';
+    if (!targetImg && typeof ComposerState !== 'undefined' && ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+      const firstItem = ComposerState.mediaFiles[0];
+      targetImg = typeof firstItem === 'string' ? firstItem : (firstItem?.url || '');
+    }
+    if (!targetImg) {
+      const previewEl = document.querySelector('#media-preview-grid img');
+      if (previewEl && previewEl.src) targetImg = previewEl.src;
+    }
+    if (!targetImg) {
+      const campinaAiEl = document.getElementById('campina-ai-img-result');
+      if (campinaAiEl && campinaAiEl.src) targetImg = campinaAiEl.src;
+    }
+    if (!targetImg) {
+      const campinaEl = document.getElementById('campina-bg-img');
+      if (campinaEl && campinaEl.src && campinaEl.style.display !== 'none') targetImg = campinaEl.src;
+    }
+    if (!targetImg) {
+      const fbImg = document.querySelector('#mock-fb-media img');
+      if (fbImg && fbImg.src) targetImg = fbImg.src;
+    }
+    if (!targetImg) {
+      const igImg = document.querySelector('#mock-ig-media img');
+      if (igImg && igImg.src) targetImg = igImg.src;
+    }
 
     const stageBg = document.getElementById('stamp-stage-bg');
     const stageLogo = document.getElementById('stamp-stage-logo');
     const stageLogoImg = document.getElementById('stamp-stage-logo-img');
+    const placeholder = document.getElementById('stamp-no-image-placeholder');
 
     const triggerPositioning = () => {
       setTimeout(() => {
@@ -488,13 +489,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 150);
     };
 
-    if (stageBg) {
-      stageBg.onload = triggerPositioning;
-      stageBg.src = currentTargetImage;
-      if (stageBg.complete && stageBg.naturalWidth > 0) {
-        triggerPositioning();
+    if (targetImg) {
+      currentTargetImage = targetImg;
+      if (typeof ComposerState !== 'undefined' && (!ComposerState.mediaFiles || ComposerState.mediaFiles.length === 0)) {
+        ComposerState.mediaFiles = [targetImg];
       }
+      if (placeholder) placeholder.style.display = 'none';
+      if (stageBg) {
+        stageBg.style.display = 'block';
+        stageBg.onload = triggerPositioning;
+        stageBg.src = currentTargetImage;
+        if (stageBg.complete && stageBg.naturalWidth > 0) {
+          triggerPositioning();
+        }
+      }
+      if (stageLogo) stageLogo.style.display = 'flex';
+    } else {
+      currentTargetImage = '';
+      if (stageBg) {
+        stageBg.src = '';
+        stageBg.style.display = 'none';
+      }
+      if (placeholder) placeholder.style.display = 'block';
+      if (stageLogo) stageLogo.style.display = 'none';
     }
+
+    if (stageLogoImg && (!stageLogoImg.src || stageLogoImg.src.endsWith('/'))) {
+      stageLogoImg.src = '/uploads/watermarks/logo-1788393011665.png';
+      if (stageLogo && targetImg) stageLogo.style.display = 'flex';
+    }
+
+    loadWatermarksForStampModal().catch(err => console.warn(err));
 
     if (stageLogoImg) {
       stageLogoImg.onload = () => {
@@ -563,6 +588,38 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
+    const baseFileInput = document.getElementById('stamp-base-file-input');
+    if (baseFileInput) {
+      baseFileInput.onchange = async () => {
+        if (!baseFileInput.files || baseFileInput.files.length === 0) return;
+        const file = baseFileInput.files[0];
+        const formData = new FormData();
+        formData.append('media', file);
+        showToast('Subiendo foto para estampar...', 'info');
+        try {
+          const res = await fetch('/api/media/upload', {
+            method: 'POST',
+            body: formData
+          });
+          const json = await res.json();
+          if (json.success && json.data && json.data.length > 0) {
+            const uploadedUrl = json.data[0].url;
+            if (typeof ComposerState !== 'undefined') {
+              ComposerState.mediaFiles = [uploadedUrl];
+              if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
+              if (typeof updateLivePreviews === 'function') updateLivePreviews();
+            }
+            window.openInteractiveStampModal(uploadedUrl);
+            showToast('¡Foto cargada! Ahora posiciona el logo.', 'success');
+          } else {
+            showToast('Error subiendo foto: ' + (json.error || 'Desconocido'), 'error');
+          }
+        } catch (err) {
+          showToast('Error de conexión: ' + err.message, 'error');
+        }
+      };
+    }
+
     const btnUpload = document.getElementById('btn-stamp-upload-new-logo');
     const inputUpload = document.getElementById('stamp-quick-logo-input');
     if (btnUpload && inputUpload) {
@@ -593,11 +650,22 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
+    const stampModal = document.getElementById('modal-interactive-stamp');
+    if (stampModal) {
+      stampModal.onclick = (e) => {
+        if (e.target === stampModal) {
+          window.closeInteractiveStamp();
+        }
+      };
+    }
+
     const btnConfirm = document.getElementById('btn-confirm-stamp-logo');
     if (btnConfirm) {
       btnConfirm.onclick = async () => {
         if (!currentTargetImage) {
-          showToast('No hay imagen para estampar', 'error');
+          showToast('No hay imagen para estampar. Sube o selecciona una foto.', 'warning');
+          const baseInput = document.getElementById('stamp-base-file-input');
+          if (baseInput) baseInput.click();
           return;
         }
 
@@ -663,5 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   initInteractiveStampListeners();
-  document.addEventListener('DOMContentLoaded', initInteractiveStampListeners);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInteractiveStampListeners);
+  }
 });

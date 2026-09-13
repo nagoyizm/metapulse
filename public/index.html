@@ -410,7 +410,7 @@
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
                         ✨ Póster 4:5
                       </button>
-                      <button type="button" class="btn btn-ghost btn-sm" id="btn-watermark-overlay" style="display: none;" onclick="if (typeof window.openInteractiveStampModal === 'function') window.openInteractiveStampModal();">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
                         Estampar Logo
                       </button>
@@ -2155,6 +2155,9 @@
                 <div id="campina-ai-img-preview" style="display:none; margin-top:8px; text-align:center;">
                   <img id="campina-ai-img-result" src="" alt="Afiche La Campiña Generado" style="max-height:180px; border-radius:6px; border:1px solid var(--border-subtle); object-fit:cover;">
                   <div style="font-size:0.75rem; color:var(--success); margin-top:4px; font-weight:600;">✅ ¡Afiche 4:5 generado con éxito y cargado al Composer!</div>
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-stamp-campina-flyer" style="margin-top:8px; width:100%; gap:6px; font-weight:700; background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);" onclick="const cm = document.getElementById('modal-campina-flyer'); if (cm) cm.style.display='none'; const resImg = document.getElementById('campina-ai-img-result'); if (window.openInteractiveStampModal) { window.openInteractiveStampModal(resImg ? resImg.src : ''); } else { const sm = document.getElementById('modal-interactive-stamp'); if (sm) sm.style.display='flex'; }">
+                    🎯 Estampar Logo en este Afiche
+                  </button>
                 </div>
               </div>
             </div>
@@ -2462,6 +2465,17 @@
               <div id="stamp-stage-wrap" style="position: relative; display: inline-block; max-width: 100%; max-height: 520px; min-width: 260px; min-height: 320px; user-select: none; line-height: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.7); border-radius: 6px; overflow: hidden; background: #111;">
                 <img id="stamp-stage-bg" src="" alt="Fondo" style="max-width: 100%; max-height: 520px; display: block; object-fit: contain; pointer-events: none;">
                 
+                <!-- Placeholder si no hay imagen seleccionada -->
+                <div id="stamp-no-image-placeholder" style="display:none; padding:40px 20px; text-align:center; color:var(--text-secondary); line-height:1.4;">
+                  <div style="font-size:2.5rem; margin-bottom:10px;">🖼️</div>
+                  <div style="font-weight:700; font-size:0.95rem; margin-bottom:6px; color:var(--text-primary);">No hay foto cargada en el redactor</div>
+                  <div style="font-size:0.8rem; margin-bottom:14px;">Sube una foto o selecciona una existente para estamparle el logo:</div>
+                  <input type="file" id="stamp-base-file-input" accept="image/*" style="display:none;">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('stamp-base-file-input').click()" style="margin: 0 auto; display:inline-flex;">
+                    📁 Subir Foto para Estampar
+                  </button>
+                </div>
+
                 <!-- Logo Arrastrable Interactivo -->
                 <div id="stamp-stage-logo" style="position: absolute; top: 75%; left: 75%; width: 90px; min-width: 40px; min-height: 40px; cursor: grab; z-index: 20; touch-action: none; display: flex; align-items: center; justify-content: center; transform: translate3d(0,0,0);">
                   <img id="stamp-stage-logo-img" src="" alt="Logo" style="width: 100%; height: auto; display: block; pointer-events: none; filter: drop-shadow(0 3px 10px rgba(0,0,0,0.5));">
@@ -2690,15 +2704,15 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JS SCRIPTS -->
-  <script src="js/auth.js?v=2.2"></script>
-  <script src="js/app.js?v=2.2"></script>
-  <script src="js/composer.js?v=2.2"></script>
-  <script src="js/storyMusic.js?v=2.2"></script>
-  <script src="js/calendar.js?v=2.2"></script>
-  <script src="js/analytics.js?v=2.2"></script>
-  <script src="js/watermark.js?v=2.2"></script>
-  <script src="js/settings.js?v=2.2"></script>
-  <script src="js/batchScheduler.js?v=2.2"></script>
-  <script src="js/inbox.js?v=2.2"></script>
+  <script src="js/auth.js?v=2.4"></script>
+  <script src="js/app.js?v=2.4"></script>
+  <script src="js/composer.js?v=2.4"></script>
+  <script src="js/storyMusic.js?v=2.4"></script>
+  <script src="js/calendar.js?v=2.4"></script>
+  <script src="js/analytics.js?v=2.4"></script>
+  <script src="js/watermark.js?v=2.4"></script>
+  <script src="js/settings.js?v=2.4"></script>
+  <script src="js/batchScheduler.js?v=2.4"></script>
+  <script src="js/inbox.js?v=2.4"></script>
 </body>
 </html>

@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const wmBtn = document.getElementById('btn-watermark-overlay');
     if (wmBtn) {
-      wmBtn.style.display = hasMedia ? 'inline-flex' : 'none';
+      wmBtn.style.display = 'inline-flex';
     }
   }
 
@@ -1807,6 +1807,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ComposerState.mediaFiles = [json.data.url];
         renderMediaPreviews();
         updateLivePreviews();
+        if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
 
         if (campinaAiImgResult) campinaAiImgResult.src = json.data.url;
         if (campinaAiImgPreview) campinaAiImgPreview.style.display = 'block';
@@ -1881,6 +1882,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ComposerState.mediaFiles = [json.data.url];
         renderMediaPreviews();
         updateLivePreviews();
+        if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
 
         if (campinaAiImgResult) campinaAiImgResult.src = json.data.url;
         if (campinaAiImgPreview) campinaAiImgPreview.style.display = 'block';
