@@ -112,13 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.radio-pill').forEach(pill => {
         pill.classList.toggle('active', pill.querySelector('input').checked);
       });
-      // Si seleccionó story, cambiar preview a story y destacar sección de música
-      const musicSec = document.getElementById('story-music-section');
       if (radio.value === 'story') {
         switchPreviewTab('story');
-        if (musicSec) musicSec.style.display = 'block';
       } else {
         switchPreviewTab('fb');
+      }
+      if (typeof window.updateMusicSectionLabels === 'function') {
+        window.updateMusicSectionLabels();
       }
     });
   });
@@ -776,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
           also_share_story: alsoShareStory,
           story_timing_rule: storyTimingRule,
           story_custom_datetime: storyCustomDatetime,
-          music_config: postType === 'story' ? musicConfigPayload : null,
+          music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
           story_music_config: alsoShareStory ? musicConfigPayload : null
         })
       });

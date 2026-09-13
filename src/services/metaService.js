@@ -340,7 +340,7 @@ class MetaService {
     }
 
     // Caso 2: Una sola imagen o múltiples imágenes (Publicación directa en el Feed / Muro de la Página)
-    if (resolvedMedia.length >= 1 && postType !== 'reel' && postType !== 'story') {
+    if (resolvedMedia.length >= 1 && postType !== 'reel' && postType !== 'story' && !isVideoUrl(resolvedMedia[0])) {
       try {
         const uploadedMediaIds = [];
         for (const imgUrl of resolvedMedia) {

@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 11. Generar Video Story MP4 con FFmpeg
+  // 11. Generar Video (Feed o Story) MP4 con FFmpeg
   btnGenerateVideo.addEventListener('click', async () => {
     if (!StoryMusicState.selectedTrack) {
       if (typeof showToast === 'function') showToast('Por favor selecciona primero una canción o audio.', 'warning');
@@ -428,18 +428,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const baseImage = ComposerState.mediaFiles[0];
+    const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
+    const currentPostType = postTypeRadio ? postTypeRadio.value : 'feed';
+    const isFeed = currentPostType === 'feed';
+
     btnGenerateVideo.disabled = true;
-    btnGenerateVideo.innerHTML = '⏳ Codificando video MP4 con FFmpeg...';
+    btnGenerateVideo.innerHTML = isFeed
+      ? '⏳ Codificando video Feed MP4 con FFmpeg...'
+      : '⏳ Codificando video Story MP4 con FFmpeg...';
     stopAudio();
 
     if (typeof showToast === 'function') {
-      showToast('Generando Video Story vertical 9:16 con FFmpeg... (Tarda ~2-4 segundos)', 'info');
+      showToast(isFeed
+        ? 'Generando Video Feed con música en proporción y calidad original... (~2-4s)'
+        : 'Generando Video Story vertical 9:16 con FFmpeg... (~2-4s)', 'info');
     }
 
     try {
       const payload = {
         image_url: baseImage,
         audio_url: StoryMusicState.selectedTrack.streamUrl,
+        post_type: currentPostType,
         duration: StoryMusicState.duration,
         start_time: StoryMusicState.startTime,
         add_music_sticker: StoryMusicState.addSticker,
@@ -457,14 +466,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (json.success && json.data) {
         StoryMusicState.generatedVideoUrl = json.data.relativeUrl;
         
-        // Si el post actual es una Story, reemplazar o asignar el video al composer
-        const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
-        if (postTypeRadio && postTypeRadio.value === 'story') {
-          ComposerState.mediaFiles[0] = json.data.relativeUrl;
-          if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
+        // Reemplazar la imagen en el composer con el video MP4 generado
+        ComposerState.mediaFiles[0] = json.data.relativeUrl;
+        if (typeof window.renderMediaPreviews === 'function') {
+          window.renderMediaPreviews();
+        }
+        if (typeof window.updateComposerPreviews === 'function') {
+          window.updateComposerPreviews();
         }
 
-        // Actualizar mockup de Instagram Story con el video real
+        // Actualizar mockup de Instagram Story con el video si corresponde
         const mockStoryMedia = document.getElementById('mock-story-media');
         if (mockStoryMedia) {
           mockStoryMedia.innerHTML = `
@@ -476,8 +487,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (videoSuccessBox) {
           videoSuccessBox.style.display = 'flex';
           const sizeMb = (json.data.sizeBytes / 1024 / 1024).toFixed(2);
-          videoSuccessBox.querySelector('.video-status-text').textContent = 
-            `¡Video Story MP4 listo! (${json.data.duration}s • ${sizeMb} MB • H.264/AAC)`;
+          const statusText = videoSuccessBox.querySelector('.video-status-text');
+          if (statusText) {
+            statusText.textContent = isFeed
+              ? `¡Video Feed MP4 listo! (${json.data.duration}s • ${sizeMb} MB • Proporción Original ${json.data.width || ''}x${json.data.height || ''})`
+              : `¡Video Story MP4 listo! (${json.data.duration}s • ${sizeMb} MB • H.264/AAC)`;
+          }
         }
         if (videoDownloadLink) {
           videoDownloadLink.href = json.data.relativeUrl;
@@ -485,12 +500,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (typeof showToast === 'function') {
-          showToast('¡Video Story con música generado con éxito!', 'success');
+          showToast(isFeed
+            ? '¡Video Feed con música generado con éxito! El preview de Facebook e Instagram ahora reproduce tu post con audio.'
+            : '¡Video Story con música generado con éxito!', 'success');
         }
 
-        // Cambiar pestaña del preview a Story para que el usuario lo vea
-        const storyTab = document.querySelector('.preview-tab[data-preview="story"]');
-        if (storyTab) storyTab.click();
+        // Cambiar pestaña del preview para que el usuario aprecie el resultado
+        if (isFeed) {
+          const fbTab = document.querySelector('.preview-tab[data-preview="fb"]');
+          if (fbTab) fbTab.click();
+        } else {
+          const storyTab = document.querySelector('.preview-tab[data-preview="story"]');
+          if (storyTab) storyTab.click();
+        }
       } else {
         if (typeof showToast === 'function') {
           showToast('Error al generar video: ' + (json.error || 'Error en FFmpeg'), 'error');
@@ -502,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } finally {
       btnGenerateVideo.disabled = false;
-      btnGenerateVideo.innerHTML = '⚡ Generar Video Story con Audio Ahora';
+      updateMusicSectionLabels();
     }
   });
 
@@ -538,12 +560,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Actualización dinámica de textos de la sección de música según el tipo de post
+  function updateMusicSectionLabels() {
+    const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
+    const currentPostType = postTypeRadio ? postTypeRadio.value : 'feed';
+    const isFeed = currentPostType === 'feed';
+    const isStory = currentPostType === 'story';
+    const isCarousel = currentPostType === 'carousel';
+
+    const titleText = document.getElementById('story-music-title-text');
+    const badgeText = document.getElementById('story-music-badge-text');
+    const descText = document.getElementById('story-music-desc-text');
+    const durationLabel = document.getElementById('music-duration-label');
+    const btnGen = document.getElementById('btn-generate-story-video');
+
+    if (isCarousel) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+
+    if (isFeed) {
+      if (titleText) titleText.textContent = '🎵 Añadir Música al Post (Video Feed MP4 con Audio)';
+      if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Feed Post (Formato Original)</span>';
+      if (descText) descText.textContent = 'Convierte tu imagen en un video MP4 con música de fondo embebida manteniendo su proporción original (1:1 cuadrado, 4:5 o paisaje). Se publica como Post en el Feed de Facebook e Instagram con sonido real sin convertirlo en Reel ni recortarlo a 9:16.';
+      if (durationLabel) durationLabel.textContent = 'Duración del Post:';
+      if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Feed con Audio Ahora';
+    } else {
+      if (titleText) titleText.textContent = '🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)';
+      if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Story Video (9:16)</span>';
+      if (descText) descText.textContent = 'Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con fondo difuminado y música embebida para Instagram y Facebook Stories.';
+      if (durationLabel) durationLabel.textContent = 'Duración Story:';
+      if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Story con Audio Ahora';
+    }
+  }
+
+  window.updateMusicSectionLabels = updateMusicSectionLabels;
+
   // Observador de cambio de formato de post en Composer
   document.querySelectorAll('input[name="post_type"]').forEach(r => {
     r.addEventListener('change', () => {
-      if (r.value === 'story') {
-        section.style.display = 'block';
-      }
+      updateMusicSectionLabels();
     });
   });
 
@@ -556,6 +614,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Inicializar etiquetas al cargar
+  updateMusicSectionLabels();
+
   // Reset function
   window.resetStoryMusic = function() {
     stopAudio();
@@ -565,5 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
     drawer.style.display = 'none';
     if (videoSuccessBox) videoSuccessBox.style.display = 'none';
     updateMockupMusicOverlay();
+    updateMusicSectionLabels();
   };
 });

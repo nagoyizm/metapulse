@@ -498,15 +498,15 @@
                       <div class="story-music-title-wrap">
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
                           <input type="checkbox" id="chk-story-music-enabled" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
-                          <span>🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)</span>
+                          <span id="story-music-title-text">🎵 Añadir Música al Post (Video Feed MP4 con Audio)</span>
                         </label>
                       </div>
-                      <span class="story-music-badge-ffmpeg">
-                        <span>⚡ FFmpeg Story Video</span>
+                      <span class="story-music-badge-ffmpeg" id="story-music-badge-text">
+                        <span>⚡ FFmpeg Feed Video</span>
                       </span>
                     </div>
-                    <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
-                      Convierte automáticamente tu imagen en un video vertical estático (1080x1920) con música de fondo embebida, simulando que fue subida con audio desde la app de Instagram para que suene con volumen real.
+                    <p id="story-music-desc-text" style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">
+                      Convierte tu imagen en un video MP4 con música manteniendo su proporción original (1:1 o 4:5). Se publica como Post en el Feed de Facebook e Instagram con audio real sin convertirlo en Reel vertical.
                     </p>
 
                     <!-- Drawer de Selección de Música (Oculto hasta activar) -->
@@ -586,30 +586,31 @@
                           <input type="range" id="music-trim-slider" aria-label="Punto de inicio de la canción" class="audio-trim-slider" min="0" max="120" value="0" step="1">
                         </div>
 
-                        <!-- Duración de la Historia -->
+                        <!-- Duración del Video -->
                         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                          <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">Duración Story:</span>
+                          <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);" id="music-duration-label">Duración del Post:</span>
                           <div class="duration-pills">
                             <span class="duration-pill" data-duration="10">10s</span>
                             <span class="duration-pill active" data-duration="15">15s (Estándar)</span>
                             <span class="duration-pill" data-duration="30">30s</span>
+                            <span class="duration-pill" data-duration="60">60s (Feed)</span>
                           </div>
                         </div>
 
                         <!-- Sticker de Música Visual -->
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.82rem; margin-top:4px;">
                           <input type="checkbox" id="chk-music-sticker" checked style="width:16px; height:16px; accent-color:#ec4899;">
-                          <span>Superponer sticker visual de música estilo Instagram ("🎵 Canción • Artista")</span>
+                          <span id="lbl-music-sticker-text">Superponer sticker visual de música estilo Instagram ("🎵 Canción • Artista")</span>
                         </label>
 
                         <!-- Botón de Generación Instantánea con FFmpeg -->
                         <button type="button" class="btn-generate-story-video" id="btn-generate-story-video">
-                          ⚡ Generar Video Story con Audio Ahora
+                          ⚡ Generar Video Feed con Audio Ahora
                         </button>
 
                         <!-- Indicador de Éxito -->
                         <div class="story-video-success-badge" id="story-video-success-box" style="display:none;">
-                          <span class="video-status-text">¡Video Story MP4 generado con éxito!</span>
+                          <span class="video-status-text" id="story-video-status-text">¡Video MP4 generado con éxito!</span>
                           <a href="#" id="story-video-download-link" target="_blank" style="color:#34d399; text-decoration:underline; font-size:0.75rem; display:none;">Ver video ↗</a>
                         </div>
                       </div>

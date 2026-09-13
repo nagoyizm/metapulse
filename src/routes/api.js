@@ -323,16 +323,17 @@ router.get('/posts', (req, res) => {
   }
 });
 
-async function maybeGenerateStoryVideo(post_type, music_config, media_urls) {
-  if (post_type !== 'story' || !music_config?.audio_url || !media_urls?.length) return;
+async function maybeGeneratePostVideo(post_type, music_config, media_urls) {
+  if (!music_config?.audio_url || !media_urls?.length) return;
   const firstMedia = media_urls[0];
   if (firstMedia.match(/\.(mp4|mov)$/i)) return;
 
   try {
-    console.log('[API] Generando video story con música embebida para publicación directa...');
-    const vidResult = await videoService.generateStoryVideo({
+    console.log(`[API] Generando video con música embebida para post formato: "${post_type}"...`);
+    const vidResult = await videoService.generatePostVideo({
       imageInput: firstMedia,
       audioInput: music_config.audio_url,
+      postType: post_type,
       duration: music_config.duration || 15,
       startTime: music_config.start_time || 0,
       addMusicSticker: Boolean(music_config.add_music_sticker),
@@ -341,7 +342,7 @@ async function maybeGenerateStoryVideo(post_type, music_config, media_urls) {
     });
     media_urls[0] = vidResult.relativeUrl;
   } catch (err) {
-    console.warn('[Auto-Story-Music Video Error]:', err.message);
+    console.warn('[Auto-Post-Music Video Error]:', err.message);
   }
 }
 
@@ -454,7 +455,7 @@ router.post('/posts', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Debes incluir al menos texto o contenido multimedia.' });
     }
 
-    await maybeGenerateStoryVideo(post_type, music_config, media_urls);
+    await maybeGeneratePostVideo(post_type, music_config, media_urls);
 
     let targetSchedule;
     try {
@@ -1879,6 +1880,7 @@ router.post('/stories/generate-video', async (req, res) => {
     const {
       image_url,
       audio_url,
+      post_type = 'story',
       duration = 15,
       start_time = 0,
       add_music_sticker = false,
@@ -1887,17 +1889,18 @@ router.post('/stories/generate-video', async (req, res) => {
     } = req.body;
 
     if (!image_url) {
-      return res.status(400).json({ success: false, error: 'Se requiere una imagen para generar el video de la Historia.' });
+      return res.status(400).json({ success: false, error: 'Se requiere una imagen para generar el video con música.' });
     }
     if (!audio_url) {
       return res.status(400).json({ success: false, error: 'Se requiere una pista de audio (canción subida o de la biblioteca).' });
     }
 
-    console.log(`[API] Iniciando generación de Video Story con audio para: ${song_title || 'Audio seleccionado'}`);
+    console.log(`[API] Iniciando generación de Video (${post_type}) con audio para: ${song_title || 'Audio seleccionado'}`);
 
-    const result = await videoService.generateStoryVideo({
+    const result = await videoService.generatePostVideo({
       imageInput: image_url,
       audioInput: audio_url,
+      postType: post_type,
       duration: Number(duration) || 15,
       startTime: Number(start_time) || 0,
       addMusicSticker: Boolean(add_music_sticker),
@@ -1908,12 +1911,19 @@ router.post('/stories/generate-video', async (req, res) => {
     res.json({
       success: true,
       data: result,
-      message: '¡Video Story vertical 9:16 generado con éxito listo para Instagram/Facebook!'
+      message: post_type === 'story'
+        ? '¡Video Story vertical 9:16 generado con éxito listo para Instagram/Facebook!'
+        : '¡Video con música para Post de Feed generado con éxito manteniendo su resolución original!'
     });
   } catch (err) {
-    console.error('[Generate Story Video Error]:', err);
+    console.error('[Generate Video Error]:', err);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+router.post('/posts/generate-video', async (req, res) => {
+  req.url = '/stories/generate-video';
+  return router.handle(req, res);
 });
 
 router.post('/media/format', async (req, res) => {
