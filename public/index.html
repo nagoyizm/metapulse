@@ -467,31 +467,83 @@
 
                     <!-- Story Timing Options (Hidden by default) -->
                     <div id="story-timing-box" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed rgba(236,72,153,0.3); margin-left:29px;">
-                      <span class="form-label" style="display:block; font-size:0.8rem; margin-bottom:6px;">¿En qué horario publicar la Historia?</span>
-                      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:8px;">
-                        <label class="radio-pill active" style="font-size:0.8rem;">
-                          <input type="radio" name="story_schedule_timing" value="same_time" checked>
-                          <span>⚡ Mismo momento</span>
+                      <!-- 1. Selector de Estrategia de Difusión de Historia -->
+                      <span class="form-label" style="display:block; font-size:0.82rem; margin-bottom:6px; font-weight:700; color:var(--text-primary);">
+                        🎯 Estrategia de Difusión de Historia:
+                      </span>
+                      <div class="story-strategy-selector" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin-bottom:12px;">
+                        <label class="radio-pill active" id="pill-story-strat-single" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="single" checked>
+                          <span>⚡ 1 Historia Única</span>
                         </label>
-                        <label class="radio-pill" style="font-size:0.8rem;">
-                          <input type="radio" name="story_schedule_timing" value="plus_3h">
-                          <span>⏰ 3h después (+3h)</span>
+                        <label class="radio-pill" id="pill-story-strat-drip3" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="drip3">
+                          <span>🔁 Goteo 3 Días (Test Horarios)</span>
                         </label>
-                        <label class="radio-pill" style="font-size:0.8rem;">
-                          <input type="radio" name="story_schedule_timing" value="night_slot">
-                          <span>🌙 En la noche (20:30)</span>
-                        </label>
-                        <label class="radio-pill" style="font-size:0.8rem;">
-                          <input type="radio" name="story_schedule_timing" value="custom">
-                          <span>📅 Horario propio</span>
+                        <label class="radio-pill" id="pill-story-strat-evergreen" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="evergreen">
+                          <span>🔥 Cuenta Siempre Viva (5 Días)</span>
                         </label>
                       </div>
-                      <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
-                        <input type="datetime-local" id="story-custom-datetime" aria-label="Fecha y hora personalizada para la Historia" class="form-control" style="font-size:0.85rem;">
+
+                      <!-- Subpanel 1: Horarios para 1 Historia Única -->
+                      <div id="story-single-timing-wrap">
+                        <span class="form-label" style="display:block; font-size:0.78rem; margin-bottom:6px; color:var(--text-secondary);">¿En qué horario publicar la Historia?</span>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
+                          <label class="radio-pill active" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="same_time" checked>
+                            <span>⚡ Mismo momento</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="plus_3h">
+                            <span>⏰ 3h después (+3h)</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="night_slot">
+                            <span>🌙 En la noche (20:30)</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="custom">
+                            <span>📅 Horario propio</span>
+                          </label>
+                        </div>
+                        <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
+                          <input type="datetime-local" id="story-custom-datetime" aria-label="Fecha y hora personalizada para la Historia" class="form-control" style="font-size:0.85rem;">
+                        </div>
                       </div>
+
+                      <!-- Subpanel 2: Información de Campaña Goteo 3 Días -->
+                      <div id="story-drip3-info-wrap" style="display:none; background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                          <span>📊 Plan de Goteo 3 Días (Test A/B de Horarios):</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                          <div>🚀 <strong>Día 1:</strong> Mismo horario del post (Lanzamiento inicial)</div>
+                          <div>🌙 <strong>Día 2 (+24h):</strong> Slot Noche (21:00 hrs) • Mayor tiempo en pantalla y volumen</div>
+                          <div>☀️ <strong>Día 4 (+72h):</strong> Slot Almuerzo (13:30 hrs) • Pausa activa y recordatorio final</div>
+                        </div>
+                        <div style="font-size:0.72rem; color:#be185d; margin-top:6px; font-weight:600;">
+                          💡 Se agendarán 3 historias automáticas para testear qué horario rinde mejor en tus estadísticas.
+                        </div>
+                      </div>
+
+                      <!-- Subpanel 3: Información de Cuenta Siempre Viva (5 Días) -->
+                      <div id="story-evergreen-info-wrap" style="display:none; background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                          <span>🔥 Modo Cuenta Siempre Viva (5 Días Rotativos):</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                          <div>📅 <strong>5 Historias espaciadas</strong> cada 24h a 36h rotando los 4 cuadrantes del día:</div>
+                          <div>🌅 Mañana (09:15) ➔ ☀️ Almuerzo (13:30) ➔ 🌆 Tarde (19:30) ➔ 🌙 Noche (21:00).</div>
+                        </div>
+                        <div style="font-size:0.72rem; color:#7e22ce; margin-top:6px; font-weight:600;">
+                          ✨ Garantiza que el aro de historias de tu cuenta nunca se apague en toda la semana sin saturar.
+                        </div>
+                      </div>
+
                       <div style="margin-top:10px; padding:6px 10px; background:rgba(236,72,153,0.1); border:1px dashed rgba(236,72,153,0.35); border-radius:6px; font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
                         <span>💡</span>
-                        <span>Si activas <strong>Añadir Música</strong> abajo, la Historia 9:16 también se generará con audio automáticamente.</span>
+                        <span>Si activas <strong>Añadir Música</strong> abajo, todas las Historias de la estrategia se generarán automáticamente con audio real.</span>
                       </div>
                     </div>
                   </div>

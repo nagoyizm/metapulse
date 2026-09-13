@@ -698,6 +698,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Selector de Estrategia de Difusión de Historia (1 Historia, Goteo 3 Días, Cuenta Siempre Viva)
+  document.querySelectorAll('input[name="story_strategy"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.story-strategy-selector .radio-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.querySelector('input').checked);
+      });
+
+      const strat = radio.value;
+      const singleWrap = document.getElementById('story-single-timing-wrap');
+      const drip3Wrap = document.getElementById('story-drip3-info-wrap');
+      const evergreenWrap = document.getElementById('story-evergreen-info-wrap');
+
+      if (singleWrap) singleWrap.style.display = strat === 'single' ? 'block' : 'none';
+      if (drip3Wrap) drip3Wrap.style.display = strat === 'drip3' ? 'block' : 'none';
+      if (evergreenWrap) evergreenWrap.style.display = strat === 'evergreen' ? 'block' : 'none';
+    });
+  });
+
   document.querySelectorAll('input[name="story_schedule_timing"]').forEach(radio => {
     radio.addEventListener('change', () => {
       if (storyCustomDatetimeWrap) {
@@ -741,6 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const alsoShareStory = Boolean(chkAlsoShareStory?.checked && postType !== 'story');
+    const storyStrategy = document.querySelector('input[name="story_strategy"]:checked')?.value || 'single';
     const storyTimingRule = document.querySelector('input[name="story_schedule_timing"]:checked')?.value || 'same_time';
     const storyCustomDatetime = document.getElementById('story-custom-datetime')?.value || null;
 
@@ -776,7 +795,9 @@ document.addEventListener('DOMContentLoaded', () => {
           accountId,
           accountName,
           also_share_story: alsoShareStory,
+          story_strategy: storyStrategy,
           story_timing_rule: storyTimingRule,
+          story_custom_datetime: storyCustomDatetime,
           music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
           story_music_config: alsoShareStory ? musicConfigPayload : null
         })
@@ -790,6 +811,11 @@ document.addEventListener('DOMContentLoaded', () => {
         postTitle.value = '';
         if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
         if (storyTimingBox) storyTimingBox.style.display = 'none';
+        const defaultStrat = document.querySelector('input[name="story_strategy"][value="single"]');
+        if (defaultStrat) {
+          defaultStrat.checked = true;
+          defaultStrat.dispatchEvent(new Event('change'));
+        }
         if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
         if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
         ComposerState.mediaFiles = [];
@@ -813,6 +839,11 @@ document.addEventListener('DOMContentLoaded', () => {
     postTitle.value = '';
     if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
     if (storyTimingBox) storyTimingBox.style.display = 'none';
+    const defaultStrat = document.querySelector('input[name="story_strategy"][value="single"]');
+    if (defaultStrat) {
+      defaultStrat.checked = true;
+      defaultStrat.dispatchEvent(new Event('change'));
+    }
     if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
     if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
     postTitle.value = '';

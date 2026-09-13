@@ -362,10 +362,93 @@ function calculateTargetSchedule(schedule_type, scheduled_at) {
   return null;
 }
 
+/**
+ * Calcula la lista de horarios programados según la estrategia de difusión de Historias:
+ * - 'single': 1 historia única según la regla de tiempo elegida.
+ * - 'drip3': 3 historias espaciadas (Lanzamiento, Noche +24h, Almuerzo +72h) para testear cuadrantes.
+ * - 'evergreen': 5 historias rotativas (Lanzamiento, Noche, Almuerzo, Mañana, Tarde) para mantener la cuenta viva 5 días.
+ */
+function buildDripSchedules(baseIso, strategy = 'single', timingRule = 'same_time', customDatetime = null) {
+  const baseD = new Date(baseIso);
+  const validBase = isNaN(baseD.getTime()) ? new Date() : baseD;
+
+  if (strategy === 'single') {
+    let s = new Date(validBase);
+    if (timingRule === 'plus_3h') {
+      s = new Date(validBase.getTime() + 3 * 3600 * 1000);
+    } else if (timingRule === 'night_slot') {
+      s.setHours(20, 30, 0, 0);
+      if (s <= validBase) s.setDate(s.getDate() + 1);
+    } else if (timingRule === 'custom' && customDatetime) {
+      s = new Date(customDatetime);
+    }
+    return [{ titleSuffix: 'Story', schedule: s.toISOString() }];
+  }
+
+  if (strategy === 'drip3') {
+    // 3 Historias espaciadas en slots clave para test de horarios (A/B)
+    // 1. Lanzamiento: mismo horario del post
+    const s1 = new Date(validBase);
+
+    // 2. Noche (+1 día, 21:00 hrs)
+    const s2 = new Date(validBase);
+    s2.setDate(s2.getDate() + 1);
+    s2.setHours(21, 0, 0, 0);
+    if (s2 <= s1) s2.setDate(s2.getDate() + 1);
+
+    // 3. Almuerzo (+3 días desde el base, 13:30 hrs)
+    const s3 = new Date(validBase);
+    s3.setDate(s3.getDate() + 3);
+    s3.setHours(13, 30, 0, 0);
+    if (s3 <= s2) s3.setDate(s2.getDate() + 2);
+
+    return [
+      { titleSuffix: '[Historia 1/3 • Lanzamiento]', schedule: s1.toISOString() },
+      { titleSuffix: '[Historia 2/3 • Slot Noche 21:00]', schedule: s2.toISOString() },
+      { titleSuffix: '[Historia 3/3 • Slot Almuerzo 13:30]', schedule: s3.toISOString() }
+    ];
+  }
+
+  if (strategy === 'evergreen') {
+    // 5 Historias espaciadas cada 24h-36h rotando los 4 cuadrantes del día
+    const s1 = new Date(validBase);
+
+    const s2 = new Date(validBase);
+    s2.setDate(s2.getDate() + 1);
+    s2.setHours(21, 0, 0, 0);
+    if (s2 <= s1) s2.setDate(s2.getDate() + 1);
+
+    const s3 = new Date(validBase);
+    s3.setDate(s3.getDate() + 2);
+    s3.setHours(13, 30, 0, 0);
+    if (s3 <= s2) s3.setDate(s2.getDate() + 1);
+
+    const s4 = new Date(validBase);
+    s4.setDate(s4.getDate() + 3);
+    s4.setHours(9, 15, 0, 0);
+    if (s4 <= s3) s4.setDate(s3.getDate() + 1);
+
+    const s5 = new Date(validBase);
+    s5.setDate(s5.getDate() + 4);
+    s5.setHours(19, 30, 0, 0);
+    if (s5 <= s4) s5.setDate(s4.getDate() + 1);
+
+    return [
+      { titleSuffix: '[Historia 1/5 • Lanzamiento]', schedule: s1.toISOString() },
+      { titleSuffix: '[Historia 2/5 • Slot Noche 21:00]', schedule: s2.toISOString() },
+      { titleSuffix: '[Historia 3/5 • Slot Almuerzo 13:30]', schedule: s3.toISOString() },
+      { titleSuffix: '[Historia 4/5 • Slot Mañana 09:15]', schedule: s4.toISOString() },
+      { titleSuffix: '[Historia 5/5 • Slot Tarde 19:30]', schedule: s5.toISOString() }
+    ];
+  }
+
+  return [{ titleSuffix: 'Story', schedule: validBase.toISOString() }];
+}
+
 async function createCrossStoryPost(opts) {
   const {
     media_urls, post_type, story_music_config, accountName,
-    targetSchedule, story_timing_rule, story_custom_datetime,
+    targetSchedule, story_strategy = 'single', story_timing_rule, story_custom_datetime,
     title, content, platforms, accountId, presetName, stmt
   } = opts;
 
@@ -383,7 +466,7 @@ async function createCrossStoryPost(opts) {
 
     if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
       if (story_music_config?.audio_url) {
-        console.log('[API] Generando video story cruzado con música...');
+        console.log('[API] Generando video story cruzado con música para la campaña...');
         const vidRes = await videoService.generateStoryVideo({
           imageInput: absImagePath,
           audioInput: story_music_config.audio_url,
@@ -404,32 +487,28 @@ async function createCrossStoryPost(opts) {
     }
   }
 
-  let storyTargetSchedule = targetSchedule;
-  const baseD = new Date(targetSchedule);
-  if (story_timing_rule === 'plus_3h') {
-    storyTargetSchedule = new Date(baseD.getTime() + 3 * 3600 * 1000).toISOString();
-  } else if (story_timing_rule === 'night_slot') {
-    const night = new Date(baseD);
-    night.setHours(20, 30, 0, 0);
-    if (night <= baseD) night.setDate(night.getDate() + 1);
-    storyTargetSchedule = night.toISOString();
-  } else if (story_timing_rule === 'custom' && story_custom_datetime) {
-    storyTargetSchedule = new Date(story_custom_datetime).toISOString();
+  const schedules = buildDripSchedules(targetSchedule, story_strategy, story_timing_rule, story_custom_datetime);
+  console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}"...`);
+  const createdStories = [];
+
+  for (const item of schedules) {
+    const storyStmtRes = stmt.run(
+      `${item.titleSuffix}: ${title || 'Nuevo Post'}`,
+      content ? `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 100)}...` : '¡Nuevo post disponible! ✨',
+      JSON.stringify(platforms),
+      'story',
+      JSON.stringify([storyMediaUrl]),
+      item.schedule,
+      accountId,
+      accountName,
+      presetName
+    );
+
+    const created = db.prepare('SELECT * FROM posts WHERE id = ?').get(storyStmtRes.lastInsertRowid);
+    createdStories.push(created);
   }
 
-  const storyStmtRes = stmt.run(
-    `Story: ${title || 'Nuevo Post'}`,
-    content ? `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 100)}...` : '¡Nuevo post disponible! ✨',
-    JSON.stringify(platforms),
-    'story',
-    JSON.stringify([storyMediaUrl]),
-    storyTargetSchedule,
-    accountId,
-    accountName,
-    presetName
-  );
-
-  return db.prepare('SELECT * FROM posts WHERE id = ?').get(storyStmtRes.lastInsertRowid);
+  return createdStories;
 }
 
 router.post('/posts', async (req, res) => {
@@ -445,6 +524,7 @@ router.post('/posts', async (req, res) => {
       accountId = getSetting('meta_page_id') || '',
       accountName = getSetting('meta_page_name') || '',
       also_share_story = false,
+      story_strategy = 'single',
       story_timing_rule = 'same_time',
       story_custom_datetime = null,
       music_config = null,
@@ -496,6 +576,7 @@ router.post('/posts', async (req, res) => {
           story_music_config,
           accountName,
           targetSchedule,
+          story_strategy,
           story_timing_rule,
           story_custom_datetime,
           title,
@@ -516,7 +597,11 @@ router.post('/posts', async (req, res) => {
 
     let responseMessage = 'Publicación agendada con éxito';
     if (createdStoryPost) {
-      responseMessage = '¡Publicación y versión Historia (Story 9:16) agendadas con éxito!';
+      if (Array.isArray(createdStoryPost) && createdStoryPost.length > 1) {
+        responseMessage = `¡Publicación y Campaña de ${createdStoryPost.length} Historias agendadas en horarios estratégicos!`;
+      } else {
+        responseMessage = '¡Publicación y versión Historia (Story 9:16) agendadas con éxito!';
+      }
     } else if (schedule_type === 'now') {
       responseMessage = 'Publicación en proceso de envío';
     }
