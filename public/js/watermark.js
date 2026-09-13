@@ -5,6 +5,104 @@
 let selectedPosition = 'bottom-right';
 window.mediaFilterMode = 'current';
 
+// ===========================================================================
+// FUNCIONES GLOBALES CRÍTICAS — definidas aquí para que el onclick del botón
+// siempre las encuentre, sin depender del DOMContentLoaded
+// ===========================================================================
+
+// Variables de estado compartidas globalmente
+let _stampXPercent = 78;
+let _stampYPercent = 78;
+let _stampScale = 18;
+let _stampOpacity = 90;
+let _currentTargetImage = '';
+let _availableWatermarks = [];
+
+window.closeInteractiveStamp = function() {
+  const modal = document.getElementById('modal-interactive-stamp');
+  if (modal) modal.style.display = 'none';
+};
+
+window.openInteractiveStampModal = function(forcedImage) {
+  console.log('[MetaPulse] openInteractiveStampModal llamada');
+  const modal = document.getElementById('modal-interactive-stamp');
+  if (!modal) {
+    console.error('[MetaPulse] ERROR: modal-interactive-stamp no encontrado en el DOM');
+    return;
+  }
+  modal.style.display = 'flex';
+  modal.style.zIndex = '99999';
+  modal.style.position = 'fixed';
+  console.log('[MetaPulse] Modal display:', modal.style.display);
+
+  // Detectar imagen a usar
+  let targetImg = forcedImage || '';
+  if (!targetImg && typeof ComposerState !== 'undefined' && ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+    const firstItem = ComposerState.mediaFiles[0];
+    targetImg = typeof firstItem === 'string' ? firstItem : (firstItem?.url || '');
+  }
+  if (!targetImg) {
+    const previewEl = document.querySelector('#media-preview-grid img');
+    if (previewEl && previewEl.src && !previewEl.src.endsWith('/')) targetImg = previewEl.src;
+  }
+  if (!targetImg) {
+    const fbImg = document.querySelector('#mock-fb-media img');
+    if (fbImg && fbImg.src && !fbImg.src.endsWith('/')) targetImg = fbImg.src;
+  }
+  if (!targetImg) {
+    const igImg = document.querySelector('#mock-ig-media img');
+    if (igImg && igImg.src && !igImg.src.endsWith('/')) targetImg = igImg.src;
+  }
+  if (!targetImg) {
+    const campinaAiEl = document.getElementById('campina-ai-img-result');
+    if (campinaAiEl && campinaAiEl.src && !campinaAiEl.src.endsWith('/')) targetImg = campinaAiEl.src;
+  }
+
+  const stageBg = document.getElementById('stamp-stage-bg');
+  const stageLogo = document.getElementById('stamp-stage-logo');
+  const stageLogoImg = document.getElementById('stamp-stage-logo-img');
+  const placeholder = document.getElementById('stamp-no-image-placeholder');
+
+  if (targetImg) {
+    _currentTargetImage = targetImg;
+    if (placeholder) placeholder.style.display = 'none';
+    if (stageBg) {
+      stageBg.style.display = 'block';
+      stageBg.src = targetImg;
+    }
+    if (stageLogo) stageLogo.style.display = 'flex';
+  } else {
+    _currentTargetImage = '';
+    if (stageBg) { stageBg.src = ''; stageBg.style.display = 'none'; }
+    if (placeholder) placeholder.style.display = 'block';
+    if (stageLogo) stageLogo.style.display = 'none';
+  }
+
+  // Cargar logos disponibles vía API
+  fetch('/api/watermarks?all=true')
+    .then(r => r.json())
+    .then(json => {
+      if (!json.success) return;
+      _availableWatermarks = json.data || [];
+      const select = document.getElementById('stamp-logo-select');
+      if (select && _availableWatermarks.length > 0) {
+        select.innerHTML = _availableWatermarks.map((w, idx) => {
+          const isDef = w.is_default ? ' ★' : '';
+          const acc = w.account_name ? ` [${w.account_name}]` : '';
+          return `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}${acc}</option>`;
+        }).join('');
+        if (stageLogoImg && _availableWatermarks[0]) {
+          stageLogoImg.src = _availableWatermarks[0].filepath;
+          if (stageLogo && targetImg) stageLogo.style.display = 'flex';
+        }
+      } else if (select) {
+        select.innerHTML = '<option value="">(Sin logos en Multimedia & Logos)</option>';
+        if (stageLogo) stageLogo.style.display = 'none';
+      }
+    })
+    .catch(err => console.warn('[MetaPulse] Error cargando logos:', err));
+};
+
 window.setMediaAccountFilter = function(mode) {
   window.mediaFilterMode = mode;
   const btnCurrent = document.getElementById('btn-media-filter-current');
@@ -248,10 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragInitLeft = 0;
   let dragInitTop = 0;
 
-  window.closeInteractiveStamp = function() {
-    const modal = document.getElementById('modal-interactive-stamp');
-    if (modal) modal.style.display = 'none';
-  };
+  // closeInteractiveStamp ya definido en scope global arriba
 
   function syncStampPosition() {
     const stageWrap = document.getElementById('stamp-stage-wrap');
@@ -440,95 +535,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Abrir Modal de Estampado Interactivo
+  // openInteractiveStampModal ya definido en scope global arriba.
+  // Aquí sincronizamos las variables internas con las globales al abrirse el modal
+  // y conectamos la función con la lógica de drag interna.
+  const _origOpen = window.openInteractiveStampModal;
   window.openInteractiveStampModal = function(forcedImage) {
-    const modal = document.getElementById('modal-interactive-stamp');
-    if (modal) {
-      modal.style.display = 'flex';
-      modal.style.zIndex = '99999';
-    }
-
-    let targetImg = forcedImage || '';
-    if (!targetImg && typeof ComposerState !== 'undefined' && ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
-      const firstItem = ComposerState.mediaFiles[0];
-      targetImg = typeof firstItem === 'string' ? firstItem : (firstItem?.url || '');
-    }
-    if (!targetImg) {
-      const previewEl = document.querySelector('#media-preview-grid img');
-      if (previewEl && previewEl.src) targetImg = previewEl.src;
-    }
-    if (!targetImg) {
-      const campinaAiEl = document.getElementById('campina-ai-img-result');
-      if (campinaAiEl && campinaAiEl.src) targetImg = campinaAiEl.src;
-    }
-    if (!targetImg) {
-      const campinaEl = document.getElementById('campina-bg-img');
-      if (campinaEl && campinaEl.src && campinaEl.style.display !== 'none') targetImg = campinaEl.src;
-    }
-    if (!targetImg) {
-      const fbImg = document.querySelector('#mock-fb-media img');
-      if (fbImg && fbImg.src) targetImg = fbImg.src;
-    }
-    if (!targetImg) {
-      const igImg = document.querySelector('#mock-ig-media img');
-      if (igImg && igImg.src) targetImg = igImg.src;
-    }
-
-    const stageBg = document.getElementById('stamp-stage-bg');
-    const stageLogo = document.getElementById('stamp-stage-logo');
-    const stageLogoImg = document.getElementById('stamp-stage-logo-img');
-    const placeholder = document.getElementById('stamp-no-image-placeholder');
-
-    const triggerPositioning = () => {
-      setTimeout(() => {
-        syncStampPosition();
-        snapStampToPreset('bottom-right');
-      }, 40);
-      setTimeout(() => {
-        syncStampPosition();
-      }, 150);
-    };
-
-    if (targetImg) {
-      currentTargetImage = targetImg;
-      if (typeof ComposerState !== 'undefined' && (!ComposerState.mediaFiles || ComposerState.mediaFiles.length === 0)) {
-        ComposerState.mediaFiles = [targetImg];
-      }
-      if (placeholder) placeholder.style.display = 'none';
-      if (stageBg) {
-        stageBg.style.display = 'block';
-        stageBg.onload = triggerPositioning;
-        stageBg.src = currentTargetImage;
-        if (stageBg.complete && stageBg.naturalWidth > 0) {
-          triggerPositioning();
-        }
-      }
-      if (stageLogo) stageLogo.style.display = 'flex';
-    } else {
-      currentTargetImage = '';
-      if (stageBg) {
-        stageBg.src = '';
-        stageBg.style.display = 'none';
-      }
-      if (placeholder) placeholder.style.display = 'block';
-      if (stageLogo) stageLogo.style.display = 'none';
-    }
-
-    if (stageLogoImg && (!stageLogoImg.src || stageLogoImg.src.endsWith('/'))) {
-      stageLogoImg.src = '/uploads/watermarks/logo-1788393011665.png';
-      if (stageLogo && targetImg) stageLogo.style.display = 'flex';
-    }
-
-    loadWatermarksForStampModal().catch(err => console.warn(err));
-
-    if (stageLogoImg) {
-      stageLogoImg.onload = () => {
-        syncStampPosition();
-      };
-      if (stageLogoImg.complete && stageLogoImg.naturalWidth > 0) {
-        syncStampPosition();
-      }
-    }
+    // Llamar a la versión global que muestra el modal
+    _origOpen(forcedImage);
+    // Sincronizar variables internas
+    currentTargetImage = _currentTargetImage;
+    availableWatermarks = _availableWatermarks;
+    // Posicionar logo después de un pequeño delay
+    setTimeout(() => {
+      syncStampPosition();
+      snapStampToPreset('bottom-right');
+    }, 80);
+    setTimeout(syncStampPosition, 200);
   };
 
   function initInteractiveStampListeners() {
