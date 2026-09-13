@@ -30,10 +30,30 @@ window.openInteractiveStampModal = function(forcedImage) {
     console.error('[MetaPulse] ERROR: modal-interactive-stamp no encontrado en el DOM');
     return;
   }
-  modal.style.display = 'flex';
-  modal.style.zIndex = '99999';
-  modal.style.position = 'fixed';
-  console.log('[MetaPulse] Modal display:', modal.style.display);
+
+  // Mover el modal directo al body para evitar cualquier overflow/z-index de padres
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  // Forzar todos los estilos críticos inline (no pueden ser sobrescritos por CSS de contenedores)
+  modal.style.cssText = [
+    'display: flex !important',
+    'position: fixed !important',
+    'top: 0 !important',
+    'left: 0 !important',
+    'width: 100vw !important',
+    'height: 100vh !important',
+    'z-index: 2147483647 !important',
+    'background: rgba(15, 23, 42, 0.8) !important',
+    'align-items: center !important',
+    'justify-content: center !important',
+    'padding: 16px !important',
+    'backdrop-filter: blur(8px) !important',
+    'box-sizing: border-box !important'
+  ].join('; ');
+
+  console.log('[MetaPulse] Modal en body:', modal.parentElement === document.body, '| display:', window.getComputedStyle(modal).display);
 
   // Detectar imagen a usar
   let targetImg = forcedImage || '';
