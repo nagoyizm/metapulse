@@ -762,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
         audio_url: window.StoryMusicState.selectedTrack.streamUrl,
         start_time: window.StoryMusicState.startTime || 0,
         duration: window.StoryMusicState.duration || 15,
-        add_music_sticker: Boolean(window.StoryMusicState.addSticker),
+        add_music_sticker: (postType === 'story') ? Boolean(window.StoryMusicState.addSticker) : false,
         song_title: window.StoryMusicState.selectedTrack.title || '',
         song_artist: window.StoryMusicState.selectedTrack.artist || ''
       } : null;

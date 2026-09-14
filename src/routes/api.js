@@ -336,7 +336,7 @@ async function maybeGeneratePostVideo(post_type, music_config, media_urls) {
       postType: post_type,
       duration: music_config.duration || 15,
       startTime: music_config.start_time || 0,
-      addMusicSticker: Boolean(music_config.add_music_sticker),
+      addMusicSticker: post_type === 'story' ? Boolean(music_config.add_music_sticker) : false,
       songTitle: music_config.song_title || '',
       songArtist: music_config.song_artist || ''
     });
@@ -2143,7 +2143,7 @@ router.post('/stories/generate-video', async (req, res) => {
       postType: post_type,
       duration: Number(duration) || 15,
       startTime: Number(start_time) || 0,
-      addMusicSticker: Boolean(add_music_sticker),
+      addMusicSticker: post_type === 'story' ? Boolean(add_music_sticker) : false,
       songTitle: song_title,
       songArtist: song_artist
     });

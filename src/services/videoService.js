@@ -307,9 +307,10 @@ class VideoService {
 
   /**
    * Prepara una imagen para Video de Feed (1:1, 4:5, etc.) manteniendo su resolución y relación de aspecto original
-   * asegurando dimensiones pares (requerido por codificador H.264 / yuv420p)
+   * asegurando dimensiones pares (requerido por codificador H.264 / yuv420p).
+   * Para Posts de Feed NUNCA se superpone etiqueta ni sticker sobre la imagen para mantenerla 100% limpia.
    */
-  async prepareFeedCanvas({ imagePath, addMusicSticker = false, songTitle = '', songArtist = '' }) {
+  async prepareFeedCanvas({ imagePath }) {
     const inputBuffer = fs.readFileSync(imagePath);
     let imageSharp = sharp(inputBuffer);
     const meta = await imageSharp.metadata();
@@ -325,43 +326,7 @@ class VideoService {
       imageSharp = imageSharp.resize(targetWidth, targetHeight, { fit: 'fill' });
     }
 
-    let canvasBuffer = await imageSharp.jpeg({ quality: 95 }).toBuffer();
-
-    // Sticker opcional de música adaptado al ancho del post
-    if (addMusicSticker && (songTitle || songArtist)) {
-      const cleanTitle = (songTitle || 'Audio Original').replace(/[<>&"]/g, '');
-      const cleanArtist = (songArtist || 'MetaPulse Music').replace(/[<>&"]/g, '');
-      const stickerWidth = Math.min(Math.round(targetWidth * 0.70), 540);
-      const stickerHeight = Math.round(stickerWidth * 0.16);
-
-      const stickerSvg = Buffer.from(`
-        <svg width="${stickerWidth}" height="${stickerHeight}" viewBox="0 0 ${stickerWidth} ${stickerHeight}" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="feedStickerBg" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#0f172a" stop-opacity="0.90" />
-              <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0.94" />
-            </linearGradient>
-            <linearGradient id="feedAccentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ec4899" />
-              <stop offset="100%" stop-color="#8b5cf6" />
-            </linearGradient>
-          </defs>
-          <rect x="2" y="2" width="${stickerWidth - 4}" height="${stickerHeight - 4}" rx="${Math.round(stickerHeight / 2)}" fill="url(#feedStickerBg)" stroke="rgba(236,72,153,0.55)" stroke-width="2" />
-          <circle cx="${Math.round(stickerHeight * 0.52)}" cy="${Math.round(stickerHeight / 2)}" r="${Math.round(stickerHeight * 0.35)}" fill="url(#feedAccentGrad)" />
-          <text x="${Math.round(stickerHeight * 0.52)}" y="${Math.round(stickerHeight * 0.62)}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${Math.round(stickerHeight * 0.38)}" fill="#ffffff" text-anchor="middle">🎵</text>
-          <text x="${Math.round(stickerHeight * 1.05)}" y="${Math.round(stickerHeight * 0.45)}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${Math.round(stickerHeight * 0.26)}" font-weight="700" fill="#ffffff">${cleanTitle}</text>
-          <text x="${Math.round(stickerHeight * 1.05)}" y="${Math.round(stickerHeight * 0.74)}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="${Math.round(stickerHeight * 0.20)}" font-weight="500" fill="#cbd5e1">${cleanArtist} • Meta Audio</text>
-        </svg>
-      `);
-
-      const left = Math.round((targetWidth - stickerWidth) / 2);
-      const top = Math.round(targetHeight - stickerHeight - (targetHeight * 0.05));
-
-      canvasBuffer = await sharp(canvasBuffer)
-        .composite([{ input: stickerSvg, top, left, blend: 'over' }])
-        .jpeg({ quality: 95 })
-        .toBuffer();
-    }
+    const canvasBuffer = await imageSharp.jpeg({ quality: 95 }).toBuffer();
 
     const readyImagePath = path.join(this.tempDir, `canvas_${Date.now()}_feed.jpg`);
     fs.writeFileSync(readyImagePath, canvasBuffer);
@@ -370,16 +335,14 @@ class VideoService {
 
   /**
    * Genera un Video MP4 para Feed preservando el tamaño y aspecto original de la imagen (1:1, 4:5, etc.)
-   * con pista de audio embebida para publicarse como Post en Facebook e Instagram
+   * con pista de audio embebida para publicarse como Post en Facebook e Instagram.
+   * La imagen se mantiene 100% intacta sin etiquetas ni stickers superpuestos.
    */
   async generateFeedVideo({
     imageInput,
     audioInput,
     duration = 15,
-    startTime = 0,
-    addMusicSticker = false,
-    songTitle = '',
-    songArtist = ''
+    startTime = 0
   }) {
     let resolvedImage = null;
     let preparedCanvas = null;
@@ -387,10 +350,7 @@ class VideoService {
     try {
       resolvedImage = await this.resolveImageToLocal(imageInput);
       preparedCanvas = await this.prepareFeedCanvas({
-        imagePath: resolvedImage.path,
-        addMusicSticker,
-        songTitle,
-        songArtist
+        imagePath: resolvedImage.path
       });
 
       const localAudioPath = await musicService.ensureTrackCached(audioInput);
@@ -410,45 +370,32 @@ class VideoService {
         '-t', String(parsedDuration),
         '-i', localAudioPath,
         '-c:v', 'libx264',
-        '-preset', 'fast',
         '-tune', 'stillimage',
-        '-pix_fmt', 'yuv420p',
+        '-preset', 'ultrafast',
         '-c:a', 'aac',
         '-b:a', '192k',
         '-ar', '44100',
         '-ac', '2',
+        '-pix_fmt', 'yuv420p',
         '-shortest',
         '-movflags', '+faststart',
         outputPath
       ];
 
-      console.log(`[VideoService] Ejecutando FFmpeg para generar Feed Post Video (${preparedCanvas.width}x${preparedCanvas.height}) de ${parsedDuration}s...`);
-
-      await new Promise((resolve, reject) => {
-        execFile(this.getFFmpegBinary(), args, (error, stdout, stderr) => {
-          if (error) {
-            console.error('[VideoService] Error en FFmpeg Feed Video:', stderr || error.message);
-            return reject(new Error(`Error en codificación FFmpeg: ${error.message}`));
-          }
-          resolve();
-        });
-      });
-
-      const stat = fs.statSync(outputPath);
-      console.log(`[VideoService] Feed Video generado con éxito: ${outputFilename} (${(stat.size / 1024 / 1024).toFixed(2)} MB)`);
+      await this.runFFmpeg(args);
 
       return {
-        success: true,
-        filename: outputFilename,
         outputPath,
         relativeUrl: `/uploads/stories/${outputFilename}`,
+        filename: outputFilename,
         duration: parsedDuration,
         width: preparedCanvas.width,
         height: preparedCanvas.height,
-        sizeBytes: stat.size
+        aspectRatio: `${preparedCanvas.width}:${preparedCanvas.height}`,
+        isFeedVideo: true
       };
     } finally {
-      if (preparedCanvas?.path && fs.existsSync(preparedCanvas.path)) {
+      if (preparedCanvas && fs.existsSync(preparedCanvas.path)) {
         try { fs.unlinkSync(preparedCanvas.path); } catch (_) {}
       }
       if (resolvedImage && resolvedImage.isTemp && fs.existsSync(resolvedImage.path)) {
@@ -481,14 +428,12 @@ class VideoService {
         songArtist
       });
     } else {
+      // Para posts de Feed u otros formatos que no sean stories, la imagen NUNCA lleva etiqueta de música
       return this.generateFeedVideo({
         imageInput,
         audioInput,
         duration,
-        startTime,
-        addMusicSticker,
-        songTitle,
-        songArtist
+        startTime
       });
     }
   }

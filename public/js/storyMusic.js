@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         post_type: currentPostType,
         duration: StoryMusicState.duration,
         start_time: StoryMusicState.startTime,
-        add_music_sticker: StoryMusicState.addSticker,
+        add_music_sticker: isFeed ? false : Boolean(StoryMusicState.addSticker),
         song_title: StoryMusicState.selectedTrack.title,
         song_artist: StoryMusicState.selectedTrack.artist
       };
@@ -532,7 +532,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateMockupMusicOverlay() {
     if (!mockSticker) return;
 
-    const shouldShow = StoryMusicState.enabled && StoryMusicState.addSticker && StoryMusicState.selectedTrack;
+    const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
+    const postType = postTypeRadio ? postTypeRadio.value : 'feed';
+    const isDirectStory = postType === 'story';
+
+    // Para posts normales de feed, NUNCA mostramos el sticker sobre la imagen
+    const shouldShow = isDirectStory && StoryMusicState.enabled && StoryMusicState.addSticker && StoryMusicState.selectedTrack;
     mockSticker.style.display = shouldShow ? 'flex' : 'none';
 
     if (shouldShow && StoryMusicState.selectedTrack) {
@@ -602,6 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const btnGen = document.getElementById('btn-generate-story-video');
       const pill10 = document.getElementById('pill-duration-10');
       const pill60 = document.getElementById('pill-duration-60');
+      const containerSticker = document.getElementById('container-music-sticker');
 
       if (isFeed) {
         if (titleText) titleText.textContent = '🎵 Añadir Música al Post (Video Feed MP4 con Audio)';
@@ -611,6 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Feed con Audio Ahora';
         if (pill10) pill10.style.display = 'none';
         if (pill60) pill60.style.display = 'inline-flex';
+        if (containerSticker) containerSticker.style.display = 'none';
       } else {
         if (titleText) titleText.textContent = '🎵 Añadir Música a la Historia (Video MP4 9:16 con Audio)';
         if (badgeText) badgeText.innerHTML = '<span>⚡ FFmpeg Story Video (9:16)</span>';
@@ -619,8 +626,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnGen && !btnGen.disabled) btnGen.innerHTML = '⚡ Generar Video Story con Audio Ahora';
         if (pill10) pill10.style.display = 'inline-flex';
         if (pill60) pill60.style.display = 'none';
+        if (containerSticker) containerSticker.style.display = 'flex';
       }
     }
+
+    updateMockupMusicOverlay();
   }
 
   window.syncStorySectionsVisibility = syncStorySectionsVisibility;
