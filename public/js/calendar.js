@@ -22,9 +22,10 @@ function getChileDateString(rawDate) {
   if (!rawDate) return '';
   try {
     const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate).slice(0, 10);
+    if (Number.isNaN(d.getTime())) return String(rawDate).slice(0, 10);
     return d.toLocaleDateString('en-CA', { timeZone: CHILE_TZ }); // Formato YYYY-MM-DD
-  } catch (_) {
+  } catch (_err) {
+    // Ignored: fallback to raw date prefix
     return String(rawDate).slice(0, 10);
   }
 }
@@ -33,14 +34,15 @@ function formatChileTime(rawDate) {
   if (!rawDate) return '';
   try {
     const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleTimeString('es-CL', {
       timeZone: CHILE_TZ,
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
     });
-  } catch (_) {
+  } catch (_err) {
+    // Ignored: invalid date returns empty string
     return '';
   }
 }
@@ -49,7 +51,7 @@ function formatChileDateTime(rawDate, options = {}) {
   if (!rawDate) return 'Sin fecha';
   try {
     const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate);
+    if (Number.isNaN(d.getTime())) return String(rawDate);
     const defaultOpts = {
       timeZone: CHILE_TZ,
       weekday: 'short',
@@ -60,7 +62,8 @@ function formatChileDateTime(rawDate, options = {}) {
       hour12: false
     };
     return d.toLocaleString('es-CL', { ...defaultOpts, ...options });
-  } catch (_) {
+  } catch (_err) {
+    // Ignored: fallback to raw string representation
     return String(rawDate);
   }
 }
@@ -99,23 +102,21 @@ window.handleThumbError = function(imgEl, postId) {
 };
 
 function applyFallbackThumb(imgEl) {
-  if (!imgEl || !imgEl.parentElement) return;
-  const parent = imgEl.parentElement;
+  if (!imgEl?.parentElement) return;
   const fallback = document.createElement('div');
   fallback.className = imgEl.className || 'planner-card-thumb';
   fallback.style.cssText = 'background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; border-radius: 6px; flex-shrink: 0; min-width: 32px; min-height: 32px; color: var(--primary);';
   fallback.innerHTML = '🖼️';
   fallback.title = 'Miniatura no disponible temporalmente';
   try {
-    parent.replaceChild(fallback, imgEl);
-  } catch (_) {
+    imgEl.replaceWith(fallback);
+  } catch (_err) {
     imgEl.style.display = 'none';
   }
 }
 
 // 1. Inicialización y Gestión de Vistas del Planner
-document.addEventListener('DOMContentLoaded', () => {
-  // Selector de Vistas: Calendario, Lista o Slots
+function setupPlannerViewSwitcher() {
   document.querySelectorAll('.planner-view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.planner-view-btn').forEach(b => b.classList.remove('active'));
@@ -140,8 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+}
 
-  // Navegación de Meses en el Planner
+function setupPlannerNavigation() {
   const btnPrev = document.getElementById('btn-planner-prev');
   const btnNext = document.getElementById('btn-planner-next');
   const btnToday = document.getElementById('btn-planner-today');
@@ -166,8 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderPlannerCalendar();
     });
   }
+}
 
-  // Filtros del Calendario Planner
+function setupPlannerFilters() {
   document.querySelectorAll('#planner-filter-pills .filter-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       document.querySelectorAll('#planner-filter-pills .filter-pill').forEach(p => p.classList.remove('active'));
@@ -177,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Botón Crear Post desde Planner
   const btnNewPost = document.getElementById('btn-planner-new-post');
   if (btnNewPost) {
     btnNewPost.addEventListener('click', () => {
@@ -187,7 +189,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Modal Detalle de Publicación
+  // Filtros de Cola (Vista Lista)
+  document.querySelectorAll('#view-planner-list .filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#view-planner-list .filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentFilter = pill.dataset.filter;
+      window.loadQueuePosts();
+    });
+  });
+}
+
+function setupPlannerDetailModalActions() {
   const modalDetail = document.getElementById('modal-planner-detail');
   const btnCloseDetail = document.getElementById('btn-close-planner-detail');
   const btnDetailCloseFooter = document.getElementById('btn-planner-detail-close');
@@ -196,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPlannerEditStoryComposer = document.getElementById('btn-planner-edit-story-composer');
   const btnPlannerStoryFooter = document.getElementById('btn-planner-story-footer');
   const btnPlannerDetailEdit = document.getElementById('btn-planner-detail-edit');
+  const btnDeletePost = document.getElementById('btn-planner-delete-post');
 
   function closeModal() {
     const md = document.getElementById('modal-planner-detail');
@@ -215,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Acción: Abrir Editor completo desde el modal de detalle
   if (btnPlannerDetailEdit) {
     btnPlannerDetailEdit.addEventListener('click', () => {
       const post = modalDetail._currentPost;
@@ -227,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Acción: Cargar en Composer (Formato original)
   if (btnLoadComposer) {
     btnLoadComposer.addEventListener('click', () => {
       const post = modalDetail._currentPost;
@@ -248,7 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.setComposerMedia === 'function') {
           window.setComposerMedia(media);
         }
-      } catch (_) {}
+      } catch (_err) {
+        /* Ignored: post.media_urls might not be JSON */
+      }
 
       if (typeof window.updateLivePreviews === 'function') {
         window.updateLivePreviews();
@@ -258,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Acción: Enviar / Publicar directamente como Historia 9:16
   if (btnPlannerPublishStoryNow) {
     btnPlannerPublishStoryNow.addEventListener('click', async () => {
       const post = modalDetail._currentPost;
@@ -297,7 +310,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Acción: Maquetar como Historia 9:16 en Composer
   const handleEditAsStory = () => {
     const post = modalDetail._currentPost;
     if (!post) return;
@@ -310,20 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnPlannerEditStoryComposer) btnPlannerEditStoryComposer.addEventListener('click', handleEditAsStory);
   if (btnPlannerStoryFooter) btnPlannerStoryFooter.addEventListener('click', handleEditAsStory);
 
-  // Botón Eliminar / Desprogramar desde el Modal
-  const btnDeletePost = document.getElementById('btn-planner-delete-post');
   if (btnDeletePost) {
     btnDeletePost.addEventListener('click', async () => {
       const post = modalDetail._currentPost;
       if (!post) return;
       if (!confirm(`¿Deseas desprogramar y eliminar la publicación #${post.id}?`)) return;
-      
       closeModal();
       await window.deletePost(post.id);
     });
   }
+}
 
-  // Botón Sincronizar Posts de Meta en Cola
+function setupPlannerSyncActions() {
   const btnSyncLiveQueue = document.getElementById('btn-sync-live-queue');
   if (btnSyncLiveQueue) {
     btnSyncLiveQueue.addEventListener('click', async () => {
@@ -333,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/meta/sync-live-posts', { method: 'POST' });
         const json = await res.json();
         if (json.success) {
-          showToast(json.data.message || 'Posts sincronizados con éxito', 'success');
+          showToast(json.data?.message || 'Posts sincronizados con éxito', 'success');
           await window.loadPlannerData();
           if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
         } else {
@@ -348,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Botón Reparar Miniaturas de Meta (Descarga y almacena localmente)
   const btnRepairMetaThumbs = document.getElementById('btn-repair-meta-thumbs');
   if (btnRepairMetaThumbs) {
     btnRepairMetaThumbs.addEventListener('click', async () => {
@@ -372,41 +381,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+}
 
-  // 2. Filtros de Cola (Vista Lista)
-  document.querySelectorAll('#view-planner-list .filter-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      document.querySelectorAll('#view-planner-list .filter-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      currentFilter = pill.dataset.filter;
-      window.loadQueuePosts();
+function collectCurrentSlotsFromDOM() {
+  const rows = document.querySelectorAll('.day-slot-row');
+  const slotsPayload = [];
+  rows.forEach(row => {
+    const dayIdx = Number(row.dataset.day);
+    const tags = row.querySelectorAll('.slot-pill-tag');
+    tags.forEach(t => {
+      slotsPayload.push({
+        day_of_week: dayIdx,
+        time_slot: t.dataset.time,
+        is_active: 1,
+        platforms: ['facebook', 'instagram']
+      });
     });
   });
+  return slotsPayload;
+}
 
-  // Guardar configuración de slots y presets
+function setupPlannerPresets() {
   const btnSaveSlots = document.getElementById('btn-save-slots');
   const btnSaveAsNewPreset = document.getElementById('btn-save-as-new-preset');
   const btnActivatePreset = document.getElementById('btn-activate-selected-preset');
   const btnDeletePreset = document.getElementById('btn-delete-selected-preset');
   const selectPresets = document.getElementById('select-schedule-presets');
-
-  function collectCurrentSlotsFromDOM() {
-    const rows = document.querySelectorAll('.day-slot-row');
-    const slotsPayload = [];
-    rows.forEach(row => {
-      const dayIdx = Number(row.dataset.day);
-      const tags = row.querySelectorAll('.slot-pill-tag');
-      tags.forEach(t => {
-        slotsPayload.push({
-          day_of_week: dayIdx,
-          time_slot: t.dataset.time,
-          is_active: 1,
-          platforms: ['facebook', 'instagram']
-        });
-      });
-    });
-    return slotsPayload;
-  }
 
   if (selectPresets) {
     selectPresets.addEventListener('change', () => {
@@ -434,7 +434,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const presetName = currentPreset ? currentPreset.name : 'Horario Personalizado';
 
       try {
-        // 1. Guardar en el preset seleccionado
         await fetch('/api/schedule-presets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -445,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
           })
         });
 
-        // 2. Si es el horario activo, guardar también en slots directos
         if (currentPreset?.is_active) {
           await fetch('/api/slots', {
             method: 'POST',
@@ -474,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const count = (window._loadedSchedulePresets || []).length + 1;
       const defaultName = `Prueba ${count} - Horario Alternativo`;
       const name = prompt('Ingresa un nombre para este horario / prueba (ej: Prueba 2 - Tardes y Noches):', defaultName);
-      if (!name || !name.trim()) return;
+      if (!name?.trim()) return;
 
       const desc = prompt('Descripción o notas sobre este horario (opcional):', 'Prueba A/B para corroborar alcance en este horario');
 
@@ -549,7 +547,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Preset Miércoles y Sábados
   const btnPresetWedSat = document.getElementById('btn-preset-wed-sat');
   if (btnPresetWedSat) {
     btnPresetWedSat.addEventListener('click', async () => {
@@ -563,16 +560,25 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Se cargó en el editor el horario de Miércoles y Sábados. Haz clic en Guardar o en Guardar como Nueva Prueba.', 'info');
     });
   }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupPlannerViewSwitcher();
+  setupPlannerNavigation();
+  setupPlannerFilters();
+  setupPlannerDetailModalActions();
+  setupPlannerSyncActions();
+  setupPlannerPresets();
 });
 
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 // 2. Cargar Datos del Planner (Posts pasados y futuros de la cuenta activa)
@@ -700,19 +706,30 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
       const item = document.createElement('div');
       const isStory = post.post_type === 'story';
       const isReel = post.post_type === 'reel';
-      const isFeed = post.post_type === 'feed' || post.post_type === 'carousel';
       const isScheduled = post.status === 'scheduled';
 
-      item.className = `planner-card-item ${isStory ? 'is-story' : isReel ? 'is-reel' : 'is-feed'} ${isScheduled ? 'is-scheduled' : ''}`;
+      let formatClass = 'is-feed';
+      let formatIcon = '🖼️';
+      if (isStory) {
+        formatClass = 'is-story';
+        formatIcon = '📱';
+      } else if (isReel) {
+        formatClass = 'is-reel';
+        formatIcon = '🎥';
+      }
+
+      item.className = `planner-card-item ${formatClass} ${isScheduled ? 'is-scheduled' : ''}`;
 
       let mediaUrls = [];
-      try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
+      try {
+        mediaUrls = JSON.parse(post.media_urls || '[]');
+      } catch (_err) {
+        /* Ignored: fallback to empty array */
+      }
       const thumbUrl = mediaUrls.find(u => !isVideoUrl(u)) || mediaUrls[0] || '';
 
       const rawDate = post.scheduled_at || post.published_at || '';
       const timeStr = formatChileTime(rawDate);
-
-      const formatIcon = isStory ? '📱' : isReel ? '🎥' : '🖼️';
       const statusIcon = isScheduled ? '🕒' : '✅';
 
       item.innerHTML = `
@@ -745,26 +762,21 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
   return cell;
 }
 
-// Abre el modal de detalle al hacer clic en un post del Planner
-function showPlannerPostDetail(post) {
-  const modal = document.getElementById('modal-planner-detail');
-  if (!modal) {
-    console.error('[MetaPulse] modal-planner-detail no encontrado');
-    return;
-  }
-  if (modal.parentElement !== document.body) {
-    document.body.appendChild(modal);
-  }
-  modal._currentPost = post;
-
-  const isStory = post.post_type === 'story';
-  const isReel = post.post_type === 'reel';
-  const isScheduled = post.status === 'scheduled';
-
+// Sub-helpers para el modal de detalle del post
+function updatePlannerDetailBadges(post, isStory, isReel) {
   const formatBadge = document.getElementById('planner-detail-format-badge');
   if (formatBadge) {
-    formatBadge.textContent = isStory ? '📱 Historia' : isReel ? '🎥 Reel' : '🖼️ Feed';
-    formatBadge.style.background = isStory ? '#8b5cf6' : isReel ? '#ec4899' : '#3b82f6';
+    let badgeText = '🖼️ Feed';
+    let badgeBg = '#3b82f6';
+    if (isStory) {
+      badgeText = '📱 Historia';
+      badgeBg = '#8b5cf6';
+    } else if (isReel) {
+      badgeText = '🎥 Reel';
+      badgeBg = '#ec4899';
+    }
+    formatBadge.textContent = badgeText;
+    formatBadge.style.background = badgeBg;
   }
 
   const titleEl = document.getElementById('planner-detail-title');
@@ -782,10 +794,9 @@ function showPlannerPostDetail(post) {
       minute: '2-digit'
     });
   }
+}
 
-  let metaRes = null;
-  try { metaRes = typeof post.meta_result === 'string' ? JSON.parse(post.meta_result) : post.meta_result; } catch (_) {}
-
+function updatePlannerDetailStatus(post, metaRes, isScheduled) {
   const statusEl = document.getElementById('planner-detail-status-pill');
   const deliveryEl = document.getElementById('planner-detail-delivery-breakdown');
 
@@ -796,7 +807,7 @@ function showPlannerPostDetail(post) {
     if (isScheduled) {
       statusEl.innerHTML = '<span class="status-pill scheduled">🕒 Programado</span>';
     } else if (post.status === 'published') {
-      if (metaRes && metaRes.facebook && metaRes.instagram) {
+      if (metaRes?.facebook && metaRes?.instagram) {
         if (fbSuccess && igSuccess) {
           statusEl.innerHTML = '<span class="status-pill published">✅ Publicado (FB + IG)</span>';
         } else if (igSuccess && !fbSuccess) {
@@ -819,18 +830,14 @@ function showPlannerPostDetail(post) {
       let fbHtml = '';
       let igHtml = '';
       if (metaRes.facebook) {
-        if (metaRes.facebook.success) {
-          fbHtml = '<div style="color:#10b981; margin-bottom:2px;">📘 <strong>Facebook:</strong> Publicado exitosamente</div>';
-        } else {
-          fbHtml = `<div style="color:#f43f5e; margin-bottom:2px;">📘 <strong>Facebook:</strong> Falló (${metaRes.facebook.error || 'Error'})</div>`;
-        }
+        fbHtml = metaRes.facebook.success
+          ? '<div style="color:#10b981; margin-bottom:2px;">📘 <strong>Facebook:</strong> Publicado exitosamente</div>'
+          : `<div style="color:#f43f5e; margin-bottom:2px;">📘 <strong>Facebook:</strong> Falló (${metaRes.facebook.error || 'Error'})</div>`;
       }
       if (metaRes.instagram) {
-        if (metaRes.instagram.success) {
-          igHtml = '<div style="color:#10b981;">📷 <strong>Instagram:</strong> Publicado exitosamente</div>';
-        } else {
-          igHtml = `<div style="color:#f43f5e;">📷 <strong>Instagram:</strong> Falló (${metaRes.instagram.error || 'Error'})</div>`;
-        }
+        igHtml = metaRes.instagram.success
+          ? '<div style="color:#10b981;">📷 <strong>Instagram:</strong> Publicado exitosamente</div>'
+          : `<div style="color:#f43f5e;">📷 <strong>Instagram:</strong> Falló (${metaRes.instagram.error || 'Error'})</div>`;
       }
 
       const hasPartialError = (metaRes.facebook && !metaRes.facebook.success) || (metaRes.instagram && !metaRes.instagram.success);
@@ -854,119 +861,240 @@ function showPlannerPostDetail(post) {
       deliveryEl.style.display = 'none';
     }
   }
+}
 
+function updatePlannerDetailMedia(post, mediaUrls) {
   const copyEl = document.getElementById('planner-detail-copy');
   if (copyEl) copyEl.textContent = post.content || 'Sin texto';
 
-  let mediaUrls = [];
-  try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
-
   const mediaContainer = document.getElementById('planner-detail-media-container');
-  if (mediaContainer) {
-    if (mediaUrls.length > 0) {
-      const isReel = post.post_type === 'reel';
-      const videoMedia = mediaUrls.find(u => isVideoUrl(u));
-      const imageMedia = mediaUrls.find(u => !isVideoUrl(u));
-      const isVid = Boolean(videoMedia) || isVideoUrl(mediaUrls[0]);
-      const displayVideo = videoMedia || mediaUrls[0];
-      const displayImage = imageMedia || mediaUrls[0];
+  if (!mediaContainer) return;
 
-      mediaContainer.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
-          ${isVid
-            ? `<video src="${displayVideo}" controls playsinline style="max-height:260px; max-width:100%; border-radius:8px; background:#000; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></video>`
-            : `<img src="${displayImage}" alt="preview" onerror="window.handleThumbError(this, ${post.id})" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
-          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px;">
-            ${mediaUrls.map((url, idx) => {
-              const urlIsVid = isVideoUrl(url);
-              return `
-                <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
-                  <span>📥</span> Descargar ${urlIsVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
-                </button>
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
-      mediaContainer.style.display = 'flex';
-    } else {
-      mediaContainer.style.display = 'none';
-    }
+  if (mediaUrls.length === 0) {
+    mediaContainer.style.display = 'none';
+    return;
   }
 
-  // Estado del bloque de adaptación a Historia 9:16
+  const videoMedia = mediaUrls.find(u => isVideoUrl(u));
+  const imageMedia = mediaUrls.find(u => !isVideoUrl(u));
+  const isVid = Boolean(videoMedia) || isVideoUrl(mediaUrls[0]);
+  const displayVideo = videoMedia || mediaUrls[0];
+  const displayImage = imageMedia || mediaUrls[0];
+
+  mediaContainer.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; gap:10px; width:100%;">
+      ${isVid
+        ? `<video src="${displayVideo}" controls playsinline style="max-height:260px; max-width:100%; border-radius:8px; background:#000; box-shadow:0 4px 12px rgba(0,0,0,0.3);"></video>`
+        : `<img src="${displayImage}" alt="preview" onerror="window.handleThumbError(this, ${post.id})" style="max-height:240px; max-width:100%; object-fit:contain; border-radius:8px;">`}
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:2px;">
+        ${mediaUrls.map((url, idx) => {
+          const urlIsVid = isVideoUrl(url);
+          return `
+            <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
+              <span>📥</span> Descargar ${urlIsVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  mediaContainer.style.display = 'flex';
+}
+
+function updatePlannerDetailStorySection(post, mediaUrls, isStory, isReel) {
   const storyBox = document.getElementById('planner-detail-story-box');
+  if (!storyBox) return;
+
   const btnStoryNow = document.getElementById('btn-planner-publish-story-now');
   const btnStoryFooter = document.getElementById('btn-planner-story-footer');
   const storyDesc = document.getElementById('planner-detail-story-desc');
   const storyBadge = document.getElementById('planner-detail-story-badge');
 
-  if (storyBox) {
-    const isReel = post.post_type === 'reel';
-    if (mediaUrls.length === 0) {
-      if (btnStoryNow) {
-        btnStoryNow.disabled = true;
-        btnStoryNow.style.opacity = '0.5';
-        btnStoryNow.style.cursor = 'not-allowed';
-      }
-      if (btnStoryFooter) btnStoryFooter.style.display = 'none';
-      if (storyDesc) storyDesc.textContent = 'Este post no contiene imagen ni video. Las historias requieren multimedia para ser adaptadas.';
-      if (storyBadge) {
-        storyBadge.textContent = 'Sin Media';
-        storyBadge.style.background = 'rgba(100,116,139,0.2)';
-        storyBadge.style.color = '#94a3b8';
-      }
-    } else if (isStory) {
-      if (btnStoryNow) {
-        btnStoryNow.disabled = false;
-        btnStoryNow.style.opacity = '1';
-        btnStoryNow.style.cursor = 'pointer';
-      }
-      if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
-      if (storyDesc) storyDesc.textContent = 'Esta publicación ya tiene formato de Historia. Puedes re-publicarla inmediatamente o abrirla en el Composer para editarla.';
-      if (storyBadge) {
-        storyBadge.textContent = 'Ya es Story';
-        storyBadge.style.background = 'rgba(139,92,246,0.2)';
-        storyBadge.style.color = '#a78bfa';
-      }
-    } else if (isReel) {
-      if (btnStoryNow) {
-        btnStoryNow.disabled = false;
-        btnStoryNow.style.opacity = '1';
-        btnStoryNow.style.cursor = 'pointer';
-      }
-      if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
-      if (storyDesc) storyDesc.textContent = '🎬 Este Reel se compartirá en tus Historias directamente como el video que es (Stories Video) tanto en Instagram como en Facebook.';
-      if (storyBadge) {
-        storyBadge.textContent = '🎥 Reel a Story (Video)';
-        storyBadge.style.background = 'rgba(16, 185, 129, 0.18)';
-        storyBadge.style.color = '#10b981';
-      }
-    } else {
-      if (btnStoryNow) {
-        btnStoryNow.disabled = false;
-        btnStoryNow.style.opacity = '1';
-        btnStoryNow.style.cursor = 'pointer';
-      }
-      if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
-      if (storyDesc) storyDesc.textContent = 'Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.';
-      if (storyBadge) {
-        storyBadge.textContent = 'Story 9:16';
-        storyBadge.style.background = 'rgba(236,72,153,0.15)';
-        storyBadge.style.color = '#ec4899';
-      }
+  if (mediaUrls.length === 0) {
+    if (btnStoryNow) {
+      btnStoryNow.disabled = true;
+      btnStoryNow.style.opacity = '0.5';
+      btnStoryNow.style.cursor = 'not-allowed';
+    }
+    if (btnStoryFooter) btnStoryFooter.style.display = 'none';
+    if (storyDesc) storyDesc.textContent = 'Este post no contiene imagen ni video. Las historias requieren multimedia para ser adaptadas.';
+    if (storyBadge) {
+      storyBadge.textContent = 'Sin Media';
+      storyBadge.style.background = 'rgba(100,116,139,0.2)';
+      storyBadge.style.color = '#94a3b8';
+    }
+    return;
+  }
+
+  if (btnStoryNow) {
+    btnStoryNow.disabled = false;
+    btnStoryNow.style.opacity = '1';
+    btnStoryNow.style.cursor = 'pointer';
+  }
+  if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
+
+  if (isStory) {
+    if (storyDesc) storyDesc.textContent = 'Esta publicación ya tiene formato de Historia. Puedes re-publicarla inmediatamente o abrirla en el Composer para editarla.';
+    if (storyBadge) {
+      storyBadge.textContent = 'Ya es Story';
+      storyBadge.style.background = 'rgba(139,92,246,0.2)';
+      storyBadge.style.color = '#a78bfa';
+    }
+  } else if (isReel) {
+    if (storyDesc) storyDesc.textContent = '🎬 Este Reel se compartirá en tus Historias directamente como el video que es (Stories Video) tanto en Instagram como en Facebook.';
+    if (storyBadge) {
+      storyBadge.textContent = '🎥 Reel a Story (Video)';
+      storyBadge.style.background = 'rgba(16, 185, 129, 0.18)';
+      storyBadge.style.color = '#10b981';
+    }
+  } else {
+    if (storyDesc) storyDesc.textContent = 'Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.';
+    if (storyBadge) {
+      storyBadge.textContent = 'Story 9:16';
+      storyBadge.style.background = 'rgba(236,72,153,0.15)';
+      storyBadge.style.color = '#ec4899';
     }
   }
+}
+
+// Abre el modal de detalle al hacer clic en un post del Planner
+function showPlannerPostDetail(post) {
+  const modal = document.getElementById('modal-planner-detail');
+  if (!modal) {
+    console.error('[MetaPulse] modal-planner-detail no encontrado');
+    return;
+  }
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+  modal._currentPost = post;
+
+  const isStory = post.post_type === 'story';
+  const isReel = post.post_type === 'reel';
+  const isScheduled = post.status === 'scheduled';
+
+  let metaRes = null;
+  try {
+    metaRes = typeof post.meta_result === 'string' ? JSON.parse(post.meta_result) : post.meta_result;
+  } catch (_err) {
+    /* Ignored: meta_result parsing */
+  }
+
+  let mediaUrls = [];
+  try {
+    mediaUrls = JSON.parse(post.media_urls || '[]');
+  } catch (_err) {
+    /* Ignored: media_urls parsing */
+  }
+
+  updatePlannerDetailBadges(post, isStory, isReel);
+  updatePlannerDetailStatus(post, metaRes, isScheduled);
+  updatePlannerDetailMedia(post, mediaUrls);
+  updatePlannerDetailStorySection(post, mediaUrls, isStory, isReel);
 
   modal.style.cssText = 'display:flex !important; position:fixed !important; top:0 !important; left:0 !important; width:100vw !important; height:100vh !important; z-index:2147483647 !important; background:rgba(15,23,42,0.85) !important; align-items:center !important; justify-content:center !important; padding:16px !important; box-sizing:border-box !important;';
 
-  // Renderizar el mockup de preview
   setTimeout(() => renderPlannerMockup(post, 'ig'), 20);
 }
 
 // Renderiza el mockup visual de preview del post (simula IG / FB)
 let _plannerPreviewPost = null;
 let _plannerPreviewPlatform = 'ig';
+
+function updatePreviewPlatformTabs(platform) {
+  const tabIg = document.getElementById('preview-tab-ig');
+  const tabFb = document.getElementById('preview-tab-fb');
+  if (!tabIg || !tabFb) return;
+  if (platform === 'ig') {
+    tabIg.style.background = 'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)';
+    tabIg.style.color = '#fff';
+    tabFb.style.background = 'rgba(255,255,255,0.06)';
+    tabFb.style.color = 'rgba(255,255,255,0.5)';
+  } else {
+    tabFb.style.background = '#1877f2';
+    tabFb.style.color = '#fff';
+    tabIg.style.background = 'rgba(255,255,255,0.06)';
+    tabIg.style.color = 'rgba(255,255,255,0.5)';
+  }
+}
+
+function buildMockupMediaHtml(firstMedia, isVideo, isStoryFormat) {
+  if (firstMedia) {
+    const aspectStyle = isStoryFormat
+      ? 'width:100%; aspect-ratio:9/16; max-height:340px; object-fit:cover;'
+      : 'width:100%; aspect-ratio:4/5; max-height:260px; object-fit:cover;';
+    if (isVideo) {
+      return `<video src="${firstMedia}" style="${aspectStyle} border-radius: 0; background:#000;" preload="metadata" muted playsinline></video>`;
+    }
+    return `<img src="${firstMedia}" style="${aspectStyle} border-radius:0; display:block;" alt="post media" onerror="this.style.display='none'">`;
+  }
+  const bg = isStoryFormat ? 'aspect-ratio:9/16; max-height:260px;' : 'aspect-ratio:4/5; max-height:200px;';
+  return `<div style="width:100%; ${bg} background:linear-gradient(135deg, rgba(99,102,241,0.2), rgba(236,72,153,0.2)); display:flex; align-items:center; justify-content:center; font-size:2rem; border-radius:0;">${isStoryFormat ? '📱' : '🖼️'}</div>`;
+}
+
+function buildIgMockupHtml(params) {
+  const { accountName, statusColor, statusText, avatarHtml, mediaHtml, copy, truncated } = params;
+  return `
+    <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+      <!-- Header -->
+      <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:#fff;">
+        ${avatarHtml}
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:0.75rem; font-weight:700; color:#262626; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${accountName}</div>
+          <div style="font-size:0.62rem; color:${statusColor}; font-weight:600;">${statusText}</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </div>
+      <!-- Media -->
+      ${mediaHtml}
+      <!-- Actions -->
+      <div style="padding:8px 10px 4px; background:#fff;">
+        <div style="display:flex; gap:12px; margin-bottom:6px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </div>
+        ${copy ? `<div style="font-size:0.72rem; color:#262626; line-height:1.45; max-height:60px; overflow:hidden;"><strong style="font-weight:700;">${accountName.split(' ')[0]}</strong> ${copy}${truncated}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function buildFbMockupHtml(params) {
+  const { accountName, statusColor, statusText, avatarHtml, mediaHtml, copy, truncated } = params;
+  return `
+    <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+      <!-- Header FB -->
+      <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff;">
+        ${avatarHtml}
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:0.78rem; font-weight:700; color:#050505;">${accountName}</div>
+          <div style="display:flex; align-items:center; gap:4px; margin-top:1px;">
+            <span style="font-size:0.62rem; color:${statusColor};">${statusText}</span>
+            <span style="font-size:0.62rem; color:#65676b;">· 🌍</span>
+          </div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#65676b" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </div>
+      <!-- Copy antes de la imagen (estilo FB) -->
+      ${copy ? `<div style="padding:0 12px 8px; font-size:0.78rem; color:#050505; line-height:1.45;">${copy}${truncated}</div>` : ''}
+      <!-- Media -->
+      ${mediaHtml}
+      <!-- Reactions bar -->
+      <div style="padding:8px 12px; border-top:1px solid #e4e6eb; background:#fff;">
+        <div style="display:flex; gap:4px; font-size:0.68rem; color:#65676b; margin-bottom:6px;">
+          <span style="background:#1877f2; border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; font-size:0.5rem; color:#fff;">👍</span>
+          <span>Me gusta · Comentar · Compartir</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px solid #e4e6eb;">
+          <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">👍 Me gusta</button>
+          <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">💬 Comentar</button>
+          <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">↗️ Compartir</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 function renderPlannerMockup(post, platform) {
   _plannerPreviewPost = post;
@@ -976,12 +1104,15 @@ function renderPlannerMockup(post, platform) {
   if (!container) return;
 
   let mediaUrls = [];
-  try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
+  try {
+    mediaUrls = JSON.parse(post.media_urls || '[]');
+  } catch (_err) {
+    /* Ignored: media_urls parsing */
+  }
+
   const firstMedia = mediaUrls[0] || '';
   const isVideo = isVideoUrl(firstMedia);
-  const isStory = post.post_type === 'story';
-  const isReel = post.post_type === 'reel';
-  const isStoryFormat = isStory || isReel;
+  const isStoryFormat = post.post_type === 'story' || post.post_type === 'reel';
   const accountName = post.account_name || 'Tu Cuenta';
   const copy = (post.content || '').slice(0, 180);
   const truncated = (post.content || '').length > 180 ? '...' : '';
@@ -990,105 +1121,19 @@ function renderPlannerMockup(post, platform) {
   const statusColor = isScheduled ? '#f59e0b' : '#10b981';
   const statusText = isScheduled ? `⏳ Programado ${timeStr}` : `✅ Publicado ${timeStr}`;
 
-  // Actualizar tabs visuales
-  const tabIg = document.getElementById('preview-tab-ig');
-  const tabFb = document.getElementById('preview-tab-fb');
-  if (tabIg && tabFb) {
-    if (platform === 'ig') {
-      tabIg.style.background = 'linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)';
-      tabIg.style.color = '#fff';
-      tabFb.style.background = 'rgba(255,255,255,0.06)';
-      tabFb.style.color = 'rgba(255,255,255,0.5)';
-    } else {
-      tabFb.style.background = '#1877f2';
-      tabFb.style.color = '#fff';
-      tabIg.style.background = 'rgba(255,255,255,0.06)';
-      tabIg.style.color = 'rgba(255,255,255,0.5)';
-    }
-  }
+  updatePreviewPlatformTabs(_plannerPreviewPlatform);
 
-  // Avatar placeholder (inicial de la cuenta)
   const initial = (accountName[0] || 'A').toUpperCase();
   const avatarColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
-  const avatarColor = avatarColors[accountName.charCodeAt(0) % avatarColors.length];
+  const avatarColor = avatarColors[accountName.codePointAt(0) % avatarColors.length];
 
-  const avatarHtml = `<div style="width:32px; height:32px; border-radius:50%; background:${avatarColor}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; color:#fff; flex-shrink:0; ${platform === 'ig' ? 'border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 2px #e1306c;' : ''}">${initial}</div>`;
+  const avatarHtml = `<div style="width:32px; height:32px; border-radius:50%; background:${avatarColor}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.9rem; color:#fff; flex-shrink:0; ${_plannerPreviewPlatform === 'ig' ? 'border: 2px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 2px #e1306c;' : ''}">${initial}</div>`;
+  const mediaHtml = buildMockupMediaHtml(firstMedia, isVideo, isStoryFormat);
 
-  let mediaHtml = '';
-  if (firstMedia) {
-    const aspectStyle = isStoryFormat
-      ? 'width:100%; aspect-ratio:9/16; max-height:340px; object-fit:cover;'
-      : 'width:100%; aspect-ratio:4/5; max-height:260px; object-fit:cover;';
-    if (isVideo) {
-      mediaHtml = `<video src="${firstMedia}" style="${aspectStyle} border-radius: 0; background:#000;" preload="metadata" muted playsinline></video>`;
-    } else {
-      mediaHtml = `<img src="${firstMedia}" style="${aspectStyle} border-radius:0; display:block;" alt="post media" onerror="this.style.display='none'">`;
-    }
-  } else {
-    const bg = isStoryFormat ? 'aspect-ratio:9/16; max-height:260px;' : 'aspect-ratio:4/5; max-height:200px;';
-    mediaHtml = `<div style="width:100%; ${bg} background:linear-gradient(135deg, rgba(99,102,241,0.2), rgba(236,72,153,0.2)); display:flex; align-items:center; justify-content:center; font-size:2rem; border-radius:0;">${isStoryFormat ? '📱' : '🖼️'}</div>`;
-  }
-
-  if (platform === 'ig') {
-    container.innerHTML = `
-      <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-        <!-- Header -->
-        <div style="display:flex; align-items:center; gap:8px; padding:8px 10px; background:#fff;">
-          ${avatarHtml}
-          <div style="flex:1; min-width:0;">
-            <div style="font-size:0.75rem; font-weight:700; color:#262626; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${accountName}</div>
-            <div style="font-size:0.62rem; color:${statusColor}; font-weight:600;">${statusText}</div>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-        </div>
-        <!-- Media -->
-        ${mediaHtml}
-        <!-- Actions -->
-        <div style="padding:8px 10px 4px; background:#fff;">
-          <div style="display:flex; gap:12px; margin-bottom:6px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#262626" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </div>
-          ${copy ? `<div style="font-size:0.72rem; color:#262626; line-height:1.45; max-height:60px; overflow:hidden;"><strong style="font-weight:700;">${accountName.split(' ')[0]}</strong> ${copy}${truncated}</div>` : ''}
-        </div>
-      </div>
-    `;
-  } else {
-    // Facebook mockup
-    container.innerHTML = `
-      <div style="width:100%; background:#fff; border-radius:12px; overflow:hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-        <!-- Header FB -->
-        <div style="display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff;">
-          ${avatarHtml}
-          <div style="flex:1; min-width:0;">
-            <div style="font-size:0.78rem; font-weight:700; color:#050505;">${accountName}</div>
-            <div style="display:flex; align-items:center; gap:4px; margin-top:1px;">
-              <span style="font-size:0.62rem; color:${statusColor};">${statusText}</span>
-              <span style="font-size:0.62rem; color:#65676b;">· 🌍</span>
-            </div>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#65676b" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-        </div>
-        <!-- Copy antes de la imagen (estilo FB) -->
-        ${copy ? `<div style="padding:0 12px 8px; font-size:0.78rem; color:#050505; line-height:1.45;">${copy}${truncated}</div>` : ''}
-        <!-- Media -->
-        ${mediaHtml}
-        <!-- Reactions bar -->
-        <div style="padding:8px 12px; border-top:1px solid #e4e6eb; background:#fff;">
-          <div style="display:flex; gap:4px; font-size:0.68rem; color:#65676b; margin-bottom:6px;">
-            <span style="background:#1877f2; border-radius:50%; width:14px; height:14px; display:inline-flex; align-items:center; justify-content:center; font-size:0.5rem; color:#fff;">👍</span>
-            <span>Me gusta · Comentar · Compartir</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:1px solid #e4e6eb;">
-            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">👍 Me gusta</button>
-            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">💬 Comentar</button>
-            <button style="flex:1; background:none; border:none; color:#65676b; font-size:0.72rem; font-weight:600; cursor:pointer; padding:4px;">↗️ Compartir</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
+  const mockupParams = { accountName, statusColor, statusText, avatarHtml, mediaHtml, copy, truncated };
+  container.innerHTML = _plannerPreviewPlatform === 'ig'
+    ? buildIgMockupHtml(mockupParams)
+    : buildFbMockupHtml(mockupParams);
 }
 
 window.switchPreviewTab = function(platform) {
@@ -1168,10 +1213,15 @@ function renderQueueTable(posts) {
   tableBody.innerHTML = filtered.map(post => {
     let platforms = [];
     try { platforms = JSON.parse(post.platforms || '[]'); } catch (_) {}
-    const platformBadges = platforms.map(p => 
-      p === 'facebook' ? '<span class="meta-badge fb" style="width:20px;height:20px;font-size:0.65rem;display:inline-flex;">f</span>' :
-      p === 'instagram' ? '<span class="meta-badge ig" style="width:20px;height:20px;font-size:0.65rem;display:inline-flex;">📷</span>' : p
-    ).join(' ');
+    const platformBadges = platforms.map(p => {
+      if (p === 'facebook') {
+        return '<span class="meta-badge fb" style="width:20px;height:20px;font-size:0.65rem;display:inline-flex;">f</span>';
+      }
+      if (p === 'instagram') {
+        return '<span class="meta-badge ig" style="width:20px;height:20px;font-size:0.65rem;display:inline-flex;">📷</span>';
+      }
+      return p;
+    }).join(' ');
 
     let media = [];
     try { media = JSON.parse(post.media_urls || '[]'); } catch (_) {}
@@ -1250,17 +1300,18 @@ window.downloadMediaFile = async function(url, suggestedName) {
     a.download = (suggestedName || 'post-media') + ext;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(blobUrl);
     if (typeof showToast === 'function') showToast('¡Archivo descargado correctamente!', 'success');
-  } catch (err) {
+  } catch (_err) {
+    /* Ignored: fallback directo si falla blob/CORS */
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
     a.download = (suggestedName || 'post-media') + '.jpg';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
   }
 };
 
@@ -1360,7 +1411,8 @@ window.removeSlot = function(dayIdx, timeSlot) {
 
 window.promptAddSlot = function(dayIdx) {
   const time = prompt(`Ingresa la hora en formato 24h (HH:MM) para el ${dayNames[dayIdx]}:`, '14:00');
-  if (!time || !time.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
+  const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
+  if (!timeRegex.test(time || '')) {
     if (time) showToast('Formato de hora inválido. Usa formato 24 horas ej: 09:30 o 18:00', 'error');
     return;
   }
@@ -1376,7 +1428,7 @@ window.promptAddSlot = function(dayIdx) {
     <span class="slot-remove" onclick="removeSlot(${dayIdx}, '${time}')">&times;</span>
   `;
 
-  pillsContainer.insertBefore(tag, addBtn);
+  addBtn.before(tag);
 };
 
 window.publishPostNow = async function(id) {
@@ -1428,7 +1480,7 @@ window.deletePost = async function(id) {
 
 window.repostAsStory = async function(id) {
   const post = (PlannerState.posts || []).find(p => p.id === Number(id));
-  const isReel = post && post.post_type === 'reel';
+  const isReel = post?.post_type === 'reel';
   showToast(isReel ? `Cargando video del Reel #${id} para Historias...` : `Adaptando post #${id} a formato Historia 9:16 con fondo difuminado...`, 'info');
   try {
     const res = await fetch(`/api/posts/${id}/repost-story`, { method: 'POST' });
@@ -1457,7 +1509,7 @@ window.repostAsStory = async function(id) {
       storyRadio.checked = true;
       document.querySelectorAll('.radio-pill').forEach(pill => {
         const inp = pill.querySelector('input');
-        pill.classList.toggle('active', inp && inp.value === 'story');
+        pill.classList.toggle('active', inp?.value === 'story');
       });
       storyRadio.dispatchEvent(new Event('change'));
     }
@@ -1498,7 +1550,9 @@ window.reusePost = function(id) {
     if (typeof window.setComposerMedia === 'function') {
       window.setComposerMedia(media);
     }
-  } catch (_) {}
+  } catch (_err) {
+    /* Ignored: post.media_urls might not be JSON */
+  }
 
   if (typeof window.updateLivePreviews === 'function') {
     window.updateLivePreviews();
@@ -1511,6 +1565,11 @@ window.reusePost = function(id) {
 // 6. GESTIÓN Y REASIGNACIÓN DE CUENTAS EN POSTS
 // ==========================================
 let currentReassignTarget = { mode: 'single', postId: null, currentAccountId: null };
+
+function formatMetaPageOption(p) {
+  const igHandle = p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : '';
+  return `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${igHandle}</option>`;
+}
 
 window.openReassignModal = function(postId, currentAccountName, currentAccountId) {
   const modal = document.getElementById('modal-reassign-post');
@@ -1533,9 +1592,8 @@ window.openReassignModal = function(postId, currentAccountName, currentAccountId
   if (currentAcc) currentAcc.textContent = currentAccountName || 'Cuenta General';
   if (btnConfirm) btnConfirm.textContent = '✅ Transferir Publicación';
 
-  // Si hay páginas cacheadas, asegurar que targetSelect esté poblado
   if (targetSelect && window._cachedMetaPages && targetSelect.options.length === 0) {
-    targetSelect.innerHTML = window._cachedMetaPages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
+    targetSelect.innerHTML = window._cachedMetaPages.map(formatMetaPageOption).join('');
   }
 
   setupReassignConfirmBtn();
@@ -1560,11 +1618,10 @@ window.openBulkReassignModal = function(sourceAccountId, sourceAccountName) {
   if (bulkBox) bulkBox.style.display = 'block';
   if (btnConfirm) btnConfirm.textContent = '🚀 Transferir Todos los Posts';
 
-  // Asegurar que selects estén poblados
   if (window._cachedMetaPages) {
-    const opts = window._cachedMetaPages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
-    if (targetSelect && targetSelect.options.length === 0) targetSelect.innerHTML = opts;
-    if (sourceSelect && sourceSelect.options.length === 0) sourceSelect.innerHTML = opts;
+    const opts = window._cachedMetaPages.map(formatMetaPageOption).join('');
+    if (targetSelect?.options.length === 0) targetSelect.innerHTML = opts;
+    if (sourceSelect?.options.length === 0) sourceSelect.innerHTML = opts;
   }
 
   if (sourceSelect && sourceAccountId) {
@@ -1580,72 +1637,79 @@ window.closeReassignModal = function() {
   if (modal) modal.style.display = 'none';
 };
 
+async function executeSingleReassign(targetAccountId, targetAccountName) {
+  const res = await fetch(`/api/posts/${currentReassignTarget.postId}/reassign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId: targetAccountId, accountName: targetAccountName })
+  });
+  const json = await res.json();
+  if (json.success) {
+    showToast(json.message || 'Publicación reasignada con éxito.', 'success');
+    window.closeReassignModal();
+    window.loadPlannerData();
+    if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+  } else {
+    throw new Error(json.error || 'Error al reasignar');
+  }
+}
+
+async function executeBulkReassign(targetAccountId, targetAccountName) {
+  const sourceSelect = document.getElementById('reassign-source-select');
+  const sourceAccountId = sourceSelect?.value;
+
+  const res = await fetch('/api/posts/bulk-reassign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sourceAccountId,
+      targetAccountId,
+      targetAccountName
+    })
+  });
+  const json = await res.json();
+  if (json.success) {
+    showToast(json.message || 'Transferencia masiva completada.', 'success');
+    window.closeReassignModal();
+    window.loadPlannerData();
+    if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+  } else {
+    throw new Error(json.error || 'Error en transferencia masiva');
+  }
+}
+
 function setupReassignConfirmBtn() {
   const btnConfirm = document.getElementById('btn-confirm-reassign');
-  if (btnConfirm && !btnConfirm._hasListener) {
-    btnConfirm._hasListener = true;
-    btnConfirm.addEventListener('click', async () => {
-      const targetSelect = document.getElementById('reassign-target-select');
-      const targetOpt = targetSelect?.options[targetSelect.selectedIndex];
-      const targetAccountId = targetSelect?.value;
-      const targetAccountName = targetOpt?.getAttribute('data-name') || targetOpt?.textContent?.trim() || '';
+  if (!btnConfirm || btnConfirm._hasListener) return;
 
-      if (!targetAccountId) {
-        showToast('Selecciona una cuenta de destino válida.', 'warning');
-        return;
+  btnConfirm._hasListener = true;
+  btnConfirm.addEventListener('click', async () => {
+    const targetSelect = document.getElementById('reassign-target-select');
+    const targetOpt = targetSelect?.options[targetSelect.selectedIndex];
+    const targetAccountId = targetSelect?.value;
+    const targetAccountName = targetOpt?.dataset.name || targetOpt?.textContent?.trim() || '';
+
+    if (!targetAccountId) {
+      showToast('Selecciona una cuenta de destino válida.', 'warning');
+      return;
+    }
+
+    btnConfirm.disabled = true;
+    btnConfirm.textContent = 'Procesando transferencia...';
+
+    try {
+      if (currentReassignTarget.mode === 'single') {
+        await executeSingleReassign(targetAccountId, targetAccountName);
+      } else {
+        await executeBulkReassign(targetAccountId, targetAccountName);
       }
-
-      btnConfirm.disabled = true;
-      btnConfirm.textContent = 'Procesando transferencia...';
-
-      try {
-        if (currentReassignTarget.mode === 'single') {
-          const res = await fetch(`/api/posts/${currentReassignTarget.postId}/reassign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId: targetAccountId, accountName: targetAccountName })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast(json.message || 'Publicación reasignada con éxito.', 'success');
-            window.closeReassignModal();
-            window.loadPlannerData();
-            if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
-          } else {
-            throw new Error(json.error || 'Error al reasignar');
-          }
-        } else {
-          // Transferencia en Lote (Bulk)
-          const sourceSelect = document.getElementById('reassign-source-select');
-          const sourceAccountId = sourceSelect?.value;
-
-          const res = await fetch('/api/posts/bulk-reassign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sourceAccountId,
-              targetAccountId,
-              targetAccountName
-            })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast(json.message || 'Transferencia masiva completada.', 'success');
-            window.closeReassignModal();
-            window.loadPlannerData();
-            if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
-          } else {
-            throw new Error(json.error || 'Error en transferencia masiva');
-          }
-        }
-      } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-      } finally {
-        btnConfirm.disabled = false;
-        btnConfirm.textContent = currentReassignTarget.mode === 'single' ? '✅ Transferir Publicación' : '🚀 Transferir Todos los Posts';
-      }
-    });
-  }
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = currentReassignTarget.mode === 'single' ? '✅ Transferir Publicación' : '🚀 Transferir Todos los Posts';
+    }
+  });
 }
 
 if (document.readyState === 'loading') {
@@ -1666,7 +1730,7 @@ function toChileDatetimeLocalValue(rawDate) {
   if (!rawDate) return '';
   try {
     const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Santiago',
       year: 'numeric',
@@ -1681,48 +1745,65 @@ function toChileDatetimeLocalValue(rawDate) {
     let hour = p.hour;
     if (hour === '24') hour = '00';
     return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}`;
-  } catch (_) {
+  } catch (_err) {
+    /* Ignored: invalid date parsing fallback */
     return '';
   }
 }
 
-window.openEditPostModal = async function(postIdOrPost) {
-  let post = null;
+async function resolvePostForEditing(postIdOrPost) {
   if (postIdOrPost && typeof postIdOrPost === 'object') {
-    post = postIdOrPost;
-  } else if (postIdOrPost !== undefined && postIdOrPost !== null) {
-    const numId = Number(postIdOrPost);
-    post = (PlannerState.posts || []).find(p => Number(p.id) === numId);
-    if (!post) {
-      try {
-        const res = await fetch(`/api/posts/${postIdOrPost}`);
-        const json = await res.json();
-        if (json.success && json.data) {
-          post = json.data;
-        }
-      } catch (err) {
-        console.error('Error obteniendo post para editar:', err);
-      }
+    return postIdOrPost;
+  }
+  if (postIdOrPost === undefined || postIdOrPost === null) {
+    return null;
+  }
+  const numId = Number(postIdOrPost);
+  const localPost = (PlannerState.posts || []).find(p => Number(p.id) === numId);
+  if (localPost) return localPost;
+
+  try {
+    const res = await fetch(`/api/posts/${postIdOrPost}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      return json.data;
     }
+  } catch (err) {
+    console.error('Error obteniendo post para editar:', err);
   }
+  return null;
+}
 
-  if (!post) {
-    showToast('No se encontró la publicación a editar', 'error');
-    return;
+function populateEditAccountSelect(accSelect, post) {
+  if (!accSelect) return;
+  accSelect.innerHTML = '';
+  const accounts = (typeof window.getAccountsList === 'function') ? window.getAccountsList() : [];
+  let matched = false;
+
+  accounts.forEach(acc => {
+    const opt = document.createElement('option');
+    opt.value = acc.pageId;
+    opt.dataset.name = acc.pageName;
+    const igHandle = acc.instagram?.username ? `(@${acc.instagram.username})` : '';
+    opt.textContent = igHandle ? `${acc.pageName} ${igHandle}` : acc.pageName;
+    if (String(acc.pageId) === String(post.account_id)) {
+      opt.selected = true;
+      matched = true;
+    }
+    accSelect.appendChild(opt);
+  });
+
+  if (!matched) {
+    const opt = document.createElement('option');
+    opt.value = post.account_id || '';
+    opt.dataset.name = post.account_name || 'Cuenta Actual';
+    opt.textContent = post.account_name ? `🏢 ${post.account_name}` : 'Cuenta General';
+    opt.selected = true;
+    accSelect.insertBefore(opt, accSelect.firstChild);
   }
+}
 
-  const modal = document.getElementById('modal-edit-post');
-  if (!modal) {
-    console.error('[MetaPulse] modal-edit-post no encontrado en el DOM');
-    return;
-  }
-
-  // Garantizar que el modal esté directo en document.body para evitar contenedores ocultos
-  if (modal.parentElement !== document.body) {
-    document.body.appendChild(modal);
-  }
-
-  // Llenar campos
+function populateEditPostFormFields(post, currentImg) {
   const idEl = document.getElementById('edit-post-id');
   if (idEl) idEl.value = post.id;
 
@@ -1738,54 +1819,46 @@ window.openEditPostModal = async function(postIdOrPost) {
   const typeSelect = document.getElementById('edit-post-type');
   if (typeSelect) typeSelect.value = post.post_type || 'feed';
 
-  // Caracteres
   const charCounter = document.getElementById('edit-post-char-count');
   if (charCounter) charCounter.textContent = `${(post.content || '').length} caracteres`;
 
-  // Fecha y hora en uso horario chileno
   const dtInput = document.getElementById('edit-post-datetime');
   if (dtInput) {
     dtInput.value = toChileDatetimeLocalValue(post.scheduled_at || post.published_at);
   }
 
-  // Imagen actual
-  let mediaUrls = [];
-  try {
-    mediaUrls = Array.isArray(post.media_urls) ? post.media_urls : JSON.parse(post.media_urls || '[]');
-  } catch (_) {}
-  const currentImg = mediaUrls[0] || '';
   const urlInput = document.getElementById('edit-post-media-url');
   if (urlInput) urlInput.value = currentImg;
   updateEditPostMediaPreview(currentImg);
+}
 
-  // Poblar select de cuentas
-  const accSelect = document.getElementById('edit-post-account');
-  if (accSelect) {
-    accSelect.innerHTML = '';
-    const accounts = (typeof window.getAccountsList === 'function') ? window.getAccountsList() : [];
-    let matched = false;
-
-    accounts.forEach(acc => {
-      const opt = document.createElement('option');
-      opt.value = acc.pageId;
-      opt.dataset.name = acc.pageName;
-      opt.textContent = `${acc.pageName} ${acc.instagram ? `(@${acc.instagram.username})` : ''}`;
-      if (String(acc.pageId) === String(post.account_id)) {
-        opt.selected = true;
-        matched = true;
-      }
-      accSelect.appendChild(opt);
-    });
-
-    if (!matched) {
-      const opt = document.createElement('option');
-      opt.value = post.account_id || '';
-      opt.dataset.name = post.account_name || 'Cuenta Actual';
-      opt.textContent = post.account_name ? `🏢 ${post.account_name}` : 'Cuenta General';
-      opt.selected = true;
-      accSelect.insertBefore(opt, accSelect.firstChild);
-    }
+window.openEditPostModal = async function(postIdOrPost) {
+  const post = await resolvePostForEditing(postIdOrPost);
+  if (!post) {
+    showToast('No se encontró la publicación a editar', 'error');
+    return;
   }
+
+  const modal = document.getElementById('modal-edit-post');
+  if (!modal) {
+    console.error('[MetaPulse] modal-edit-post no encontrado en el DOM');
+    return;
+  }
+
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  let mediaUrls = [];
+  try {
+    mediaUrls = Array.isArray(post.media_urls) ? post.media_urls : JSON.parse(post.media_urls || '[]');
+  } catch (_err) {
+    /* Ignored: media_urls parsing fallback */
+  }
+  const currentImg = mediaUrls[0] || '';
+
+  populateEditPostFormFields(post, currentImg);
+  populateEditAccountSelect(document.getElementById('edit-post-account'), post);
 
   modal.style.display = 'flex';
   modal.style.cssText = 'display:flex !important; z-index:1100;';

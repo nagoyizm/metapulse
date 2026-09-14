@@ -10,6 +10,12 @@ const AppState = {
   watermarks: []
 };
 
+function getToastIcon(type) {
+  if (type === 'success') return '✅';
+  if (type === 'error') return '❌';
+  return 'ℹ️';
+}
+
 // Toast Notifications Helper
 function showToast(message, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
@@ -18,7 +24,7 @@ function showToast(message, type = 'info', duration = 3500) {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `
-    <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+    <span>${getToastIcon(type)}</span>
     <div>${message}</div>
   `;
 
@@ -33,14 +39,11 @@ function showToast(message, type = 'info', duration = 3500) {
 
 // Tab Navigation
 function navigateToTab(tabId) {
-  const navItems = document.querySelectorAll('.nav-item');
-  const panes = document.querySelectorAll('.tab-pane');
-
-  navItems.forEach(item => {
+  document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.tab === tabId);
   });
 
-  panes.forEach(pane => {
+  document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === `tab-${tabId}`);
   });
 
@@ -57,31 +60,29 @@ function navigateToTab(tabId) {
     settings: 'Conexión Meta & Ajustes'
   };
 
-  if (titles[tabId]) {
-    const titleEl = document.getElementById('page-title');
-    if (titleEl) titleEl.textContent = titles[tabId];
+  const titleEl = document.getElementById('page-title');
+  if (titleEl && titles[tabId]) {
+    titleEl.textContent = titles[tabId];
   }
 
   // Cargas específicas por pestaña
-  if (tabId === 'dashboard') loadDashboardStatus();
-  if (tabId === 'queue') {
-    if (window.loadPlannerData) window.loadPlannerData();
-    if (window.loadQueuePosts) window.loadQueuePosts();
-    if (window.loadScheduleSlots) window.loadScheduleSlots();
-  }
-  if (tabId === 'inbox') {
-    if (window.loadInboxData) window.loadInboxData();
-  }
-  if (tabId === 'analytics') {
-    if (window.loadAnalyticsData) window.loadAnalyticsData();
-  }
-  if (tabId === 'media') {
-    if (window.loadMediaGallery) window.loadMediaGallery();
-    if (window.loadWatermarksList) window.loadWatermarksList();
-  }
-  if (tabId === 'settings') {
-    if (window.loadSettingsData) window.loadSettingsData();
-  }
+  const tabLoaders = {
+    dashboard: () => loadDashboardStatus(),
+    queue: () => {
+      window.loadPlannerData?.();
+      window.loadQueuePosts?.();
+      window.loadScheduleSlots?.();
+    },
+    inbox: () => window.loadInboxData?.(),
+    analytics: () => window.loadAnalyticsData?.(),
+    media: () => {
+      window.loadMediaGallery?.();
+      window.loadWatermarksList?.();
+    },
+    settings: () => window.loadSettingsData?.()
+  };
+
+  tabLoaders[tabId]?.();
 }
 
 // Live Clock
@@ -93,6 +94,139 @@ function initClock() {
   };
   update();
   setInterval(update, 1000);
+}
+
+function updateDashboardMetrics(counts, nextSlot, config) {
+  document.getElementById('dash-stat-scheduled').textContent = counts.scheduled;
+  document.getElementById('dash-stat-published').textContent = counts.published;
+  document.getElementById('dash-stat-failed').textContent = counts.failed;
+  document.getElementById('sidebar-queue-badge').textContent = counts.scheduled;
+
+  if (nextSlot) {
+    const d = new Date(nextSlot);
+    const formatted = d.toLocaleDateString('es-CL', {
+      timeZone: 'America/Santiago',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    document.getElementById('dash-next-slot-time').textContent = formatted;
+    const compSlot = document.getElementById('composer-next-slot-label');
+    if (compSlot) compSlot.textContent = `Próximo: ${formatted}`;
+  }
+
+  const sbName = document.getElementById('sidebar-page-name');
+  if (config.hasPage) {
+    sbName.textContent = config.pageName;
+  } else if (config.simulationMode) {
+    sbName.textContent = 'Modo Simulación 🧪';
+  } else {
+    sbName.textContent = 'Sin conectar';
+  }
+
+  const bannerTitle = document.getElementById('dash-banner-title');
+  const bannerDesc = document.getElementById('dash-banner-desc');
+  if (config.hasPage && config.hasInstagram) {
+    bannerTitle.textContent = `Conectado: ${config.pageName} (@${config.instagramUsername || 'IG'})`;
+    bannerDesc.textContent = 'Meta Graph API v21.0 enlazada con permisos de publicación.';
+  } else if (config.simulationMode) {
+    bannerTitle.textContent = 'Modo Simulación / Sandbox Activo';
+    bannerDesc.textContent = 'Las publicaciones y métricas funcionan en entorno de pruebas local.';
+  } else {
+    bannerTitle.textContent = 'Cuentas Meta no configuradas';
+    bannerDesc.textContent = 'Configura tu Token de Facebook e Instagram en Ajustes para publicar en vivo.';
+  }
+}
+
+function renderUpcomingPosts(upcomingPosts) {
+  const upcomingList = document.getElementById('dash-upcoming-list');
+  if (!upcomingList || !upcomingPosts || upcomingPosts.length === 0) return;
+
+  upcomingList.innerHTML = upcomingPosts.map(p => {
+    let media = [];
+    try {
+      media = JSON.parse(p.media_urls || '[]');
+    } catch (_err) {
+      // Ignored: non-JSON media_urls string
+    }
+    const firstMedia = media.length > 0 ? media[0] : null;
+    const isVid = firstMedia ? firstMedia.match(/\.(mp4|mov)$/i) : false;
+
+    let mediaThumb = '';
+    if (firstMedia) {
+      mediaThumb = isVid
+        ? `<div style="width:38px; height:38px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>`
+        : `<img src="${firstMedia}" onerror="window.handleThumbError(this, ${p.id})" style="width:38px; height:38px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
+    }
+
+    return `
+      <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:8px;">
+        <div class="page-info-block" style="gap:10px; align-items:center;">
+          ${mediaThumb}
+          <div>
+            <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
+            <strong style="display:block; font-size:0.85rem; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.title || (p.content.slice(0, 40) + '...')}</strong>
+            <p class="text-muted" style="font-size:0.75rem; margin:0;">📅 ${new Date(p.scheduled_at).toLocaleString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${p.id})" title="Editar hora, texto o imagen">✏️ Editar</button>
+          ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">📥 Bajar</button>` : ''}
+          <span class="status-pill scheduled">Programado</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRecentPublishedPosts(recentPublished) {
+  const recentList = document.getElementById('dash-recent-list');
+  if (!recentList || !recentPublished || recentPublished.length === 0) return;
+
+  recentList.innerHTML = recentPublished.map(p => {
+    let media = [];
+    try {
+      media = JSON.parse(p.media_urls || '[]');
+    } catch (_err) {
+      // Ignored: non-JSON media_urls string
+    }
+    let mediaThumb = '';
+    if (media.length > 0) {
+      const isVid = media[0].match(/\.(mp4|mov)$/i);
+      mediaThumb = isVid
+        ? `<div style="width:40px; height:40px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>`
+        : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${p.id})" style="width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
+    }
+
+    return `
+      <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:10px;">
+        <div class="page-info-block" style="gap:10px; align-items:center;">
+          ${mediaThumb}
+          <div>
+            <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
+            <strong style="display:block; font-size:0.85rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${p.title || (p.content.slice(0, 35) + '...')}
+            </strong>
+            <p class="text-muted" style="font-size:0.72rem; margin:0;">✅ ${new Date(p.published_at || p.updated_at).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} · Meta</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+          ${media.length > 0 ? `
+            <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'published-${p.id}')" title="Descargar imagen">📥 Bajar</button>
+          ` : ''}
+          <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${p.id})" title="Repostear este post como Historia 9:16">
+            📲 Historia
+          </button>
+          <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${p.id})" title="Reutilizar copy en Composer">
+            🔄 Reusar
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // Cargar estado inicial del Dashboard
@@ -107,128 +241,9 @@ async function loadDashboardStatus() {
     AppState.counts = counts;
     AppState.nextSlot = nextSlot;
 
-    // Actualizar contadores del Dashboard
-    document.getElementById('dash-stat-scheduled').textContent = counts.scheduled;
-    document.getElementById('dash-stat-published').textContent = counts.published;
-    document.getElementById('dash-stat-failed').textContent = counts.failed;
-    document.getElementById('sidebar-queue-badge').textContent = counts.scheduled;
-
-    // Próximo slot
-    if (nextSlot) {
-      const d = new Date(nextSlot);
-      const formatted = d.toLocaleDateString('es-CL', {
-        timeZone: 'America/Santiago',
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      });
-      document.getElementById('dash-next-slot-time').textContent = formatted;
-      const compSlot = document.getElementById('composer-next-slot-label');
-      if (compSlot) compSlot.textContent = `Próximo: ${formatted}`;
-    }
-
-    // Sidebar status
-    const sbName = document.getElementById('sidebar-page-name');
-    if (config.hasPage) {
-      sbName.textContent = config.pageName;
-    } else if (config.simulationMode) {
-      sbName.textContent = 'Modo Simulación 🧪';
-    } else {
-      sbName.textContent = 'Sin conectar';
-    }
-
-    // Banner status
-    const bannerTitle = document.getElementById('dash-banner-title');
-    const bannerDesc = document.getElementById('dash-banner-desc');
-    if (config.hasPage && config.hasInstagram) {
-      bannerTitle.textContent = `Conectado: ${config.pageName} (@${config.instagramUsername || 'IG'})`;
-      bannerDesc.textContent = 'Meta Graph API v21.0 enlazada con permisos de publicación.';
-    } else if (config.simulationMode) {
-      bannerTitle.textContent = 'Modo Simulación / Sandbox Activo';
-      bannerDesc.textContent = 'Las publicaciones y métricas funcionan en entorno de pruebas local.';
-    } else {
-      bannerTitle.textContent = 'Cuentas Meta no configuradas';
-      bannerDesc.textContent = 'Configura tu Token de Facebook e Instagram en Ajustes para publicar en vivo.';
-    }
-
-    // Lista de próximos posts
-    const upcomingList = document.getElementById('dash-upcoming-list');
-    if (upcomingPosts && upcomingPosts.length > 0) {
-      upcomingList.innerHTML = upcomingPosts.map(p => {
-        let media = [];
-        try { media = JSON.parse(p.media_urls || '[]'); } catch (_) {}
-        const firstMedia = media.length > 0 ? media[0] : null;
-        const isVid = firstMedia ? firstMedia.match(/\.(mp4|mov)$/i) : false;
-        const mediaThumb = firstMedia
-          ? (isVid ? `<div style="width:38px; height:38px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>` : `<img src="${firstMedia}" onerror="window.handleThumbError(this, ${p.id})" style="width:38px; height:38px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`)
-          : '';
-
-        return `
-        <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:8px;">
-          <div class="page-info-block" style="gap:10px; align-items:center;">
-            ${mediaThumb}
-            <div>
-              <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
-              <strong style="display:block; font-size:0.85rem; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.title || (p.content.slice(0, 40) + '...')}</strong>
-              <p class="text-muted" style="font-size:0.75rem; margin:0;">📅 ${new Date(p.scheduled_at).toLocaleString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</p>
-            </div>
-          </div>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${p.id})" title="Editar hora, texto o imagen">✏️ Editar</button>
-            ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">📥 Bajar</button>` : ''}
-            <span class="status-pill scheduled">Programado</span>
-          </div>
-        </div>
-      `;
-      }).join('');
-    }
-
-    // Lista de recientes publicados
-    const recentList = document.getElementById('dash-recent-list');
-    if (recentPublished && recentPublished.length > 0) {
-      recentList.innerHTML = recentPublished.map(p => {
-        let mediaThumb = '';
-        let media = [];
-        try {
-          media = JSON.parse(p.media_urls || '[]');
-          if (media.length > 0) {
-            const isVid = media[0].match(/\.(mp4|mov)$/i);
-            mediaThumb = isVid
-              ? `<div style="width:40px; height:40px; border-radius:6px; background:#1e293b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🎬</div>`
-              : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${p.id})" style="width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
-          }
-        } catch (_) {}
-
-        return `
-        <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:10px;">
-          <div class="page-info-block" style="gap:10px; align-items:center;">
-            ${mediaThumb}
-            <div>
-              <span class="badge badge-accent" style="font-size:0.65rem; padding:2px 6px;">${p.post_type.toUpperCase()}</span>
-              <strong style="display:block; font-size:0.85rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                ${p.title || (p.content.slice(0, 35) + '...')}
-              </strong>
-              <p class="text-muted" style="font-size:0.72rem; margin:0;">✅ ${new Date(p.published_at || p.updated_at).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} · Meta</p>
-            </div>
-          </div>
-          <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
-            ${media.length > 0 ? `
-              <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'published-${p.id}')" title="Descargar imagen">📥 Bajar</button>
-            ` : ''}
-            <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${p.id})" title="Repostear este post como Historia 9:16">
-              📲 Historia
-            </button>
-            <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${p.id})" title="Reutilizar copy en Composer">
-              🔄 Reusar
-            </button>
-          </div>
-        </div>
-      `;
-      }).join('');
-    }
+    updateDashboardMetrics(counts, nextSlot, config);
+    renderUpcomingPosts(upcomingPosts);
+    renderRecentPublishedPosts(recentPublished);
 
     // Botón de sincronizar en Dashboard
     const btnSyncLiveDash = document.getElementById('btn-sync-live-dash');
@@ -346,7 +361,7 @@ window.repostAsStory = async function(id) {
       storyRadio.checked = true;
       document.querySelectorAll('.radio-pill').forEach(pill => {
         const inp = pill.querySelector('input');
-        pill.classList.toggle('active', inp && inp.value === 'story');
+        pill.classList.toggle('active', inp?.value === 'story');
       });
     }
 
@@ -369,25 +384,29 @@ window.repostAsStory = async function(id) {
 // Reutilizar copy y contenido de un post en Composer
 window.reusePost = async function(id) {
   try {
-    const res = await fetch('/api/posts');
+    const res = await fetch(`/api/posts/${id}`);
     const json = await res.json();
-    if (json.success) {
-      const p = json.data.find(x => x.id === id);
-      if (p) {
-        navigateToTab('composer');
-        const postContent = document.getElementById('post-content');
-        const postTitle = document.getElementById('post-title');
-        if (postContent) postContent.value = p.content || '';
-        if (postTitle) postTitle.value = p.title ? `Copia: ${p.title}` : '';
-        let media = [];
-        try { media = JSON.parse(p.media_urls || '[]'); } catch (_) {}
-        if (media.length > 0 && typeof window.setComposerMedia === 'function') {
-          window.setComposerMedia(media);
-        }
-        if (window.updateComposerPreviews) window.updateComposerPreviews();
-        showToast('📝 Contenido cargado en el editor para reutilizar o adaptar', 'info');
-      }
+    if (!json.success || !json.data) return;
+
+    const p = json.data;
+    navigateToTab('composer');
+    const postContent = document.getElementById('post-content');
+    const postTitle = document.getElementById('post-title');
+    if (postContent) postContent.value = p.content || '';
+    if (postTitle) postTitle.value = p.title ? `Copia: ${p.title}` : '';
+
+    let media = [];
+    try {
+      media = JSON.parse(p.media_urls || '[]');
+    } catch (_err) {
+      // Ignored: non-JSON media_urls string
     }
+
+    if (media.length > 0 && typeof window.setComposerMedia === 'function') {
+      window.setComposerMedia(media);
+    }
+    if (window.updateComposerPreviews) window.updateComposerPreviews();
+    showToast('📝 Contenido cargado en el editor para reutilizar o adaptar', 'info');
   } catch (e) {
     showToast('Error cargando post: ' + e.message, 'error');
   }
@@ -396,16 +415,23 @@ window.reusePost = async function(id) {
 // Helper global para obtener la cuenta actualmente seleccionada en el header
 window.getActiveAccount = function() {
   const select = document.getElementById('global-account-select');
-  if (!select || !select.value) return null;
+  if (!select?.value) return null;
   const opt = select.options[select.selectedIndex];
+  const ds = opt?.dataset;
   return {
     pageId: select.value,
-    pageName: opt?.getAttribute('data-name') || '',
-    pageToken: opt?.getAttribute('data-token') || '',
-    instagramId: opt?.getAttribute('data-igid') || '',
-    instagramUsername: opt?.getAttribute('data-iguser') || ''
+    pageName: ds?.name || '',
+    pageToken: ds?.token || '',
+    instagramId: ds?.igid || '',
+    instagramUsername: ds?.iguser || ''
   };
 };
+
+function getAccountInstagramLabel(active) {
+  if (active.instagramUsername) return `@${active.instagramUsername}`;
+  if (active.instagramId) return 'Conectado';
+  return 'Sin IG';
+}
 
 // Actualiza los badges informativos en el Composer, Batch Autopilot e Inbox
 window.updateActiveAccountBadges = function() {
@@ -418,10 +444,11 @@ window.updateActiveAccountBadges = function() {
   const inboxBadge = document.getElementById('inbox-active-account-badge');
 
   if (active) {
+    const igLabel = getAccountInstagramLabel(active);
     if (compName) compName.textContent = active.pageName;
-    if (compIg) compIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
+    if (compIg) compIg.textContent = igLabel;
     if (batchName) batchName.textContent = active.pageName;
-    if (batchIg) batchIg.textContent = active.instagramUsername ? `@${active.instagramUsername}` : (active.instagramId ? 'Conectado' : 'Sin IG');
+    if (batchIg) batchIg.textContent = igLabel;
     if (inboxName) inboxName.textContent = active.pageName;
     if (inboxBadge) inboxBadge.style.display = 'inline-flex';
   } else {
@@ -431,6 +458,48 @@ window.updateActiveAccountBadges = function() {
     if (inboxBadge) inboxBadge.style.display = 'none';
   }
 };
+
+function formatReassignPageOption(p) {
+  const igPart = p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : '';
+  return `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${igPart}</option>`;
+}
+
+async function handleAccountSwitch(opt) {
+  if (!opt?.value) return;
+
+  const ds = opt.dataset;
+  const pageId = opt.value;
+  const pageName = ds.name || '';
+  const pageToken = ds.token || '';
+  const instagramId = ds.igid || '';
+  const instagramUsername = ds.iguser || '';
+
+  showToast(`Cambiando a: ${pageName}...`, 'info');
+  try {
+    const switchRes = await fetch('/api/meta/select-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId, pageName, pageToken, instagramId, instagramUsername })
+    });
+    const switchJson = await switchRes.json();
+    if (switchJson.success) {
+      showToast(`¡Cuenta activa cambiada a: ${pageName}!`, 'success');
+      window.updateActiveAccountBadges();
+      loadDashboardStatus();
+      loadProactiveRadar();
+
+      if (window.loadPlannerData) window.loadPlannerData(pageId);
+      if (window.loadQueuePosts) window.loadQueuePosts(pageId);
+      if (window.loadAnalyticsData) window.loadAnalyticsData();
+      if (window.loadMediaGallery) window.loadMediaGallery();
+      if (window.loadWatermarksList) window.loadWatermarksList();
+      if (window.loadActiveSealPreview) window.loadActiveSealPreview();
+      if (window.loadInboxData) window.loadInboxData();
+    }
+  } catch (e) {
+    showToast('Error cambiando de cuenta: ' + e.message, 'error');
+  }
+}
 
 // Cargar opciones en el Selector de Negocio Global
 async function loadAccountSwitcher() {
@@ -465,48 +534,16 @@ async function loadAccountSwitcher() {
     // Poblar los selects del Modal de Reasignación
     const targetSelect = document.getElementById('reassign-target-select');
     const sourceSelect = document.getElementById('reassign-source-select');
-    const pagesOptions = pages.map(p => `<option value="${p.pageId}" data-name="${p.pageName}">${p.pageName}${p.instagram ? ` (@${p.instagram.username || p.instagram.name})` : ''}</option>`).join('');
+    const pagesOptions = pages.map(formatReassignPageOption).join('');
     if (targetSelect) targetSelect.innerHTML = pagesOptions;
     if (sourceSelect) sourceSelect.innerHTML = pagesOptions;
 
     // Actualizar badges visuales
     window.updateActiveAccountBadges();
 
-    select.onchange = async () => {
+    select.onchange = () => {
       const opt = select.options[select.selectedIndex];
-      if (!opt || !opt.value) return;
-
-      const pageId = opt.value;
-      const pageName = opt.getAttribute('data-name');
-      const pageToken = opt.getAttribute('data-token');
-      const instagramId = opt.getAttribute('data-igid');
-      const instagramUsername = opt.getAttribute('data-iguser');
-
-      showToast(`Cambiando a: ${pageName}...`, 'info');
-      try {
-        const switchRes = await fetch('/api/meta/select-account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pageId, pageName, pageToken, instagramId, instagramUsername })
-        });
-        const switchJson = await switchRes.json();
-        if (switchJson.success) {
-          showToast(`¡Cuenta activa cambiada a: ${pageName}!`, 'success');
-          window.updateActiveAccountBadges();
-          loadDashboardStatus();
-          loadProactiveRadar();
-
-          if (window.loadPlannerData) window.loadPlannerData(pageId);
-          if (window.loadQueuePosts) window.loadQueuePosts(pageId);
-          if (window.loadAnalyticsData) window.loadAnalyticsData();
-          if (window.loadMediaGallery) window.loadMediaGallery();
-          if (window.loadWatermarksList) window.loadWatermarksList();
-          if (window.loadActiveSealPreview) window.loadActiveSealPreview();
-          if (window.loadInboxData) window.loadInboxData();
-        }
-      } catch (e) {
-        showToast('Error cambiando de cuenta: ' + e.message, 'error');
-      }
+      handleAccountSwitch(opt);
     };
   } catch (err) {
     console.error('Error cargando selector de cuentas:', err);
