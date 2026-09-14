@@ -2340,20 +2340,28 @@
               </div>
               <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
                 <input type="text" id="edit-post-media-url" class="form-control" placeholder="URL o ruta de imagen (ej: /uploads/...)" style="font-size:0.82rem; padding:6px 10px;">
-                <div style="display:flex; gap:8px; align-items:center;">
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                   <label class="btn btn-secondary btn-sm" for="edit-post-file-input" style="margin:0; cursor:pointer; font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;">
-                    <span>📁</span> Subir nueva foto
+                    <span>📁</span> Subir foto
                     <input type="file" id="edit-post-file-input" aria-label="Subir nueva foto o video" accept="image/*,video/*" style="display:none;">
                   </label>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-post-stamp-logo" style="font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;" title="Estampar el logotipo oficial sobre esta foto">
+                    <span>🏷️</span> Estampar Logo
+                  </button>
                   <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-clear-media" style="font-size:0.78rem; padding:5px 10px;">Quitar imagen</button>
                 </div>
-                <span style="font-size:0.72rem; color:var(--text-secondary);">Puedes subir una nueva foto desde tu equipo o pegar una URL directa.</span>
+                <span style="font-size:0.72rem; color:var(--text-secondary);">Sube una nueva foto, estámpale tu logo con 1 clic, o ábrelo en el Redactor para rehacer el video con música.</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
-          <button type="button" class="btn btn-secondary" onclick="window.closeEditPostModal()">Cancelar</button>
+        <div class="modal-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="btn btn-secondary" onclick="window.closeEditPostModal()">Cancelar</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-open-composer" style="display:inline-flex; align-items:center; gap:6px; color:var(--primary-light); font-weight:600;" title="Cargar todo al Redactor para volver a generar el video con música o previsualizar maqueta">
+              <span>🚀</span> Abrir en Redactor
+            </button>
+          </div>
           <button type="button" class="btn btn-primary" id="btn-save-edit-post" style="display:flex; align-items:center; gap:6px;">
             <span>💾</span> Guardar Cambios
           </button>

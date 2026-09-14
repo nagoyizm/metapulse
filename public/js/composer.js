@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   postContent.addEventListener('input', updateLivePreviews);
   window.updateComposerPreviews = updateLivePreviews;
+  window.updateLivePreviews = updateLivePreviews;
 
   // 2. Selección de Plataformas (Checkboxes con estilo)
   document.querySelectorAll('.platform-checkbox').forEach(cb => {
@@ -2107,5 +2108,104 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Cargar una publicación existente (agendada o borrador) directamente en el Redactor
+  window.loadPostIntoComposer = function(post) {
+    if (!post) return;
+
+    if (postTitle) postTitle.value = post.title || '';
+    if (postContent) postContent.value = post.content || '';
+
+    // Formato de post (feed, story, reel, carousel)
+    const targetType = post.post_type || 'feed';
+    const formatRadio = document.querySelector(`input[name="post_type"][value="${targetType}"]`);
+    if (formatRadio) {
+      formatRadio.checked = true;
+      document.querySelectorAll('.radio-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.querySelector('input')?.value === targetType);
+      });
+      if (targetType === 'story') {
+        switchPreviewTab('story');
+      } else {
+        switchPreviewTab('fb');
+      }
+    }
+
+    // Plataformas
+    let plats = ['facebook', 'instagram'];
+    try {
+      plats = Array.isArray(post.platforms) ? post.platforms : JSON.parse(post.platforms || '["facebook","instagram"]');
+    } catch (_) {}
+    const chkFb = document.getElementById('platform-fb');
+    const chkIg = document.getElementById('platform-ig');
+    if (chkFb) {
+      chkFb.checked = plats.includes('facebook');
+      chkFb.closest('.platform-checkbox')?.classList.toggle('active', chkFb.checked);
+    }
+    if (chkIg) {
+      chkIg.checked = plats.includes('instagram');
+      chkIg.closest('.platform-checkbox')?.classList.toggle('active', chkIg.checked);
+    }
+
+    // Archivos multimedia
+    let media = [];
+    try {
+      media = Array.isArray(post.media_urls) ? post.media_urls : JSON.parse(post.media_urls || '[]');
+    } catch (_) {}
+    ComposerState.mediaFiles = [...media];
+
+    // Fecha / Programación personalizada
+    if (post.scheduled_at) {
+      const customRadio = document.querySelector('input[name="schedule_option"][value="custom"]');
+      if (customRadio) {
+        customRadio.checked = true;
+        document.querySelectorAll('.schedule-radio').forEach(sr => {
+          sr.classList.toggle('active', sr.querySelector('input')?.value === 'custom');
+        });
+      }
+      const customContainer = document.getElementById('custom-date-container');
+      if (customContainer) customContainer.style.display = 'block';
+
+      const dtInput = document.getElementById('custom-schedule-datetime');
+      if (dtInput) {
+        if (typeof window.toChileDatetimeLocalValue === 'function') {
+          dtInput.value = window.toChileDatetimeLocalValue(post.scheduled_at);
+        } else {
+          const d = new Date(post.scheduled_at);
+          if (!isNaN(d.getTime())) {
+            dtInput.value = d.toISOString().slice(0, 16);
+          }
+        }
+      }
+      if (btnSubmitText) btnSubmitText.textContent = 'Re-agendar en Meta';
+    }
+
+    // Cuenta activa
+    if (post.account_id) {
+      const accSelect = document.getElementById('global-account-select');
+      if (accSelect) {
+        accSelect.value = post.account_id;
+        accSelect.dispatchEvent(new Event('change'));
+      }
+      if (typeof window.setActiveAccountById === 'function') {
+        window.setActiveAccountById(post.account_id);
+      }
+    }
+
+    // Navegar a la pestaña de redactor
+    if (typeof navigateToTab === 'function') {
+      navigateToTab('composer');
+    }
+
+    // Actualizar vistas y previews
+    renderMediaPreviews();
+    updateLivePreviews();
+    if (typeof window.syncStorySectionsVisibility === 'function') {
+      window.syncStorySectionsVisibility();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window._editingScheduledPostId = post.id;
+  };
 });
 

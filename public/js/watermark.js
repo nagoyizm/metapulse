@@ -23,7 +23,12 @@ window.closeInteractiveStamp = function() {
   if (modal) modal.style.display = 'none';
 };
 
-window.openInteractiveStampModal = function(forcedImage) {
+window.openInteractiveStampModal = function(forcedImage, onCompleteCallback) {
+  if (typeof onCompleteCallback === 'function') {
+    window._stampCustomCallback = onCompleteCallback;
+  } else {
+    window._stampCustomCallback = null;
+  }
   console.log('[MetaPulse] openInteractiveStampModal llamada');
   const modal = document.getElementById('modal-interactive-stamp');
   if (!modal) {
@@ -559,9 +564,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Aquí sincronizamos las variables internas con las globales al abrirse el modal
   // y conectamos la función con la lógica de drag interna.
   const _origOpen = window.openInteractiveStampModal;
-  window.openInteractiveStampModal = function(forcedImage) {
+  window.openInteractiveStampModal = function(forcedImage, onCompleteCallback) {
     // Llamar a la versión global que muestra el modal
-    _origOpen(forcedImage);
+    _origOpen(forcedImage, onCompleteCallback);
     // Sincronizar variables internas
     currentTargetImage = _currentTargetImage;
     availableWatermarks = _availableWatermarks;
@@ -751,16 +756,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (json.success && json.data?.relativeUrl) {
             const newImageUrl = json.data.relativeUrl;
-            // Guardar la nueva imagen en el composer (no abre nada del PC)
-            if (typeof ComposerState !== 'undefined') {
-              ComposerState.mediaFiles = [newImageUrl];
+
+            if (typeof window._stampCustomCallback === 'function') {
+              const cb = window._stampCustomCallback;
+              window._stampCustomCallback = null;
+              cb(newImageUrl);
+            } else {
+              // Guardar la nueva imagen en el composer (no abre nada del PC)
+              if (typeof ComposerState !== 'undefined') {
+                ComposerState.mediaFiles = [newImageUrl];
+              }
+              if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
+              if (typeof updateLivePreviews === 'function') updateLivePreviews();
+              if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
             }
-            if (typeof renderMediaPreviews === 'function') renderMediaPreviews();
-            if (typeof updateLivePreviews === 'function') updateLivePreviews();
-            if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
 
             window.closeInteractiveStamp();
-            showToast('¡Logotipo estampado! La nueva imagen ya está cargada en el redactor ✨', 'success');
+            showToast('¡Logotipo estampado con éxito! ✨', 'success');
 
             if (typeof window.loadMediaGallery === 'function') {
               window.loadMediaGallery();

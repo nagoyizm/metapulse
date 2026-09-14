@@ -1772,6 +1772,7 @@ function toChileDatetimeLocalValue(rawDate) {
     return '';
   }
 }
+window.toChileDatetimeLocalValue = toChileDatetimeLocalValue;
 
 async function resolvePostForEditing(postIdOrPost) {
   if (postIdOrPost && typeof postIdOrPost === 'object') {
@@ -1973,6 +1974,51 @@ function setupEditPostModal() {
         showToast('Error de conexión al subir: ' + err.message, 'error');
       } finally {
         fileInput.value = '';
+      }
+    });
+  }
+
+  // Estampar logotipo interactivo sobre la foto cargada en el modal
+  const btnStampLogo = document.getElementById('btn-edit-post-stamp-logo');
+  if (btnStampLogo) {
+    btnStampLogo.addEventListener('click', () => {
+      const currentUrl = urlInput?.value.trim();
+      if (!currentUrl) {
+        showToast('Primero sube o indica una imagen para estamparle el logo.', 'warning');
+        return;
+      }
+      if (currentUrl.match(/\.(mp4|mov|webm)$/i)) {
+        showToast('El archivo actual es un video ya generado. Sube primero la foto de fondo para estamparle el logo.', 'warning');
+        return;
+      }
+      if (typeof window.openInteractiveStampModal === 'function') {
+        window.openInteractiveStampModal(currentUrl, (stampedUrl) => {
+          if (urlInput) urlInput.value = stampedUrl;
+          updateEditPostMediaPreview(stampedUrl);
+        });
+      } else {
+        showToast('Módulo de marca de agua no disponible.', 'error');
+      }
+    });
+  }
+
+  // Cargar publicación en el Redactor (Composer) para rehacer video con audio
+  const btnOpenComposer = document.getElementById('btn-edit-post-open-composer');
+  if (btnOpenComposer) {
+    btnOpenComposer.addEventListener('click', async () => {
+      const postId = document.getElementById('edit-post-id')?.value;
+      if (!postId) return;
+      const post = await resolvePostForEditing(postId);
+      if (!post) {
+        showToast('No se encontró la información de la publicación.', 'error');
+        return;
+      }
+      if (typeof window.loadPostIntoComposer === 'function') {
+        window.loadPostIntoComposer(post);
+        window.closeEditPostModal();
+        showToast(`¡Publicación #${post.id} cargada en el Redactor! Puedes rehacer el video con audio o estampar tu logo.`, 'info');
+      } else {
+        showToast('Función de carga al redactor no disponible.', 'error');
       }
     });
   }
