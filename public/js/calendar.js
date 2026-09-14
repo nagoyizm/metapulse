@@ -24,8 +24,8 @@ function getChileDateString(rawDate) {
     const d = new Date(rawDate);
     if (Number.isNaN(d.getTime())) return String(rawDate).slice(0, 10);
     return d.toLocaleDateString('en-CA', { timeZone: CHILE_TZ }); // Formato YYYY-MM-DD
-  } catch (_err) {
-    // Ignored: fallback to raw date prefix
+  } catch (err) {
+    console.debug('Error obteniendo fecha chilena:', err);
     return String(rawDate).slice(0, 10);
   }
 }
@@ -41,8 +41,8 @@ function formatChileTime(rawDate) {
       minute: '2-digit',
       hour12: false
     });
-  } catch (_err) {
-    // Ignored: invalid date returns empty string
+  } catch (err) {
+    console.debug('Error formateando hora chilena:', err);
     return '';
   }
 }
@@ -62,8 +62,8 @@ function formatChileDateTime(rawDate, options = {}) {
       hour12: false
     };
     return d.toLocaleString('es-CL', { ...defaultOpts, ...options });
-  } catch (_err) {
-    // Ignored: fallback to raw string representation
+  } catch (err) {
+    console.debug('Error formateando fecha y hora chilena:', err);
     return String(rawDate);
   }
 }
@@ -796,71 +796,81 @@ function updatePlannerDetailBadges(post, isStory, isReel) {
   }
 }
 
-function updatePlannerDetailStatus(post, metaRes, isScheduled) {
-  const statusEl = document.getElementById('planner-detail-status-pill');
-  const deliveryEl = document.getElementById('planner-detail-delivery-breakdown');
+function getPlannerStatusPillHtml(post, metaRes, isScheduled) {
+  if (isScheduled) {
+    return '<span class="status-pill scheduled">🕒 Programado</span>';
+  }
+  if (post.status !== 'published') {
+    return '<span class="status-pill failed">❌ Error en envío</span>';
+  }
 
   const fbSuccess = metaRes?.facebook?.success;
   const igSuccess = metaRes?.instagram?.success;
 
+  if (metaRes?.facebook && metaRes?.instagram) {
+    if (fbSuccess && igSuccess) {
+      return '<span class="status-pill published">✅ Publicado (FB + IG)</span>';
+    }
+    if (igSuccess && !fbSuccess) {
+      return '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Instagram</span>';
+    }
+    if (fbSuccess && !igSuccess) {
+      return '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Facebook</span>';
+    }
+  }
+
+  return '<span class="status-pill published">✅ Publicado</span>';
+}
+
+function formatPlatformDeliveryItem(name, icon, result) {
+  if (!result) return '';
+  if (result.success) {
+    return `<div style="color:#10b981; margin-bottom:2px;">${icon} <strong>${name}:</strong> Publicado exitosamente</div>`;
+  }
+  return `<div style="color:#f43f5e; margin-bottom:2px;">${icon} <strong>${name}:</strong> Falló (${result.error || 'Error'})</div>`;
+}
+
+function updatePlannerDeliveryBreakdown(deliveryEl, metaRes) {
+  if (!deliveryEl) return;
+  if (!metaRes?.facebook && !metaRes?.instagram) {
+    deliveryEl.style.display = 'none';
+    return;
+  }
+
+  const fbHtml = formatPlatformDeliveryItem('Facebook', '📘', metaRes.facebook);
+  const igHtml = formatPlatformDeliveryItem('Instagram', '📷', metaRes.instagram);
+  const hasPartialError = Boolean(
+    (metaRes.facebook && !metaRes.facebook.success) || 
+    (metaRes.instagram && !metaRes.instagram.success)
+  );
+  const isMissingPerms = Boolean(hasPartialError && metaRes.facebook?.error?.includes('pages_manage_posts'));
+
+  const permWarningHtml = isMissingPerms ? `
+    <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(239, 68, 68, 0.3); font-size:0.75rem; color:var(--text-secondary);">
+      💡 <em>Tu token actual no tiene concedido el permiso <strong>pages_manage_posts</strong> en Meta. Por eso Instagram sí publica pero Facebook rechaza el post.</em>
+    </div>
+  ` : '';
+
+  deliveryEl.innerHTML = `
+    <div style="font-weight:700; margin-bottom:6px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+      <span>📡</span> Entrega por plataforma:
+    </div>
+    ${fbHtml}
+    ${igHtml}
+    ${permWarningHtml}
+  `;
+  deliveryEl.style.display = 'block';
+  deliveryEl.style.background = hasPartialError ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)';
+  deliveryEl.style.border = hasPartialError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)';
+}
+
+function updatePlannerDetailStatus(post, metaRes, isScheduled) {
+  const statusEl = document.getElementById('planner-detail-status-pill');
   if (statusEl) {
-    if (isScheduled) {
-      statusEl.innerHTML = '<span class="status-pill scheduled">🕒 Programado</span>';
-    } else if (post.status === 'published') {
-      if (metaRes?.facebook && metaRes?.instagram) {
-        if (fbSuccess && igSuccess) {
-          statusEl.innerHTML = '<span class="status-pill published">✅ Publicado (FB + IG)</span>';
-        } else if (igSuccess && !fbSuccess) {
-          statusEl.innerHTML = '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Instagram</span>';
-        } else if (fbSuccess && !igSuccess) {
-          statusEl.innerHTML = '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Facebook</span>';
-        } else {
-          statusEl.innerHTML = '<span class="status-pill published">✅ Publicado</span>';
-        }
-      } else {
-        statusEl.innerHTML = '<span class="status-pill published">✅ Publicado</span>';
-      }
-    } else {
-      statusEl.innerHTML = '<span class="status-pill failed">❌ Error en envío</span>';
-    }
+    statusEl.innerHTML = getPlannerStatusPillHtml(post, metaRes, isScheduled);
   }
-
-  if (deliveryEl) {
-    if (metaRes && (metaRes.facebook || metaRes.instagram)) {
-      let fbHtml = '';
-      let igHtml = '';
-      if (metaRes.facebook) {
-        fbHtml = metaRes.facebook.success
-          ? '<div style="color:#10b981; margin-bottom:2px;">📘 <strong>Facebook:</strong> Publicado exitosamente</div>'
-          : `<div style="color:#f43f5e; margin-bottom:2px;">📘 <strong>Facebook:</strong> Falló (${metaRes.facebook.error || 'Error'})</div>`;
-      }
-      if (metaRes.instagram) {
-        igHtml = metaRes.instagram.success
-          ? '<div style="color:#10b981;">📷 <strong>Instagram:</strong> Publicado exitosamente</div>'
-          : `<div style="color:#f43f5e;">📷 <strong>Instagram:</strong> Falló (${metaRes.instagram.error || 'Error'})</div>`;
-      }
-
-      const hasPartialError = (metaRes.facebook && !metaRes.facebook.success) || (metaRes.instagram && !metaRes.instagram.success);
-
-      deliveryEl.innerHTML = `
-        <div style="font-weight:700; margin-bottom:6px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
-          <span>📡</span> Entrega por plataforma:
-        </div>
-        ${fbHtml}
-        ${igHtml}
-        ${hasPartialError && metaRes.facebook?.error?.includes('pages_manage_posts') ? `
-          <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(239, 68, 68, 0.3); font-size:0.75rem; color:var(--text-secondary);">
-            💡 <em>Tu token actual no tiene concedido el permiso <strong>pages_manage_posts</strong> en Meta. Por eso Instagram sí publica pero Facebook rechaza el post.</em>
-          </div>
-        ` : ''}
-      `;
-      deliveryEl.style.display = 'block';
-      deliveryEl.style.background = hasPartialError ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)';
-      deliveryEl.style.border = hasPartialError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)';
-    } else {
-      deliveryEl.style.display = 'none';
-    }
-  }
+  const deliveryEl = document.getElementById('planner-detail-delivery-breakdown');
+  updatePlannerDeliveryBreakdown(deliveryEl, metaRes);
 }
 
 function updatePlannerDetailMedia(post, mediaUrls) {
@@ -901,59 +911,71 @@ function updatePlannerDetailMedia(post, mediaUrls) {
   mediaContainer.style.display = 'flex';
 }
 
+function getStorySectionConfig(mediaCount, isStory, isReel) {
+  if (mediaCount === 0) {
+    return {
+      canPublish: false,
+      desc: 'Este post no contiene imagen ni video. Las historias requieren multimedia para ser adaptadas.',
+      badgeText: 'Sin Media',
+      badgeBg: 'rgba(100,116,139,0.2)',
+      badgeColor: '#94a3b8'
+    };
+  }
+  if (isStory) {
+    return {
+      canPublish: true,
+      desc: 'Esta publicación ya tiene formato de Historia. Puedes re-publicarla inmediatamente o abrirla en el Composer para editarla.',
+      badgeText: 'Ya es Story',
+      badgeBg: 'rgba(139,92,246,0.2)',
+      badgeColor: '#a78bfa'
+    };
+  }
+  if (isReel) {
+    return {
+      canPublish: true,
+      desc: '🎬 Este Reel se compartirá en tus Historias directamente como el video que es (Stories Video) tanto en Instagram como en Facebook.',
+      badgeText: '🎥 Reel a Story (Video)',
+      badgeBg: 'rgba(16, 185, 129, 0.18)',
+      badgeColor: '#10b981'
+    };
+  }
+  return {
+    canPublish: true,
+    desc: 'Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.',
+    badgeText: 'Story 9:16',
+    badgeBg: 'rgba(236,72,153,0.15)',
+    badgeColor: '#ec4899'
+  };
+}
+
 function updatePlannerDetailStorySection(post, mediaUrls, isStory, isReel) {
   const storyBox = document.getElementById('planner-detail-story-box');
   if (!storyBox) return;
 
+  const config = getStorySectionConfig(mediaUrls.length, isStory, isReel);
+
   const btnStoryNow = document.getElementById('btn-planner-publish-story-now');
-  const btnStoryFooter = document.getElementById('btn-planner-story-footer');
-  const storyDesc = document.getElementById('planner-detail-story-desc');
-  const storyBadge = document.getElementById('planner-detail-story-badge');
-
-  if (mediaUrls.length === 0) {
-    if (btnStoryNow) {
-      btnStoryNow.disabled = true;
-      btnStoryNow.style.opacity = '0.5';
-      btnStoryNow.style.cursor = 'not-allowed';
-    }
-    if (btnStoryFooter) btnStoryFooter.style.display = 'none';
-    if (storyDesc) storyDesc.textContent = 'Este post no contiene imagen ni video. Las historias requieren multimedia para ser adaptadas.';
-    if (storyBadge) {
-      storyBadge.textContent = 'Sin Media';
-      storyBadge.style.background = 'rgba(100,116,139,0.2)';
-      storyBadge.style.color = '#94a3b8';
-    }
-    return;
-  }
-
   if (btnStoryNow) {
-    btnStoryNow.disabled = false;
-    btnStoryNow.style.opacity = '1';
-    btnStoryNow.style.cursor = 'pointer';
+    btnStoryNow.disabled = !config.canPublish;
+    btnStoryNow.style.opacity = config.canPublish ? '1' : '0.5';
+    btnStoryNow.style.cursor = config.canPublish ? 'pointer' : 'not-allowed';
   }
-  if (btnStoryFooter) btnStoryFooter.style.display = 'inline-block';
 
-  if (isStory) {
-    if (storyDesc) storyDesc.textContent = 'Esta publicación ya tiene formato de Historia. Puedes re-publicarla inmediatamente o abrirla en el Composer para editarla.';
-    if (storyBadge) {
-      storyBadge.textContent = 'Ya es Story';
-      storyBadge.style.background = 'rgba(139,92,246,0.2)';
-      storyBadge.style.color = '#a78bfa';
-    }
-  } else if (isReel) {
-    if (storyDesc) storyDesc.textContent = '🎬 Este Reel se compartirá en tus Historias directamente como el video que es (Stories Video) tanto en Instagram como en Facebook.';
-    if (storyBadge) {
-      storyBadge.textContent = '🎥 Reel a Story (Video)';
-      storyBadge.style.background = 'rgba(16, 185, 129, 0.18)';
-      storyBadge.style.color = '#10b981';
-    }
-  } else {
-    if (storyDesc) storyDesc.textContent = 'Adapta esta publicación automáticamente a formato vertical con fondo difuminado y sticker de llamada a la acción para Instagram y Facebook Stories.';
-    if (storyBadge) {
-      storyBadge.textContent = 'Story 9:16';
-      storyBadge.style.background = 'rgba(236,72,153,0.15)';
-      storyBadge.style.color = '#ec4899';
-    }
+  const btnStoryFooter = document.getElementById('btn-planner-story-footer');
+  if (btnStoryFooter) {
+    btnStoryFooter.style.display = config.canPublish ? 'inline-block' : 'none';
+  }
+
+  const storyDesc = document.getElementById('planner-detail-story-desc');
+  if (storyDesc) {
+    storyDesc.textContent = config.desc;
+  }
+
+  const storyBadge = document.getElementById('planner-detail-story-badge');
+  if (storyBadge) {
+    storyBadge.textContent = config.badgeText;
+    storyBadge.style.background = config.badgeBg;
+    storyBadge.style.color = config.badgeColor;
   }
 }
 
@@ -1303,8 +1325,8 @@ window.downloadMediaFile = async function(url, suggestedName) {
     a.remove();
     URL.revokeObjectURL(blobUrl);
     if (typeof showToast === 'function') showToast('¡Archivo descargado correctamente!', 'success');
-  } catch (_err) {
-    /* Ignored: fallback directo si falla blob/CORS */
+  } catch (err) {
+    console.debug('Fallo descarga blob, usando fallback directo:', err);
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
@@ -1745,8 +1767,8 @@ function toChileDatetimeLocalValue(rawDate) {
     let hour = p.hour;
     if (hour === '24') hour = '00';
     return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}`;
-  } catch (_err) {
-    /* Ignored: invalid date parsing fallback */
+  } catch (err) {
+    console.debug('Error formateando fecha local chilena:', err);
     return '';
   }
 }
