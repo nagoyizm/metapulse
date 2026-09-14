@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!post) return;
       closeModal();
       if (typeof window.openEditPostModal === 'function') {
-        window.openEditPostModal(post.id);
+        window.openEditPostModal(post);
       }
     });
   }
@@ -1220,7 +1220,7 @@ function renderQueueTable(posts) {
             ${post.status === 'failed' ? `
               <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>
             ` : ''}
-            <button class="btn btn-secondary btn-xs" onclick="window.openEditPostModal(${post.id})" title="Editar detalles, hora, copy o imagen">✏️ Editar</button>
+            <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${post.id})" title="Editar detalles, hora, copy o imagen">✏️ Editar</button>
             <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">📲 Story</button>
             ${media.length > 0 ? `
               <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'post-${post.id}')" title="Descargar imagen del post">📥 Bajar</button>
@@ -1648,10 +1648,15 @@ function setupReassignConfirmBtn() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    setupReassignConfirmBtn();
+    setupEditPostModal();
+  });
+} else {
   setupReassignConfirmBtn();
   setupEditPostModal();
-});
+}
 
 // =============================================================================
 // MODAL EDITOR DE DETALLES DE PUBLICACIÓN (HORA, COPY, IMAGEN, TÍTULO, CUENTA)
@@ -1669,32 +1674,69 @@ function toChileDatetimeLocalValue(rawDate) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hourCycle: 'h23'
     }).formatToParts(d);
     const p = {};
     parts.forEach(x => { p[x.type] = x.value; });
-    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+    let hour = p.hour;
+    if (hour === '24') hour = '00';
+    return `${p.year}-${p.month}-${p.day}T${hour}:${p.minute}`;
   } catch (_) {
     return '';
   }
 }
 
-window.openEditPostModal = function(postId) {
-  const post = (PlannerState.posts || []).find(p => p.id === Number(postId));
+window.openEditPostModal = async function(postIdOrPost) {
+  let post = null;
+  if (postIdOrPost && typeof postIdOrPost === 'object') {
+    post = postIdOrPost;
+  } else if (postIdOrPost !== undefined && postIdOrPost !== null) {
+    const numId = Number(postIdOrPost);
+    post = (PlannerState.posts || []).find(p => Number(p.id) === numId);
+    if (!post) {
+      try {
+        const res = await fetch(`/api/posts/${postIdOrPost}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          post = json.data;
+        }
+      } catch (err) {
+        console.error('Error obteniendo post para editar:', err);
+      }
+    }
+  }
+
   if (!post) {
     showToast('No se encontró la publicación a editar', 'error');
     return;
   }
 
   const modal = document.getElementById('modal-edit-post');
-  if (!modal) return;
+  if (!modal) {
+    console.error('[MetaPulse] modal-edit-post no encontrado en el DOM');
+    return;
+  }
+
+  // Garantizar que el modal esté directo en document.body para evitar contenedores ocultos
+  if (modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
 
   // Llenar campos
-  document.getElementById('edit-post-id').value = post.id;
-  document.getElementById('edit-post-modal-title').textContent = `Editar Publicación #${post.id}`;
-  document.getElementById('edit-post-title').value = post.title || '';
-  document.getElementById('edit-post-content').value = post.content || '';
-  document.getElementById('edit-post-type').value = post.post_type || 'feed';
+  const idEl = document.getElementById('edit-post-id');
+  if (idEl) idEl.value = post.id;
+
+  const titleModalEl = document.getElementById('edit-post-modal-title');
+  if (titleModalEl) titleModalEl.textContent = `Editar Publicación #${post.id}`;
+
+  const titleInput = document.getElementById('edit-post-title');
+  if (titleInput) titleInput.value = post.title || '';
+
+  const contentArea = document.getElementById('edit-post-content');
+  if (contentArea) contentArea.value = post.content || '';
+
+  const typeSelect = document.getElementById('edit-post-type');
+  if (typeSelect) typeSelect.value = post.post_type || 'feed';
 
   // Caracteres
   const charCounter = document.getElementById('edit-post-char-count');
@@ -1708,9 +1750,12 @@ window.openEditPostModal = function(postId) {
 
   // Imagen actual
   let mediaUrls = [];
-  try { mediaUrls = JSON.parse(post.media_urls || '[]'); } catch (_) {}
+  try {
+    mediaUrls = Array.isArray(post.media_urls) ? post.media_urls : JSON.parse(post.media_urls || '[]');
+  } catch (_) {}
   const currentImg = mediaUrls[0] || '';
-  document.getElementById('edit-post-media-url').value = currentImg;
+  const urlInput = document.getElementById('edit-post-media-url');
+  if (urlInput) urlInput.value = currentImg;
   updateEditPostMediaPreview(currentImg);
 
   // Poblar select de cuentas
@@ -1718,35 +1763,40 @@ window.openEditPostModal = function(postId) {
   if (accSelect) {
     accSelect.innerHTML = '';
     const accounts = (typeof window.getAccountsList === 'function') ? window.getAccountsList() : [];
-    
-    // Si no hay lista en memoria, poner al menos la cuenta actual del post
-    if (accounts.length === 0) {
+    let matched = false;
+
+    accounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.pageId;
+      opt.dataset.name = acc.pageName;
+      opt.textContent = `${acc.pageName} ${acc.instagram ? `(@${acc.instagram.username})` : ''}`;
+      if (String(acc.pageId) === String(post.account_id)) {
+        opt.selected = true;
+        matched = true;
+      }
+      accSelect.appendChild(opt);
+    });
+
+    if (!matched) {
       const opt = document.createElement('option');
       opt.value = post.account_id || '';
       opt.dataset.name = post.account_name || 'Cuenta Actual';
-      opt.textContent = post.account_name || 'Cuenta Actual';
+      opt.textContent = post.account_name ? `🏢 ${post.account_name}` : 'Cuenta General';
       opt.selected = true;
-      accSelect.appendChild(opt);
-    } else {
-      accounts.forEach(acc => {
-        const opt = document.createElement('option');
-        opt.value = acc.pageId;
-        opt.dataset.name = acc.pageName;
-        opt.textContent = `${acc.pageName} ${acc.instagram ? `(@${acc.instagram.username})` : ''}`;
-        if (String(acc.pageId) === String(post.account_id)) {
-          opt.selected = true;
-        }
-        accSelect.appendChild(opt);
-      });
+      accSelect.insertBefore(opt, accSelect.firstChild);
     }
   }
 
   modal.style.display = 'flex';
+  modal.style.cssText = 'display:flex !important; z-index:1100;';
 };
 
 window.closeEditPostModal = function() {
   const modal = document.getElementById('modal-edit-post');
-  if (modal) modal.style.display = 'none';
+  if (modal) {
+    modal.style.display = 'none';
+    modal.style.cssText = 'display:none !important;';
+  }
 };
 
 function updateEditPostMediaPreview(url) {
@@ -1767,6 +1817,10 @@ function updateEditPostMediaPreview(url) {
 function setupEditPostModal() {
   const modal = document.getElementById('modal-edit-post');
   if (!modal) return;
+
+  // Evitar duplicar listeners
+  if (modal._editPostSetupDone) return;
+  modal._editPostSetupDone = true;
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal) window.closeEditPostModal();
@@ -1855,6 +1909,12 @@ function setupEditPostModal() {
       btnSave.innerHTML = '<span>⏳</span> Guardando...';
 
       try {
+        const origPost = (PlannerState.posts || []).find(p => Number(p.id) === Number(postId));
+        let postStatus = origPost?.status;
+        if (postStatus === 'failed') {
+          postStatus = 'scheduled';
+        }
+
         const payload = {
           title,
           content,
@@ -1864,6 +1924,10 @@ function setupEditPostModal() {
           account_id: accountId,
           account_name: accountName
         };
+
+        if (postStatus) {
+          payload.status = postStatus;
+        }
 
         const res = await fetch(`/api/posts/${postId}`, {
           method: 'PUT',
@@ -1879,9 +1943,12 @@ function setupEditPostModal() {
         showToast(`¡Publicación #${postId} actualizada correctamente!`, 'success');
         window.closeEditPostModal();
 
-        // Recargar datos en Planner y Cola
+        // Recargar datos en Planner, Cola de Envíos y Dashboard
         if (typeof window.loadPlannerData === 'function') {
           await window.loadPlannerData();
+        }
+        if (typeof window.loadQueuePosts === 'function') {
+          await window.loadQueuePosts();
         }
         if (typeof loadDashboardStatus === 'function') {
           loadDashboardStatus();
