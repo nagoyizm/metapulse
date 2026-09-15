@@ -298,6 +298,10 @@
                 <div class="header-title-row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <h3 style="margin:0;">Redactor de Contenido</h3>
                   <div style="display:flex; gap:8px; margin-left:auto; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-composer-top" title="Reiniciar proceso, borrar Asistente IA y todos los campos" style="display:flex; align-items:center; gap:6px; font-weight:600;">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
+                      <span>🔄 Reiniciar Proceso</span>
+                    </button>
                     <button class="btn btn-ai btn-sm" id="btn-open-ai-modal">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
                       <span>Asistente IA (Copy)</span>
@@ -731,7 +735,10 @@
 
                 <!-- Submit Button -->
                 <div class="composer-actions">
-                  <button class="btn btn-secondary" id="btn-clear-composer">Limpiar</button>
+                  <button type="button" class="btn btn-secondary" id="btn-clear-composer" title="Reiniciar proceso, borrar Asistente IA y todos los campos" style="display:inline-flex; align-items:center; gap:6px;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
+                    <span>Reiniciar Proceso</span>
+                  </button>
                   <button class="btn btn-primary btn-lg" id="btn-submit-post">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     <span id="btn-submit-post-text">Agendar en Próximo Slot</span>
@@ -2174,6 +2181,10 @@
         </div>
 
         <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-reset-ai-modal" style="margin-right:auto; display:inline-flex; align-items:center; gap:6px;" title="Limpiar todos los campos del asistente de IA">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
+            <span>Borrar / Reiniciar IA</span>
+          </button>
           <button class="btn btn-secondary" id="btn-cancel-ai">Cancelar</button>
           <button class="btn btn-primary" id="btn-apply-ai-copy" style="display: none;">
             Insertar en el Composer →

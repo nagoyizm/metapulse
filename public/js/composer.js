@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSubmitPost = document.getElementById('btn-submit-post');
   const btnSubmitText = document.getElementById('btn-submit-post-text');
   const btnClearComposer = document.getElementById('btn-clear-composer');
+  const btnResetComposerTop = document.getElementById('btn-reset-composer-top');
 
   // Preview elements
   const mockFbText = document.getElementById('mock-fb-text');
@@ -823,27 +824,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Limpiar Composer
-  btnClearComposer.addEventListener('click', () => {
-    postContent.value = '';
-    postTitle.value = '';
-    if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
-    if (storyTimingBox) storyTimingBox.style.display = 'none';
-    const defaultStrat = document.querySelector('input[name="story_strategy"][value="single"]');
-    if (defaultStrat) {
-      defaultStrat.checked = true;
-      defaultStrat.dispatchEvent(new Event('change'));
-    }
-    const chkMonthlyExt = document.getElementById('chk-story-monthly-extension');
-    if (chkMonthlyExt) chkMonthlyExt.checked = true;
-    if (typeof window.resetStoryMusic === 'function') window.resetStoryMusic();
-    if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
-    postTitle.value = '';
-    ComposerState.mediaFiles = [];
-    renderMediaPreviews();
-    updateLivePreviews();
-    showToast('Composer limpiado', 'info');
-  });
+  // Limpiar y Reiniciar Composer de extremo a extremo
+  if (btnClearComposer) {
+    btnClearComposer.addEventListener('click', () => {
+      resetComposerProcess();
+    });
+  }
+  if (btnResetComposerTop) {
+    btnResetComposerTop.addEventListener('click', () => {
+      resetComposerProcess();
+    });
+  }
 
   // ==========================================
   // MODAL ASISTENTE IA & GENERADOR ESPECIALIZADO
@@ -852,6 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOpenAiModal = document.getElementById('btn-open-ai-modal');
   const btnCloseAiModal = document.getElementById('btn-close-ai-modal');
   const btnCancelAi = document.getElementById('btn-cancel-ai');
+  const btnResetAiModal = document.getElementById('btn-reset-ai-modal');
   const btnGenerateAiCopy = document.getElementById('btn-generate-ai-copy');
   const btnGenerateKmarketAi = document.getElementById('btn-generate-kmarket-ai');
   const btnGenerateCampinaAi = document.getElementById('btn-generate-campina-ai');
@@ -907,6 +899,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeAi = () => { aiModal.style.display = 'none'; };
   btnCloseAiModal.addEventListener('click', closeAi);
   btnCancelAi.addEventListener('click', closeAi);
+  if (btnResetAiModal) {
+    btnResetAiModal.addEventListener('click', () => {
+      resetAiModalState();
+      showToast('Asistente IA restablecido y en blanco', 'info');
+    });
+  }
 
   // 1. Generador General
   if (btnGenerateAiCopy) {
@@ -2108,6 +2106,328 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // =========================================================================
+  // REINICIO INTEGRAL DEL PROCESO: COMPOSER + ASISTENTE IA COPY
+  // =========================================================================
+  function resetAiModalState() {
+    // 1. Modo General
+    const aiTopic = document.getElementById('ai-topic');
+    if (aiTopic) aiTopic.value = '';
+    const aiTone = document.getElementById('ai-tone');
+    if (aiTone) aiTone.value = 'engaging';
+    const aiGoal = document.getElementById('ai-goal');
+    if (aiGoal) aiGoal.value = 'engagement';
+    const aiCustomInst = document.getElementById('ai-custom-inst');
+    if (aiCustomInst) aiCustomInst.value = '';
+
+    // 2. Modo Carrusel Slide a Slide
+    const carouselTopic = document.getElementById('carousel-topic');
+    if (carouselTopic) carouselTopic.value = '';
+    const carouselSlidesCount = document.getElementById('carousel-slides-count');
+    if (carouselSlidesCount) carouselSlidesCount.value = '6';
+    const carouselGoal = document.getElementById('carousel-goal');
+    if (carouselGoal) carouselGoal.value = 'saves';
+    const carouselResultsBox = document.getElementById('carousel-results-box');
+    if (carouselResultsBox) {
+      carouselResultsBox.innerHTML = '';
+      carouselResultsBox.style.display = 'none';
+    }
+
+    // 3. Modo Humanizador Anti-IA
+    const humanizeInput = document.getElementById('humanize-input-text');
+    if (humanizeInput) humanizeInput.value = '';
+    const humanizeAuditBox = document.getElementById('humanize-audit-box');
+    if (humanizeAuditBox) humanizeAuditBox.style.display = 'none';
+    const humanizeOutput = document.getElementById('humanize-output-text');
+    if (humanizeOutput) humanizeOutput.value = '';
+    const humanizeIssues = document.getElementById('humanize-issues-list');
+    if (humanizeIssues) humanizeIssues.innerHTML = '';
+    const humanizeScore = document.getElementById('humanize-score-badge');
+    if (humanizeScore) {
+      humanizeScore.textContent = '100/100';
+      humanizeScore.style.background = 'var(--primary)';
+    }
+
+    // 4. Modo Kmarket Producto 4:5
+    const kmarketScanInput = document.getElementById('kmarket-scan-file-input');
+    if (kmarketScanInput) kmarketScanInput.value = '';
+    const kmarketScanImgEl = document.getElementById('kmarket-scan-img');
+    if (kmarketScanImgEl) {
+      kmarketScanImgEl.src = '';
+      kmarketScanImgEl.style.display = 'none';
+    }
+    const kmarketScanPlaceholderEl = document.getElementById('kmarket-scan-placeholder');
+    if (kmarketScanPlaceholderEl) kmarketScanPlaceholderEl.style.display = 'block';
+    const kmarketScanStatusEl = document.getElementById('kmarket-scan-status');
+    if (kmarketScanStatusEl) kmarketScanStatusEl.textContent = 'Sube la foto del empaque para investigar marca, ingredientes y notas de sabor.';
+    const kmarketProdName = document.getElementById('kmarket-prod-name');
+    if (kmarketProdName) kmarketProdName.value = '';
+    const kmarketProdDesc = document.getElementById('kmarket-prod-desc');
+    if (kmarketProdDesc) kmarketProdDesc.value = '';
+    const kmarketPromptBox = document.getElementById('kmarket-image-prompt-box');
+    if (kmarketPromptBox) kmarketPromptBox.style.display = 'none';
+    const kmarketPromptText = document.getElementById('kmarket-image-prompt-text');
+    if (kmarketPromptText) kmarketPromptText.value = '';
+    const kmarketAiPreview = document.getElementById('kmarket-ai-img-preview');
+    if (kmarketAiPreview) kmarketAiPreview.style.display = 'none';
+    const kmarketAiResult = document.getElementById('kmarket-ai-img-result');
+    if (kmarketAiResult) kmarketAiResult.src = '';
+    kmarketScannedImagePath = '';
+    currentScannedProduct = null;
+
+    // 5. Modo La Campiña Reel & Fechas
+    const campinaBgInput = document.getElementById('campina-bg-file-input');
+    if (campinaBgInput) campinaBgInput.value = '';
+    const campinaBgImgEl = document.getElementById('campina-bg-img');
+    if (campinaBgImgEl) {
+      campinaBgImgEl.src = '';
+      campinaBgImgEl.style.display = 'none';
+    }
+    const campinaBgPlaceholderEl = document.getElementById('campina-bg-placeholder');
+    if (campinaBgPlaceholderEl) campinaBgPlaceholderEl.style.display = 'block';
+    const campinaBgStatusEl = document.getElementById('campina-bg-status');
+    if (campinaBgStatusEl) campinaBgStatusEl.textContent = 'Adjunta la foto real que deseas usar como base para el afiche 4:5.';
+    const chkRespectBg = document.getElementById('chk-campina-respect-bg');
+    if (chkRespectBg) chkRespectBg.checked = true;
+    const campinaExtraWrap = document.getElementById('campina-extra-elements-wrap');
+    if (campinaExtraWrap) campinaExtraWrap.style.display = 'none';
+    const campinaExtra = document.getElementById('campina-extra-elements');
+    if (campinaExtra) campinaExtra.value = '';
+    const campinaFormat = document.getElementById('campina-format');
+    if (campinaFormat) campinaFormat.value = 'reel';
+    const campinaDate = document.getElementById('campina-date');
+    if (campinaDate) campinaDate.value = '';
+    const campinaTheme = document.getElementById('campina-theme');
+    if (campinaTheme) campinaTheme.value = '';
+    const campinaTypo = document.getElementById('campina-typography-style');
+    if (campinaTypo) campinaTypo.value = 'auto';
+    const campinaTreatment = document.getElementById('campina-brand-treatment');
+    if (campinaTreatment) campinaTreatment.value = 'auto';
+    const campinaPalette = document.getElementById('campina-color-palette');
+    if (campinaPalette) campinaPalette.value = 'auto';
+    const campinaRef = document.getElementById('campina-poster-reference');
+    if (campinaRef) campinaRef.value = 'auto';
+    const campinaArtCard = document.getElementById('campina-art-analysis-card');
+    if (campinaArtCard) campinaArtCard.style.display = 'none';
+    const campinaArtText = document.getElementById('campina-art-analysis-text');
+    if (campinaArtText) campinaArtText.innerHTML = '';
+    const campinaArtTag = document.getElementById('campina-art-vibe-tag');
+    if (campinaArtTag) campinaArtTag.innerHTML = '';
+    const campinaSlogansWrap = document.getElementById('campina-slogan-alternatives-wrap');
+    if (campinaSlogansWrap) campinaSlogansWrap.style.display = 'none';
+    const campinaSlogansList = document.getElementById('campina-slogan-pills');
+    if (campinaSlogansList) campinaSlogansList.innerHTML = '';
+    const campinaHero = document.getElementById('campina-hero-headline');
+    if (campinaHero) campinaHero.value = '';
+    const campinaSubline = document.getElementById('campina-subline-headline');
+    if (campinaSubline) campinaSubline.value = '';
+    const campinaPromptBox = document.getElementById('campina-image-prompt-box');
+    if (campinaPromptBox) campinaPromptBox.style.display = 'none';
+    const campinaPromptText = document.getElementById('campina-image-prompt-text');
+    if (campinaPromptText) campinaPromptText.value = '';
+    const campinaAiPreview = document.getElementById('campina-ai-img-preview');
+    if (campinaAiPreview) campinaAiPreview.style.display = 'none';
+    const campinaAiResult = document.getElementById('campina-ai-img-result');
+    if (campinaAiResult) campinaAiResult.src = '';
+    campinaBackgroundImagePath = '';
+
+    // 6. Output Box común del Modal de IA
+    const aiGenText = document.getElementById('ai-generated-text');
+    if (aiGenText) aiGenText.value = '';
+    const aiResBox = document.getElementById('ai-result-box');
+    if (aiResBox) aiResBox.style.display = 'none';
+    const btnApplyAi = document.getElementById('btn-apply-ai-copy');
+    if (btnApplyAi) btnApplyAi.style.display = 'none';
+
+    // 7. Barrido de cualquier input o textarea residual en el modal
+    const aiModalEl = document.getElementById('ai-modal');
+    if (aiModalEl) {
+      aiModalEl.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]), textarea').forEach(el => {
+        el.value = '';
+      });
+      aiModalEl.style.display = 'none';
+    }
+
+    // 8. Restablecer pestaña activa según marca
+    if (typeof switchAiModalTab === 'function') {
+      const brand = AppState.config ? (AppState.config.pageName || '') : '';
+      if (brand.toLowerCase().includes('kmarket')) {
+        switchAiModalTab('kmarket');
+      } else if (brand.toLowerCase().includes('campiña') || brand.toLowerCase().includes('cabaña')) {
+        switchAiModalTab('campina');
+      } else {
+        switchAiModalTab('general');
+      }
+    }
+  }
+
+  function resetComposerFormState() {
+    // 1. Texto y Título del Post
+    if (postContent) postContent.value = '';
+    if (postTitle) postTitle.value = '';
+
+    // 2. Contadores de caracteres
+    if (counterFb) counterFb.textContent = 'FB: 0';
+    if (counterIg) {
+      counterIg.textContent = 'IG: 0 / 2200';
+      counterIg.classList.remove('text-rose');
+    }
+
+    // 3. Plataformas: reactivar por defecto ambas (Facebook e Instagram)
+    const chkFb = document.getElementById('platform-fb');
+    if (chkFb) {
+      chkFb.checked = true;
+      chkFb.closest('.platform-checkbox')?.classList.add('active');
+    }
+    const chkIg = document.getElementById('platform-ig');
+    if (chkIg) {
+      chkIg.checked = true;
+      chkIg.closest('.platform-checkbox')?.classList.add('active');
+    }
+
+    // 4. Formato de publicación: reset a 'feed'
+    const feedRadio = document.querySelector('input[name="post_type"][value="feed"]');
+    if (feedRadio) {
+      feedRadio.checked = true;
+      document.querySelectorAll('.radio-pill').forEach(pill => {
+        const inp = pill.querySelector('input[name="post_type"]');
+        pill.classList.toggle('active', inp?.value === 'feed');
+      });
+    }
+
+    // 5. Archivos Multimedia
+    if (mediaFileInput) mediaFileInput.value = '';
+    ComposerState.mediaFiles = [];
+    ComposerState.selectedWatermarkId = null;
+    renderMediaPreviews();
+
+    // 6. Barra de Generador Directo IA (Gemini Flash Lite)
+    const chkAiImg = document.getElementById('chk-use-ai-image');
+    if (chkAiImg) chkAiImg.checked = false;
+    const aiImgControls = document.getElementById('ai-image-controls');
+    if (aiImgControls) aiImgControls.style.display = 'none';
+    const chkBaseImg = document.getElementById('chk-use-base-image');
+    if (chkBaseImg) chkBaseImg.checked = false;
+    const lblBaseImg = document.getElementById('lbl-use-base-image');
+    if (lblBaseImg) lblBaseImg.style.display = 'none';
+    const aiImgFormat = document.getElementById('ai-image-format-select');
+    if (aiImgFormat) aiImgFormat.value = 'feed';
+
+    // 7. Botones especializados en el encabezado de media
+    const wmBtn = document.getElementById('btn-watermark-overlay');
+    if (wmBtn) wmBtn.style.display = 'inline-flex';
+    if (btnCampinaFlyerTrigger) btnCampinaFlyerTrigger.style.display = 'none';
+    if (btnKmarketDesignerTrigger) btnKmarketDesignerTrigger.style.display = 'none';
+    if (btnCreateAdPoster) btnCreateAdPoster.style.display = 'none';
+
+    // 8. Opciones de Historia (Story Cross-Share)
+    if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
+    if (storyTimingBox) storyTimingBox.style.display = 'none';
+    const defaultStrat = document.querySelector('input[name="story_strategy"][value="single"]');
+    if (defaultStrat) {
+      defaultStrat.checked = true;
+      defaultStrat.dispatchEvent(new Event('change'));
+    }
+    const defaultTiming = document.querySelector('input[name="story_schedule_timing"][value="same_time"]');
+    if (defaultTiming) {
+      defaultTiming.checked = true;
+      defaultTiming.dispatchEvent(new Event('change'));
+    }
+    const storyCustomDt = document.getElementById('story-custom-datetime');
+    if (storyCustomDt) storyCustomDt.value = '';
+    const storyCustomDtWrap = document.getElementById('story-custom-datetime-wrap');
+    if (storyCustomDtWrap) storyCustomDtWrap.style.display = 'none';
+    const chkMonthlyExt = document.getElementById('chk-story-monthly-extension');
+    if (chkMonthlyExt) chkMonthlyExt.checked = true;
+
+    // 9. Música y Audio FFmpeg
+    if (typeof window.resetStoryMusic === 'function') {
+      window.resetStoryMusic();
+    } else {
+      const chkMusic = document.getElementById('chk-story-music-enabled');
+      if (chkMusic) chkMusic.checked = false;
+      const drawer = document.getElementById('story-music-drawer');
+      if (drawer) drawer.style.display = 'none';
+    }
+    const musicSearchInput = document.getElementById('music-search-input');
+    if (musicSearchInput) musicSearchInput.value = '';
+    const jamendoSearchInput = document.getElementById('jamendo-search-input');
+    if (jamendoSearchInput) jamendoSearchInput.value = '';
+    const storyAudioInput = document.getElementById('story-audio-file-input');
+    if (storyAudioInput) storyAudioInput.value = '';
+    const musicTrim = document.getElementById('music-trim-slider');
+    if (musicTrim) musicTrim.value = '0';
+    const chkMusicSticker = document.getElementById('chk-music-sticker');
+    if (chkMusicSticker) chkMusicSticker.checked = true;
+    const activeMusicPanel = document.getElementById('story-active-music-panel');
+    if (activeMusicPanel) activeMusicPanel.style.display = 'none';
+    const videoSuccessBox = document.getElementById('story-video-success-box');
+    if (videoSuccessBox) videoSuccessBox.style.display = 'none';
+
+    // 10. Opciones de Programación (reset a 'next_slot')
+    const nextSlotRadio = document.querySelector('input[name="schedule_option"][value="next_slot"]');
+    if (nextSlotRadio) {
+      nextSlotRadio.checked = true;
+      document.querySelectorAll('.schedule-radio').forEach(sr => {
+        sr.classList.toggle('active', sr.querySelector('input')?.value === 'next_slot');
+      });
+    }
+    const customDateContainer = document.getElementById('custom-date-container');
+    if (customDateContainer) customDateContainer.style.display = 'none';
+    const customScheduleDatetime = document.getElementById('custom-schedule-datetime');
+    if (customScheduleDatetime) customScheduleDatetime.value = '';
+    if (btnSubmitText) btnSubmitText.textContent = 'Agendar en Próximo Slot';
+
+    // 11. Limpiar ID de edición de post agendado si existía
+    window._editingScheduledPostId = null;
+
+    // 12. Modales secundarios especializados
+    if (typeof closeCampinaModal === 'function') closeCampinaModal();
+    const campinaHeadline = document.getElementById('campina-flyer-headline');
+    if (campinaHeadline) campinaHeadline.value = '';
+    const campinaSublineFlyer = document.getElementById('campina-flyer-subline');
+    if (campinaSublineFlyer) campinaSublineFlyer.value = '';
+    const campinaBadgeFlyer = document.getElementById('campina-flyer-badge');
+    if (campinaBadgeFlyer) campinaBadgeFlyer.value = '';
+    const campinaStyleFlyer = document.getElementById('campina-flyer-style');
+    if (campinaStyleFlyer) campinaStyleFlyer.value = 'editorial';
+
+    if (typeof closeKmarketModal === 'function') closeKmarketModal();
+    const kmarketDesignerName = document.getElementById('kmarket-designer-prod-name');
+    if (kmarketDesignerName) kmarketDesignerName.value = '';
+    const kmarketDesignerNotes = document.getElementById('kmarket-designer-notes');
+    if (kmarketDesignerNotes) kmarketDesignerNotes.value = '';
+
+    const stampModal = document.getElementById('modal-interactive-stamp');
+    if (stampModal) stampModal.style.display = 'none';
+
+    // 13. Barrido completo en todo el panel del composer
+    const composerPane = document.getElementById('tab-composer');
+    if (composerPane) {
+      composerPane.querySelectorAll('input[type="text"], input[type="datetime-local"], textarea').forEach(el => {
+        el.value = '';
+      });
+    }
+
+    // 14. Resetear maquetas y vistas previas en tiempo real
+    switchPreviewTab('fb');
+    updateLivePreviews();
+    if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
+    if (typeof window.syncStorySectionsVisibility === 'function') window.syncStorySectionsVisibility();
+  }
+
+  function resetComposerProcess(silent = false) {
+    resetComposerFormState();
+    resetAiModalState();
+    if (!silent) {
+      showToast('Proceso reiniciado: Composer y Asistente IA en blanco', 'info');
+    }
+  }
+
+  window.resetComposerProcess = resetComposerProcess;
+  window.resetAiModalState = resetAiModalState;
+  window.resetComposerFormState = resetComposerFormState;
 
   // Cargar una publicación existente (agendada o borrador) directamente en el Redactor
   window.loadPostIntoComposer = function(post) {

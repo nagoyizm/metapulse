@@ -726,6 +726,25 @@ h1, h2, h3, h4, .brand-text h2, .stat-value, .status-title {
   color: #ffffff;
 }
 
+#btn-reset-composer-top svg,
+#btn-clear-composer svg,
+#btn-reset-ai-modal svg {
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#btn-reset-composer-top:hover svg,
+#btn-clear-composer:hover svg,
+#btn-reset-ai-modal:hover svg {
+  transform: rotate(-180deg);
+}
+
+#btn-reset-composer-top:hover,
+#btn-clear-composer:hover,
+#btn-reset-ai-modal:hover {
+  border-color: rgba(244, 63, 94, 0.45);
+  color: #f43f5e;
+}
+
 /* Button Size Variations */
 .btn-xs {
   height: 26px;
