@@ -990,7 +990,7 @@
                 <button type="button" class="btn btn-primary btn-sm" id="btn-activate-selected-preset" style="font-size:0.8rem;">
                   ⚡ Activar este Horario
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:rgba(239,68,68,0.12); color:#b91c1c; border:1px solid rgba(239,68,68,0.3); padding:4px 8px;">
+                <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:rgba(239,68,68,0.15); color:#7f1d1d; border:1px solid rgba(239,68,68,0.35); padding:4px 8px;">
                   🗑️
                 </button>
               </div>
@@ -2256,7 +2256,7 @@
                     Adapta esta publicación automáticamente a formato vertical con fondo difuminado.
                   </span>
                 </div>
-                <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#be185d; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
+                <span id="planner-detail-story-badge" class="badge" style="background:rgba(236,72,153,0.15); color:#831843; border:1px solid rgba(236,72,153,0.4); font-size:0.72rem; font-weight:700; white-space:nowrap;">
                   Story 9:16
                 </span>
               </div>
@@ -2509,7 +2509,7 @@
                   <div style="font-size:2.5rem; margin-bottom:10px;">🖼️</div>
                   <div style="font-weight:700; font-size:0.95rem; margin-bottom:6px; color:var(--text-primary);">No hay foto cargada en el redactor</div>
                   <div style="font-size:0.8rem; margin-bottom:14px;">Sube una foto o selecciona una existente para estamparle el logo:</div>
-                  <input type="file" id="stamp-base-file-input" accept="image/*" style="display:none;">
+                  <input type="file" id="stamp-base-file-input" aria-label="Subir foto base para estampar" accept="image/*" style="display:none;">
                   <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('stamp-base-file-input').click()" style="margin: 0 auto; display:inline-flex;">
                     📁 Subir Foto para Estampar
                   </button>
@@ -2556,7 +2556,7 @@
 
                 <!-- Botón rápido subir nuevo logo -->
                 <div>
-                  <input type="file" id="stamp-quick-logo-input" accept="image/png,image/webp,image/svg+xml" style="display:none;">
+                  <input type="file" id="stamp-quick-logo-input" aria-label="Subir nuevo logo PNG para estampar" accept="image/png,image/webp,image/svg+xml" style="display:none;">
                   <button type="button" class="btn btn-ghost btn-xs" id="btn-stamp-upload-new-logo" style="width:100%; font-size:0.73rem; justify-content:center; gap:5px;">
                     <span>📁</span> Subir otro logo (PNG)
                   </button>
