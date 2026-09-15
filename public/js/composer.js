@@ -44,6 +44,18 @@ function setCheckboxState(id, checked = false) {
   if (el) el.checked = checked;
 }
 
+function renderCarouselSlideItem(s) {
+  return `
+    <div style="background:var(--bg-surface); padding:8px 10px; border-radius:4px; border-left:3px solid var(--primary); font-size:0.78rem;">
+      <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--primary); margin-bottom:2px;">
+        <span>Slide ${s.slideNumber}: ${s.headline || ''}</span>
+      </div>
+      <div style="color:var(--text-secondary); margin-bottom:3px;">${s.subtext || ''}</div>
+      <div style="font-size:0.72rem; color:var(--text-muted); font-style:italic;">📸 Visual: ${s.visualIdea || ''}</div>
+    </div>
+  `;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const postContent = document.getElementById('post-content');
   const postTitle = document.getElementById('post-title');
@@ -259,20 +271,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCampina = brand.includes('campiña') || brand.includes('cabaña');
     const isKmarket = brand.includes('kmarket');
 
-    if (lblUseBaseImage) lblUseBaseImage.style.display = hasMedia ? 'flex' : 'none';
+    setElementDisplay('lbl-use-base-image', hasMedia ? 'flex' : 'none');
     if (chkUseBaseImage && hasMedia) chkUseBaseImage.checked = true;
 
-    if (btnCampinaFlyerTrigger) {
-      btnCampinaFlyerTrigger.style.display = (hasMedia && isCampina) ? 'inline-flex' : 'none';
-    }
-    if (btnKmarketDesignerTrigger) {
-      btnKmarketDesignerTrigger.style.display = (hasMedia && isKmarket) ? 'inline-flex' : 'none';
-    }
-    if (btnCreateAdPoster) {
-      btnCreateAdPoster.style.display = (hasMedia && !isCampina && !isKmarket) ? 'inline-flex' : 'none';
-    }
-    const wmBtn = document.getElementById('btn-watermark-overlay');
-    if (wmBtn) wmBtn.style.display = 'inline-flex';
+    setElementDisplay('btn-campina-flyer-trigger', (hasMedia && isCampina) ? 'inline-flex' : 'none');
+    setElementDisplay('btn-kmarket-designer-trigger', (hasMedia && isKmarket) ? 'inline-flex' : 'none');
+    setElementDisplay('btn-create-ad-poster', (hasMedia && !isCampina && !isKmarket) ? 'inline-flex' : 'none');
+    setElementDisplay('btn-watermark-overlay', 'inline-flex');
   }
 
   function buildDirectAiImagePayload(finalPrompt, baseImageUrl, format) {
@@ -1001,11 +1006,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnGenerateAiCopy = document.getElementById('btn-generate-ai-copy');
   const btnGenerateKmarketAi = document.getElementById('btn-generate-kmarket-ai');
   const btnGenerateCampinaAi = document.getElementById('btn-generate-campina-ai');
-  const aiResultBox = document.getElementById('ai-result-box');
   const aiGeneratedText = document.getElementById('ai-generated-text');
   const btnApplyAiCopy = document.getElementById('btn-apply-ai-copy');
   const btnCopyImagePrompt = document.getElementById('btn-copy-image-prompt');
-  const kmarketImagePromptBox = document.getElementById('kmarket-image-prompt-box');
   const kmarketImagePromptText = document.getElementById('kmarket-image-prompt-text');
 
   function switchAiModalTab(mode) {
@@ -1124,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnCopyImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
     } catch (_copyErr) {
+      // Si la API del portapapeles está denegada por el navegador, seleccionar el input para facilitar la copia con Ctrl+C
       kmarketImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
@@ -1232,35 +1236,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function formatProductDetailsText(data) {
+    const details = [];
+    if (data.brand) details.push(`Marca: ${data.brand}`);
+    if (data.origin) details.push(`Origen: ${data.origin}`);
+    if (data.flavorNotes) details.push(`Notas de sabor: ${data.flavorNotes}`);
+    if (data.description) details.push(data.description);
+    return details.join('\n');
+  }
+
   function applyScannedProductData(data) {
     currentScannedProduct = data;
-    const prodNameInput = document.getElementById('kmarket-prod-name');
-    const prodDescInput = document.getElementById('kmarket-prod-desc');
+    if (data.name) setInputValue('kmarket-prod-name', data.name);
+    setInputValue('kmarket-prod-desc', formatProductDetailsText(data));
 
-    if (prodNameInput && data.name) prodNameInput.value = data.name;
-    if (prodDescInput) {
-      const details = [];
-      if (data.brand) details.push(`Marca: ${data.brand}`);
-      if (data.origin) details.push(`Origen: ${data.origin}`);
-      if (data.flavorNotes) details.push(`Notas de sabor: ${data.flavorNotes}`);
-      if (data.description) details.push(data.description);
-      prodDescInput.value = details.join('\n');
-    }
-
-    if (kmarketImagePromptText && data.masterImagePrompt) {
-      kmarketImagePromptText.value = data.masterImagePrompt;
+    if (data.masterImagePrompt) {
+      setInputValue('kmarket-image-prompt-text', data.masterImagePrompt);
       setElementDisplay('kmarket-image-prompt-box', 'block');
     }
 
-    if (aiGeneratedText && data.suggestedCopy) {
-      aiGeneratedText.value = data.suggestedCopy;
+    if (data.suggestedCopy) {
+      setInputValue('ai-generated-text', data.suggestedCopy);
       setElementDisplay('ai-result-box', 'block');
       setElementDisplay('btn-apply-ai-copy', 'inline-flex');
     }
 
-    if (kmarketScanStatus) {
-      kmarketScanStatus.innerHTML = `✅ Identificado: <strong>${data.name || 'Producto'}</strong> (${data.brand || 'Corea'}).`;
-    }
+    setElementHtml('kmarket-scan-status', `✅ Identificado: <strong>${data.name || 'Producto'}</strong> (${data.brand || 'Corea'}).`);
   }
 
   async function handleScanProductAuto() {
@@ -1408,7 +1409,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const campinaBgImg = document.getElementById('campina-bg-img');
   const campinaBgPlaceholder = document.getElementById('campina-bg-placeholder');
   const campinaBgStatus = document.getElementById('campina-bg-status');
-  const campinaImagePromptBox = document.getElementById('campina-image-prompt-box');
   const campinaImagePromptText = document.getElementById('campina-image-prompt-text');
   const btnCopyCampinaImagePrompt = document.getElementById('btn-copy-campina-image-prompt');
   const btnOpenGeminiWebCampina = document.getElementById('btn-open-gemini-web-campina');
@@ -1424,14 +1424,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const campinaBrandTreatment = document.getElementById('campina-brand-treatment');
   const campinaColorPalette = document.getElementById('campina-color-palette');
   const campinaPosterReference = document.getElementById('campina-poster-reference');
-  const campinaArtAnalysisCard = document.getElementById('campina-art-analysis-card');
   const campinaArtVibeTag = document.getElementById('campina-art-vibe-tag');
   const campinaArtAnalysisText = document.getElementById('campina-art-analysis-text');
   const campinaTypoVibeBadge = document.getElementById('campina-typo-vibe-badge');
   const campinaTypoDesc = document.getElementById('campina-typo-desc');
   const campinaSloganAlternativesWrap = document.getElementById('campina-slogan-alternatives-wrap');
   const campinaSloganPills = document.getElementById('campina-slogan-pills');
-  const campinaAiImgPreview = document.getElementById('campina-ai-img-preview');
   const campinaAiImgResult = document.getElementById('campina-ai-img-result');
 
   const campinaTypoDescriptions = {
@@ -1616,8 +1614,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function updateCampinaBgPreview(url, fileName) {
+    campinaBackgroundImagePath = url;
+    if (campinaBgImg) {
+      campinaBgImg.src = url;
+      campinaBgImg.style.display = 'block';
+    }
+    setElementDisplay('campina-bg-placeholder', 'none');
+    if (campinaBgStatus) {
+      campinaBgStatus.innerHTML = `✅ Foto de fondo lista (<strong>${fileName}</strong>).`;
+    }
+
+    if (!ComposerState.mediaFiles.includes(url)) {
+      ComposerState.mediaFiles.unshift(url);
+      renderMediaPreviews();
+      updateLivePreviews();
+    }
+  }
+
   async function handleCampinaBgFileUpload() {
-    if (!campinaBgFileInput.files || campinaBgFileInput.files.length === 0) return;
+    if (!campinaBgFileInput?.files?.length) return;
     const file = campinaBgFileInput.files[0];
 
     try {
@@ -1626,48 +1642,30 @@ document.addEventListener('DOMContentLoaded', () => {
         campinaBgImg.src = localPreview;
         campinaBgImg.style.display = 'block';
       }
-      if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'none';
+      setElementDisplay('campina-bg-placeholder', 'none');
     } catch (_blobErr) {
-      // Ignorar si URL.createObjectURL no está disponible
+      // Ignorar si URL.createObjectURL no está disponible en este entorno
     }
 
-    if (campinaBgStatus) campinaBgStatus.textContent = `Subiendo foto "${file.name}"...`;
+    setElementText('campina-bg-status', `Subiendo foto "${file.name}"...`);
 
     const formData = new FormData();
     formData.append('files', file);
 
     try {
-      const res = await fetch('/api/media/upload', {
-        method: 'POST',
-        body: formData
-      });
+      const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
       const json = await res.json();
-      if (json.success && json.data && json.data.length > 0) {
+      if (json.success && json.data?.length > 0) {
         const uploadedUrl = json.data[0].url || json.data[0].filepath;
-        campinaBackgroundImagePath = uploadedUrl;
-        if (campinaBgImg) {
-          campinaBgImg.src = uploadedUrl;
-          campinaBgImg.style.display = 'block';
-        }
-        if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'none';
-        if (campinaBgStatus) {
-          campinaBgStatus.innerHTML = `✅ Foto de fondo lista (<strong>${file.name}</strong>).`;
-        }
-
-        if (!ComposerState.mediaFiles.includes(uploadedUrl)) {
-          ComposerState.mediaFiles.unshift(uploadedUrl);
-          renderMediaPreviews();
-          updateLivePreviews();
-        }
-
+        updateCampinaBgPreview(uploadedUrl, file.name);
         showToast('Foto de fondo cargada exitosamente', 'success');
       } else {
         showToast('Error al subir: ' + (json.error || 'Desconocido'), 'error');
-        if (campinaBgStatus) campinaBgStatus.textContent = 'Error al subir foto.';
+        setElementText('campina-bg-status', 'Error al subir foto.');
       }
     } catch (err) {
       showToast('Error subiendo foto: ' + err.message, 'error');
-      if (campinaBgStatus) campinaBgStatus.textContent = 'Error al subir foto.';
+      setElementText('campina-bg-status', 'Error al subir foto.');
     }
   }
 
@@ -1764,6 +1762,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
     } catch (_copyErr) {
+      // Fallback si la API de Clipboard está bloqueada por el navegador: seleccionar el texto para facilitar Ctrl+C
       campinaImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
@@ -1912,30 +1911,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function bindCampinaControls() {
-    const btnSyncCampinaWeb = document.getElementById('btn-sync-campina-web');
-    if (btnSyncCampinaWeb) {
-      btnSyncCampinaWeb.addEventListener('click', async () => {
-        btnSyncCampinaWeb.disabled = true;
-        btnSyncCampinaWeb.textContent = '🔄 Escaneando...';
-        try {
-          const res = await fetch('/api/ai/scrape-campina', { method: 'POST' });
-          const json = await res.json();
-          if (json.success) {
-            showToast('✅ Información sincronizada con www.cabanaslacampina.cl', 'success');
-            loadDashboardStatus();
-          } else {
-            showToast('Error sincronizando: ' + json.error, 'error');
-          }
-        } catch (e) {
-          showToast('Error: ' + e.message, 'error');
-        } finally {
-          btnSyncCampinaWeb.disabled = false;
-          btnSyncCampinaWeb.textContent = '🔄 Sincronizar Web';
-        }
-      });
+  async function handleSyncCampinaWeb() {
+    const btnSync = document.getElementById('btn-sync-campina-web');
+    if (!btnSync) return;
+    btnSync.disabled = true;
+    btnSync.textContent = '🔄 Escaneando...';
+    try {
+      const res = await fetch('/api/ai/scrape-campina', { method: 'POST' });
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Información sincronizada con www.cabanaslacampina.cl', 'success');
+        loadDashboardStatus();
+      } else {
+        showToast('Error sincronizando: ' + json.error, 'error');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error');
+    } finally {
+      btnSync.disabled = false;
+      btnSync.textContent = '🔄 Sincronizar Web';
     }
+  }
 
+  function bindCampinaStyleAndPromptInputs() {
     if (campinaTypographyStyle) {
       campinaTypographyStyle.addEventListener('change', () => {
         updateCampinaTypoInfo(campinaTypographyStyle.value);
@@ -1951,59 +1949,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (campinaColorPalette) {
-      campinaColorPalette.addEventListener('change', () => {
-        syncCampinaMasterPromptLive();
-      });
+      campinaColorPalette.addEventListener('change', syncCampinaMasterPromptLive);
     }
 
     if (campinaPosterReference) {
-      campinaPosterReference.addEventListener('change', () => {
-        syncCampinaMasterPromptLive();
-      });
+      campinaPosterReference.addEventListener('change', syncCampinaMasterPromptLive);
     }
 
     const campinaThemeInput = document.getElementById('campina-theme');
     const campinaDateInput = document.getElementById('campina-date');
-    if (campinaThemeInput) {
-      campinaThemeInput.addEventListener('input', triggerCampinaPromptDebounced);
-    }
-    if (campinaDateInput) {
-      campinaDateInput.addEventListener('input', triggerCampinaPromptDebounced);
-    }
+    if (campinaThemeInput) campinaThemeInput.addEventListener('input', triggerCampinaPromptDebounced);
+    if (campinaDateInput) campinaDateInput.addEventListener('input', triggerCampinaPromptDebounced);
+    if (campinaHeroHeadline) campinaHeroHeadline.addEventListener('input', triggerCampinaPromptDebounced);
+    if (campinaSublineHeadline) campinaSublineHeadline.addEventListener('input', triggerCampinaPromptDebounced);
+    if (campinaExtraElements) campinaExtraElements.addEventListener('input', triggerCampinaPromptDebounced);
+  }
 
-    if (campinaHeroHeadline) {
-      campinaHeroHeadline.addEventListener('input', triggerCampinaPromptDebounced);
-    }
-    if (campinaSublineHeadline) {
-      campinaSublineHeadline.addEventListener('input', triggerCampinaPromptDebounced);
-    }
-    if (campinaExtraElements) {
-      campinaExtraElements.addEventListener('input', triggerCampinaPromptDebounced);
-    }
+  function bindCampinaActionButtons() {
+    const btnSyncCampinaWeb = document.getElementById('btn-sync-campina-web');
+    if (btnSyncCampinaWeb) btnSyncCampinaWeb.addEventListener('click', handleSyncCampinaWeb);
 
     if (campinaBgImg) {
       campinaBgImg.onerror = () => {
         campinaBgImg.style.display = 'none';
-        if (campinaBgPlaceholder) campinaBgPlaceholder.style.display = 'block';
+        setElementDisplay('campina-bg-placeholder', 'block');
       };
     }
 
-    if (chkCampinaRespectBg && campinaExtraElementsWrap) {
+    if (chkCampinaRespectBg) {
       chkCampinaRespectBg.addEventListener('change', () => {
-        campinaExtraElementsWrap.style.display = chkCampinaRespectBg.checked ? 'none' : 'block';
+        setElementDisplay('campina-extra-elements-wrap', chkCampinaRespectBg.checked ? 'none' : 'block');
         syncCampinaMasterPromptLive();
       });
     }
 
     if (btnSelectCampinaBg && campinaBgFileInput) {
-      btnSelectCampinaBg.addEventListener('click', () => {
-        campinaBgFileInput.click();
-      });
+      btnSelectCampinaBg.addEventListener('click', () => { campinaBgFileInput.click(); });
     }
 
     if (btnUseComposerBg) {
       btnUseComposerBg.addEventListener('click', () => {
-        if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+        if (ComposerState.mediaFiles?.length > 0) {
           syncCampinaModalThumb();
           showToast('Foto del editor vinculada como fondo para el afiche', 'info');
         } else {
@@ -2012,32 +1998,18 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if (campinaBgFileInput) {
-      campinaBgFileInput.addEventListener('change', handleCampinaBgFileUpload);
-    }
+    if (campinaBgFileInput) campinaBgFileInput.addEventListener('change', handleCampinaBgFileUpload);
+    if (btnGenerateCampinaAi) btnGenerateCampinaAi.addEventListener('click', handleGenerateCampinaContent);
+    if (btnCopyCampinaImagePrompt) btnCopyCampinaImagePrompt.addEventListener('click', handleCopyCampinaPrompt);
+    if (btnOpenGeminiWebCampina) btnOpenGeminiWebCampina.addEventListener('click', handleOpenGeminiWebCampina);
+    if (btnGenerateCampinaDirectPoster) btnGenerateCampinaDirectPoster.addEventListener('click', handleGenerateCampinaDirectPoster);
+    if (btnModalGenerateCampinaImage) btnModalGenerateCampinaImage.addEventListener('click', handleGenerateCampinaDirectPoster);
+    if (btnGenerateCampinaEditorialFlyer) btnGenerateCampinaEditorialFlyer.addEventListener('click', handleGenerateCampinaEditorialFlyer);
+  }
 
-    if (btnGenerateCampinaAi) {
-      btnGenerateCampinaAi.addEventListener('click', handleGenerateCampinaContent);
-    }
-
-    if (btnCopyCampinaImagePrompt) {
-      btnCopyCampinaImagePrompt.addEventListener('click', handleCopyCampinaPrompt);
-    }
-
-    if (btnOpenGeminiWebCampina) {
-      btnOpenGeminiWebCampina.addEventListener('click', handleOpenGeminiWebCampina);
-    }
-
-    if (btnGenerateCampinaDirectPoster) {
-      btnGenerateCampinaDirectPoster.addEventListener('click', handleGenerateCampinaDirectPoster);
-    }
-    if (btnModalGenerateCampinaImage) {
-      btnModalGenerateCampinaImage.addEventListener('click', handleGenerateCampinaDirectPoster);
-    }
-
-    if (btnGenerateCampinaEditorialFlyer) {
-      btnGenerateCampinaEditorialFlyer.addEventListener('click', handleGenerateCampinaEditorialFlyer);
-    }
+  function bindCampinaControls() {
+    bindCampinaStyleAndPromptInputs();
+    bindCampinaActionButtons();
   }
 
   // =========================================================================
@@ -2090,17 +2062,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderCarouselSlideItem(s) {
-    return `
-      <div style="background:var(--bg-surface); padding:8px 10px; border-radius:4px; border-left:3px solid var(--primary); font-size:0.78rem;">
-        <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--primary); margin-bottom:2px;">
-          <span>Slide ${s.slideNumber}: ${s.headline || ''}</span>
-        </div>
-        <div style="color:var(--text-secondary); margin-bottom:3px;">${s.subtext || ''}</div>
-        <div style="font-size:0.72rem; color:var(--text-muted); font-style:italic;">📸 Visual: ${s.visualIdea || ''}</div>
-      </div>
-    `;
-  }
+
 
   function displayCarouselResults(d) {
     const container = document.getElementById('carousel-results-box');

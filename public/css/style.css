@@ -2166,12 +2166,12 @@ input:checked + .slider:before {
 }
 
 .chat-platform-tag.ig {
-  background: rgba(236, 72, 153, 0.15);
-  color: #9d174d;
+  background: #fce7f3;
+  color: #831843;
 }
 
 .chat-platform-tag.fb {
-  background: rgba(24, 119, 242, 0.15);
+  background: #dbeafe;
   color: #1e40af;
 }
 
@@ -2303,9 +2303,9 @@ input:checked + .slider:before {
 }
 
 .btn-archive-comment:hover {
-  background: rgba(239, 68, 68, 0.12) !important;
-  color: #b91c1c !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fca5a5 !important;
 }
 
 .comments-archive-hint {
@@ -2425,9 +2425,9 @@ input:checked + .slider:before {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 20px;
-  background: rgba(139, 92, 246, 0.15);
+  background: #ede9fe;
   color: #4c1d95;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  border: 1px solid #c4b5fd;
 }
 
 .comment-ai-refresh-btn {
@@ -2495,9 +2495,9 @@ input:checked + .slider:before {
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 4px;
-  background: rgba(168, 85, 247, 0.25);
-  color: #e9d5ff;
-  border: 1px solid rgba(168, 85, 247, 0.4);
+  background: #f3e8ff;
+  color: #581c87;
+  border: 1px solid #d8b4fe;
 }
 
 .comment-ai-option-text {
@@ -2517,9 +2517,9 @@ input:checked + .slider:before {
 }
 
 .btn-ai-apply {
-  background: rgba(139, 92, 246, 0.3);
-  color: #f5f3ff;
-  border: 1px solid rgba(139, 92, 246, 0.5);
+  background: #ede9fe;
+  color: #581c87;
+  border: 1px solid #c4b5fd;
   border-radius: 6px;
   padding: 5px 10px;
   font-size: 0.74rem;
