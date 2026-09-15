@@ -2646,20 +2646,97 @@
             </div>
 
             <!-- Batch Story Auto-generator Config -->
-            <div id="batch-story-options-wrap" style="margin-bottom: 16px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 12px 16px;">
+            <div id="batch-story-options-wrap" style="margin-bottom: 16px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 14px 16px;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; margin:0; font-size:0.86rem; color:var(--text-primary);">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:700; margin:0; font-size:0.88rem; color:var(--text-primary);">
                   <input type="checkbox" id="batch-chk-create-stories" checked style="width:18px; height:18px; accent-color:var(--primary); cursor:pointer;">
                   <span>📲 Crear y agendar también versión Historia (Story 9:16) para cada afiche</span>
                 </label>
-                <div id="batch-story-timing-box" style="display:flex; align-items:center; gap:8px; font-size:0.8rem;">
-                  <label for="batch-story-timing-option" style="color:var(--text-secondary); font-weight:600;">Horario de las Stories:</label>
-                  <select id="batch-story-timing-option" class="form-control" style="font-size:0.82rem; padding:4px 10px; width:auto; font-weight:600;">
-                    <option value="plus_3h" selected>⏰ 3 horas después del post (+3h)</option>
-                    <option value="night_slot">🌙 En la noche de cada día (20:30 hrs)</option>
-                    <option value="same_time">⚡ Mismo horario que el post</option>
-                    <option value="next_day">☀️ Al día siguiente a las 11:00 hrs</option>
-                  </select>
+              </div>
+
+              <!-- Story Details Box (toggleable) -->
+              <div id="batch-story-config-details" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(99, 102, 241, 0.3);">
+                <!-- Strategy Selector -->
+                <span class="form-label" style="display:block; font-size:0.8rem; margin-bottom:6px; font-weight:700; color:var(--text-primary);">
+                  🎯 Estrategia de Difusión de Historias:
+                </span>
+                <div class="story-strategy-selector" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin-bottom:12px;">
+                  <label class="radio-pill active" id="pill-batch-story-strat-single" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="radio" name="batch_story_strategy" value="single" checked>
+                    <span>⚡ 1 Historia Única</span>
+                  </label>
+                  <label class="radio-pill" id="pill-batch-story-strat-drip3" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="radio" name="batch_story_strategy" value="drip3">
+                    <span>🔁 Goteo 3 Días (Test A/B)</span>
+                  </label>
+                  <label class="radio-pill" id="pill-batch-story-strat-evergreen" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="radio" name="batch_story_strategy" value="evergreen">
+                    <span>🔥 Cuenta Siempre Viva (5 Días)</span>
+                  </label>
+                </div>
+
+                <!-- Subpanel 1: Horario para Historia Única -->
+                <div id="batch-story-single-timing-wrap">
+                  <span class="form-label" style="display:block; font-size:0.78rem; margin-bottom:6px; color:var(--text-secondary);">¿En qué horario publicar la Historia de cada post?</span>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
+                    <label class="radio-pill active" id="pill-batch-timing-plus3h" style="font-size:0.8rem; cursor:pointer;">
+                      <input type="radio" name="batch_story_timing" value="plus_3h" checked>
+                      <span>⏰ 3h después (+3h)</span>
+                    </label>
+                    <label class="radio-pill" id="pill-batch-timing-night" style="font-size:0.8rem; cursor:pointer;">
+                      <input type="radio" name="batch_story_timing" value="night_slot">
+                      <span>🌙 En la noche (20:30)</span>
+                    </label>
+                    <label class="radio-pill" id="pill-batch-timing-same" style="font-size:0.8rem; cursor:pointer;">
+                      <input type="radio" name="batch_story_timing" value="same_time">
+                      <span>⚡ Mismo momento</span>
+                    </label>
+                    <label class="radio-pill" id="pill-batch-timing-next" style="font-size:0.8rem; cursor:pointer;">
+                      <input type="radio" name="batch_story_timing" value="next_day">
+                      <span>☀️ Al día siguiente (11:00)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Subpanel 2: Información Drip 3 -->
+                <div id="batch-story-drip3-info" style="display:none; background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                  <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:4px;">
+                    📊 Plan de Goteo 3 Días por cada Afiche:
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:3px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                    <div>🚀 <strong>Día 1:</strong> Mismo horario del post (Lanzamiento inicial)</div>
+                    <div>🌙 <strong>Día 2 (+24h):</strong> Slot Noche (21:00 hrs) • Mayor tiempo en pantalla y volumen</div>
+                    <div>☀️ <strong>Día 4 (+72h):</strong> Slot Almuerzo (13:30 hrs) • Recordatorio final</div>
+                  </div>
+                </div>
+
+                <!-- Subpanel 3: Información Evergreen -->
+                <div id="batch-story-evergreen-info" style="display:none; background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                  <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:4px;">
+                    🔥 Modo Cuenta Siempre Viva (5 Días Rotativos por Afiche):
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                    Rotación en los 4 cuadrantes del día (09:15, 13:30, 19:30, 21:00) espaciados entre 24h y 36h para que el aro de historias nunca se apague.
+                  </div>
+                </div>
+
+                <!-- Extensión de Presencia Mensual (30 Días) - Como en La Campiña -->
+                <div id="batch-story-monthly-wrap" style="margin-top:10px; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:10px 12px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; font-weight:700; font-size:0.82rem; color:var(--text-primary);">
+                    <input type="checkbox" id="batch-chk-story-monthly-extension" checked style="width:17px; height:17px; accent-color:#6366f1; cursor:pointer;">
+                    <span>🗓️ Extender historias a lo largo del mes (1 Historia semanal durante 30 días)</span>
+                  </label>
+                  <div style="margin-top:6px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4; padding-left:25px;">
+                    <div>Además de los horarios iniciales, programará <strong>1 historia semanal de recuerdo</strong> a lo largo del mes:</div>
+                    <div style="display:flex; flex-direction:column; gap:2px; margin-top:4px; font-size:0.73rem; color:var(--text-primary);">
+                      <div>• <strong>Semana 2 (Día 12):</strong> Slot Noche (20:30 hrs)</div>
+                      <div>• <strong>Semana 3 (Día 19):</strong> Slot Almuerzo (13:30 hrs)</div>
+                      <div>• <strong>Semana 4 (Día 26):</strong> Slot Noche (21:00 hrs)</div>
+                    </div>
+                    <div style="margin-top:4px; font-size:0.71rem; color:#4f46e5; font-weight:600;">
+                      ✨ Mantén el catálogo activo durante todo el mes con slots inteligentes.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2678,6 +2755,153 @@
               🚀 Aprobar y Programar Todo en el Calendario
             </button>
           </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BATCH MUSIC & VIDEO CONVERTER -->
+  <div class="modal-backdrop" id="modal-batch-music-video" style="display:none; position:fixed; z-index:2147483640; top:0; left:0; width:100vw; height:100vh; background:rgba(15,23,42,0.8); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:16px;">
+    <div class="modal-dialog" style="max-width:860px; width:95%; animation:modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+      <div class="modal-content" style="background:var(--bg-modal, #1e293b); border:1px solid var(--border-subtle, rgba(255,255,255,0.1)); border-radius:14px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); display:flex; flex-direction:column; max-height:92vh;">
+        
+        <!-- Header -->
+        <div class="modal-header" style="background:linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(99,102,241,0.12) 100%); border-bottom:1px solid rgba(255,255,255,0.08); padding:14px 20px; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.3rem;">🎵</span>
+            <div>
+              <h3 style="margin:0; font-size:1.05rem; color:var(--text-primary, #f8fafc); font-weight:700;">Añadir Música & Convertir a Video</h3>
+              <p id="batch-music-target-info" style="margin:0; font-size:0.75rem; color:var(--text-secondary, #94a3b8);">Convirtiendo afiche a video con audio real mediante FFmpeg</p>
+            </div>
+          </div>
+          <button type="button" class="modal-close" id="btn-close-batch-music-modal" style="background:transparent; border:none; color:var(--text-secondary, #94a3b8); font-size:1.5rem; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body" style="padding:16px 20px; overflow-y:auto; flex:1; display:grid; grid-template-columns:260px 1fr; gap:18px;">
+          
+          <!-- Left Column: Video Format & Preview -->
+          <div style="display:flex; flex-direction:column; gap:14px; background:rgba(15,23,42,0.4); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:14px;">
+            <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+              <span>🎬 Formato del Video:</span>
+            </div>
+
+            <!-- Preview Image / Video -->
+            <div style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#020617; aspect-ratio:4/5; display:flex; align-items:center; justify-content:center;">
+              <img id="batch-music-preview-img" src="" alt="Preview" style="width:100%; height:100%; object-fit:cover;">
+              <div id="batch-music-playing-indicator" style="display:none; position:absolute; bottom:8px; left:8px; background:rgba(236,72,153,0.9); color:#fff; font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:20px; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+                <span>🔊 Reproduciendo</span>
+              </div>
+            </div>
+
+            <!-- Format Selector -->
+            <div>
+              <label class="form-label" style="font-size:0.75rem; margin-bottom:6px; display:block;">Tipo de Publicación:</label>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label class="radio-pill active" id="pill-batch-format-feed" style="font-size:0.78rem; padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                  <input type="radio" name="batch_video_format" value="feed" checked>
+                  <span>📱 Feed / Reel (Original 4:5)</span>
+                </label>
+                <label class="radio-pill" id="pill-batch-format-story" style="font-size:0.78rem; padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                  <input type="radio" name="batch_video_format" value="story">
+                  <span>📲 Story (9:16 Vertical Blur)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Duration Selector -->
+            <div>
+              <label class="form-label" style="font-size:0.75rem; margin-bottom:6px; display:block;">Duración del Video:</label>
+              <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
+                <button type="button" class="btn btn-secondary btn-xs batch-music-duration-btn active" data-duration="15" style="font-weight:700; font-size:0.78rem;">15s</button>
+                <button type="button" class="btn btn-secondary btn-xs batch-music-duration-btn" data-duration="30" style="font-weight:700; font-size:0.78rem;">30s</button>
+                <button type="button" class="btn btn-secondary btn-xs batch-music-duration-btn" data-duration="60" style="font-weight:700; font-size:0.78rem;">60s</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Music Selector & Controls -->
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <!-- Source Tabs -->
+            <div class="music-source-tabs" style="margin:0;">
+              <button type="button" class="music-tab-btn active batch-music-tab-btn" data-tab="curated">
+                <span>🎧 Sin Copyright</span>
+              </button>
+              <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="upload">
+                <span>📁 Subir MP3</span>
+              </button>
+              <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="jamendo">
+                <span>🔍 Jamendo API</span>
+              </button>
+            </div>
+
+            <!-- TAB 1: Curada -->
+            <div id="batch-music-tab-curated" class="batch-music-tab-pane">
+              <div class="music-category-pills" id="batch-music-category-pills" style="margin-bottom:8px;"></div>
+              <div class="music-search-bar" style="margin:0 0 8px 0;">
+                <span class="music-search-icon">🔍</span>
+                <input type="text" id="batch-music-search-input" aria-label="Buscar música" class="music-search-input" placeholder="Buscar por estilo o mood..." style="font-size:0.8rem;">
+              </div>
+              <div class="music-track-list" id="batch-music-track-list" style="max-height:190px; overflow-y:auto;"></div>
+            </div>
+
+            <!-- TAB 2: Upload -->
+            <div id="batch-music-tab-upload" class="batch-music-tab-pane" style="display:none;">
+              <input type="file" id="batch-audio-file-input" aria-label="Subir canción propia" accept="audio/*" style="display:none;">
+              <div class="audio-upload-dropzone" id="batch-audio-dropzone" style="cursor:pointer; padding:24px 16px;">
+                <div style="font-size:1.8rem; margin-bottom:4px;">🎵</div>
+                <p style="margin:0 0 4px 0; font-size:0.82rem;"><strong>Haz clic aquí</strong> o arrastra tu archivo de audio</p>
+                <span class="audio-upload-sub" style="font-size:0.72rem;">MP3, WAV, AAC, M4A (hasta 35MB)</span>
+              </div>
+            </div>
+
+            <!-- TAB 3: Jamendo -->
+            <div id="batch-music-tab-jamendo" class="batch-music-tab-pane" style="display:none;">
+              <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <input type="text" id="batch-jamendo-search-input" aria-label="Buscar en Jamendo" class="music-search-input" placeholder="Buscar canciones Creative Commons en Jamendo..." style="font-size:0.8rem;">
+                <button type="button" class="btn btn-primary btn-sm" id="btn-batch-jamendo-search" style="padding:4px 12px; font-size:0.78rem;">Buscar</button>
+              </div>
+              <div class="music-track-list" id="batch-jamendo-results-list" style="max-height:190px; overflow-y:auto;">
+                <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.78rem;">Escribe una palabra clave para buscar en Jamendo.</div>
+              </div>
+            </div>
+
+            <!-- Active Track Control & Scrubbing -->
+            <div class="story-active-music-panel" id="batch-active-music-panel" style="display:flex; flex-direction:column; gap:10px; background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:8px; padding:10px 12px; margin-top:auto;">
+              <div class="active-track-header" style="display:flex; align-items:center; justify-content:space-between;">
+                <div class="active-track-pill" style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.2rem;">🎵</span>
+                  <div>
+                    <div id="batch-active-music-title" style="font-size:0.82rem; font-weight:700; color:var(--text-primary);">Selecciona una canción</div>
+                    <div id="batch-active-music-artist" style="font-size:0.72rem; color:var(--text-secondary);">MetaPulse Audio</div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-batch-active-music-play" style="font-size:0.75rem; padding:4px 10px;">
+                  ▶ Escuchar
+                </button>
+              </div>
+
+              <!-- Start time offset slider -->
+              <div>
+                <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px;">
+                  <span>Inicio del audio: <strong id="batch-music-start-time-text">0:00</strong></span>
+                  <span>Duración clip: <strong id="batch-music-duration-text">15s</strong></span>
+                </div>
+                <input type="range" id="batch-music-start-slider" min="0" max="120" value="0" step="1" style="width:100%; accent-color:#ec4899; cursor:pointer;">
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer" style="padding:12px 20px; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-batch-music">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-confirm-batch-generate-video" style="background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); border:none; font-weight:700; padding:8px 18px; display:inline-flex; align-items:center; gap:6px;">
+            <span>⚡ Renderizar Video con Música</span>
+          </button>
         </div>
 
       </div>

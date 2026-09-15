@@ -3,10 +3,27 @@
  * Manejador del Importador y Programador en Lote (Batch Autopilot)
  * Procesa afiches de Gemini Web, estampa el sello oficial de Kmarket,
  * redacta los copies con formato oficial y los agenda en slots libres del calendario.
+ * 
+ * Funcionalidades añadidas:
+ * - Selección de estrategias de historias (Single, Drip 3, Evergreen) y extensión mensual (Campiña)
+ * - Estampado individual de logo con el modal interactivo en cada afiche
+ * - Selector de música y renderizador FFmpeg para convertir afiches en videos MP4 con audio real
  */
 
 (function () {
   let currentBatchItems = [];
+
+  // Estado del modal de música para el lote
+  const batchMusicState = {
+    currentItemId: null,
+    selectedTrack: null,
+    format: 'feed',
+    duration: 15,
+    startTime: 0,
+    catalog: [],
+    audioPlayer: new Audio(),
+    isPlaying: false
+  };
 
   function getEl(id) {
     return document.getElementById(id);
@@ -26,6 +43,7 @@
     const modal = getEl('modal-batch-autopilot');
     if (!modal) return;
     modal.style.display = 'none';
+    closeBatchMusicModal();
   };
 
   function resetBatchViews() {
@@ -45,7 +63,7 @@
     if (fileInput) fileInput.value = '';
   }
 
-  // Delegación de eventos para apertura y cierre garantizados
+  // Delegación de eventos para apertura y cierre de modales
   document.addEventListener('click', (e) => {
     if (e.target.closest('#btn-open-batch-autopilot') || e.target.closest('#btn-planner-batch-autopilot')) {
       e.preventDefault();
@@ -64,12 +82,51 @@
       e.preventDefault();
       confirmAndScheduleBatch();
     }
+
+    // Modal de música en lote: cerrar o cancelar
+    if (e.target.closest('#btn-close-batch-music-modal') || e.target.closest('#btn-cancel-batch-music')) {
+      e.preventDefault();
+      closeBatchMusicModal();
+    }
   });
 
+  // Manejo de opciones de historias en lote (Toggle general, estrategias y timings)
   document.addEventListener('change', (e) => {
     if (e.target && e.target.id === 'batch-chk-create-stories') {
-      const timingBox = getEl('batch-story-timing-box');
-      if (timingBox) timingBox.style.display = e.target.checked ? 'flex' : 'none';
+      const detailsBox = getEl('batch-story-config-details');
+      if (detailsBox) detailsBox.style.display = e.target.checked ? 'block' : 'none';
+    }
+
+    if (e.target && e.target.name === 'batch_story_strategy') {
+      const strategy = e.target.value;
+      // Actualizar pills activas
+      document.querySelectorAll('input[name="batch_story_strategy"]').forEach(radio => {
+        const pill = radio.closest('.radio-pill');
+        if (pill) pill.classList.toggle('active', radio.checked);
+      });
+
+      const singleWrap = getEl('batch-story-single-timing-wrap');
+      const drip3Info = getEl('batch-story-drip3-info');
+      const evergreenInfo = getEl('batch-story-evergreen-info');
+
+      if (singleWrap) singleWrap.style.display = strategy === 'single' ? 'block' : 'none';
+      if (drip3Info) drip3Info.style.display = strategy === 'drip3' ? 'block' : 'none';
+      if (evergreenInfo) evergreenInfo.style.display = strategy === 'evergreen' ? 'block' : 'none';
+    }
+
+    if (e.target && e.target.name === 'batch_story_timing') {
+      document.querySelectorAll('input[name="batch_story_timing"]').forEach(radio => {
+        const pill = radio.closest('.radio-pill');
+        if (pill) pill.classList.toggle('active', radio.checked);
+      });
+    }
+
+    if (e.target && e.target.name === 'batch_video_format') {
+      batchMusicState.format = e.target.value;
+      document.querySelectorAll('input[name="batch_video_format"]').forEach(radio => {
+        const pill = radio.closest('.radio-pill');
+        if (pill) pill.classList.toggle('active', radio.checked);
+      });
     }
   });
 
@@ -160,7 +217,12 @@
       const json = await res.json();
 
       if (json.success && json.items && json.items.length > 0) {
-        currentBatchItems = json.items;
+        currentBatchItems = json.items.map(item => ({
+          ...item,
+          originalImageUrl: item.imageUrl,
+          isVideo: false
+        }));
+
         renderReviewCards(currentBatchItems);
 
         if (stepProcessing) stepProcessing.style.display = 'none';
@@ -183,6 +245,7 @@
 
   /**
    * Renderiza las tarjetas interactivas de revisión para cada publicación
+   * Incluye estampar logo interactivo y poner música / convertir a video
    */
   function renderReviewCards(items) {
     const itemsContainer = getEl('batch-items-container');
@@ -203,7 +266,7 @@
       card.style.background = 'var(--bg-surface)';
       card.style.padding = '16px';
       card.style.display = 'grid';
-      card.style.gridTemplateColumns = '140px 1fr';
+      card.style.gridTemplateColumns = '150px 1fr';
       card.style.gap = '16px';
       card.style.alignItems = 'start';
 
@@ -230,20 +293,44 @@
         }
       }
 
+      const isVideo = Boolean(item.isVideo);
+      const mediaHtml = isVideo
+        ? `<video src="${item.imageUrl}" autoplay loop muted playsinline class="batch-card-thumb-video" style="width:100%; height:100%; object-fit:cover;"></video>`
+        : `<img src="${item.imageUrl}" alt="${escapeHtml(item.productName)}" class="batch-card-thumb-img" style="width:100%; height:100%; object-fit:cover;">`;
+
+      const badgeHtml = isVideo
+        ? `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700;">🎬 Video MP4 🎵</div>`
+        : `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:rgba(16,185,129,0.9); color:#fff; font-size:0.65rem; padding:2px 5px; border-radius:4px; font-weight:600;">Sello ✅</div>`;
+
       card.innerHTML = `
-        <!-- Columna Izquierda: Imagen con sello y check -->
-        <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
-          <div style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#0f172a; aspect-ratio:4/5;">
-            <img src="${item.imageUrl}" alt="${item.productName}" style="width:100%; height:100%; object-fit:cover;">
+        <!-- Columna Izquierda: Imagen/Video con acciones rápidas -->
+        <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+          <div class="batch-card-media-wrap" style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#0f172a; aspect-ratio:4/5;">
+            ${mediaHtml}
             <div style="position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.75); color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">
               #${index + 1}
             </div>
-            <div style="position:absolute; bottom:6px; right:6px; background:rgba(16,185,129,0.9); color:#fff; font-size:0.65rem; padding:2px 5px; border-radius:4px; font-weight:600;">
-              Sello ✅
-            </div>
+            ${badgeHtml}
           </div>
 
-          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; font-weight:600; color:var(--text-primary);">
+          <!-- Botones de Acción Multimedia -->
+          <div style="width:100%; display:flex; flex-direction:column; gap:6px;">
+            <button type="button" class="btn btn-secondary btn-xs btn-batch-stamp-logo" data-id="${item.id}" style="width:100%; font-size:0.75rem; padding:4px 6px; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:600;" title="Estampar o reubicar logotipo en esta imagen">
+              <span>🎨 Estampar Logo</span>
+            </button>
+
+            <button type="button" class="btn btn-secondary btn-xs btn-batch-add-music" data-id="${item.id}" style="width:100%; font-size:0.75rem; padding:4px 6px; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:600; background:linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(139,92,246,0.12) 100%); border-color:rgba(236,72,153,0.4); color:var(--text-primary);" title="Añadir música y convertir en video MP4">
+              <span>${isVideo ? '🎵 Cambiar Música' : '🎵 Poner Música & Video'}</span>
+            </button>
+
+            ${isVideo ? `
+              <button type="button" class="btn btn-secondary btn-xs btn-batch-revert-image" data-id="${item.id}" style="width:100%; font-size:0.7rem; padding:3px 5px; display:flex; align-items:center; justify-content:center; gap:4px; color:var(--text-secondary);" title="Volver a la imagen fija original">
+                <span>↩ Volver a Imagen</span>
+              </button>
+            ` : ''}
+          </div>
+
+          <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; font-weight:600; color:var(--text-primary); margin-top:4px;">
             <input type="checkbox" class="batch-item-toggle" checked data-id="${item.id}">
             <span>Programar</span>
           </label>
@@ -272,6 +359,7 @@
         </div>
       `;
 
+      // Contador de caracteres
       const textarea = card.querySelector('.batch-item-content');
       const counter = card.querySelector('.batch-char-counter');
       if (textarea && counter) {
@@ -280,10 +368,35 @@
         });
       }
 
+      // Checkbox de habilitar post
       const toggle = card.querySelector('.batch-item-toggle');
       if (toggle) {
         toggle.addEventListener('change', () => {
           card.style.opacity = toggle.checked ? '1' : '0.45';
+        });
+      }
+
+      // Botón Estampar Logo
+      const btnStamp = card.querySelector('.btn-batch-stamp-logo');
+      if (btnStamp) {
+        btnStamp.addEventListener('click', () => {
+          handleStampLogoForCard(item.id);
+        });
+      }
+
+      // Botón Poner Música
+      const btnMusic = card.querySelector('.btn-batch-add-music');
+      if (btnMusic) {
+        btnMusic.addEventListener('click', () => {
+          openBatchMusicModal(item.id);
+        });
+      }
+
+      // Botón Volver a Imagen
+      const btnRevert = card.querySelector('.btn-batch-revert-image');
+      if (btnRevert) {
+        btnRevert.addEventListener('click', () => {
+          handleRevertToImage(item.id);
         });
       }
 
@@ -292,7 +405,556 @@
   }
 
   /**
+   * Abre el modal interactivo de estampado de logo para un ítem específico
+   */
+  function handleStampLogoForCard(itemId) {
+    const item = currentBatchItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (item.imageUrl.match(/\.(mp4|mov|webm)$/i)) {
+      if (typeof showToast === 'function') {
+        showToast('El archivo actual es un video con música. Si deseas estamparle el logo, haz clic en "Volver a Imagen", estámpalo y luego vuelve a generar el video.', 'warning');
+      }
+      return;
+    }
+
+    if (typeof window.openInteractiveStampModal === 'function') {
+      window.openInteractiveStampModal(item.imageUrl, (stampedUrl) => {
+        item.imageUrl = stampedUrl;
+        if (!item.originalImageUrl) item.originalImageUrl = stampedUrl;
+
+        // Actualizar vista previa en el DOM directamente
+        const itemsContainer = getEl('batch-items-container');
+        if (itemsContainer) {
+          const card = itemsContainer.querySelector(`.batch-post-card[data-item-id="${item.id}"]`);
+          if (card) {
+            const imgEl = card.querySelector('.batch-card-thumb-img');
+            if (imgEl) imgEl.src = stampedUrl;
+            const statusBadge = card.querySelector('.batch-card-status-badge');
+            if (statusBadge) {
+              statusBadge.textContent = 'Logo Estampado ✅';
+              statusBadge.style.background = 'rgba(37,99,235,0.9)';
+            }
+          }
+        }
+
+        if (typeof showToast === 'function') {
+          showToast('¡Logo estampado con éxito en la imagen!', 'success');
+        }
+      });
+    } else {
+      if (typeof showToast === 'function') showToast('Módulo de estampar logo no disponible.', 'error');
+    }
+  }
+
+  /**
+   * Restaura la imagen fija original si el usuario no desea el video generado
+   */
+  function handleRevertToImage(itemId) {
+    const item = currentBatchItems.find(i => i.id === itemId);
+    if (!item || !item.originalImageUrl) return;
+
+    item.imageUrl = item.originalImageUrl;
+    item.isVideo = false;
+    renderReviewCards(currentBatchItems);
+
+    if (typeof showToast === 'function') {
+      showToast('Se restableció la imagen original del afiche.', 'info');
+    }
+  }
+
+  // =========================================================================
+  // CONTROLADOR DEL MODAL DE MÚSICA & VIDEO PARA EL LOTE
+  // =========================================================================
+
+  function openBatchMusicModal(itemId) {
+    const item = currentBatchItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    batchMusicState.currentItemId = itemId;
+    batchMusicState.format = 'feed';
+    batchMusicState.duration = 15;
+    batchMusicState.startTime = 0;
+
+    const modal = getEl('modal-batch-music-video');
+    if (!modal) return;
+
+    // Actualizar datos del afiche en el modal
+    const infoText = getEl('batch-music-target-info');
+    const idx = currentBatchItems.findIndex(i => i.id === itemId);
+    if (infoText) {
+      infoText.textContent = `Publicación #${idx + 1}: ${item.productName || 'Afiche Kmarket'}`;
+    }
+
+    const previewImg = getEl('batch-music-preview-img');
+    if (previewImg) {
+      previewImg.src = item.originalImageUrl || item.imageUrl;
+    }
+
+    // Resetear formato a feed y duración a 15s
+    const radioFeed = document.querySelector('input[name="batch_video_format"][value="feed"]');
+    if (radioFeed) {
+      radioFeed.checked = true;
+      document.querySelectorAll('input[name="batch_video_format"]').forEach(r => {
+        r.closest('.radio-pill')?.classList.toggle('active', r.checked);
+      });
+    }
+
+    document.querySelectorAll('.batch-music-duration-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.duration === '15');
+    });
+
+    const durationText = getEl('batch-music-duration-text');
+    if (durationText) durationText.textContent = '15s';
+
+    const startSlider = getEl('batch-music-start-slider');
+    if (startSlider) startSlider.value = 0;
+    const startText = getEl('batch-music-start-time-text');
+    if (startText) startText.textContent = '0:00';
+
+    modal.style.display = 'flex';
+
+    // Cargar catálogo curado si aún no está cargado
+    if (batchMusicState.catalog.length === 0) {
+      loadBatchMusicCatalog();
+    }
+  }
+
+  function closeBatchMusicModal() {
+    const modal = getEl('modal-batch-music-video');
+    if (modal) modal.style.display = 'none';
+    stopBatchAudio();
+  }
+
+  function stopBatchAudio() {
+    if (batchMusicState.audioPlayer) {
+      batchMusicState.audioPlayer.pause();
+      batchMusicState.audioPlayer.currentTime = 0;
+    }
+    batchMusicState.isPlaying = false;
+    const playBtn = getEl('btn-batch-active-music-play');
+    if (playBtn) playBtn.textContent = '▶ Escuchar';
+    const indicator = getEl('batch-music-playing-indicator');
+    if (indicator) indicator.style.display = 'none';
+  }
+
+  async function loadBatchMusicCatalog(category = 'all', query = '') {
+    const listContainer = getEl('batch-music-track-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">Cargando catálogo sin copyright...</div>';
+
+    try {
+      const params = new URLSearchParams();
+      if (category && category !== 'all') params.append('category', category);
+      if (query && query.trim()) params.append('q', query.trim());
+
+      const res = await fetch(`/api/music/library?${params.toString()}`);
+      const json = await res.json();
+
+      if (json.success && json.data) {
+        batchMusicState.catalog = json.data.tracks || [];
+        renderBatchCategoryPills(json.data.categories || []);
+        renderBatchTrackList(batchMusicState.catalog);
+
+        if (!batchMusicState.selectedTrack && batchMusicState.catalog.length > 0) {
+          selectBatchTrack(batchMusicState.catalog[0], false);
+        }
+      }
+    } catch (err) {
+      listContainer.innerHTML = `<div style="color:#f43f5e; padding:10px; font-size:0.8rem;">Error: ${err.message}</div>`;
+    }
+  }
+
+  function renderBatchCategoryPills(categories) {
+    const container = getEl('batch-music-category-pills');
+    if (!container) return;
+    container.innerHTML = '';
+
+    categories.forEach((cat, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `music-category-pill ${idx === 0 ? 'active' : ''}`;
+      btn.dataset.category = cat.id;
+      btn.textContent = cat.label;
+      btn.style.fontSize = '0.72rem';
+      btn.style.padding = '3px 8px';
+
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.music-category-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadBatchMusicCatalog(cat.id);
+      });
+
+      container.appendChild(btn);
+    });
+  }
+
+  function renderBatchTrackList(tracks) {
+    const container = getEl('batch-music-track-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (tracks.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">No se encontraron canciones.</div>';
+      return;
+    }
+
+    tracks.forEach(track => {
+      const item = document.createElement('div');
+      item.className = `music-track-item ${batchMusicState.selectedTrack?.id === track.id ? 'active' : ''}`;
+      item.style.padding = '6px 10px';
+      item.innerHTML = `
+        <div class="track-left" style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="track-play-btn" data-id="${track.id}" style="width:26px; height:26px; font-size:0.75rem;">▶</button>
+          <div class="track-info">
+            <span class="track-title" style="font-size:0.8rem; font-weight:600;">${escapeHtml(track.title)}</span>
+            <span class="track-artist-meta" style="font-size:0.7rem; color:var(--text-secondary);">${escapeHtml(track.artist)} • ${formatBatchDuration(track.durationSec)}</span>
+          </div>
+        </div>
+        <div class="track-right" style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn-select-track" style="font-size:0.72rem; padding:3px 8px;">Elegir</button>
+        </div>
+      `;
+
+      item.querySelector('.track-play-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlayBatchTrack(track);
+      });
+
+      item.querySelector('.btn-select-track').addEventListener('click', () => {
+        selectBatchTrack(track, true);
+      });
+
+      item.addEventListener('click', () => {
+        selectBatchTrack(track, false);
+      });
+
+      container.appendChild(item);
+    });
+  }
+
+  function selectBatchTrack(track, autoplay = false) {
+    batchMusicState.selectedTrack = track;
+
+    // Actualizar UI del panel activo
+    const titleEl = getEl('batch-active-music-title');
+    const artistEl = getEl('batch-active-music-artist');
+    if (titleEl) titleEl.textContent = track.title;
+    if (artistEl) artistEl.textContent = `${track.artist} (${formatBatchDuration(track.durationSec)})`;
+
+    // Resaltar en la lista
+    document.querySelectorAll('#batch-music-track-list .music-track-item').forEach(el => {
+      const isCurrent = el.querySelector('.track-play-btn')?.dataset.id === String(track.id);
+      el.classList.toggle('active', isCurrent);
+    });
+
+    if (autoplay) {
+      playBatchTrack(track);
+    }
+  }
+
+  function togglePlayBatchTrack(track) {
+    if (batchMusicState.selectedTrack?.id === track.id && batchMusicState.isPlaying) {
+      stopBatchAudio();
+    } else {
+      selectBatchTrack(track, false);
+      playBatchTrack(track);
+    }
+  }
+
+  function playBatchTrack(track) {
+    if (!track.streamUrl) return;
+    stopBatchAudio();
+
+    batchMusicState.audioPlayer.src = track.streamUrl;
+    batchMusicState.audioPlayer.currentTime = batchMusicState.startTime;
+    batchMusicState.audioPlayer.play()
+      .then(() => {
+        batchMusicState.isPlaying = true;
+        const playBtn = getEl('btn-batch-active-music-play');
+        if (playBtn) playBtn.textContent = '⏸ Pausar';
+        const indicator = getEl('batch-music-playing-indicator');
+        if (indicator) indicator.style.display = 'inline-flex';
+      })
+      .catch(err => {
+        console.warn('[Batch Music Play Warning]:', err.message);
+      });
+
+    batchMusicState.audioPlayer.onended = () => {
+      stopBatchAudio();
+    };
+  }
+
+  function formatBatchDuration(sec) {
+    const s = Math.floor(sec || 0);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}:${rem < 10 ? '0' : ''}${rem}`;
+  }
+
+  // Inicialización de controles del modal de música
+  function setupBatchMusicEvents() {
+    // 1. Tabs de Fuentes (Curada vs Subir vs Jamendo)
+    document.querySelectorAll('.batch-music-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.batch-music-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const target = btn.dataset.tab;
+        const paneCurated = getEl('batch-music-tab-curated');
+        const paneUpload = getEl('batch-music-tab-upload');
+        const paneJamendo = getEl('batch-music-tab-jamendo');
+
+        if (paneCurated) paneCurated.style.display = target === 'curated' ? 'block' : 'none';
+        if (paneUpload) paneUpload.style.display = target === 'upload' ? 'block' : 'none';
+        if (paneJamendo) paneJamendo.style.display = target === 'jamendo' ? 'block' : 'none';
+      });
+    });
+
+    // 2. Buscador de biblioteca curada
+    const searchInput = getEl('batch-music-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        loadBatchMusicCatalog('all', q);
+      });
+    }
+
+    // 3. Duración (15s, 30s, 60s)
+    document.querySelectorAll('.batch-music-duration-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.batch-music-duration-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        batchMusicState.duration = Number(btn.dataset.duration) || 15;
+        const durationText = getEl('batch-music-duration-text');
+        if (durationText) durationText.textContent = `${batchMusicState.duration}s`;
+      });
+    });
+
+    // 4. Slider de inicio
+    const startSlider = getEl('batch-music-start-slider');
+    if (startSlider) {
+      startSlider.addEventListener('input', (e) => {
+        batchMusicState.startTime = Number(e.target.value);
+        const startText = getEl('batch-music-start-time-text');
+        if (startText) startText.textContent = formatBatchDuration(batchMusicState.startTime);
+
+        if (batchMusicState.isPlaying && batchMusicState.audioPlayer) {
+          batchMusicState.audioPlayer.currentTime = batchMusicState.startTime;
+        }
+      });
+    }
+
+    // 5. Botón Play en el panel activo
+    const btnActivePlay = getEl('btn-batch-active-music-play');
+    if (btnActivePlay) {
+      btnActivePlay.addEventListener('click', () => {
+        if (!batchMusicState.selectedTrack) return;
+        if (batchMusicState.isPlaying) {
+          stopBatchAudio();
+        } else {
+          playBatchTrack(batchMusicState.selectedTrack);
+        }
+      });
+    }
+
+    // 6. Subir canción propia
+    const dropzone = getEl('batch-audio-dropzone');
+    const fileInput = getEl('batch-audio-file-input');
+    if (dropzone && fileInput) {
+      dropzone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) await uploadCustomBatchAudio(file);
+      });
+    }
+
+    // 7. Buscador Jamendo
+    const btnJamendoSearch = getEl('btn-batch-jamendo-search');
+    const jamendoInput = getEl('batch-jamendo-search-input');
+    if (btnJamendoSearch && jamendoInput) {
+      btnJamendoSearch.addEventListener('click', searchBatchJamendo);
+      jamendoInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') searchBatchJamendo();
+      });
+    }
+
+    // 8. Botón Renderizar Video con Música
+    const btnConfirmGen = getEl('btn-confirm-batch-generate-video');
+    if (btnConfirmGen) {
+      btnConfirmGen.addEventListener('click', generateBatchPostVideo);
+    }
+  }
+
+  async function uploadCustomBatchAudio(file) {
+    const formData = new FormData();
+    formData.append('audio', file);
+
+    const dropText = getEl('batch-audio-dropzone')?.querySelector('p');
+    if (dropText) dropText.textContent = '⏳ Subiendo y procesando audio...';
+
+    try {
+      const res = await fetch('/api/music/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const json = await res.json();
+
+      if (json.success && json.data) {
+        if (typeof showToast === 'function') showToast('¡Canción subida con éxito!', 'success');
+
+        const customTrack = {
+          id: `custom_${Date.now()}`,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          artist: 'Mi Audio Propio',
+          durationSec: 180,
+          streamUrl: json.data.relativeUrl,
+          badge: 'Propio'
+        };
+
+        selectBatchTrack(customTrack, true);
+        if (dropText) dropText.textContent = `✅ ${file.name}`;
+      } else {
+        throw new Error(json.error || 'Error al subir audio');
+      }
+    } catch (err) {
+      if (typeof showToast === 'function') showToast('Error al subir audio: ' + err.message, 'error');
+      if (dropText) dropText.textContent = 'Haz clic aquí o arrastra tu archivo de música';
+    }
+  }
+
+  async function searchBatchJamendo() {
+    const jamendoInput = getEl('batch-jamendo-search-input');
+    const resultsContainer = getEl('batch-jamendo-results-list');
+    const query = jamendoInput?.value?.trim();
+    if (!query || !resultsContainer) return;
+
+    resultsContainer.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">Buscando en Jamendo...</div>';
+
+    try {
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=15`);
+      const json = await res.json();
+
+      if (json.success && json.data?.results) {
+        const results = json.data.results;
+        if (results.length === 0) {
+          resultsContainer.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">No se encontraron resultados.</div>';
+          return;
+        }
+
+        resultsContainer.innerHTML = '';
+        results.forEach(track => {
+          const item = document.createElement('div');
+          item.className = 'music-track-item';
+          item.style.padding = '6px 10px';
+          item.innerHTML = `
+            <div class="track-left" style="display:flex; align-items:center; gap:8px;">
+              <button type="button" class="track-play-btn" data-id="${track.id}" style="width:26px; height:26px; font-size:0.75rem;">▶</button>
+              <div class="track-info">
+                <span class="track-title" style="font-size:0.8rem; font-weight:600;">${escapeHtml(track.title)}</span>
+                <span class="track-artist-meta" style="font-size:0.7rem; color:var(--text-secondary);">${escapeHtml(track.artist)} • ${formatBatchDuration(track.durationSec)}</span>
+              </div>
+            </div>
+            <div class="track-right">
+              <button type="button" class="btn-select-track" style="font-size:0.72rem; padding:3px 8px;">Elegir</button>
+            </div>
+          `;
+
+          item.querySelector('.track-play-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            togglePlayBatchTrack(track);
+          });
+          item.querySelector('.btn-select-track').addEventListener('click', () => {
+            selectBatchTrack(track, true);
+          });
+
+          resultsContainer.appendChild(item);
+        });
+      }
+    } catch (err) {
+      resultsContainer.innerHTML = `<div style="color:#f43f5e; padding:10px; font-size:0.8rem;">Error: ${err.message}</div>`;
+    }
+  }
+
+  /**
+   * Renderiza el video con música usando FFmpeg y actualiza la tarjeta del lote
+   */
+  async function generateBatchPostVideo() {
+    const item = currentBatchItems.find(i => i.id === batchMusicState.currentItemId);
+    if (!item) return;
+
+    if (!batchMusicState.selectedTrack) {
+      if (typeof showToast === 'function') showToast('Por favor selecciona una canción primero.', 'warning');
+      return;
+    }
+
+    const btn = getEl('btn-confirm-batch-generate-video');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳ Codificando video MP4 con FFmpeg... (~2-4s)</span>';
+    }
+
+    stopBatchAudio();
+
+    if (typeof showToast === 'function') {
+      showToast('Generando video MP4 con audio real mediante FFmpeg...', 'info');
+    }
+
+    try {
+      const baseImg = item.originalImageUrl || item.imageUrl;
+      const res = await fetch('/api/stories/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: baseImg,
+          audio_url: batchMusicState.selectedTrack.streamUrl,
+          post_type: batchMusicState.format,
+          duration: batchMusicState.duration,
+          start_time: batchMusicState.startTime,
+          add_music_sticker: batchMusicState.format === 'story',
+          song_title: batchMusicState.selectedTrack.title,
+          song_artist: batchMusicState.selectedTrack.artist
+        })
+      });
+
+      const json = await res.json();
+
+      if (json.success && json.data?.relativeUrl) {
+        if (!item.originalImageUrl) item.originalImageUrl = item.imageUrl;
+        item.imageUrl = json.data.relativeUrl;
+        item.isVideo = true;
+        item.post_type = batchMusicState.format === 'story' ? 'story' : 'reel';
+
+        closeBatchMusicModal();
+        renderReviewCards(currentBatchItems);
+
+        if (typeof showToast === 'function') {
+          showToast('¡Video con música generado con éxito y aplicado al post!', 'success');
+        }
+      } else {
+        throw new Error(json.error || 'Error al generar video');
+      }
+    } catch (err) {
+      console.error('[Generate Batch Video Error]', err);
+      if (typeof showToast === 'function') showToast('Error al generar video: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡ Renderizar Video con Música</span>';
+      }
+    }
+  }
+
+  // Inicializar eventos de música cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupBatchMusicEvents);
+  } else {
+    setupBatchMusicEvents();
+  }
+
+  /**
    * Recopila todos los posts aprobados del lote y los envía a programar masivamente
+   * Enviando la estrategia de historias y la extensión mensual completa (Campiña)
    */
   async function confirmAndScheduleBatch() {
     const itemsContainer = getEl('batch-items-container');
@@ -320,6 +982,8 @@
             content: content,
             scheduledAt: iso,
             imageUrl: rawItem?.imageUrl || '',
+            isVideo: Boolean(rawItem?.isVideo),
+            post_type: rawItem?.isVideo ? (rawItem?.post_type || 'reel') : 'feed',
             platforms: ['instagram', 'facebook']
           });
         }
@@ -337,7 +1001,10 @@
     }
 
     const includeStories = Boolean(document.getElementById('batch-chk-create-stories')?.checked);
-    const storyTimingRule = document.getElementById('batch-story-timing-option')?.value || 'plus_3h';
+    const storyStrategy = document.querySelector('input[name="batch_story_strategy"]:checked')?.value || 'single';
+    const storyTimingRule = document.querySelector('input[name="batch_story_timing"]:checked')?.value || 'plus_3h';
+    const storyMonthlyExtension = Boolean(document.getElementById('batch-chk-story-monthly-extension')?.checked);
+
     const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     const accountSelect = document.getElementById('global-account-select');
     const accountId = activeAcc?.pageId || accountSelect?.value || '';
@@ -350,7 +1017,9 @@
         body: JSON.stringify({
           posts: postsToSchedule,
           include_stories: includeStories,
+          story_strategy: storyStrategy,
           story_timing_rule: storyTimingRule,
+          story_monthly_extension: storyMonthlyExtension,
           accountId,
           accountName
         })
@@ -401,5 +1070,7 @@
   // Exponer a window para llamadas directas
   window.openBatchModal = openBatchModal;
   window.closeBatchModal = closeBatchModal;
+  window.openBatchMusicModal = openBatchMusicModal;
+  window.closeBatchMusicModal = closeBatchMusicModal;
 
 })();

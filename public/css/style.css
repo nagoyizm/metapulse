@@ -2685,3 +2685,17 @@ input:checked + .slider:before {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* Batch Music Modal & Duration Styles */
+.batch-music-duration-btn.active {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(236, 72, 153, 0.6) !important;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.25);
+}
+
+@media (max-width: 768px) {
+  #modal-batch-music-video .modal-body {
+    grid-template-columns: 1fr !important;
+  }
+}

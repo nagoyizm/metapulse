@@ -2462,7 +2462,16 @@ function calculateBatchStorySchedule(baseD, story_timing_rule) {
 }
 
 async function insertSingleBatchPost(p, ctx) {
-  const { insertStmt, include_stories, story_timing_rule, activeAccountId, activeAccountName, presetName } = ctx;
+  const {
+    insertStmt,
+    include_stories,
+    story_strategy = 'single',
+    story_timing_rule = 'plus_3h',
+    story_monthly_extension = true,
+    activeAccountId,
+    activeAccountName,
+    presetName
+  } = ctx;
   const title = p.productName || `Publicación ${activeAccountName || 'Nueva'}`;
   const content = (p.content || '').trim();
   const platforms = JSON.stringify(p.platforms || ['instagram', 'facebook']);
@@ -2479,40 +2488,58 @@ async function insertSingleBatchPost(p, ctx) {
     return { feed: 0, story: 0 };
   }
 
-  // 1. Programar post del Feed
-  insertStmt.run(title, content, platforms, 'feed', mediaUrls, scheduledAt, activeAccountId, activeAccountName, presetName);
+  // Detectar si la publicación es un video generado con música
+  const isVideo = Boolean(p.imageUrl && isVideoUrl(p.imageUrl));
+  const postType = isVideo ? (p.post_type === 'story' ? 'story' : 'reel') : (p.post_type || 'feed');
+
+  // 1. Programar post principal en el Feed / Reel
+  insertStmt.run(title, content, platforms, postType, mediaUrls, scheduledAt, activeAccountId, activeAccountName, presetName);
   let story = 0;
 
-  // 2. Si se solicitó crear también la Historia complementaria
+  // 2. Si se solicitó crear también las Historias complementarias (Estrategia single, drip3, evergreen o extensión mensual)
   if (include_stories && p.imageUrl) {
     try {
-      let absImagePath = p.imageUrl;
-      if (!absImagePath.startsWith('http')) {
-        absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
-      }
-
       let storyMediaUrl = p.imageUrl;
-      if (fs.existsSync(absImagePath)) {
-        const storyCard = await imageService.createStoryCard({
-          inputImagePath: absImagePath,
-          brandName: activeAccountName
-        });
-        storyMediaUrl = storyCard.relativeUrl;
+
+      if (!isVideo) {
+        let absImagePath = p.imageUrl;
+        if (!absImagePath.startsWith('http')) {
+          absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
+        }
+
+        if (fs.existsSync(absImagePath)) {
+          const storyCard = await imageService.createStoryCard({
+            inputImagePath: absImagePath,
+            brandName: activeAccountName
+          });
+          storyMediaUrl = storyCard.relativeUrl;
+        }
       }
 
-      const storyScheduledAt = calculateBatchStorySchedule(new Date(scheduledAt), story_timing_rule);
-      insertStmt.run(
-        `Story: ${title}`,
-        `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 110)}...`,
-        platforms,
-        'story',
-        JSON.stringify([storyMediaUrl]),
-        storyScheduledAt,
-        activeAccountId,
-        activeAccountName,
-        presetName
+      // Generar fechas y horarios bajo la estrategia elegida y extensión mensual (Campiña)
+      const schedules = buildDripSchedules(
+        scheduledAt,
+        story_strategy,
+        story_timing_rule,
+        null,
+        Boolean(story_monthly_extension)
       );
-      story = 1;
+
+      for (const item of schedules) {
+        const storyTitle = item.titleSuffix ? `${item.titleSuffix}: ${title}` : `Story: ${title}`;
+        insertStmt.run(
+          storyTitle,
+          `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 110)}...`,
+          platforms,
+          'story',
+          JSON.stringify([storyMediaUrl]),
+          item.schedule,
+          activeAccountId,
+          activeAccountName,
+          presetName
+        );
+        story++;
+      }
     } catch (storyErr) {
       console.warn('[Batch Story Creation Warning]:', storyErr.message);
     }
@@ -2527,7 +2554,14 @@ async function insertSingleBatchPost(p, ctx) {
  */
 router.post('/batch/confirm-schedule', async (req, res) => {
   try {
-    const { posts, include_stories = false, story_timing_rule = 'plus_3h' } = req.body;
+    const {
+      posts,
+      include_stories = false,
+      story_strategy = 'single',
+      story_timing_rule = 'plus_3h',
+      story_monthly_extension = true
+    } = req.body;
+
     if (!posts || !Array.isArray(posts) || posts.length === 0) {
       return res.status(400).json({ success: false, error: 'No se recibieron publicaciones para programar.' });
     }
@@ -2545,7 +2579,16 @@ router.post('/batch/confirm-schedule', async (req, res) => {
     let scheduledFeedCount = 0;
     let scheduledStoryCount = 0;
 
-    const ctx = { insertStmt, include_stories, story_timing_rule, activeAccountId, activeAccountName, presetName };
+    const ctx = {
+      insertStmt,
+      include_stories,
+      story_strategy,
+      story_timing_rule,
+      story_monthly_extension: Boolean(story_monthly_extension),
+      activeAccountId,
+      activeAccountName,
+      presetName
+    };
 
     for (const p of posts) {
       const { feed, story } = await insertSingleBatchPost(p, ctx);
@@ -2554,7 +2597,7 @@ router.post('/batch/confirm-schedule', async (req, res) => {
     }
 
     const totalScheduled = scheduledFeedCount + scheduledStoryCount;
-    console.log(`[Batch Autopilot] ✅ Se programaron exitosamente ${scheduledFeedCount} posts y ${scheduledStoryCount} historias.`);
+    console.log(`[Batch Autopilot] ✅ Se programaron exitosamente ${scheduledFeedCount} posts y ${scheduledStoryCount} historias (Estrategia: ${story_strategy}, Extensión 30d: ${Boolean(story_monthly_extension)}).`);
 
     res.json({
       success: true,
@@ -2562,7 +2605,7 @@ router.post('/batch/confirm-schedule', async (req, res) => {
       feedCount: scheduledFeedCount,
       storiesCount: scheduledStoryCount,
       message: scheduledStoryCount > 0
-        ? `¡Se programaron con éxito ${scheduledFeedCount} posts de feed y ${scheduledStoryCount} historias (9:16)!`
+        ? `¡Se programaron con éxito ${scheduledFeedCount} posts y ${scheduledStoryCount} historias en tu calendario!`
         : `¡Se programaron con éxito ${scheduledFeedCount} publicaciones en tu calendario!`
     });
   } catch (err) {
