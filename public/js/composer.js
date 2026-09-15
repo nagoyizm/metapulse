@@ -1135,8 +1135,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
       btnCopyImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
-    } catch (ignored) {
-      console.warn('[Composer] Fallback copia manual prompt:', ignored);
+    } catch (error_) {
+      console.warn('[Composer] Fallback copia manual prompt:', error_);
       kmarketImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
@@ -1760,8 +1760,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
       btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
-    } catch (ignored) {
-      console.warn('[Campina] Fallback copia manual prompt:', ignored);
+    } catch (error_) {
+      console.warn('[Campina] Fallback copia manual prompt:', error_);
       campinaImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
