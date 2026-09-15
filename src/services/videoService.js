@@ -33,6 +33,23 @@ class VideoService {
   }
 
   /**
+   * Ejecuta un comando FFmpeg mediante execFile devolviendo una Promesa
+   */
+  runFFmpeg(args) {
+    return new Promise((resolve, reject) => {
+      const ffmpegBin = this.getFFmpegBinary();
+      console.log(`[VideoService] Ejecutando FFmpeg: ${ffmpegBin}`);
+      execFile(ffmpegBin, args, (error, stdout, stderr) => {
+        if (error) {
+          console.error('[VideoService] Error en FFmpeg:', stderr || error.message);
+          return reject(new Error(`Error en codificación FFmpeg: ${stderr || error.message}`));
+        }
+        resolve({ stdout, stderr });
+      });
+    });
+  }
+
+  /**
    * Resuelve cualquier ruta o URL de imagen a un archivo local absoluto
    */
   async resolveImageToLocal(imageInput) {
@@ -384,7 +401,10 @@ class VideoService {
 
       await this.runFFmpeg(args);
 
+      const stat = fs.existsSync(outputPath) ? fs.statSync(outputPath) : { size: 0 };
+
       return {
+        success: true,
         outputPath,
         relativeUrl: `/uploads/stories/${outputFilename}`,
         filename: outputFilename,
@@ -392,6 +412,7 @@ class VideoService {
         width: preparedCanvas.width,
         height: preparedCanvas.height,
         aspectRatio: `${preparedCanvas.width}:${preparedCanvas.height}`,
+        sizeBytes: stat.size,
         isFeedVideo: true
       };
     } finally {
