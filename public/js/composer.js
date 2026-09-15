@@ -56,6 +56,16 @@ function renderCarouselSlideItem(s) {
   `;
 }
 
+function formatProductDetailsText(data) {
+  if (!data) return '';
+  const details = [];
+  if (data.brand) details.push(`Marca: ${data.brand}`);
+  if (data.origin) details.push(`Origen: ${data.origin}`);
+  if (data.flavorNotes) details.push(`Notas de sabor: ${data.flavorNotes}`);
+  if (data.description) details.push(data.description);
+  return details.join('\n');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const postContent = document.getElementById('post-content');
   const postTitle = document.getElementById('post-title');
@@ -258,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiImageControls = document.getElementById('ai-image-controls');
   const btnTriggerDirectImage = document.getElementById('btn-trigger-direct-image');
   const aiImageFormatSelect = document.getElementById('ai-image-format-select');
-  const lblUseBaseImage = document.getElementById('lbl-use-base-image');
   const chkUseBaseImage = document.getElementById('chk-use-base-image');
   const btnRedesignWithFlux = document.getElementById('btn-redesign-with-flux');
   const btnCreateAdPoster = document.getElementById('btn-create-ad-poster');
@@ -1126,8 +1135,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
       btnCopyImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
-    } catch (_copyErr) {
-      // Si la API del portapapeles está denegada por el navegador, seleccionar el input para facilitar la copia con Ctrl+C
+    } catch (ignored) {
+      console.warn('[Composer] Fallback copia manual prompt:', ignored);
       kmarketImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
@@ -1234,15 +1243,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       throw new Error(json.error || 'Desconocido');
     }
-  }
-
-  function formatProductDetailsText(data) {
-    const details = [];
-    if (data.brand) details.push(`Marca: ${data.brand}`);
-    if (data.origin) details.push(`Origen: ${data.origin}`);
-    if (data.flavorNotes) details.push(`Notas de sabor: ${data.flavorNotes}`);
-    if (data.description) details.push(data.description);
-    return details.join('\n');
   }
 
   function applyScannedProductData(data) {
@@ -1416,7 +1416,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnModalGenerateCampinaImage = document.getElementById('btn-modal-generate-campina-image');
   const btnGenerateCampinaEditorialFlyer = document.getElementById('btn-generate-campina-editorial-flyer');
   const chkCampinaRespectBg = document.getElementById('chk-campina-respect-bg');
-  const campinaExtraElementsWrap = document.getElementById('campina-extra-elements-wrap');
   const campinaExtraElements = document.getElementById('campina-extra-elements');
   const campinaHeroHeadline = document.getElementById('campina-hero-headline');
   const campinaSublineHeadline = document.getElementById('campina-subline-headline');
@@ -1761,8 +1760,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
       btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
       setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
-    } catch (_copyErr) {
-      // Fallback si la API de Clipboard está bloqueada por el navegador: seleccionar el texto para facilitar Ctrl+C
+    } catch (ignored) {
+      console.warn('[Campina] Fallback copia manual prompt:', ignored);
       campinaImagePromptText.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
