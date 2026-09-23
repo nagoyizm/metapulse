@@ -37,37 +37,41 @@ window.loadSettingsData = async function() {
   }
 };
 
+function renderSealPreviewUI(activeSeal, accountName) {
+  const sealImg = document.getElementById('settings-seal-img');
+  const placeholder = document.getElementById('settings-seal-placeholder');
+  const nameLabel = document.getElementById('settings-seal-filename');
+  const labelAccount = accountName || 'esta cuenta';
+
+  const hasSeal = Boolean(activeSeal && sealImg);
+  if (sealImg) sealImg.style.display = hasSeal ? 'block' : 'none';
+  if (placeholder) placeholder.style.display = hasSeal ? 'none' : 'flex';
+  if (!nameLabel) return;
+
+  if (hasSeal) {
+    sealImg.src = activeSeal.filepath;
+    nameLabel.textContent = `Sello activo (${labelAccount}): ${activeSeal.name} (${activeSeal.filename})`;
+    nameLabel.classList.remove('text-muted');
+    nameLabel.classList.add('text-emerald');
+  } else {
+    nameLabel.textContent = `Ningún sello configurado para ${labelAccount}`;
+    nameLabel.classList.remove('text-emerald');
+    nameLabel.classList.add('text-muted');
+  }
+}
+
 window.loadActiveSealPreview = async function() {
   try {
     const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
-    const url = activeAcc?.pageId ? `/api/watermarks?account_id=${encodeURIComponent(activeAcc.pageId)}` : '/api/watermarks';
+    const pageId = activeAcc?.pageId;
+    const url = pageId ? `/api/watermarks?account_id=${encodeURIComponent(pageId)}` : '/api/watermarks';
+
     const res = await fetch(url);
     const json = await res.json();
-    if (!json.success || !json.data) return;
+    if (!json.success || !Array.isArray(json.data)) return;
 
-    const activeSeal = json.data && json.data.length > 0 ? json.data[0] : null;
-    const sealImg = document.getElementById('settings-seal-img');
-    const placeholder = document.getElementById('settings-seal-placeholder');
-    const nameLabel = document.getElementById('settings-seal-filename');
-
-    if (activeSeal && sealImg) {
-      sealImg.src = activeSeal.filepath;
-      sealImg.style.display = 'block';
-      if (placeholder) placeholder.style.display = 'none';
-      if (nameLabel) {
-        nameLabel.textContent = `Sello activo (${activeAcc?.pageName || 'Esta cuenta'}): ${activeSeal.name} (${activeSeal.filename})`;
-        nameLabel.classList.remove('text-muted');
-        nameLabel.classList.add('text-emerald');
-      }
-    } else {
-      if (sealImg) sealImg.style.display = 'none';
-      if (placeholder) placeholder.style.display = 'flex';
-      if (nameLabel) {
-        nameLabel.textContent = `Ningún sello configurado para ${activeAcc?.pageName || 'esta cuenta'}`;
-        nameLabel.classList.remove('text-emerald');
-        nameLabel.classList.add('text-muted');
-      }
-    }
+    const activeSeal = json.data[0] || null;
+    renderSealPreviewUI(activeSeal, activeAcc?.pageName);
   } catch (err) {
     console.error('Error cargando preview del sello:', err);
   }

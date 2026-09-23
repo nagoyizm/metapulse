@@ -813,10 +813,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const accountSelect = document.getElementById('global-account-select');
         const accountId = activeAcc?.pageId || accountSelect?.value || '';
 
-        btnConfirm.disabled = true;
-        btnConfirm.innerHTML = '<span>⚡ Estampando logotipo...</span>';
-        showToast('Generando nueva imagen con el logotipo estampado...', 'info');
-
         const sel = document.getElementById('stamp-logo-select');
         const selectedId = sel ? sel.value : '';
 
@@ -825,19 +821,24 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        const res = await fetch('/api/watermark/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imagePath: targetImg,
-            watermarkId: parseInt(selectedId, 10),
-            scalePercent: stampScale,
-            opacity: stampOpacity / 100,
-            xPercent: stampXPercent,
-            yPercent: stampYPercent,
-            account_id: accountId
-          })
-        });
+        btnConfirm.disabled = true;
+        btnConfirm.innerHTML = '<span>⚡ Estampando logotipo...</span>';
+        showToast('Generando nueva imagen con el logotipo estampado...', 'info');
+
+        try {
+          const res = await fetch('/api/watermark/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imagePath: targetImg,
+              watermarkId: parseInt(selectedId, 10),
+              scalePercent: stampScale,
+              opacity: stampOpacity / 100,
+              xPercent: stampXPercent,
+              yPercent: stampYPercent,
+              account_id: accountId
+            })
+          });
           const json = await res.json();
 
           if (json.success && json.data?.relativeUrl) {
