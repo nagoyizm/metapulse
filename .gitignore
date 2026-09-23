@@ -18,7 +18,10 @@ data/*.sqlite-wal
 # Archivos multimedia generados y subidos
 uploads/*
 !uploads/.gitkeep
+!uploads/watermarks/
+uploads/watermarks/*
 !uploads/watermarks/.gitkeep
+!uploads/watermarks/*.png
 !uploads/processed/.gitkeep
 !uploads/generated/.gitkeep
 

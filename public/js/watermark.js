@@ -103,25 +103,62 @@ window.openInteractiveStampModal = function(forcedImage, onCompleteCallback) {
     if (stageLogo) stageLogo.style.display = 'none';
   }
 
-  // Cargar logos disponibles vía API
-  fetch('/api/watermarks?all=true')
+  // Cargar logos disponibles vía API con prioridad estricta para la cuenta activa
+  const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  const activeAccountId = activeAcc?.pageId || '';
+  const activeAccountName = activeAcc?.pageName || 'Cuenta Activa';
+  const queryUrl = activeAccountId 
+    ? `/api/watermarks?account_id=${encodeURIComponent(activeAccountId)}&all=true`
+    : '/api/watermarks?all=true';
+
+  fetch(queryUrl)
     .then(r => r.json())
     .then(json => {
       if (!json.success) return;
       _availableWatermarks = json.data || [];
       const select = document.getElementById('stamp-logo-select');
-      if (select && _availableWatermarks.length > 0) {
-        select.innerHTML = _availableWatermarks.map((w, idx) => {
-          const isDef = w.is_default ? ' ★' : '';
-          const acc = w.account_name ? ` [${w.account_name}]` : '';
-          return `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}${acc}</option>`;
-        }).join('');
-        if (stageLogoImg && _availableWatermarks[0]) {
-          stageLogoImg.src = _availableWatermarks[0].filepath;
+      if (!select) return;
+
+      const currentAccLogos = activeAccountId 
+        ? _availableWatermarks.filter(w => String(w.account_id) === String(activeAccountId))
+        : _availableWatermarks;
+      const otherAccLogos = activeAccountId 
+        ? _availableWatermarks.filter(w => String(w.account_id) !== String(activeAccountId))
+        : [];
+
+      if (currentAccLogos.length > 0) {
+        let html = '';
+        if (otherAccLogos.length > 0) {
+          html += `<optgroup label="✨ Logos de ${activeAccountName}">`;
+        }
+        currentAccLogos.forEach((w, idx) => {
+          const isDef = w.is_default ? ' ★ (Principal)' : '';
+          html += `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}</option>`;
+        });
+        if (otherAccLogos.length > 0) {
+          html += `</optgroup><optgroup label="Otros Negocios">`;
+          otherAccLogos.forEach(w => {
+            const acc = w.account_name ? ` [${w.account_name}]` : '';
+            html += `<option value="${w.id}">${w.name}${acc}</option>`;
+          });
+          html += `</optgroup>`;
+        }
+        select.innerHTML = html;
+        if (stageLogoImg && currentAccLogos[0]) {
+          stageLogoImg.src = currentAccLogos[0].filepath;
           if (stageLogo && targetImg) stageLogo.style.display = 'flex';
         }
-      } else if (select) {
-        select.innerHTML = '<option value="">(Sin logos en Multimedia & Logos)</option>';
+      } else {
+        let html = `<option value="">(Sin logos para ${activeAccountName} - Sube uno abajo)</option>`;
+        if (otherAccLogos.length > 0) {
+          html += `<optgroup label="Logos de Otras Cuentas">`;
+          otherAccLogos.forEach(w => {
+            const acc = w.account_name ? ` [${w.account_name}]` : '';
+            html += `<option value="${w.id}">${w.name}${acc}</option>`;
+          });
+          html += `</optgroup>`;
+        }
+        select.innerHTML = html;
         if (stageLogo) stageLogo.style.display = 'none';
       }
     })
@@ -226,7 +263,9 @@ window.useMediaAsPostAndStory = function(filePath) {
 
 window.loadWatermarksList = async function() {
   try {
-    const res = await fetch('/api/watermarks');
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const url = activeAcc?.pageId ? `/api/watermarks?account_id=${encodeURIComponent(activeAcc.pageId)}` : '/api/watermarks';
+    const res = await fetch(url);
     const json = await res.json();
     if (!json.success) return;
 
@@ -234,11 +273,11 @@ window.loadWatermarksList = async function() {
     const nameEl = document.getElementById('logo-file-name');
     if (nameEl) {
       if (watermarks && watermarks.length > 0) {
-        nameEl.textContent = `Logo activo: ${watermarks[0].name} (${watermarks[0].filename})`;
+        nameEl.textContent = `Logo activo (${activeAcc?.pageName || 'Esta cuenta'}): ${watermarks[0].name} (${watermarks[0].filename})`;
         nameEl.classList.remove('text-muted');
         nameEl.classList.add('text-emerald');
       } else {
-        nameEl.textContent = 'Ningún logo configurado para esta cuenta';
+        nameEl.textContent = `Ningún logo configurado para ${activeAcc?.pageName || 'esta cuenta'}`;
         nameEl.classList.remove('text-emerald');
         nameEl.classList.add('text-muted');
       }
@@ -270,12 +309,15 @@ document.addEventListener('DOMContentLoaded', () => {
     logoFileInput.addEventListener('change', async () => {
       if (!logoFileInput.files || logoFileInput.files.length === 0) return;
       const file = logoFileInput.files[0];
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
 
       const formData = new FormData();
       formData.append('logo', file);
       formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
+      if (activeAcc?.pageId) formData.append('account_id', activeAcc.pageId);
+      if (activeAcc?.pageName) formData.append('account_name', activeAcc.pageName);
 
-      showToast('Guardando logotipo oficial...', 'info');
+      showToast(`Guardando logotipo oficial para ${activeAcc?.pageName || 'cuenta activa'}...`, 'info');
 
       try {
         const res = await fetch('/api/watermark/upload-logo', {
@@ -524,36 +566,71 @@ document.addEventListener('DOMContentLoaded', () => {
   // Carga de logos desde el backend con soporte multi-cuenta y fallback global
   async function loadWatermarksForStampModal() {
     try {
-      const res = await fetch('/api/watermarks?all=true');
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      const activeAccountId = activeAcc?.pageId || '';
+      const activeAccountName = activeAcc?.pageName || 'Cuenta Activa';
+      const q = activeAccountId 
+        ? `/api/watermarks?account_id=${encodeURIComponent(activeAccountId)}&all=true`
+        : '/api/watermarks?all=true';
+
+      const res = await fetch(q);
       const json = await res.json();
       if (!json.success) return;
 
       availableWatermarks = json.data || [];
+      _availableWatermarks = availableWatermarks;
       const select = document.getElementById('stamp-logo-select');
       const stageLogo = document.getElementById('stamp-stage-logo');
       const stageLogoImg = document.getElementById('stamp-stage-logo-img');
 
       if (!select) return;
 
-      if (availableWatermarks.length === 0) {
-        select.innerHTML = '<option value="">(Sin logos subidos aún en Multimedia & Logos)</option>';
+      const currentAccLogos = activeAccountId 
+        ? availableWatermarks.filter(w => String(w.account_id) === String(activeAccountId))
+        : availableWatermarks;
+      const otherAccLogos = activeAccountId 
+        ? availableWatermarks.filter(w => String(w.account_id) !== String(activeAccountId))
+        : [];
+
+      if (currentAccLogos.length > 0) {
+        let html = '';
+        if (otherAccLogos.length > 0) {
+          html += `<optgroup label="✨ Logos de ${activeAccountName}">`;
+        }
+        currentAccLogos.forEach((w, idx) => {
+          const isDef = w.is_default ? ' ★ (Principal)' : '';
+          html += `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}</option>`;
+        });
+        if (otherAccLogos.length > 0) {
+          html += `</optgroup><optgroup label="Otros Negocios">`;
+          otherAccLogos.forEach(w => {
+            const acc = w.account_name ? ` [${w.account_name}]` : '';
+            html += `<option value="${w.id}">${w.name}${acc}</option>`;
+          });
+          html += `</optgroup>`;
+        }
+        select.innerHTML = html;
+
+        const activeLogo = currentAccLogos[0];
+        if (stageLogoImg && activeLogo) {
+          stageLogoImg.src = activeLogo.filepath;
+          if (stageLogo) stageLogo.style.display = 'flex';
+          setTimeout(() => {
+            syncStampPosition();
+          }, 50);
+        }
+      } else {
+        let html = `<option value="">(Sin logos registrados para ${activeAccountName} - Sube uno abajo)</option>`;
+        if (otherAccLogos.length > 0) {
+          html += `<optgroup label="Logos de Otras Cuentas">`;
+          otherAccLogos.forEach(w => {
+            const acc = w.account_name ? ` [${w.account_name}]` : '';
+            html += `<option value="${w.id}">${w.name}${acc}</option>`;
+          });
+          html += `</optgroup>`;
+        }
+        select.innerHTML = html;
         if (stageLogo) stageLogo.style.display = 'none';
-        return;
-      }
-
-      select.innerHTML = availableWatermarks.map((w, idx) => {
-        const isDef = w.is_default ? ' ★ (Defecto)' : '';
-        const accInfo = w.account_name ? ` [${w.account_name}]` : '';
-        return `<option value="${w.id}" ${idx === 0 ? 'selected' : ''}>${w.name}${isDef}${accInfo}</option>`;
-      }).join('');
-
-      const activeLogo = availableWatermarks[0];
-      if (stageLogoImg && activeLogo) {
-        stageLogoImg.src = activeLogo.filepath;
-        if (stageLogo) stageLogo.style.display = 'flex';
-        setTimeout(() => {
-          syncStampPosition();
-        }, 50);
       }
     } catch (err) {
       console.warn('Error cargando logos para el modal:', err);
@@ -674,11 +751,15 @@ document.addEventListener('DOMContentLoaded', () => {
       inputUpload.onchange = async () => {
         if (!inputUpload.files || inputUpload.files.length === 0) return;
         const file = inputUpload.files[0];
+        const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+
         const formData = new FormData();
         formData.append('logo', file);
         formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
+        if (activeAcc?.pageId) formData.append('account_id', activeAcc.pageId);
+        if (activeAcc?.pageName) formData.append('account_name', activeAcc.pageName);
 
-        showToast('Subiendo nuevo logotipo...', 'info');
+        showToast(`Subiendo nuevo logotipo para ${activeAcc?.pageName || 'cuenta activa'}...`, 'info');
         try {
           const res = await fetch('/api/watermark/upload-logo', {
             method: 'POST',
@@ -736,22 +817,27 @@ document.addEventListener('DOMContentLoaded', () => {
         btnConfirm.innerHTML = '<span>⚡ Estampando logotipo...</span>';
         showToast('Generando nueva imagen con el logotipo estampado...', 'info');
 
-        try {
-          const sel = document.getElementById('stamp-logo-select');
-          const selectedId = sel ? sel.value : '';
-          const res = await fetch('/api/watermark/apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              imagePath: targetImg,
-              watermarkId: selectedId ? parseInt(selectedId, 10) : undefined,
-              scalePercent: stampScale,
-              opacity: stampOpacity / 100,
-              xPercent: stampXPercent,
-              yPercent: stampYPercent,
-              account_id: accountId
-            })
-          });
+        const sel = document.getElementById('stamp-logo-select');
+        const selectedId = sel ? sel.value : '';
+
+        if (!selectedId) {
+          showToast(`Debes seleccionar o subir un logotipo para ${activeAcc?.pageName || 'esta cuenta'}`, 'warning');
+          return;
+        }
+
+        const res = await fetch('/api/watermark/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imagePath: targetImg,
+            watermarkId: parseInt(selectedId, 10),
+            scalePercent: stampScale,
+            opacity: stampOpacity / 100,
+            xPercent: stampXPercent,
+            yPercent: stampYPercent,
+            account_id: accountId
+          })
+        });
           const json = await res.json();
 
           if (json.success && json.data?.relativeUrl) {

@@ -288,6 +288,18 @@ function initializeDatabase() {
       insertPreset.run(p.name, p.description, p.slots, p.is_active);
     }
   }
+
+  // Asegurar que Cabañas La Campiña tenga su logo oficial registrado si existe el archivo
+  try {
+    const campinaLogoFile = path.join(__dirname, '../../uploads/watermarks/campina_logo_oficial.png');
+    const campinaWm = db.prepare("SELECT * FROM watermarks WHERE account_id = '153949194468281'").get();
+    if (!campinaWm && fs.existsSync(campinaLogoFile)) {
+      db.prepare(`
+        INSERT INTO watermarks (name, filename, filepath, is_default, account_id, account_name)
+        VALUES ('Logo Oficial Cabañas La Campiña', 'campina_logo_oficial.png', '/uploads/watermarks/campina_logo_oficial.png', 1, '153949194468281', 'Cabañas La Campiña - Algarrobo')
+      `).run();
+    }
+  } catch (_) {}
 }
 
 // Helpers for settings

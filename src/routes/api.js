@@ -1657,10 +1657,14 @@ async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWaterm
   if (getSetting('auto_stamp_seal') === 'false' || !result?.url) return;
   try {
     const activeAccId = accountId || getSetting('meta_page_id') || '';
-    const wmRow = activeAccId 
-      ? db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccId)
-      : db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
-    if (!wmRow) return;
+    if (!activeAccId) return;
+
+    // Solo estampar si la cuenta específica tiene un logotipo oficial registrado para su marca
+    const wmRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccId);
+    if (!wmRow) {
+      console.log(`${logPrefix} No hay logo registrado específicamente para la cuenta ${activeAccId}. Omitiendo estampado automático.`);
+      return;
+    }
 
     const wmPath = path.join(__dirname, '../../uploads/watermarks', wmRow.filename);
     const cleanGenPath = result.url.replace(/^[\\/]+/, '');
@@ -2016,13 +2020,17 @@ router.post('/watermark/upload-logo', uploadWatermark.single('logo'), (req, res)
 
 router.get('/watermarks', (req, res) => {
   try {
-    const filterAccountId = req.query.account_id || (req.query.all === 'true' ? null : getSetting('meta_page_id'));
+    const filterAccountId = req.query.account_id || (req.query.all === 'true' ? null : (req.headers['x-account-id'] || getSetting('meta_page_id')));
     let watermarks = [];
     if (filterAccountId && req.query.all !== 'true') {
       watermarks = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, created_at DESC').all(filterAccountId);
-    }
-    // Fallback si la cuenta específica aún no tiene logo propio registrado
-    if (!watermarks || watermarks.length === 0) {
+    } else if (filterAccountId && req.query.all === 'true') {
+      // Retornar todos los logos pero priorizando SIEMPRE los de la cuenta activa al inicio
+      watermarks = db.prepare(`
+        SELECT * FROM watermarks 
+        ORDER BY CASE WHEN account_id = ? THEN 0 ELSE 1 END, is_default DESC, created_at DESC
+      `).all(filterAccountId);
+    } else {
       watermarks = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, created_at DESC').all();
     }
     res.json({ success: true, data: watermarks, filterAccountId: filterAccountId || 'all' });
@@ -2034,7 +2042,7 @@ router.get('/watermarks', (req, res) => {
 router.post('/watermark/apply', async (req, res) => {
   try {
     const { imagePath, watermarkId, position, opacity, scalePercent, xPercent, yPercent } = req.body;
-    const activeAccountId = req.body.account_id || getSetting('meta_page_id') || '';
+    const activeAccountId = req.body.account_id || req.headers['x-account-id'] || '';
 
     let watermarkRow;
     if (watermarkId) {
@@ -2043,12 +2051,12 @@ router.post('/watermark/apply', async (req, res) => {
     if (!watermarkRow && activeAccountId) {
       watermarkRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
     }
-    if (!watermarkRow) {
+    if (!watermarkRow && !activeAccountId) {
       watermarkRow = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
     }
 
     if (!watermarkRow) {
-      return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado en Multimedia & Logos. Sube uno primero.' });
+      return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado para esta cuenta en Multimedia & Logos. Sube uno primero.' });
     }
 
     const absImagePath = path.isAbsolute(imagePath)

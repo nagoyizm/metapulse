@@ -39,7 +39,9 @@ window.loadSettingsData = async function() {
 
 window.loadActiveSealPreview = async function() {
   try {
-    const res = await fetch('/api/watermarks');
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const url = activeAcc?.pageId ? `/api/watermarks?account_id=${encodeURIComponent(activeAcc.pageId)}` : '/api/watermarks';
+    const res = await fetch(url);
     const json = await res.json();
     if (!json.success || !json.data) return;
 
@@ -53,7 +55,7 @@ window.loadActiveSealPreview = async function() {
       sealImg.style.display = 'block';
       if (placeholder) placeholder.style.display = 'none';
       if (nameLabel) {
-        nameLabel.textContent = `Sello activo: ${activeSeal.name} (${activeSeal.filename})`;
+        nameLabel.textContent = `Sello activo (${activeAcc?.pageName || 'Esta cuenta'}): ${activeSeal.name} (${activeSeal.filename})`;
         nameLabel.classList.remove('text-muted');
         nameLabel.classList.add('text-emerald');
       }
@@ -61,7 +63,7 @@ window.loadActiveSealPreview = async function() {
       if (sealImg) sealImg.style.display = 'none';
       if (placeholder) placeholder.style.display = 'flex';
       if (nameLabel) {
-        nameLabel.textContent = 'Ningún sello configurado para esta cuenta';
+        nameLabel.textContent = `Ningún sello configurado para ${activeAcc?.pageName || 'esta cuenta'}`;
         nameLabel.classList.remove('text-emerald');
         nameLabel.classList.add('text-muted');
       }
@@ -258,12 +260,15 @@ document.addEventListener('DOMContentLoaded', () => {
     sealFileInput.addEventListener('change', async () => {
       if (!sealFileInput.files || sealFileInput.files.length === 0) return;
       const file = sealFileInput.files[0];
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
 
       const formData = new FormData();
       formData.append('logo', file);
       formData.append('name', file.name.replace(/\.[^/.]+$/, ''));
+      if (activeAcc?.pageId) formData.append('account_id', activeAcc.pageId);
+      if (activeAcc?.pageName) formData.append('account_name', activeAcc.pageName);
 
-      showToast('Guardando sello oficial de marca...', 'info');
+      showToast(`Guardando sello oficial para ${activeAcc?.pageName || 'cuenta activa'}...`, 'info');
 
       try {
         const res = await fetch('/api/watermark/upload-logo', {
