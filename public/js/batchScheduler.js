@@ -220,7 +220,8 @@
         currentBatchItems = json.items.map(item => ({
           ...item,
           originalImageUrl: item.imageUrl,
-          isVideo: false
+          isVideo: false,
+          post_type: 'feed'
         }));
 
         renderReviewCards(currentBatchItems);
@@ -294,23 +295,47 @@
       }
 
       const isVideo = Boolean(item.isVideo);
-      const mediaHtml = isVideo
-        ? `<video src="${item.imageUrl}" autoplay loop muted playsinline class="batch-card-thumb-video" style="width:100%; height:100%; object-fit:cover;"></video>`
-        : `<img src="${item.imageUrl}" alt="${escapeHtml(item.productName)}" class="batch-card-thumb-img" style="width:100%; height:100%; object-fit:cover;">`;
+      const isStory = item.post_type === 'story';
+
+      let mediaHtml = '';
+      if (isVideo) {
+        mediaHtml = `<video src="${item.imageUrl}" autoplay loop muted playsinline class="batch-card-thumb-video" style="width:100%; height:100%; object-fit:${isStory ? 'contain' : 'cover'};"></video>`;
+      } else {
+        mediaHtml = `<img src="${item.imageUrl}" alt="${escapeHtml(item.productName)}" class="batch-card-thumb-img" style="width:100%; height:100%; object-fit:${isStory ? 'contain' : 'cover'};">`;
+      }
+
+      const backdropHtml = isStory
+        ? `<div style="position:absolute; inset:0; background:url('${item.originalImageUrl || item.imageUrl}') center/cover no-repeat; filter:blur(10px) brightness(0.6); transform:scale(1.2);"></div>`
+        : '';
 
       const badgeHtml = isVideo
-        ? `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700;">🎬 Video MP4 🎵</div>`
-        : `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:rgba(16,185,129,0.9); color:#fff; font-size:0.65rem; padding:2px 5px; border-radius:4px; font-weight:600;">Sello ✅</div>`;
+        ? `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700; z-index:2;">🎬 ${isStory ? 'Historia 16:9' : 'Video Feed'} 🎵</div>`
+        : (isStory
+            ? `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700; z-index:2;">📲 Historia 16:9</div>`
+            : `<div class="batch-card-status-badge" style="position:absolute; bottom:6px; right:6px; background:rgba(16,185,129,0.9); color:#fff; font-size:0.65rem; padding:2px 5px; border-radius:4px; font-weight:600; z-index:2;">Feed 4:5 ✅</div>`);
 
       card.innerHTML = `
         <!-- Columna Izquierda: Imagen/Video con acciones rápidas -->
         <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
-          <div class="batch-card-media-wrap" style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#0f172a; aspect-ratio:4/5;">
-            ${mediaHtml}
-            <div style="position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.75); color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">
+          <div class="batch-card-media-wrap" style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#0f172a; aspect-ratio:${isStory ? '9/16' : '4/5'}; display:flex; align-items:center; justify-content:center; transition:all 0.2s ease;">
+            ${backdropHtml}
+            <div style="position:relative; z-index:1; width:100%; height:100%; display:flex; align-items:center; justify-content:center; ${isStory ? 'padding:6px;' : ''}">
+              ${mediaHtml}
+            </div>
+            <div style="position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.75); color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700; z-index:2;">
               #${index + 1}
             </div>
             ${badgeHtml}
+          </div>
+
+          <!-- Selector de Formato: Post Feed (4:5) vs Historia (16:9) -->
+          <div style="width:100%; display:grid; grid-template-columns: 1fr 1fr; gap:4px; background:rgba(15,23,42,0.6); padding:3px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+            <button type="button" class="btn btn-xs btn-format-feed" data-id="${item.id}" style="font-size:0.7rem; padding:3px 2px; font-weight:${!isStory ? '700' : '400'}; background:${!isStory ? 'var(--primary, #3b82f6)' : 'transparent'}; color:${!isStory ? '#fff' : 'var(--text-secondary)'}; border:none; border-radius:4px; cursor:pointer;" title="Publicar como post de feed (4:5)">
+              📱 Feed
+            </button>
+            <button type="button" class="btn btn-xs btn-format-story" data-id="${item.id}" style="font-size:0.7rem; padding:3px 2px; font-weight:${isStory ? '700' : '400'}; background:${isStory ? 'linear-gradient(135deg, #ec4899, #8b5cf6)' : 'transparent'}; color:${isStory ? '#fff' : 'var(--text-secondary)'}; border:none; border-radius:4px; cursor:pointer;" title="Publicar como historia vertical 16:9 (sin recortes)">
+              📲 Historia
+            </button>
           </div>
 
           <!-- Botones de Acción Multimedia -->
@@ -320,7 +345,7 @@
             </button>
 
             <button type="button" class="btn btn-secondary btn-xs btn-batch-add-music" data-id="${item.id}" style="width:100%; font-size:0.75rem; padding:4px 6px; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:600; background:linear-gradient(135deg, rgba(236,72,153,0.12) 0%, rgba(139,92,246,0.12) 100%); border-color:rgba(236,72,153,0.4); color:var(--text-primary);" title="Añadir música y convertir en video MP4">
-              <span>${isVideo ? '🎵 Cambiar Música' : '🎵 Poner Música & Video'}</span>
+              <span>${isVideo ? '🎵 Cambiar Música' : (isStory ? '🎵 Música & Video 16:9' : '🎵 Poner Música & Video')}</span>
             </button>
 
             ${isVideo ? `
@@ -365,6 +390,26 @@
       if (textarea && counter) {
         textarea.addEventListener('input', () => {
           counter.textContent = `${textarea.value.length} caracteres`;
+        });
+      }
+
+      // Selector de formato: Feed vs Historia
+      const btnFeed = card.querySelector('.btn-format-feed');
+      if (btnFeed) {
+        btnFeed.addEventListener('click', () => {
+          if (item.post_type !== 'feed') {
+            item.post_type = 'feed';
+            renderReviewCards(currentBatchItems);
+          }
+        });
+      }
+      const btnStory = card.querySelector('.btn-format-story');
+      if (btnStory) {
+        btnStory.addEventListener('click', () => {
+          if (item.post_type !== 'story') {
+            item.post_type = 'story';
+            renderReviewCards(currentBatchItems);
+          }
         });
       }
 
@@ -456,6 +501,7 @@
 
     item.imageUrl = item.originalImageUrl;
     item.isVideo = false;
+    delete item.musicConfig;
     renderReviewCards(currentBatchItems);
 
     if (typeof showToast === 'function') {
@@ -472,7 +518,7 @@
     if (!item) return;
 
     batchMusicState.currentItemId = itemId;
-    batchMusicState.format = 'feed';
+    batchMusicState.format = item.post_type === 'story' ? 'story' : 'feed';
     batchMusicState.duration = 15;
     batchMusicState.startTime = 0;
 
@@ -487,18 +533,24 @@
     }
 
     const previewImg = getEl('batch-music-preview-img');
+    const imgSrc = item.originalImageUrl || item.imageUrl;
     if (previewImg) {
-      previewImg.src = item.originalImageUrl || item.imageUrl;
+      previewImg.src = imgSrc;
     }
 
-    // Resetear formato a feed y duración a 15s
+    // Actualizar radio buttons según el formato
     const radioFeed = document.querySelector('input[name="batch_video_format"][value="feed"]');
-    if (radioFeed) {
+    const radioStory = document.querySelector('input[name="batch_video_format"][value="story"]');
+    if (batchMusicState.format === 'story' && radioStory) {
+      radioStory.checked = true;
+    } else if (radioFeed) {
       radioFeed.checked = true;
-      document.querySelectorAll('input[name="batch_video_format"]').forEach(r => {
-        r.closest('.radio-pill')?.classList.toggle('active', r.checked);
-      });
     }
+    document.querySelectorAll('input[name="batch_video_format"]').forEach(r => {
+      r.closest('.radio-pill')?.classList.toggle('active', r.checked);
+    });
+
+    updateBatchModalPreviewFormat(batchMusicState.format, imgSrc);
 
     document.querySelectorAll('.batch-music-duration-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.duration === '15');
@@ -517,6 +569,47 @@
     // Cargar catálogo curado si aún no está cargado
     if (batchMusicState.catalog.length === 0) {
       loadBatchMusicCatalog();
+    }
+  }
+
+  function updateBatchModalPreviewFormat(format, optionalImgSrc) {
+    const wrap = getEl('batch-music-preview-wrap');
+    const backdrop = getEl('batch-music-preview-backdrop');
+    const img = getEl('batch-music-preview-img');
+    const targetSrc = optionalImgSrc || img?.src || '';
+
+    if (!wrap || !img) return;
+
+    if (format === 'story') {
+      wrap.style.aspectRatio = '9/16';
+      wrap.style.maxHeight = '280px';
+      wrap.style.padding = '10px 6px';
+
+      if (backdrop) {
+        backdrop.style.display = 'block';
+        if (targetSrc) {
+          backdrop.style.backgroundImage = `url('${targetSrc}')`;
+        }
+      }
+
+      img.style.objectFit = 'contain';
+      img.style.borderRadius = '8px';
+      img.style.boxShadow = '0 6px 16px rgba(0,0,0,0.5)';
+      img.style.border = '1px solid rgba(255,255,255,0.15)';
+    } else {
+      wrap.style.aspectRatio = '4/5';
+      wrap.style.maxHeight = '';
+      wrap.style.padding = '0';
+
+      if (backdrop) {
+        backdrop.style.display = 'none';
+        backdrop.style.backgroundImage = '';
+      }
+
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '0';
+      img.style.boxShadow = 'none';
+      img.style.border = 'none';
     }
   }
 
@@ -731,6 +824,18 @@
       });
     });
 
+    // 3.1 Cambio de Formato de Video (Feed 4:5 vs Historia 16:9 vertical blur)
+    document.querySelectorAll('input[name="batch_video_format"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        batchMusicState.format = e.target.value;
+        document.querySelectorAll('input[name="batch_video_format"]').forEach(r => {
+          r.closest('.radio-pill')?.classList.toggle('active', r.checked);
+        });
+        const currentItem = currentBatchItems.find(i => i.id === batchMusicState.currentItemId);
+        updateBatchModalPreviewFormat(batchMusicState.format, currentItem?.originalImageUrl || currentItem?.imageUrl);
+      });
+    });
+
     // 4. Slider de inicio
     const startSlider = getEl('batch-music-start-slider');
     if (startSlider) {
@@ -896,8 +1001,12 @@
 
     stopBatchAudio();
 
+    const isStoryFormat = batchMusicState.format === 'story';
+
     if (typeof showToast === 'function') {
-      showToast('Generando video MP4 con audio real mediante FFmpeg...', 'info');
+      showToast(isStoryFormat
+        ? 'Generando video vertical 16:9 para Historia con audio real mediante FFmpeg...'
+        : 'Generando video MP4 con audio real mediante FFmpeg...', 'info');
     }
 
     try {
@@ -911,7 +1020,7 @@
           post_type: batchMusicState.format,
           duration: batchMusicState.duration,
           start_time: batchMusicState.startTime,
-          add_music_sticker: batchMusicState.format === 'story',
+          add_music_sticker: isStoryFormat,
           song_title: batchMusicState.selectedTrack.title,
           song_artist: batchMusicState.selectedTrack.artist
         })
@@ -923,13 +1032,22 @@
         if (!item.originalImageUrl) item.originalImageUrl = item.imageUrl;
         item.imageUrl = json.data.relativeUrl;
         item.isVideo = true;
-        item.post_type = batchMusicState.format === 'story' ? 'story' : 'reel';
+        item.post_type = isStoryFormat ? 'story' : 'feed';
+        item.musicConfig = {
+          audio_url: batchMusicState.selectedTrack.streamUrl,
+          duration: batchMusicState.duration,
+          start_time: batchMusicState.startTime,
+          song_title: batchMusicState.selectedTrack.title,
+          song_artist: batchMusicState.selectedTrack.artist
+        };
 
         closeBatchMusicModal();
         renderReviewCards(currentBatchItems);
 
         if (typeof showToast === 'function') {
-          showToast('¡Video con música generado con éxito y aplicado al post!', 'success');
+          showToast(isStoryFormat
+            ? '¡Video vertical 16:9 con música generado con éxito y aplicado como Historia!'
+            : '¡Video con música generado con éxito y aplicado al post!', 'success');
         }
       } else {
         throw new Error(json.error || 'Error al generar video');
@@ -982,8 +1100,16 @@
             content: content,
             scheduledAt: iso,
             imageUrl: rawItem?.imageUrl || '',
+            originalImageUrl: rawItem?.originalImageUrl || rawItem?.imageUrl || '',
             isVideo: Boolean(rawItem?.isVideo),
-            post_type: rawItem?.isVideo ? (rawItem?.post_type || 'reel') : 'feed',
+            post_type: rawItem?.post_type || (rawItem?.isVideo ? 'feed' : 'feed'),
+            musicConfig: rawItem?.musicConfig ? {
+              audio_url: rawItem.musicConfig.audio_url || rawItem.musicConfig.audioUrl,
+              duration: rawItem.musicConfig.duration,
+              start_time: rawItem.musicConfig.start_time || rawItem.musicConfig.startTime,
+              song_title: rawItem.musicConfig.song_title || rawItem.musicConfig.title,
+              song_artist: rawItem.musicConfig.song_artist || rawItem.musicConfig.artist
+            } : null,
             platforms: ['instagram', 'facebook']
           });
         }

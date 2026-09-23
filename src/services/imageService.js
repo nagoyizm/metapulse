@@ -262,21 +262,56 @@ class ImageService {
     const storyWidth = 1080;
     const storyHeight = 1920;
 
+    const meta = await sharp(inputBuffer).metadata();
+    if (meta.width === storyWidth && meta.height === storyHeight) {
+      if (typeof inputImagePath === 'string' && inputImagePath.includes('/uploads/processed/story_')) {
+        return {
+          outputPath: inputImagePath,
+          filename: path.basename(inputImagePath),
+          relativeUrl: inputImagePath.startsWith('/') ? inputImagePath : `/uploads/processed/${path.basename(inputImagePath)}`
+        };
+      }
+    }
+
     // 1. Crear fondo difuminado 1080x1920
     const bgBuffer = await sharp(inputBuffer)
       .resize(storyWidth, storyHeight, { fit: 'cover' })
-      .blur(30)
-      .modulate({ brightness: 0.55 })
+      .blur(25)
+      .modulate({ brightness: 0.6 })
       .toBuffer();
 
-    // 2. Redimensionar la imagen del post para centrarla
+    // 2. Redimensionar la imagen del post para centrarla dentro del espacio 16:9 sin recortar
     const postBuffer = await sharp(inputBuffer)
-      .resize(920, 1200, { fit: 'inside' })
+      .resize(920, 1300, { fit: 'inside' })
       .toBuffer();
 
     const postMeta = await sharp(postBuffer).metadata();
     const left = Math.round((storyWidth - postMeta.width) / 2);
     const top = Math.round((storyHeight - postMeta.height) / 2);
+
+    // Máscara con esquinas redondeadas estilo Instagram Story Share
+    const radius = 24;
+    const maskSvg = Buffer.from(
+      `<svg width="${postMeta.width}" height="${postMeta.height}"><rect x="0" y="0" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="white"/></svg>`
+    );
+
+    const roundedPost = await sharp(postBuffer)
+      .composite([{ input: maskSvg, blend: 'dest-in' }])
+      .png()
+      .toBuffer();
+
+    const shadowMargin = 15;
+    const shadowSvg = Buffer.from(
+      `<svg width="${postMeta.width + shadowMargin * 2}" height="${postMeta.height + shadowMargin * 2}">
+        <defs>
+          <filter id="storyCardShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="10" stdDeviation="15" flood-color="#000000" flood-opacity="0.55"/>
+          </filter>
+        </defs>
+        <rect x="${shadowMargin}" y="${shadowMargin}" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="rgba(0,0,0,0.3)" filter="url(#storyCardShadow)"/>
+        <rect x="${shadowMargin}" y="${shadowMargin}" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+      </svg>`
+    );
 
     const outputFilename = `story_${Date.now()}_${baseName.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
     const outputPath = path.join(this.processedDir, outputFilename);
@@ -284,13 +319,19 @@ class ImageService {
     await sharp(bgBuffer)
       .composite([
         {
-          input: postBuffer,
+          input: shadowSvg,
+          top: top - shadowMargin,
+          left: left - shadowMargin,
+          blend: 'over'
+        },
+        {
+          input: roundedPost,
           top: top,
           left: left,
           blend: 'over'
         }
       ])
-      .jpeg({ quality: 92 })
+      .jpeg({ quality: 95 })
       .toFile(outputPath);
 
     return {

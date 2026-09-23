@@ -1,6 +1,10 @@
 const cron = require('node-cron');
+const path = require('path');
+const fs = require('fs');
 const { db, getSetting } = require('../database/db');
 const metaService = require('./metaService');
+const videoService = require('./videoService');
+const imageService = require('./imageService');
 
 class SchedulerService {
   cronTask = null;
@@ -152,6 +156,33 @@ class SchedulerService {
     let errorMessage = '';
 
     try {
+      // Asegurar que si el post es de tipo 'story', su medio esté adaptado a 1080x1920 9:16 sin recortar bordes
+      if (post.post_type === 'story' && mediaUrls.length > 0) {
+        try {
+          const firstMedia = mediaUrls[0];
+          const isVid = Boolean(firstMedia && (/\.(mp4|mov|webm)$/i.test(firstMedia.split('?')[0]) || firstMedia.includes('/uploads/stories/')));
+          if (isVid) {
+            const dims = await videoService.getVideoDimensions(firstMedia.startsWith('http') ? firstMedia : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, '')));
+            if (dims.width > 0 && dims.height > 0 && (dims.width !== 1080 || dims.height !== 1920)) {
+              console.log(`[Scheduler] 🎬 Adaptando video de Story #${post.id} (${dims.width}x${dims.height}) a 1080x1920 9:16 con fondo blur...`);
+              const conv = await videoService.convertVideoToStoryVideo({ videoInput: firstMedia });
+              mediaUrls[0] = conv.relativeUrl;
+              db.prepare('UPDATE posts SET media_urls = ? WHERE id = ?').run(JSON.stringify(mediaUrls), post.id);
+            }
+          } else {
+            const absImg = firstMedia.startsWith('http') ? firstMedia : path.join(__dirname, '../../', firstMedia.replace(/^\/+/, ''));
+            const card = await imageService.createStoryCard({ inputImagePath: absImg, brandName: post.account_name || '' });
+            if (card?.relativeUrl && card.relativeUrl !== firstMedia) {
+              console.log(`[Scheduler] 📲 Adaptando imagen de Story #${post.id} a 1080x1920 9:16 con fondo blur...`);
+              mediaUrls[0] = card.relativeUrl;
+              db.prepare('UPDATE posts SET media_urls = ? WHERE id = ?').run(JSON.stringify(mediaUrls), post.id);
+            }
+          }
+        } catch (storyAdaptErr) {
+          console.warn('[Scheduler] Advertencia al verificar/adaptar formato de Story:', storyAdaptErr.message);
+        }
+      }
+
       if (platforms.includes('facebook')) {
         results.facebook = await this.dispatchToFacebook(post, mediaUrls, creds);
         if (!results.facebook.success) {

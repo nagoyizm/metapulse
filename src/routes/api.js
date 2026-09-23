@@ -324,25 +324,39 @@ router.get('/posts', (req, res) => {
 });
 
 async function maybeGeneratePostVideo(post_type, music_config, media_urls) {
-  if (!music_config?.audio_url || !media_urls?.length) return;
+  if (!media_urls?.length) return;
   const firstMedia = media_urls[0];
-  if (firstMedia.match(/\.(mp4|mov)$/i)) return;
 
   try {
-    console.log(`[API] Generando video con música embebida para post formato: "${post_type}"...`);
-    const vidResult = await videoService.generatePostVideo({
-      imageInput: firstMedia,
-      audioInput: music_config.audio_url,
-      postType: post_type,
-      duration: music_config.duration || 15,
-      startTime: music_config.start_time || 0,
-      addMusicSticker: post_type === 'story' ? Boolean(music_config.add_music_sticker) : false,
-      songTitle: music_config.song_title || '',
-      songArtist: music_config.song_artist || ''
-    });
-    media_urls[0] = vidResult.relativeUrl;
+    if (music_config?.audio_url) {
+      console.log(`[API] Generando video con música embebida para post formato: "${post_type}"...`);
+      const vidResult = await videoService.generatePostVideo({
+        imageInput: firstMedia,
+        audioInput: music_config.audio_url,
+        postType: post_type,
+        duration: music_config.duration || 15,
+        startTime: music_config.start_time || 0,
+        addMusicSticker: post_type === 'story' ? Boolean(music_config.add_music_sticker) : false,
+        songTitle: music_config.song_title || '',
+        songArtist: music_config.song_artist || ''
+      });
+      media_urls[0] = vidResult.relativeUrl;
+    } else if (post_type === 'story') {
+      // Si es formato Story sin música configurada, asegurar encuadre 16:9 vertical
+      if (isVideoUrl(firstMedia)) {
+        const conv = await videoService.convertVideoToStoryVideo({ videoInput: firstMedia });
+        media_urls[0] = conv.relativeUrl;
+      } else {
+        let absImg = firstMedia;
+        if (!absImg.startsWith('http')) {
+          absImg = path.join(__dirname, '../../', absImg.replace(/^\//, ''));
+        }
+        const card = await imageService.createStoryCard({ inputImagePath: absImg });
+        media_urls[0] = card.relativeUrl;
+      }
+    }
   } catch (err) {
-    console.warn('[Auto-Post-Music Video Error]:', err.message);
+    console.warn('[Auto-Post-Music/Story Video Error]:', err.message);
   }
 }
 
@@ -487,7 +501,14 @@ async function createCrossStoryPost(opts) {
   let storyMediaUrl = media_urls[0];
 
   if (isReel || videoMedia) {
-    storyMediaUrl = videoMedia || media_urls[0];
+    const rawVideo = videoMedia || media_urls[0];
+    try {
+      const conv = await videoService.convertVideoToStoryVideo({ videoInput: rawVideo });
+      storyMediaUrl = conv.relativeUrl;
+    } catch (vErr) {
+      console.warn('[CrossStory] Error adaptando video a 9:16:', vErr.message);
+      storyMediaUrl = rawVideo;
+    }
   } else {
     let absImagePath = media_urls[0];
     if (!absImagePath.startsWith('http')) {
@@ -886,7 +907,14 @@ async function resolveStoryMediaForPost(post) {
   let storyMediaUrl = '';
 
   if (isVideo) {
-    storyMediaUrl = videoUrl || mediaUrls[0];
+    const rawVideo = videoUrl || mediaUrls[0];
+    try {
+      const conv = await videoService.convertVideoToStoryVideo({ videoInput: rawVideo });
+      storyMediaUrl = conv.relativeUrl;
+    } catch (vErr) {
+      console.warn('[StoryMedia] Error adaptando video a formato 9:16:', vErr.message);
+      storyMediaUrl = rawVideo;
+    }
   } else if (mediaUrls.length > 0) {
     const firstMedia = mediaUrls[0];
     try {
@@ -2490,24 +2518,65 @@ async function insertSingleBatchPost(p, ctx) {
 
   // Detectar si la publicación es un video generado con música
   const isVideo = Boolean(p.imageUrl && isVideoUrl(p.imageUrl));
-  const postType = isVideo ? (p.post_type === 'story' ? 'story' : 'reel') : (p.post_type || 'feed');
+  const postType = p.post_type === 'story' ? 'story' : (isVideo ? 'reel' : (p.post_type || 'feed'));
 
-  // 1. Programar post principal en el Feed / Reel
-  insertStmt.run(title, content, platforms, postType, mediaUrls, scheduledAt, activeAccountId, activeAccountName, presetName);
-  let story = 0;
+  let mainMediaUrl = p.imageUrl;
+  // Si el post principal es una Historia, asegurar que su medio sea 1080x1920 16:9 vertical (con o sin música)
+  if (postType === 'story' && p.imageUrl) {
+    try {
+      if (isVideo) {
+        const conv = await videoService.convertVideoToStoryVideo({ videoInput: p.imageUrl });
+        mainMediaUrl = conv.relativeUrl;
+      } else {
+        let absImagePath = p.imageUrl;
+        if (!absImagePath.startsWith('http')) {
+          absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
+        }
+        if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
+          const storyCard = await imageService.createStoryCard({
+            inputImagePath: absImagePath,
+            brandName: activeAccountName
+          });
+          mainMediaUrl = storyCard.relativeUrl;
+        }
+      }
+    } catch (mainStoryErr) {
+      console.warn('[Batch Main Story Warning]:', mainStoryErr.message);
+    }
+  }
+
+  // 1. Programar post principal en el Feed / Reel / Story
+  insertStmt.run(title, content, platforms, postType, JSON.stringify(mainMediaUrl ? [mainMediaUrl] : []), scheduledAt, activeAccountId, activeAccountName, presetName);
+  let story = postType === 'story' ? 1 : 0;
 
   // 2. Si se solicitó crear también las Historias complementarias (Estrategia single, drip3, evergreen o extensión mensual)
-  if (include_stories && p.imageUrl) {
+  if (include_stories && p.imageUrl && postType !== 'story') {
     try {
       let storyMediaUrl = p.imageUrl;
 
-      if (!isVideo) {
+      if (isVideo) {
+        if (p.musicConfig?.audio_url && p.originalImageUrl) {
+          const vidRes = await videoService.generateStoryVideo({
+            imageInput: p.originalImageUrl,
+            audioInput: p.musicConfig.audio_url,
+            duration: p.musicConfig.duration || 15,
+            startTime: p.musicConfig.start_time || 0,
+            addMusicSticker: true,
+            songTitle: p.musicConfig.song_title || '',
+            songArtist: p.musicConfig.song_artist || ''
+          });
+          storyMediaUrl = vidRes.relativeUrl;
+        } else {
+          const conv = await videoService.convertVideoToStoryVideo({ videoInput: p.imageUrl });
+          storyMediaUrl = conv.relativeUrl;
+        }
+      } else {
         let absImagePath = p.imageUrl;
         if (!absImagePath.startsWith('http')) {
           absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
         }
 
-        if (fs.existsSync(absImagePath)) {
+        if (fs.existsSync(absImagePath) || absImagePath.startsWith('http')) {
           const storyCard = await imageService.createStoryCard({
             inputImagePath: absImagePath,
             brandName: activeAccountName
@@ -2545,7 +2614,7 @@ async function insertSingleBatchPost(p, ctx) {
     }
   }
 
-  return { feed: 1, story };
+  return { feed: postType === 'story' ? 0 : 1, story };
 }
 
 /**

@@ -2788,24 +2788,25 @@
             </div>
 
             <!-- Preview Image / Video -->
-            <div style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#020617; aspect-ratio:4/5; display:flex; align-items:center; justify-content:center;">
-              <img id="batch-music-preview-img" src="" alt="Preview" style="width:100%; height:100%; object-fit:cover;">
-              <div id="batch-music-playing-indicator" style="display:none; position:absolute; bottom:8px; left:8px; background:rgba(236,72,153,0.9); color:#fff; font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:20px; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(0,0,0,0.3);">
+            <div id="batch-music-preview-wrap" style="position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid var(--border-subtle); background:#020617; aspect-ratio:4/5; display:flex; align-items:center; justify-content:center; transition:all 0.3s ease;">
+              <div id="batch-music-preview-backdrop" style="display:none; position:absolute; inset:0; background-size:cover; background-position:center; filter:blur(16px) brightness(0.6); transform:scale(1.2);"></div>
+              <img id="batch-music-preview-img" src="" alt="Preview" style="position:relative; z-index:1; width:100%; height:100%; object-fit:cover; transition:all 0.3s ease;">
+              <div id="batch-music-playing-indicator" style="display:none; position:absolute; bottom:8px; left:8px; background:rgba(236,72,153,0.9); color:#fff; font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:20px; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:2;">
                 <span>🔊 Reproduciendo</span>
               </div>
             </div>
 
             <!-- Format Selector -->
             <div>
-              <label class="form-label" style="font-size:0.75rem; margin-bottom:6px; display:block;">Tipo de Publicación:</label>
+              <label class="form-label" style="font-size:0.75rem; margin-bottom:6px; display:block;">Tipo de Publicación / Formato:</label>
               <div style="display:flex; flex-direction:column; gap:6px;">
                 <label class="radio-pill active" id="pill-batch-format-feed" style="font-size:0.78rem; padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:6px;">
                   <input type="radio" name="batch_video_format" value="feed" checked>
-                  <span>📱 Feed / Reel (Original 4:5)</span>
+                  <span>📱 Post Feed / Reel (Original 4:5)</span>
                 </label>
                 <label class="radio-pill" id="pill-batch-format-story" style="font-size:0.78rem; padding:6px 10px; cursor:pointer; display:flex; align-items:center; gap:6px;">
                   <input type="radio" name="batch_video_format" value="story">
-                  <span>📲 Story (9:16 Vertical Blur)</span>
+                  <span>📲 Historia (16:9 Vertical Blur • Sin Recortes)</span>
                 </label>
               </div>
             </div>

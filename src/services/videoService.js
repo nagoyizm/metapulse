@@ -145,7 +145,7 @@ class VideoService {
         .modulate({ brightness: 0.6 })
         .toBuffer();
 
-      // 2. Redimensionar imagen para centrarla dentro del canvas 9:16
+      // 2. Redimensionar imagen para centrarla dentro del canvas 9:16 sin recortar bordes
       const postBuffer = await sharp(inputBuffer)
         .resize(920, 1300, { fit: 'inside' })
         .toBuffer();
@@ -154,10 +154,40 @@ class VideoService {
       const left = Math.round((storyWidth - postMeta.width) / 2);
       const top = Math.round((storyHeight - postMeta.height) / 2);
 
+      // Máscara con esquinas redondeadas y marco sutil estilo Instagram Story Post Share
+      const radius = 24;
+      const maskSvg = Buffer.from(
+        `<svg width="${postMeta.width}" height="${postMeta.height}"><rect x="0" y="0" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="white"/></svg>`
+      );
+
+      const roundedPost = await sharp(postBuffer)
+        .composite([{ input: maskSvg, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+
+      const shadowMargin = 15;
+      const shadowSvg = Buffer.from(
+        `<svg width="${postMeta.width + shadowMargin * 2}" height="${postMeta.height + shadowMargin * 2}">
+          <defs>
+            <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="10" stdDeviation="15" flood-color="#000000" flood-opacity="0.55"/>
+            </filter>
+          </defs>
+          <rect x="${shadowMargin}" y="${shadowMargin}" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="rgba(0,0,0,0.3)" filter="url(#cardShadow)"/>
+          <rect x="${shadowMargin}" y="${shadowMargin}" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+        </svg>`
+      );
+
       baseCanvasBuffer = await sharp(bgBuffer)
         .composite([
           {
-            input: postBuffer,
+            input: shadowSvg,
+            top: top - shadowMargin,
+            left: left - shadowMargin,
+            blend: 'over'
+          },
+          {
+            input: roundedPost,
             top,
             left,
             blend: 'over'
@@ -426,6 +456,101 @@ class VideoService {
   }
 
   /**
+   * Obtiene las dimensiones (ancho y alto) de un video usando FFmpeg
+   */
+  getVideoDimensions(videoPath) {
+    return new Promise((resolve) => {
+      const ffmpegBin = this.getFFmpegBinary();
+      execFile(ffmpegBin, ['-i', videoPath], (err, stdout, stderr) => {
+        const output = (stderr || '') + (stdout || '');
+        const match = output.match(/Stream.*Video:.*,\s*(\d{2,5})x(\d{2,5})/);
+        if (match) {
+          resolve({ width: parseInt(match[1], 10), height: parseInt(match[2], 10) });
+        } else {
+          resolve({ width: 0, height: 0 });
+        }
+      });
+    });
+  }
+
+  /**
+   * Convierte cualquier video (Feed 4:5, Cuadrado 1:1, etc.) a formato vertical 9:16 (1080x1920)
+   * estilo Historia de Instagram, con fondo difuminado y el video original centrado
+   * dentro del espacio de 16:9 sin recortar ningún detalle del post.
+   */
+  async convertVideoToStoryVideo({ videoInput, duration = null }) {
+    let resolvedVideo = null;
+    try {
+      resolvedVideo = await this.resolveImageToLocal(videoInput);
+      const localVideoPath = resolvedVideo.path;
+
+      // Verificar si ya tiene dimensiones exactas 1080x1920
+      const dims = await this.getVideoDimensions(localVideoPath);
+      if (dims.width === 1080 && dims.height === 1920) {
+        return {
+          success: true,
+          filename: path.basename(localVideoPath),
+          outputPath: localVideoPath,
+          relativeUrl: videoInput.startsWith('/') ? videoInput : `/uploads/stories/${path.basename(localVideoPath)}`,
+          width: 1080,
+          height: 1920
+        };
+      }
+
+      const outputFilename = `story_video_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.mp4`;
+      const outputPath = path.join(this.storiesDir, outputFilename);
+
+      // Filtro FFmpeg profesional:
+      // Fondo: escala para cubrir 1080x1920, recorta a 1080x1920, desenfoque de caja (blur), brillo atenuado
+      // Primer plano: escala para encajar dentro de 920x1300 preservando aspecto original sin recortar
+      // Superposición: centrada vertical y horizontalmente
+      const filter = '[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=25:5,eq=brightness=-0.1[bg];[0:v]scale=920:1300:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[outv]';
+
+      const args = [
+        '-y',
+        '-i', localVideoPath,
+        '-filter_complex', filter,
+        '-map', '[outv]',
+        '-map', '0:a?', // copiar audio original si existe
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-ar', '44100',
+        '-ac', '2',
+        '-movflags', '+faststart'
+      ];
+
+      if (duration) {
+        args.push('-t', String(duration));
+      }
+
+      args.push(outputPath);
+
+      console.log(`[VideoService] Convirtiendo video a Story 9:16 (1080x1920): ${outputFilename}`);
+      await this.runFFmpeg(args);
+
+      const stat = fs.existsSync(outputPath) ? fs.statSync(outputPath) : { size: 0 };
+      console.log(`[VideoService] Story Video generado con éxito: ${outputFilename} (${(stat.size / 1024 / 1024).toFixed(2)} MB)`);
+
+      return {
+        success: true,
+        filename: outputFilename,
+        outputPath,
+        relativeUrl: `/uploads/stories/${outputFilename}`,
+        width: 1080,
+        height: 1920,
+        sizeBytes: stat.size
+      };
+    } finally {
+      if (resolvedVideo && resolvedVideo.isTemp && fs.existsSync(resolvedVideo.path)) {
+        try { fs.unlinkSync(resolvedVideo.path); } catch (_) {}
+      }
+    }
+  }
+
+  /**
    * Router unificado: genera video de Story (9:16) o de Feed (dimensiones originales)
    */
   async generatePostVideo({
@@ -438,7 +563,15 @@ class VideoService {
     songTitle = '',
     songArtist = ''
   }) {
+    const isVideo = Boolean(imageInput && (imageInput.endsWith('.mp4') || imageInput.endsWith('.mov') || imageInput.includes('/uploads/stories/')));
+
     if (postType === 'story') {
+      if (isVideo) {
+        return this.convertVideoToStoryVideo({
+          videoInput: imageInput,
+          duration
+        });
+      }
       return this.generateStoryVideo({
         imageInput,
         audioInput,
