@@ -719,7 +719,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function handlePostSubmissionSuccess(message) {
     showToast(message || '¡Publicación procesada con éxito!', 'success');
     resetComposerFormState();
-    loadDashboardStatus();
+    const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    loadDashboardStatus(active?.pageId);
+    if (window.loadQueuePosts) window.loadQueuePosts(active?.pageId);
     navigateToTab('queue');
   }
 
@@ -736,7 +738,10 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-account-id': payload.accountId || ''
+        },
         body: JSON.stringify(payload)
       });
 

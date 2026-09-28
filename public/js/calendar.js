@@ -340,12 +340,21 @@ function setupPlannerSyncActions() {
       btnSyncLiveQueue.disabled = true;
       btnSyncLiveQueue.textContent = '🔄 Sincronizando...';
       try {
-        const res = await fetch('/api/meta/sync-live-posts', { method: 'POST' });
+        const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+        const targetAcc = activeAcc?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+        const res = await fetch('/api/meta/sync-live-posts', { 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-account-id': targetAcc
+          },
+          body: JSON.stringify({ accountId: targetAcc })
+        });
         const json = await res.json();
         if (json.success) {
           showToast(json.data?.message || 'Posts sincronizados con éxito', 'success');
-          await window.loadPlannerData();
-          if (typeof loadDashboardStatus === 'function') loadDashboardStatus();
+          await window.loadPlannerData(targetAcc);
+          if (typeof loadDashboardStatus === 'function') loadDashboardStatus(targetAcc);
         } else {
           showToast('Error sincronizando: ' + (json.error || 'Desconocido'), 'error');
         }
@@ -586,13 +595,17 @@ window.loadPlannerData = async function(customAccountId) {
   try {
     const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     const globalSelect = document.getElementById('global-account-select');
-    const targetAcc = customAccountId !== undefined ? customAccountId : (activeAcc?.pageId || globalSelect?.value || '');
+    const targetAcc = customAccountId !== undefined 
+      ? customAccountId 
+      : (activeAcc?.pageId || globalSelect?.value || localStorage.getItem('metapulse_active_account_id') || '');
 
     const url = targetAcc
       ? `/api/posts?status=all&limit=250&accountId=${encodeURIComponent(targetAcc)}`
       : '/api/posts?status=all&limit=250';
 
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: targetAcc ? { 'x-account-id': targetAcc } : {}
+    });
     const json = await res.json();
     if (json.success) {
       PlannerState.posts = json.data || [];
@@ -1211,8 +1224,8 @@ function openComposerForDate(dateStr) {
 // 4. Vista Lista de Publicaciones en Cola
 let currentFilter = 'all';
 
-window.loadQueuePosts = async function() {
-  await window.loadPlannerData();
+window.loadQueuePosts = async function(customAccountId) {
+  await window.loadPlannerData(customAccountId);
 };
 
 function renderQueueTable(posts) {

@@ -1403,6 +1403,32 @@ Estructura a entregar:
     const isCampina = lower.includes('campiña') || lower.includes('cabaña');
     const isKmarket = lower.includes('kmarket');
     const isTestAccount = lower.includes('prueba') || lower.includes('test') || lower.includes('yarur');
+    const isAgendio = lower.includes('agendio');
+
+    if (isAgendio) {
+      return {
+        brand: 'Agendio App',
+        accountType: 'agendio',
+        days: [
+          {
+            dayName: 'Miércoles (Slot de Productividad & Citas)',
+            slot: '13:00 / 19:00',
+            type: 'feed',
+            title: '⚡ Automatiza tu Agenda y Olvídate del WhatsApp Manual',
+            suggestion: 'Muestra cómo ahorrar horas cada semana compartiendo tu link de Agendio para coordinar citas en piloto automático.',
+            presetTopic: 'Automatización de reservas y citas profesionales en piloto automático con Agendio App'
+          },
+          {
+            dayName: 'Sábado (Slot de Conversión & Clientes)',
+            slot: '11:00 / 18:00',
+            type: 'carousel',
+            title: '🚀 De Seguidor a Cliente en 1 Clic con tu Link de Agendio',
+            suggestion: 'Carrusel paso a paso mostrando cómo colocar tu enlace de Agendio en la Bio de Instagram para captar reservas 24/7.',
+            presetTopic: 'Cómo convertir seguidores en citas agendadas automáticamente con Agendio'
+          }
+        ]
+      };
+    }
 
     if (isCampina) {
       return {
@@ -2211,12 +2237,35 @@ Responde estrictamente en formato JSON con la siguiente estructura:
    * Obtiene el perfil de negocio estructurado (Campiña, Kmarket o General)
    */
   getBusinessProfile(accountName = '', accountId = '') {
-    const defaultPageName = getSetting('meta_page_name') || '';
-    const defaultIg = getSetting('meta_instagram_username') || '';
-    const combined = `${accountName} ${accountId} ${defaultPageName} ${defaultIg}`.toLowerCase();
+    let targetName = accountName;
+    let targetId = accountId;
+    if (!targetName && !targetId) {
+      targetName = getSetting('meta_page_name') || '';
+      targetId = getSetting('meta_page_id') || getSetting('meta_instagram_username') || '';
+    }
+    const combined = `${targetName} ${targetId}`.toLowerCase();
 
     const isCampina = combined.includes('campiña') || combined.includes('campina') || combined.includes('cabaña') || combined.includes('cabana');
     const isKmarket = combined.includes('kmarket') || combined.includes('k-food') || combined.includes('corea');
+    const isAgendio = combined.includes('agendio');
+
+    if (isAgendio) {
+      return {
+        id: 'agendio',
+        name: 'Agendio App (@agendio.cl)',
+        tag: 'Agendio',
+        emoji: '⚡',
+        whatsapp: '+56 9 7900 4253',
+        web: 'www.agendio.cl',
+        rules: [
+          'Agendio es un software de agendamiento inteligente y reservas automatizadas para profesionales y negocios.',
+          'Enfocarse en ahorrar tiempo, eliminar chats manuales de coordinación y aumentar conversiones.',
+          'Destacar el enlace de reservas en bio de Instagram y botón de reservas en WhatsApp.',
+          'Tono moderno, tecnológico, directo y profesional.'
+        ],
+        knowledge: 'Plataforma SaaS de citas online y gestión de agenda automatizada.'
+      };
+    }
 
     if (isCampina) {
       return {

@@ -189,12 +189,16 @@ router.use((req, res, next) => {
 router.get('/status', (req, res) => {
   try {
     const config = metaService.getConfig();
-    const nextSlot = schedulerService.getNextAvailableSlot();
-    const activePageId = config.pageId;
+    const targetAccountId = req.query.accountId || req.query.pageId || req.headers['x-account-id'] || config.pageId;
+    const accountCreds = targetAccountId ? metaService.getAccountCredentials(targetAccountId) : config;
+    const nextSlot = schedulerService.getNextAvailableSlot(targetAccountId);
 
-    let counts, upcomingPosts, recentPublished;
+    let counts = { scheduled_count: 0, published_count: 0, failed_count: 0, total_count: 0 };
+    let upcomingPosts = [];
+    let recentPublished = [];
 
-    if (activePageId) {
+    if (targetAccountId && targetAccountId !== 'all') {
+      const { clause, params } = metaService.buildAccountFilterSql(targetAccountId);
       counts = db.prepare(`
         SELECT 
           SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as scheduled_count,
@@ -202,23 +206,23 @@ router.get('/status', (req, res) => {
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
           COUNT(*) as total_count
         FROM posts
-        WHERE account_id = ?
-      `).get(activePageId);
+        WHERE ${clause}
+      `).get(...params) || counts;
 
       upcomingPosts = db.prepare(`
         SELECT * FROM posts
-        WHERE status = 'scheduled' AND account_id = ?
+        WHERE status = 'scheduled' AND ${clause}
         ORDER BY scheduled_at ASC
         LIMIT 5
-      `).all(activePageId);
+      `).all(...params);
 
       recentPublished = db.prepare(`
         SELECT * FROM posts
-        WHERE status = 'published' AND account_id = ?
+        WHERE status = 'published' AND ${clause}
         ORDER BY published_at DESC
         LIMIT 8
-      `).all(activePageId);
-    } else {
+      `).all(...params);
+    } else if (targetAccountId === 'all') {
       counts = db.prepare(`
         SELECT 
           SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as scheduled_count,
@@ -226,7 +230,7 @@ router.get('/status', (req, res) => {
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
           COUNT(*) as total_count
         FROM posts
-      `).get();
+      `).get() || counts;
 
       upcomingPosts = db.prepare(`
         SELECT * FROM posts
@@ -243,18 +247,21 @@ router.get('/status', (req, res) => {
       `).all();
     }
 
+    upcomingPosts.forEach(resolvePostMediaCache);
+    recentPublished.forEach(resolvePostMediaCache);
+
     res.json({
       success: true,
       data: {
         config: {
-          hasPage: Boolean(config.pageId),
-          pageId: config.pageId || '',
-          pageName: config.pageName || 'No configurada',
-          hasInstagram: Boolean(config.instagramId),
-          instagramId: config.instagramId || '',
-          instagramUsername: config.instagramUsername || 'No configurada',
-          simulationMode: config.simulationMode,
-          expiresAt: config.expiresAt
+          hasPage: Boolean(accountCreds.pageId),
+          pageId: accountCreds.pageId || '',
+          pageName: accountCreds.pageName || 'No configurada',
+          hasInstagram: Boolean(accountCreds.instagramId),
+          instagramId: accountCreds.instagramId || '',
+          instagramUsername: accountCreds.instagramUsername || 'No configurada',
+          simulationMode: accountCreds.simulationMode,
+          expiresAt: accountCreds.expiresAt
         },
         counts: {
           scheduled: counts.scheduled_count || 0,
@@ -295,15 +302,21 @@ function resolvePostMediaCache(p) {
 
 router.get('/posts', (req, res) => {
   try {
-    const { status, accountId, limit = 50, offset = 0 } = req.query;
-    const activePageId = accountId !== undefined ? accountId : (getSetting('meta_page_id') || '');
+    const { status, limit = 50, offset = 0 } = req.query;
+    const targetAccountId = req.query.accountId !== undefined 
+      ? req.query.accountId 
+      : (req.headers['x-account-id'] || getSetting('meta_page_id') || '');
 
     let query = 'SELECT * FROM posts WHERE 1=1';
     const params = [];
 
-    if (activePageId && activePageId !== 'all') {
-      query += ' AND account_id = ?';
-      params.push(activePageId);
+    if (targetAccountId && targetAccountId !== 'all') {
+      const { clause, params: filterParams } = metaService.buildAccountFilterSql(targetAccountId);
+      query += ` AND ${clause}`;
+      params.push(...filterParams);
+    } else if (!targetAccountId) {
+      // Si no se proporcionó cuenta ni hay cuenta activa, aislar para evitar mezclas
+      query += ' AND 1=0';
     }
 
     if (status && status !== 'all') {
@@ -578,8 +591,8 @@ router.post('/posts', async (req, res) => {
       media_urls = [],
       schedule_type = 'next_slot', // 'now', 'next_slot', 'custom'
       scheduled_at,
-      accountId = getSetting('meta_page_id') || '',
-      accountName = getSetting('meta_page_name') || '',
+      accountId,
+      accountName,
       also_share_story = false,
       story_strategy = 'single',
       story_timing_rule = 'same_time',
@@ -588,6 +601,23 @@ router.post('/posts', async (req, res) => {
       music_config = null,
       story_music_config = null
     } = req.body;
+
+    let finalAccountId = accountId || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
+    let finalAccountName = accountName || '';
+
+    if (finalAccountId) {
+      const creds = metaService.getAccountCredentials(finalAccountId);
+      if (creds) {
+        finalAccountId = creds.pageId || finalAccountId;
+        if (!finalAccountName || finalAccountName === getSetting('meta_page_name')) {
+          finalAccountName = creds.pageName || finalAccountName;
+        }
+      }
+    }
+
+    if (!finalAccountName) {
+      finalAccountName = getSetting('meta_page_name') || '';
+    }
 
     if (!content && (!media_urls || media_urls.length === 0)) {
       return res.status(400).json({ success: false, error: 'Debes incluir al menos texto o contenido multimedia.' });
@@ -617,8 +647,8 @@ router.post('/posts', async (req, res) => {
       post_type,
       JSON.stringify(media_urls),
       targetSchedule,
-      accountId,
-      accountName,
+      finalAccountId,
+      finalAccountName,
       presetName
     );
 
@@ -1529,7 +1559,8 @@ router.get('/meta/insights', async (req, res) => {
 router.get('/meta/live-posts', async (req, res) => {
   try {
     const limit = Number.parseInt(req.query.limit, 10) || 25;
-    const posts = await metaService.getLiveInstagramPosts(limit);
+    const targetAccountId = req.query.accountId || req.headers['x-account-id'] || null;
+    const posts = await metaService.getLiveInstagramPosts(limit, targetAccountId);
     res.json({ success: true, data: posts });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1538,7 +1569,8 @@ router.get('/meta/live-posts', async (req, res) => {
 
 router.post('/meta/sync-live-posts', async (req, res) => {
   try {
-    const result = await metaService.syncLivePostsToDatabase();
+    const targetAccountId = req.body?.accountId || req.query.accountId || req.headers['x-account-id'] || null;
+    const result = await metaService.syncLivePostsToDatabase(targetAccountId);
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

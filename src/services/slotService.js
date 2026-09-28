@@ -18,14 +18,23 @@ class SlotService {
     `).all();
 
     // 2. Posts ya programados a futuro para no duplicar horas
-    const existingPosts = db.prepare(`
+    const targetAccountId = options.accountId || options.targetAccountId || null;
+    let query = `
       SELECT scheduled_at 
       FROM posts 
       WHERE status = 'scheduled' 
         AND scheduled_at IS NOT NULL
         AND scheduled_at > datetime('now', 'localtime')
-      ORDER BY scheduled_at ASC
-    `).all().map(r => new Date(r.scheduled_at).getTime());
+    `;
+    const params = [];
+    if (targetAccountId && targetAccountId !== 'all') {
+      const metaService = require('./metaService');
+      const { clause, params: filterParams } = metaService.buildAccountFilterSql(targetAccountId);
+      query += ` AND ${clause}`;
+      params.push(...filterParams);
+    }
+    query += ' ORDER BY scheduled_at ASC';
+    const existingPosts = db.prepare(query).all(...params).map(r => new Date(r.scheduled_at).getTime());
 
     const resultSlots = [];
     let currentDay = new Date();

@@ -56,9 +56,16 @@ class MetaService {
       };
     }
 
-    const accountIdStr = String(target);
+    const accountIdStr = String(target).trim();
+    const accountLower = accountIdStr.toLowerCase();
+
     // Si coincide con la cuenta actualmente activa en settings
-    if (String(config.pageId) === accountIdStr || String(config.instagramId) === accountIdStr) {
+    if (
+      String(config.pageId) === accountIdStr || 
+      String(config.instagramId) === accountIdStr ||
+      (config.instagramUsername && config.instagramUsername.toLowerCase() === accountLower) ||
+      (config.pageName && config.pageName.toLowerCase() === accountLower)
+    ) {
       return config;
     }
 
@@ -67,7 +74,12 @@ class MetaService {
       const cachedStr = getSetting('cached_managed_accounts');
       if (cachedStr) {
         const accounts = JSON.parse(cachedStr);
-        const acc = accounts.find(a => String(a.pageId) === accountIdStr || (a.instagram && String(a.instagram.id) === accountIdStr));
+        const acc = accounts.find(a => 
+          String(a.pageId) === accountIdStr || 
+          (a.instagram && String(a.instagram.id) === accountIdStr) ||
+          (a.instagram && (a.instagram.username || '').toLowerCase() === accountLower) ||
+          ((a.pageName || '').toLowerCase() === accountLower)
+        );
         if (acc) {
           return {
             ...config,
@@ -82,6 +94,123 @@ class MetaService {
     } catch (_) {}
 
     return config;
+  }
+
+  /**
+   * Resuelve todos los identificadores (Multi-ID) asociados a un perfil o cuenta.
+   * Retorna { ids: string[], names: string[], account: object|null, isAll: boolean }
+   */
+  getAccountMultiIdentifiers(target) {
+    if (!target || target === 'all') {
+      return { ids: [], names: [], account: null, isAll: true };
+    }
+
+    const ids = new Set();
+    const names = new Set();
+    const targetStr = String(target).trim();
+    const targetLower = targetStr.toLowerCase();
+
+    // Siempre incluir el ID buscado tal cual
+    ids.add(targetStr);
+
+    let matchedAccount = null;
+
+    // 1. Buscar en caché de cuentas administradas
+    try {
+      const cachedStr = getSetting('cached_managed_accounts');
+      if (cachedStr) {
+        const accounts = JSON.parse(cachedStr);
+        for (const a of accounts) {
+          const pId = a.pageId ? String(a.pageId).trim() : '';
+          const igId = a.instagram?.id ? String(a.instagram.id).trim() : '';
+          const igUser = a.instagram?.username ? String(a.instagram.username).trim() : '';
+          const pName = a.pageName ? String(a.pageName).trim() : '';
+
+          const isMatch = (pId && pId === targetStr) ||
+                          (igId && igId === targetStr) ||
+                          (igUser && igUser.toLowerCase() === targetLower) ||
+                          (pName && pName.toLowerCase() === targetLower);
+
+          if (isMatch) {
+            matchedAccount = a;
+            if (pId) ids.add(pId);
+            if (igId) ids.add(igId);
+            if (igUser) ids.add(igUser);
+            if (pName) names.add(pName);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[getAccountMultiIdentifiers] Error leyendo caché:', err.message);
+    }
+
+    // 2. Buscar en la configuración activa de settings
+    try {
+      const s = this.getConfig();
+      const sPageId = s.pageId ? String(s.pageId).trim() : '';
+      const sIgId = s.instagramId ? String(s.instagramId).trim() : '';
+      const sIgUser = s.instagramUsername ? String(s.instagramUsername).trim() : '';
+      const sPageName = s.pageName ? String(s.pageName).trim() : '';
+
+      const isMatchSettings = (sPageId && sPageId === targetStr) ||
+                              (sIgId && sIgId === targetStr) ||
+                              (sIgUser && sIgUser.toLowerCase() === targetLower) ||
+                              (sPageName && sPageName.toLowerCase() === targetLower);
+
+      if (isMatchSettings) {
+        if (!matchedAccount) {
+          matchedAccount = {
+            pageId: s.pageId,
+            pageName: s.pageName,
+            pageToken: s.pageToken,
+            instagram: { id: s.instagramId, username: s.instagramUsername }
+          };
+        }
+        if (sPageId) ids.add(sPageId);
+        if (sIgId) ids.add(sIgId);
+        if (sIgUser) ids.add(sIgUser);
+        if (sPageName) names.add(sPageName);
+      }
+    } catch (err) {
+      console.warn('[getAccountMultiIdentifiers] Error revisando settings:', err.message);
+    }
+
+    return {
+      ids: Array.from(ids),
+      names: Array.from(names),
+      account: matchedAccount,
+      isAll: false
+    };
+  }
+
+  /**
+   * Construye la cláusula WHERE SQL y parámetros para aislar publicaciones multi-id
+   */
+  buildAccountFilterSql(target, tablePrefix = '') {
+    if (!target || target === 'all') {
+      return { clause: '1=1', params: [] };
+    }
+
+    const { ids, names } = this.getAccountMultiIdentifiers(target);
+    const conds = [];
+    const params = [];
+    const colAccount = tablePrefix ? `${tablePrefix}.account_id` : 'account_id';
+    const colName = tablePrefix ? `${tablePrefix}.account_name` : 'account_name';
+
+    if (ids.length > 0) {
+      conds.push(`${colAccount} IN (${ids.map(() => '?').join(', ')})`);
+      params.push(...ids);
+    }
+    if (names.length > 0) {
+      conds.push(`${colName} IN (${names.map(() => '?').join(', ')})`);
+      params.push(...names);
+    }
+
+    if (conds.length > 0) {
+      return { clause: `(${conds.join(' OR ')})`, params };
+    }
+
+    return { clause: `${colAccount} = ?`, params: [String(target)] };
   }
 
   /**
@@ -890,8 +1019,8 @@ class MetaService {
   /**
    * Obtiene las publicaciones en vivo directamente desde Instagram Graph API
    */
-  async getLiveInstagramPosts(limit = 25) {
-    const config = this.getConfig();
+  async getLiveInstagramPosts(limit = 25, targetAccount = null) {
+    const config = targetAccount ? this.getAccountCredentials(targetAccount) : this.getConfig();
     if (!config.instagramId || !config.pageToken) {
       return [];
     }
@@ -1012,14 +1141,14 @@ class MetaService {
   /**
    * Sincroniza las publicaciones en vivo de Instagram en la base de datos local SQLite
    */
-  async syncLivePostsToDatabase() {
-    const livePosts = await this.getLiveInstagramPosts(30);
+  async syncLivePostsToDatabase(targetAccount = null) {
+    const config = targetAccount ? this.getAccountCredentials(targetAccount) : this.getConfig();
+    const livePosts = await this.getLiveInstagramPosts(30, config);
     if (!livePosts || livePosts.length === 0) {
-      return { syncedCount: 0, updatedCount: 0, message: 'No se encontraron publicaciones en Instagram o no hay conexión.' };
+      return { syncedCount: 0, updatedCount: 0, message: 'No se encontraron publicaciones en Instagram o no hay conexión para esta cuenta.' };
     }
 
     const { db } = require('../database/db');
-    const config = this.getConfig();
     let newCount = 0;
     let updatedCount = 0;
 

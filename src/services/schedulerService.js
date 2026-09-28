@@ -262,7 +262,7 @@ class SchedulerService {
   /**
    * Calcula el siguiente slot disponible basado en la configuración de la semana
    */
-  getNextAvailableSlot() {
+  getNextAvailableSlot(targetAccountId = null) {
     const activeSlots = db.prepare(`
       SELECT day_of_week, time_slot
       FROM schedule_slots
@@ -277,10 +277,17 @@ class SchedulerService {
       return d.toISOString();
     }
 
-    const scheduledPosts = db.prepare(`
-      SELECT scheduled_at FROM posts
-      WHERE status = 'scheduled' AND scheduled_at >= ?
-    `).all(new Date().toISOString()).map(p => p.scheduled_at);
+    let query = "SELECT scheduled_at FROM posts WHERE status = 'scheduled' AND scheduled_at >= ?";
+    const params = [new Date().toISOString()];
+
+    if (targetAccountId && targetAccountId !== 'all') {
+      const metaService = require('./metaService');
+      const { clause, params: filterParams } = metaService.buildAccountFilterSql(targetAccountId);
+      query += ` AND ${clause}`;
+      params.push(...filterParams);
+    }
+
+    const scheduledPosts = db.prepare(query).all(...params).map(p => p.scheduled_at);
 
     const now = new Date();
     // Buscar en los próximos 14 días

@@ -67,10 +67,14 @@ function navigateToTab(tabId) {
 
   // Cargas específicas por pestaña
   const tabLoaders = {
-    dashboard: () => loadDashboardStatus(),
+    dashboard: () => {
+      const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      loadDashboardStatus(active?.pageId);
+    },
     queue: () => {
-      window.loadPlannerData?.();
-      window.loadQueuePosts?.();
+      const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      window.loadPlannerData?.(active?.pageId);
+      window.loadQueuePosts?.(active?.pageId);
       window.loadScheduleSlots?.();
     },
     inbox: () => window.loadInboxData?.(),
@@ -143,7 +147,17 @@ function updateDashboardMetrics(counts, nextSlot, config) {
 
 function renderUpcomingPosts(upcomingPosts) {
   const upcomingList = document.getElementById('dash-upcoming-list');
-  if (!upcomingList || !upcomingPosts || upcomingPosts.length === 0) return;
+  if (!upcomingList) return;
+
+  if (!upcomingPosts || upcomingPosts.length === 0) {
+    upcomingList.innerHTML = `
+      <div class="empty-state">
+        <p>No hay publicaciones en cola actualmente para este perfil.</p>
+        <button class="btn btn-secondary btn-sm" onclick="navigateToTab('composer')">Programar un post ahora</button>
+      </div>
+    `;
+    return;
+  }
 
   upcomingList.innerHTML = upcomingPosts.map(p => {
     let media = [];
@@ -184,7 +198,17 @@ function renderUpcomingPosts(upcomingPosts) {
 
 function renderRecentPublishedPosts(recentPublished) {
   const recentList = document.getElementById('dash-recent-list');
-  if (!recentList || !recentPublished || recentPublished.length === 0) return;
+  if (!recentList) return;
+
+  if (!recentPublished || recentPublished.length === 0) {
+    recentList.innerHTML = `
+      <div class="empty-state">
+        <p>No hay publicaciones recientes para este perfil.</p>
+        <button class="btn btn-secondary btn-sm" onclick="navigateToTab('composer')">Crear publicación</button>
+      </div>
+    `;
+    return;
+  }
 
   recentList.innerHTML = recentPublished.map(p => {
     let media = [];
@@ -230,9 +254,21 @@ function renderRecentPublishedPosts(recentPublished) {
 }
 
 // Cargar estado inicial del Dashboard
-async function loadDashboardStatus() {
+async function loadDashboardStatus(customAccountId) {
   try {
-    const res = await fetch('/api/status');
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const globalSelect = document.getElementById('global-account-select');
+    const targetAccountId = customAccountId !== undefined 
+      ? customAccountId 
+      : (activeAcc?.pageId || globalSelect?.value || localStorage.getItem('metapulse_active_account_id') || (AppState.config ? AppState.config.pageId : ''));
+
+    const queryUrl = targetAccountId 
+      ? `/api/status?accountId=${encodeURIComponent(targetAccountId)}`
+      : '/api/status';
+
+    const res = await fetch(queryUrl, {
+      headers: targetAccountId ? { 'x-account-id': targetAccountId } : {}
+    });
     const json = await res.json();
     if (!json.success) return;
 
@@ -252,12 +288,20 @@ async function loadDashboardStatus() {
         btnSyncLiveDash.disabled = true;
         btnSyncLiveDash.textContent = '🔄 Sincronizando...';
         try {
-          const res = await fetch('/api/meta/sync-live-posts', { method: 'POST' });
+          const syncAcc = targetAccountId || window.getActiveAccount()?.pageId || '';
+          const res = await fetch('/api/meta/sync-live-posts', { 
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-account-id': syncAcc
+            },
+            body: JSON.stringify({ accountId: syncAcc })
+          });
           const json = await res.json();
           if (json.success) {
             showToast(json.data.message || 'Posts sincronizados con éxito', 'success');
-            loadDashboardStatus();
-            if (window.loadQueuePosts) window.loadQueuePosts();
+            await loadDashboardStatus(syncAcc);
+            if (window.loadQueuePosts) window.loadQueuePosts(syncAcc);
           } else {
             showToast('Error sincronizando: ' + (json.error || 'Desconocido'), 'error');
           }
@@ -271,9 +315,9 @@ async function loadDashboardStatus() {
     }
 
     // Cargar selector de cuentas globales
-    loadAccountSwitcher();
+    await loadAccountSwitcher();
     // Cargar Radar Proactivo
-    loadProactiveRadar();
+    loadProactiveRadar(config?.pageName);
     if (window.updateComposerPreviews) window.updateComposerPreviews();
   } catch (err) {
     console.error('Error cargando estado:', err);
@@ -281,13 +325,14 @@ async function loadDashboardStatus() {
 }
 
 // Cargar sugerencias proactivas para el Dashboard
-async function loadProactiveRadar() {
+async function loadProactiveRadar(customBrandName) {
   const container = document.getElementById('dash-radar-ideas-container');
   const tag = document.getElementById('dash-radar-account-tag');
   const subtitle = document.getElementById('dash-radar-subtitle');
   if (!container) return;
 
-  const brand = AppState.config ? (AppState.config.pageName || '') : '';
+  const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  const brand = customBrandName || activeAcc?.pageName || (AppState.config ? (AppState.config.pageName || '') : '');
   if (tag) tag.textContent = brand || 'Cuenta Activa';
 
   try {
@@ -474,6 +519,9 @@ async function handleAccountSwitch(opt) {
   const instagramId = ds.igid || '';
   const instagramUsername = ds.iguser || '';
 
+  localStorage.setItem('metapulse_active_account_id', pageId);
+  localStorage.setItem('metapulse_active_account_name', pageName);
+
   showToast(`Cambiando a: ${pageName}...`, 'info');
   try {
     const switchRes = await fetch('/api/meta/select-account', {
@@ -485,8 +533,8 @@ async function handleAccountSwitch(opt) {
     if (switchJson.success) {
       showToast(`¡Cuenta activa cambiada a: ${pageName}!`, 'success');
       window.updateActiveAccountBadges();
-      loadDashboardStatus();
-      loadProactiveRadar();
+      await loadDashboardStatus(pageId);
+      loadProactiveRadar(pageName);
 
       if (window.loadPlannerData) window.loadPlannerData(pageId);
       if (window.loadQueuePosts) window.loadQueuePosts(pageId);
@@ -517,7 +565,8 @@ async function loadAccountSwitcher() {
 
     const pages = json.data;
     window._cachedMetaPages = pages;
-    const currentSelectedPageId = AppState.config ? AppState.config.pageId : '';
+    const savedId = localStorage.getItem('metapulse_active_account_id');
+    const currentSelectedPageId = savedId || (AppState.config ? AppState.config.pageId : '');
 
     select.innerHTML = pages.map(p => {
       const isSelected = String(p.pageId) === String(currentSelectedPageId) ? 'selected' : '';
@@ -527,8 +576,11 @@ async function loadAccountSwitcher() {
       </option>`;
     }).join('');
 
-    if (currentSelectedPageId) {
+    if (currentSelectedPageId && pages.some(p => String(p.pageId) === String(currentSelectedPageId))) {
       select.value = currentSelectedPageId;
+    } else if (pages.length > 0) {
+      select.value = pages[0].pageId;
+      localStorage.setItem('metapulse_active_account_id', pages[0].pageId);
     }
 
     // Poblar los selects del Modal de Reasignación
@@ -622,7 +674,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Polling periódico para actualizar contadores (cada 30s)
   setInterval(() => {
     if (AppState.activeTab === 'dashboard') {
-      loadDashboardStatus();
+      const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      loadDashboardStatus(active?.pageId);
     }
   }, 30000);
 });
+
+window.updateQueueBadge = async function() {
+  const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  const targetId = active?.pageId || localStorage.getItem('metapulse_active_account_id');
+  try {
+    const res = await fetch(targetId ? `/api/status?accountId=${encodeURIComponent(targetId)}` : '/api/status');
+    const json = await res.json();
+    if (json.success && json.data?.counts) {
+      const badge = document.getElementById('sidebar-queue-badge');
+      if (badge) badge.textContent = json.data.counts.scheduled || 0;
+      const dashStat = document.getElementById('dash-stat-scheduled');
+      if (dashStat) dashStat.textContent = json.data.counts.scheduled || 0;
+    }
+  } catch (_) {}
+};
