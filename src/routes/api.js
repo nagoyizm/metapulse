@@ -1685,6 +1685,27 @@ router.post('/ai/kmarket-product', async (req, res) => {
   }
 });
 
+router.post('/ai/agendio-content', async (req, res) => {
+  try {
+    const { topic, format, targetAudience, pillar, extraNotes, baseImageUrl } = req.body;
+    if (!topic && !pillar) {
+      return res.status(400).json({ success: false, error: 'Debes ingresar un tema o seleccionar un pilar de contenido para Agendio.' });
+    }
+    const result = await aiService.generateAgendioContent({
+      topic: topic || 'Gestión y reservas de cabañas turísticas',
+      format: format || 'feed',
+      targetAudience: targetAudience || 'duenos',
+      pillar: pillar || 'dolor_real',
+      extraNotes: extraNotes || '',
+      baseImageUrl: baseImageUrl || ''
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[Agendio AI] Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWatermark]') {
   if (getSetting('auto_stamp_seal') === 'false' || !result?.url) return;
   try {
@@ -1725,10 +1746,14 @@ router.post('/ai/generate-image', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Debes proporcionar un prompt o una imagen base.' });
     }
 
-    const accountName = getSetting('meta_page_name') || '';
-    const isKmarket = accountName.toLowerCase().includes('kmarket');
+    const rawAccountParam = req.body.account_id || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
+    const creds = metaService.getAccountCredentials(rawAccountParam);
+    const activeAccountName = creds?.name || getSetting('meta_page_name') || '';
+    const igUsername = creds?.instagram?.username || '';
+    const isKmarket = activeAccountName.toLowerCase().includes('kmarket');
+    const isAgendio = activeAccountName.toLowerCase().includes('agendio') || igUsername.toLowerCase().includes('agendio');
 
-    let finalPrompt = prompt || 'Afiche publicitario 4:5 de este producto';
+    let finalPrompt = prompt || (isAgendio ? 'Cabaña de madera nativa chilena iluminada al atardecer en bosque nativo' : 'Afiche publicitario 4:5 de este producto');
     if (isKmarket && baseImageUrl) {
       const posterResult = await aiService.generateKmarketDesignerPoster({
         baseImageUrl,
@@ -1742,11 +1767,11 @@ router.post('/ai/generate-image', async (req, res) => {
       prompt: finalPrompt,
       format,
       model,
-      accountName: isKmarket ? '' : accountName,
+      accountName: isAgendio ? 'Agendio' : (isKmarket ? '' : activeAccountName),
       baseImageUrl
     });
 
-    await tryAutoStampWatermark(result, req.body.account_id, '[AI Image]');
+    await tryAutoStampWatermark(result, creds?.pageId || req.body.account_id, '[AI Image]');
 
     // Registrar en media_items para que aparezca en la galería multimedia
     try {

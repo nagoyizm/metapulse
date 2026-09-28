@@ -1796,6 +1796,7 @@
             <button type="button" class="preview-tab" id="btn-ai-tab-humanize" data-ai-mode="humanize">🔍 Humanizador Anti-IA</button>
             <button type="button" class="preview-tab" id="btn-ai-tab-kmarket" data-ai-mode="kmarket">🛒 Kmarket: Producto 4:5</button>
             <button type="button" class="preview-tab" id="btn-ai-tab-campina" data-ai-mode="campina">🏡 La Campiña: Reel & Fechas</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-agendio" data-ai-mode="agendio" style="display: none;">📅 Agendio: Copy & Escena Gemini</button>
           </div>
         </div>
 
@@ -2166,6 +2167,160 @@
                     🎯 Estampar Logo en este Afiche
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODO: AGENDIO.CL (STUDIO ESPECIALIZADO DE MARCA & GEMINI) -->
+          <div class="ai-mode-pane" id="ai-pane-agendio" style="display: none;">
+            <!-- Banner Identidad Oficial Agendio -->
+            <div style="background: linear-gradient(135deg, #0b1b12 0%, #142b1e 100%); border: 1px solid rgba(217, 154, 43, 0.45); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.2rem;">📅</span>
+                  <strong style="color: #ffffff; font-family:'Spectral', Georgia, serif; font-size:1.05rem; letter-spacing:0.02em;">Agendio.cl · Gestión Integral de Alojamientos</strong>
+                  <span style="background: rgba(217, 154, 43, 0.25); color: #eebe6c; border: 1px solid rgba(217, 154, 43, 0.5); padding: 2px 8px; border-radius: 2px; font-size: 0.7rem; font-weight:700;">Tokens Oficiales</span>
+                </div>
+                <div style="color: #c9dcc9; font-size:0.78rem; margin-top:4px;">
+                  <em>"Nunca más pierdas una reserva"</em> · La calma de operar bien · Cero dobles reservas, llamadas a medianoche ni planillas perdidas.
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:4px; border:1px solid rgba(255,255,255,0.08);">
+                <span style="font-size:0.7rem; color:#eebe6c; font-weight:600;">Paleta:</span>
+                <span style="display:inline-block; width:14px; height:14px; border-radius:2px; background:#0B1B12; border:1px solid rgba(255,255,255,0.3);" title="Verde Noche #0B1B12"></span>
+                <span style="display:inline-block; width:14px; height:14px; border-radius:2px; background:#D99A2B;" title="Dorado Ámbar CTA #D99A2B"></span>
+                <span style="display:inline-block; width:14px; height:14px; border-radius:2px; background:#FBF7F0; border:1px solid rgba(255,255,255,0.3);" title="Crema Hueso #FBF7F0"></span>
+                <span style="display:inline-block; width:14px; height:14px; border-radius:2px; background:#34D399;" title="Esmeralda Libre #34D399"></span>
+              </div>
+            </div>
+
+            <!-- Formulario de Configuración -->
+            <div class="form-grid-2" style="margin-bottom:10px;">
+              <div class="form-group" style="margin-bottom:8px;">
+                <label class="form-label" for="agendio-format" style="font-size:0.8rem; font-weight:600;">Formato del Contenido:</label>
+                <select id="agendio-format" class="form-control form-control-sm">
+                  <option value="feed" selected>📸 Post / Afiche de Imagen (Feed 4:5 / 1:1)</option>
+                  <option value="carousel">📑 Carrusel Slide a Slide (5 Láminas con Gancho)</option>
+                  <option value="reel">🎥 Guión de Reel (30s Audio + Video + Pantalla)</option>
+                  <option value="story">⚡ Historia / Tip Rápido (9:16)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label class="form-label" for="agendio-audience" style="font-size:0.8rem; font-weight:600;">Público Objetivo:</label>
+                <select id="agendio-audience" class="form-control form-control-sm">
+                  <option value="duenos" selected>🏡 Dueños de cabañas / hostales (familiar o personal)</option>
+                  <option value="equipo">👥 Operaciones con equipo (recepción, aseo y roles)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:10px;">
+              <label class="form-label" for="agendio-pillar" style="font-size:0.8rem; font-weight:600;">Pilar Estratégico de Contenido:</label>
+              <select id="agendio-pillar" class="form-control form-control-sm">
+                <option value="dolor_real" selected>⚡ 1. Dolor Real (Doble reserva, llamadas a deshora, Excel perdido, cobros)</option>
+                <option value="funcionalidad">🛠️ 2. Funcionalidad Resuelta (Calendario en vivo, link público 24/7, WhatsApp)</option>
+                <option value="para_quien">👥 3. Para Quién Es (Dueño familiar / solo vs Operación con equipo)</option>
+                <option value="prueba_social">🏆 4. Prueba Social / Testimonios (Tranquilidad y orden operativo)</option>
+                <option value="faq">❓ 5. FAQ / Objeciones Resueltas (Facilidad, celular, pagos directos)</option>
+                <option value="educativo">📚 6. Educativo del Nicho (Temporada alta en Chile, tips de hospitalidad)</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:8px;">
+              <label class="form-label" for="agendio-topic" style="font-size:0.8rem; font-weight:600;">
+                Tema o Indicaciones para este Post / Carrusel / Reel:
+              </label>
+              <textarea id="agendio-topic" class="form-control" rows="2" placeholder="Ej: Cómo evitar la doble reserva en fin de semana largo, link directo en la bio de Instagram para WhatsApp..."></textarea>
+            </div>
+
+            <!-- Sugerencias Rápidas de Temas -->
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+              <span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">Ideas rápidas:</span>
+              <button type="button" class="btn btn-ghost btn-xs agendio-quick-pill" data-topic="Cómo evitar la doble reserva en fin de semana largo y operar en calma con el calendario en vivo" style="font-size:0.72rem; padding:2px 7px; border:1px solid rgba(217, 154, 43, 0.3);">⚡ Doble Reserva en Feriado</button>
+              <button type="button" class="btn btn-ghost btn-xs agendio-quick-pill" data-topic="Tus pasajeros cotizan y reservan solos en tu link de Instagram y WhatsApp 24/7 sin llamadas a medianoche" style="font-size:0.72rem; padding:2px 7px; border:1px solid rgba(217, 154, 43, 0.3);">📲 Link en Bio 24/7</button>
+              <button type="button" class="btn btn-ghost btn-xs agendio-quick-pill" data-topic="Coordinación del equipo de aseo y recepción entre check-out y check-in sin planillas de papel" style="font-size:0.72rem; padding:2px 7px; border:1px solid rgba(217, 154, 43, 0.3);">🧹 Coordinar Aseo y Turnos</button>
+              <button type="button" class="btn btn-ghost btn-xs agendio-quick-pill" data-topic="Por qué dejar de llevar las reservas en un cuaderno o Excel y centralizar todo en un solo panel" style="font-size:0.72rem; padding:2px 7px; border:1px solid rgba(217, 154, 43, 0.3);">📊 Excel vs Un Solo Panel</button>
+            </div>
+
+            <!-- Foto de Cabaña o Mockup Base (Opcional) -->
+            <div class="card" style="margin-bottom:12px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:10px 12px; border-radius:6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.8rem;">🏡 Foto de Cabaña / Mockup Base (Opcional):</span>
+                <span class="badge" style="background:rgba(52, 211, 153, 0.15); color:#34d399; font-size:0.72rem;">Referencia Visual</span>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div id="agendio-bg-thumb" style="width:58px; height:58px; border-radius:4px; border:1px dashed var(--border-subtle); overflow:hidden; background:#0B1B12; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <img id="agendio-bg-img" src="" alt="Fondo Agendio" style="width:100%; height:100%; object-fit:cover; display:none;">
+                  <span id="agendio-bg-placeholder" style="font-size:1.5rem; color:#eebe6c;">🌲</span>
+                </div>
+                <div style="flex:1; min-width:180px;">
+                  <input type="file" id="agendio-bg-file-input" aria-label="Subir foto de cabaña o base" accept="image/*" style="display:none;">
+                  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-select-agendio-bg">
+                      📁 Subir Foto Base
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-use-composer-agendio-bg" style="font-size:0.75rem;">
+                      🖼️ Usar Foto del Editor
+                    </button>
+                  </div>
+                  <div id="agendio-bg-status" class="text-muted" style="font-size:0.72rem;">Opcional: Si no adjuntas foto, Gemini creará una escena fotográfica completa con la paleta de Agendio.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botón Generador Principal -->
+            <button type="button" class="btn btn-ai btn-full" id="btn-generate-agendio-ai" style="background: linear-gradient(135deg, #1c3a28, #142b1e); border: 1px solid #d99a2b; color: #ffffff; font-weight:700; padding:10px; font-size:0.88rem;">
+              <span>🚀 Generar Contenido Agendio (Copy + Prompt Gemini)</span>
+            </button>
+
+            <!-- Caja de Resultados de Agendio -->
+            <div id="agendio-results-box" style="display:none; margin-top:14px;">
+              <!-- Copy para Redes -->
+              <div class="card" style="margin-bottom:12px; border:1px solid rgba(217, 154, 43, 0.4); background:var(--bg-secondary);">
+                <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                  <strong style="font-size:0.82rem; color:var(--text-primary);">📝 Copy Optimizado para Redes (Hospitalidad Chile):</strong>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-primary btn-xs" id="btn-apply-agendio-copy" style="background:#d99a2b; color:#0b1b12; font-weight:700; border:none;">📋 Aplicar al Editor</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-text">📋 Copiar Texto</button>
+                  </div>
+                </div>
+                <div class="card-body" style="padding:8px 12px;">
+                  <textarea id="agendio-generated-copy" aria-label="Texto de publicación para Agendio" class="form-control" rows="6" style="font-size:0.82rem; line-height:1.45;"></textarea>
+                </div>
+              </div>
+
+              <!-- Prompt Maestro para Imagen en Gemini -->
+              <div class="card" style="margin-bottom:12px; border: 1px dashed #d99a2b; background:var(--bg-secondary);">
+                <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                  <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt de Imagen para Gemini (Separación Fotográfica + Diseño):</strong>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-agendio-image" style="background:linear-gradient(135deg, #1c3a28, #33603f); color:#fff; border:1px solid #d99a2b; font-weight:700;">✨ Generar con Gemini</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-image-prompt">📋 Copiar Prompt</button>
+                  </div>
+                </div>
+                <div class="card-body" style="padding:8px 12px;">
+                  <textarea id="agendio-image-prompt-text" aria-label="Prompt de imagen para Gemini Agendio" class="form-control" rows="5" style="font-size:0.78rem; font-family:var(--font-mono); line-height:1.4;"></textarea>
+                  <div id="agendio-ai-img-preview" style="display:none; margin-top:8px; text-align:center;">
+                    <img id="agendio-ai-img-result" src="" alt="Imagen Agendio Generada" style="max-height:180px; border-radius:2px; border:1px solid rgba(217, 154, 43, 0.4); object-fit:cover;">
+                    <div style="font-size:0.75rem; color:#34d399; margin-top:4px; font-weight:600;">✅ ¡Imagen generada con éxito con Gemini y cargada al Composer!</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Desglose de Carrusel (si aplica) -->
+              <div class="card" id="agendio-carousel-preview-wrap" style="display:none; margin-bottom:12px; border:1px solid var(--border-subtle); background:var(--bg-secondary);">
+                <div class="card-header" style="padding:8px 12px;">
+                  <strong style="font-size:0.82rem; color:var(--text-primary);">📑 Desglose Slide a Slide del Carrusel:</strong>
+                </div>
+                <div class="card-body" id="agendio-carousel-slides-list" style="padding:8px 12px; display:flex; flex-direction:column; gap:8px;"></div>
+              </div>
+
+              <!-- Desglose de Reel (si aplica) -->
+              <div class="card" id="agendio-reel-preview-wrap" style="display:none; margin-bottom:12px; border:1px solid var(--border-subtle); background:var(--bg-secondary);">
+                <div class="card-header" style="padding:8px 12px;">
+                  <strong style="font-size:0.82rem; color:var(--text-primary);">🎥 Guión Estructurado para Reel (30s):</strong>
+                </div>
+                <div class="card-body" id="agendio-reel-script-body" style="padding:8px 12px; font-size:0.8rem; line-height:1.45;"></div>
               </div>
             </div>
           </div>

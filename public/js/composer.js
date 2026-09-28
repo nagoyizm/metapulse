@@ -1045,6 +1045,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (mode === 'campina' && typeof syncCampinaModalThumb === 'function') {
       syncCampinaModalThumb();
     }
+    if (mode === 'agendio' && typeof syncAgendioModalThumb === 'function') {
+      syncAgendioModalThumb();
+    }
   }
 
   const closeAi = () => { if (aiModal) aiModal.style.display = 'none'; };
@@ -1157,10 +1160,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnOpenAiModal) {
       btnOpenAiModal.addEventListener('click', () => {
         if (aiModal) aiModal.style.display = 'flex';
-        const brand = (AppState.config?.pageName || '').toLowerCase();
-        if (brand.includes('kmarket')) {
+        const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+        const igUser = (AppState.config?.instagramUsername || '').toLowerCase();
+        const activeAccId = AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+
+        const isAgendio = brand.includes('agendio') || igUser.includes('agendio') || activeAccId === '1236967112842449';
+        const isKmarket = brand.includes('kmarket');
+        const isCampina = brand.includes('campiña') || brand.includes('campina') || brand.includes('cabaña') || brand.includes('cabana');
+
+        const tabAgendio = document.getElementById('btn-ai-tab-agendio');
+        const tabKmarket = document.getElementById('btn-ai-tab-kmarket');
+        const tabCampina = document.getElementById('btn-ai-tab-campina');
+
+        // Aislar estrictamente pestañas de marcas propietarias: "SOLO EN EL DE ESTE"
+        if (tabAgendio) tabAgendio.style.display = isAgendio ? 'inline-block' : 'none';
+        if (tabKmarket) tabKmarket.style.display = isKmarket ? 'inline-block' : 'none';
+        if (tabCampina) tabCampina.style.display = isCampina ? 'inline-block' : 'none';
+
+        if (isAgendio) {
+          switchAiModalTab('agendio');
+        } else if (isKmarket) {
           switchAiModalTab('kmarket');
-        } else if (brand.includes('campiña') || brand.includes('cabaña')) {
+        } else if (isCampina) {
           switchAiModalTab('campina');
         } else {
           switchAiModalTab('general');
@@ -2017,6 +2038,327 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
+  // AGENDIO.CL: ESTUDIO DE MARCA & GENERADOR GEMINI (ALOJAMIENTOS TURÍSTICOS)
+  // =========================================================================
+  let agendioBackgroundImagePath = '';
+  const btnGenerateAgendioAi = document.getElementById('btn-generate-agendio-ai');
+  const agendioBgFileInput = document.getElementById('agendio-bg-file-input');
+  const btnSelectAgendioBg = document.getElementById('btn-select-agendio-bg');
+  const btnUseComposerAgendioBg = document.getElementById('btn-use-composer-agendio-bg');
+  const agendioBgImg = document.getElementById('agendio-bg-img');
+  const agendioBgPlaceholder = document.getElementById('agendio-bg-placeholder');
+  const agendioBgStatus = document.getElementById('agendio-bg-status');
+  const agendioGeneratedCopy = document.getElementById('agendio-generated-copy');
+  const agendioImagePromptText = document.getElementById('agendio-image-prompt-text');
+  const btnApplyAgendioCopy = document.getElementById('btn-apply-agendio-copy');
+  const btnCopyAgendioText = document.getElementById('btn-copy-agendio-text');
+  const btnCopyAgendioImagePrompt = document.getElementById('btn-copy-agendio-image-prompt');
+  const btnModalGenerateAgendioImage = document.getElementById('btn-modal-generate-agendio-image');
+  const agendioResultsBox = document.getElementById('agendio-results-box');
+  const agendioCarouselPreviewWrap = document.getElementById('agendio-carousel-preview-wrap');
+  const agendioCarouselSlidesList = document.getElementById('agendio-carousel-slides-list');
+  const agendioReelPreviewWrap = document.getElementById('agendio-reel-preview-wrap');
+  const agendioReelScriptBody = document.getElementById('agendio-reel-script-body');
+  const agendioAiImgPreview = document.getElementById('agendio-ai-img-preview');
+  const agendioAiImgResult = document.getElementById('agendio-ai-img-result');
+
+  function syncAgendioModalThumb() {
+    if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+      agendioBackgroundImagePath = ComposerState.mediaFiles[0];
+      if (agendioBgImg) {
+        agendioBgImg.src = agendioBackgroundImagePath;
+        agendioBgImg.style.display = 'block';
+      }
+      if (agendioBgPlaceholder) agendioBgPlaceholder.style.display = 'none';
+      if (agendioBgStatus) agendioBgStatus.innerHTML = 'Foto sincronizada desde el editor lista para referencia visual.';
+    }
+  }
+
+  async function handleAgendioBgFileUpload() {
+    if (!agendioBgFileInput?.files?.length) return;
+    const file = agendioBgFileInput.files[0];
+    try {
+      const localPreview = URL.createObjectURL(file);
+      if (agendioBgImg) {
+        agendioBgImg.src = localPreview;
+        agendioBgImg.style.display = 'block';
+      }
+      if (agendioBgPlaceholder) agendioBgPlaceholder.style.display = 'none';
+    } catch (_) {}
+
+    if (agendioBgStatus) agendioBgStatus.textContent = `Subiendo foto "${file.name}"...`;
+    const formData = new FormData();
+    formData.append('files', file);
+
+    try {
+      const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (json.success && json.data?.length > 0) {
+        const uploadedUrl = json.data[0].url || json.data[0].filepath;
+        agendioBackgroundImagePath = uploadedUrl;
+        if (agendioBgImg) agendioBgImg.src = uploadedUrl;
+        if (agendioBgStatus) agendioBgStatus.innerHTML = `✅ Foto lista (<strong>${file.name}</strong>).`;
+        if (!ComposerState.mediaFiles.includes(uploadedUrl)) {
+          ComposerState.mediaFiles.unshift(uploadedUrl);
+          renderMediaPreviews();
+          updateLivePreviews();
+        }
+        showToast('Foto cargada exitosamente', 'success');
+      } else {
+        showToast('Error al subir: ' + (json.error || 'Desconocido'), 'error');
+      }
+    } catch (err) {
+      showToast('Error subiendo foto: ' + err.message, 'error');
+    }
+  }
+
+  async function handleGenerateAgendioAiContent() {
+    const topic = document.getElementById('agendio-topic')?.value.trim();
+    const format = document.getElementById('agendio-format')?.value || 'feed';
+    const targetAudience = document.getElementById('agendio-audience')?.value || 'duenos';
+    const pillar = document.getElementById('agendio-pillar')?.value || 'dolor_real';
+
+    if (!topic) {
+      showToast('Ingresa un tema o haz clic en una de las ideas rápidas', 'error');
+      return;
+    }
+
+    if (btnGenerateAgendioAi) {
+      btnGenerateAgendioAi.disabled = true;
+      btnGenerateAgendioAi.innerHTML = '<span>⚡ Diseñando Contenido Agendio con Gemini...</span>';
+    }
+
+    try {
+      const activeAccId = AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+      const res = await fetch('/api/ai/agendio-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-account-id': activeAccId
+        },
+        body: JSON.stringify({
+          topic,
+          format,
+          targetAudience,
+          pillar,
+          baseImageUrl: agendioBackgroundImagePath || ''
+        })
+      });
+
+      const json = await res.json();
+      if (!json.success || !json.data) {
+        throw new Error(json.error || 'No se pudo generar contenido para Agendio');
+      }
+
+      const d = json.data;
+      if (agendioGeneratedCopy) agendioGeneratedCopy.value = d.copy || '';
+      if (agendioImagePromptText) agendioImagePromptText.value = d.masterImagePrompt || '';
+
+      if (agendioResultsBox) agendioResultsBox.style.display = 'block';
+
+      // Renderizar Carrusel si aplica
+      if (format === 'carousel' && d.carouselSlides?.length > 0) {
+        if (agendioCarouselPreviewWrap) agendioCarouselPreviewWrap.style.display = 'block';
+        if (agendioCarouselSlidesList) {
+          agendioCarouselSlidesList.innerHTML = d.carouselSlides.map(s => `
+            <div style="background:var(--bg-surface); padding:8px 10px; border-radius:2px; border-left:3px solid #d99a2b; font-size:0.78rem;">
+              <div style="display:flex; justify-content:space-between; font-weight:700; color:#eebe6c; margin-bottom:2px; font-family:'Spectral', Georgia, serif;">
+                <span>Slide ${s.slideNumber}: ${s.headline || ''}</span>
+              </div>
+              <div style="color:var(--text-secondary); margin-bottom:3px; font-family:'Outfit', sans-serif;">${s.subtext || ''}</div>
+              <div style="font-size:0.72rem; color:var(--text-muted); font-style:italic;">📸 Visual: ${s.visualIdea || ''}</div>
+            </div>
+          `).join('');
+        }
+      } else {
+        if (agendioCarouselPreviewWrap) agendioCarouselPreviewWrap.style.display = 'none';
+      }
+
+      // Renderizar Reel si aplica
+      if (format === 'reel' && d.reelScript) {
+        if (agendioReelPreviewWrap) agendioReelPreviewWrap.style.display = 'block';
+        if (agendioReelScriptBody) {
+          const r = d.reelScript;
+          agendioReelScriptBody.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="padding:6px 8px; background:rgba(217, 154, 43, 0.1); border-radius:2px; border-left:3px solid #d99a2b;">
+                <strong style="color:#eebe6c;">🎣 0 a 3s (Hook Visual):</strong>
+                <div style="color:var(--text-primary); margin-top:2px;">${r.hook || ''}</div>
+              </div>
+              <div style="padding:6px 8px; background:var(--bg-surface); border-radius:2px; border-left:3px solid var(--border-color);">
+                <strong style="color:var(--text-muted);">⚡ 4 a 15s (Agitación del Problema):</strong>
+                <div style="color:var(--text-secondary); margin-top:2px;">${r.agitation || ''}</div>
+              </div>
+              <div style="padding:6px 8px; background:rgba(52, 211, 153, 0.1); border-radius:2px; border-left:3px solid #34d399;">
+                <strong style="color:#34d399;">🛠️ 16 a 28s (Solución en Pantalla Agendio):</strong>
+                <div style="color:var(--text-primary); margin-top:2px;">${r.solution || ''}</div>
+              </div>
+              <div style="padding:6px 8px; background:var(--bg-surface); border-radius:2px; border-left:3px solid #d99a2b;">
+                <strong style="color:#eebe6c;">📲 29 a 35s (Llamado a la Acción):</strong>
+                <div style="color:var(--text-secondary); margin-top:2px;">${r.cta || ''}</div>
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        if (agendioReelPreviewWrap) agendioReelPreviewWrap.style.display = 'none';
+      }
+
+      showToast('¡Contenido de Agendio generado exitosamente!', 'success');
+    } catch (err) {
+      showToast('Error generando contenido de Agendio: ' + err.message, 'error');
+    } finally {
+      if (btnGenerateAgendioAi) {
+        btnGenerateAgendioAi.disabled = false;
+        btnGenerateAgendioAi.innerHTML = '<span>🚀 Generar Contenido Agendio (Copy + Prompt Gemini)</span>';
+      }
+    }
+  }
+
+  function handleApplyAgendioCopy() {
+    const text = agendioGeneratedCopy?.value?.trim();
+    if (text) {
+      postContent.value = text;
+      updateLivePreviews();
+      closeAi();
+      showToast('✅ Copy de Agendio insertado en el editor', 'success');
+    }
+  }
+
+  function handleCopyAgendioText() {
+    const text = agendioGeneratedCopy?.value?.trim();
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 Copy copiado al portapapeles', 'info');
+      }).catch(() => {
+        showToast('No se pudo copiar automáticamente', 'warning');
+      });
+    }
+  }
+
+  function handleCopyAgendioImagePrompt() {
+    const prompt = agendioImagePromptText?.value?.trim();
+    if (prompt) {
+      navigator.clipboard.writeText(prompt).then(() => {
+        showToast('🎨 Prompt de Gemini copiado al portapapeles', 'info');
+      }).catch(() => {
+        showToast('No se pudo copiar automáticamente', 'warning');
+      });
+    }
+  }
+
+  async function handleGenerateAgendioImageDirect() {
+    const rawPrompt = agendioImagePromptText?.value?.trim();
+    if (!rawPrompt) {
+      showToast('Genera primero el contenido para obtener el prompt de imagen', 'error');
+      return;
+    }
+
+    if (btnModalGenerateAgendioImage) {
+      btnModalGenerateAgendioImage.disabled = true;
+      btnModalGenerateAgendioImage.textContent = '✨ Generando imagen con Gemini...';
+    }
+
+    try {
+      const format = document.getElementById('agendio-format')?.value || 'feed';
+      const activeAccId = AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+
+      const res = await fetch('/api/ai/generate-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-account-id': activeAccId
+        },
+        body: JSON.stringify({
+          prompt: rawPrompt,
+          format: format === 'reel' || format === 'story' ? 'story' : 'feed',
+          account_id: activeAccId,
+          baseImageUrl: agendioBackgroundImagePath || ''
+        })
+      });
+
+      const json = await res.json();
+      if (!json.success || !json.url) {
+        throw new Error(json.error || 'Error al generar imagen con Gemini');
+      }
+
+      if (agendioAiImgResult) {
+        agendioAiImgResult.src = json.url;
+      }
+      if (agendioAiImgPreview) {
+        agendioAiImgPreview.style.display = 'block';
+      }
+
+      if (!ComposerState.mediaFiles.includes(json.url)) {
+        ComposerState.mediaFiles.unshift(json.url);
+        renderMediaPreviews();
+        updateLivePreviews();
+      }
+
+      showToast('✨ ¡Imagen de Agendio generada con Gemini y cargada al editor!', 'success');
+    } catch (err) {
+      showToast('Error generando imagen: ' + err.message, 'error');
+    } finally {
+      if (btnModalGenerateAgendioImage) {
+        btnModalGenerateAgendioImage.disabled = false;
+        btnModalGenerateAgendioImage.textContent = '✨ Generar con Gemini';
+      }
+    }
+  }
+
+  function bindAgendioControls() {
+    // Quick pills
+    document.querySelectorAll('.agendio-quick-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const topicInput = document.getElementById('agendio-topic');
+        if (topicInput) {
+          topicInput.value = pill.dataset.topic || '';
+          topicInput.focus();
+        }
+      });
+    });
+
+    if (btnSelectAgendioBg && agendioBgFileInput) {
+      btnSelectAgendioBg.addEventListener('click', () => agendioBgFileInput.click());
+    }
+
+    if (agendioBgFileInput) {
+      agendioBgFileInput.addEventListener('change', handleAgendioBgFileUpload);
+    }
+
+    if (btnUseComposerAgendioBg) {
+      btnUseComposerAgendioBg.addEventListener('click', () => {
+        if (ComposerState.mediaFiles?.length > 0) {
+          syncAgendioModalThumb();
+          showToast('Foto del editor vinculada para Agendio', 'info');
+        } else {
+          showToast('No hay ninguna foto cargada en el editor aún', 'warning');
+        }
+      });
+    }
+
+    if (btnGenerateAgendioAi) {
+      btnGenerateAgendioAi.addEventListener('click', handleGenerateAgendioAiContent);
+    }
+
+    if (btnApplyAgendioCopy) {
+      btnApplyAgendioCopy.addEventListener('click', handleApplyAgendioCopy);
+    }
+
+    if (btnCopyAgendioText) {
+      btnCopyAgendioText.addEventListener('click', handleCopyAgendioText);
+    }
+
+    if (btnCopyAgendioImagePrompt) {
+      btnCopyAgendioImagePrompt.addEventListener('click', handleCopyAgendioImagePrompt);
+    }
+
+    if (btnModalGenerateAgendioImage) {
+      btnModalGenerateAgendioImage.addEventListener('click', handleGenerateAgendioImageDirect);
+    }
+  }
+
+  // =========================================================================
   // INSTAGRAM SKILLS 2026: CARRUSEL & HUMANIZADOR
   // =========================================================================
   const btnHumanizeComposer = document.getElementById('btn-humanize-composer');
@@ -2455,5 +2797,6 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAiModalGeneralControls();
   bindKmarketControls();
   bindCampinaControls();
+  bindAgendioControls();
   bindHumanizerAndCarouselControls();
 });

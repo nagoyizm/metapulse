@@ -56,11 +56,12 @@ class AIService {
    */
   async generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey }) {
     const prompt = this.buildPrompt({ topic, tone, goal, platform, brandName, customInstructions });
-    const configuredModel = getSetting('ai_model') || 'gemini-3.6-flash';
+    const configuredModel = getSetting('ai_model') || 'gemini-3.8-flash';
     const modelsToTry = [
+      'gemini-3.8-flash',
       'gemini-3.6-flash',
+      'gemini-3.5-flash',
       configuredModel,
-      'gemini-2.5-flash',
       'gemini-flash-latest'
     ];
     // Eliminar duplicados manteniendo orden
@@ -79,7 +80,7 @@ class AIService {
             temperature: 0.7,
             maxOutputTokens: 2048
           }
-        }, { timeout: 10000 });
+        }, { timeout: 25000 });
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
         const actualPart = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
@@ -155,6 +156,31 @@ Plataforma: ${platform === 'both' ? 'Facebook e Instagram' : platform}
 Tema: "${topic}"
 
 ${customInstructions}
+`;
+    }
+
+    const isAgendio = (brandName || '').toLowerCase().includes('agendio');
+
+    if (isAgendio) {
+      return `
+Eres el estratega y copywriter oficial de Agendio (www.agendio.cl), plataforma de gestión integral para cabañas, hostales y alojamientos turísticos en Chile.
+Negocio / Marca: "Agendio (@agendio.cl)"
+Plataforma: ${platform === 'both' ? 'Facebook e Instagram' : platform}
+Tema: "${topic}"
+Tono: cercano, chileno, empático, directo y sin tecnicismos
+Objetivo: ${goal || 'calma operativa, cotizaciones y reservas directas 24/7'}
+${customInstructions ? `- Instrucciones adicionales: ${customInstructions}` : ''}
+
+REGLAS DE ORO DE AGENDIO:
+1. PROPUESTA: Vende erradicar los 4 dolores operativos (doble reserva, llamada perdida de noche, planilla de Excel perdida, cobro olvidado), NO funciones técnicas. Taglines: "Nunca más pierdas una reserva." y "La calma de operar bien."
+2. GANCHO INICIAL: MENOS de 120 caracteres antes del primer salto de línea para evitar el corte "... más" de Instagram. Ataca el dolor o la oportunidad directamente.
+3. VOZ CHILENA Y HUMANA: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o saltos de línea.
+4. PROHIBIDO CLICHÉS DE IA: Cero "sumérgete", "revolucionario", "en el ajetreado mundo". Habla como un anfitrión chileno conversando con otro.
+5. CIERRE CON LLAMADO CLARO: Invita a cotizar en agendio.cl o escribir por WhatsApp (+56 9 7900 4253 / link en bio).
+6. HASHTAGS OFICIALES EXACTOS (poner al final):
+#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje
+
+Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
 `;
     }
 
@@ -1395,6 +1421,279 @@ Estructura a entregar:
   }
 
   /**
+   * Generador de Prompt de Imagen para Gemini según los Tokens Reales de Agendio.cl
+   */
+  buildAgendioImagePrompt({ topic, format = 'feed', pillar = 'dolor_real', targetAudience = 'duenos', baseImageUrl = '' }) {
+    const isReel = format === 'reel';
+    const isStory = format === 'story';
+    const aspect = (isReel || isStory) ? '9:16 vertical (1080x1920px)' : '4:5 vertical (1080x1350px)';
+
+    return `[1. FOTOGRAFÍA COMERCIAL LIMPIA PARA GEMINI (SIN TEXTO NI LOGOS)]
+Fotografía arquitectónica y comercial de alta gama para redes sociales, en formato ${aspect}.
+Escena: Acogedora cabaña de madera nativa chilena (roble, ciprés y piedra volcánica) inmersa en un frondoso bosque nativo del sur de Chile al atardecer (golden hour) o en una noche estrellada y serena.
+Iluminación: Resplandor dorado ámbar (#D99A2B, #EEBE6C) emanando a través de amplios ventanales vidriados de la cabaña, generando un ambiente sumamente cálido y acogedor.
+Paleta de colores oficial de Agendio: Fondo y vegetación en verde noche profundo (#0B1B12) y verde bosque oscuro (#142B1E), contrastando armoniosamente con las luces interiores doradas (#D99A2B) y maderas cálidas.
+Atmósfera: Tranquilidad absoluta, orden, refugio natural y hospitalidad de alto estándar ("La calma de operar bien").
+Tema del contenido: "${topic || 'Gestión y reserva directa de cabañas turísticas'}".
+REGLA CRÍTICA PARA GEMINI: Generar una fotografía puramente natural y limpia. ESTRICTAMENTE SIN texto, sin letras, sin números, sin marcas de agua, sin logos falsos, ni pantallas flotantes con falsas interfaces. Dejar espacio visual limpio (aire negativo) en la zona superior y lateral para montaje posterior.
+
+[2. GUÍA DE DISEÑO POSTERIOR Y OVERLAY MANUAL]
+- Titular principal (H1/H2): Tipografía "Spectral" (Google Fonts), serif editorial sobria, peso 700 bold, color blanco (#FFFFFF) con palabras clave destacadas en dorado miel (#E5A63F).
+- Subtítulos y cuerpo: Tipografía "Outfit" (Google Fonts), sans-serif geométrica limpia, peso 500/600, color crema cálido (#FBF7F0) o verde suave (#C9DCC9).
+- Tarjetas y Botones: Esquinas con micro-suavizado fino de 2px (rounded-xs / .125rem). Botón CTA con fondo ámbar (#D99A2B) y texto verde grafito (#1C2B22).
+- Mockup UI de Agendio: Montar en perspectiva limpia la pantalla de 'reserva.agendio.cl/tu-recinto' con calendario interactivo mostrando fechas disponibles en esmeralda (#34D399) y ocupadas en coral (#F87171).`;
+  }
+
+  /**
+   * Generador Especializado de Contenido para Agendio.cl:
+   * Copy para redes + Prompt para Gemini + Desglose estructurado (Carrusel o Reel)
+   */
+  async generateAgendioContent({
+    topic,
+    format = 'feed',
+    targetAudience = 'duenos',
+    pillar = 'dolor_real',
+    extraNotes = '',
+    baseImageUrl = ''
+  }) {
+    const apiKey = this.getApiKey();
+    const isCarousel = format === 'carousel';
+    const isReel = format === 'reel';
+
+    // 1. Generar prompt maestro para Gemini con estricta separación
+    const masterImagePrompt = this.buildAgendioImagePrompt({
+      topic,
+      format,
+      pillar,
+      targetAudience,
+      baseImageUrl
+    });
+
+    const pillarDescriptions = {
+      dolor_real: 'Pilar 1: Dolor real (La doble reserva, la llamada perdida a medianoche, la planilla de Excel perdida, el cobro que se olvida cobrar).',
+      funcionalidad: 'Pilar 2: Funcionalidad resuelta (Calendario en vivo, link público de cotización directa 24/7, confirmación por WhatsApp en 1 solo panel).',
+      para_quien: 'Pilar 3: Para quién es (Dueños solos/familiares vs Operaciones con equipo, recepcionistas y aseo).',
+      prueba_social: 'Pilar 4: Prueba social y testimonios (Tranquilidad operativa y control del anfitrión).',
+      faq: 'Pilar 5: FAQ y objeciones resueltas (Facilidad de uso, operación desde el celular, pagos).',
+      educativo: 'Pilar 6: Educativo del nicho (Preparación de temporada alta, tips de hospitalidad y turismo chileno).'
+    };
+
+    const audiencePrompt = targetAudience === 'equipo'
+      ? 'Público: Alojamientos con equipo operativo (recepción, aseo, múltiples unidades). Tono: Estructurado, profesional, centrado en coordinación y turnos sin roces.'
+      : 'Público: Dueños de cabañas y hostales (operan solos o con su familia). Tono: Cercano, chileno, empático, sin tecnicismos, enfocado en recuperar tiempo y evitar el caos manual.';
+
+    const systemPrompt = `
+Eres el redactor y estratega oficial de redes sociales de Agendio (www.agendio.cl), la plataforma de gestión integral para cabañas, hostales y alojamientos turísticos en Chile.
+
+IDENTIDAD Y VOZ DE MARCA:
+- Tagline principal: "Nunca más pierdas una reserva."
+- Tagline de cierre: "La calma de operar bien."
+- Propuesta de valor: Agendio vende el fin de dolores operativos concretos (doble reserva, llamadas perdidas, planillas enredadas, cobros olvidados), NO funciones frías de software.
+- Tono: Cercano, chileno, directo, empático y profesional, sin tecnicismos ni palabras rimbombantes.
+- Frase de referencia real del sitio: "Operar un alojamiento no debería ser perseguir problemas."
+
+${audiencePrompt}
+${pillarDescriptions[pillar] || pillarDescriptions.dolor_real}
+${extraNotes ? `Notas adicionales del usuario: "${extraNotes}"` : ''}
+
+REGLAS DE COPY OBLIGATORIAS:
+1. HOOK (Línea 1): MÁXIMO 120 caracteres antes del primer salto de línea. Debe atrapar antes del corte "... más" de Instagram atacando el dolor o la oportunidad en una frase corta.
+2. CUERPO: 1 o 2 frases breves y contundentes ampliando el dolor o la solución ("todo eso cabe en un solo panel").
+3. CTA: Variante clara como "Cotiza tu plan en agendio.cl o escríbenos por WhatsApp para ordenar tu temporada".
+4. HASHTAGS EXACTOS:
+#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje
+5. PROHIBIDO: CERO guiones largos ("—" o "--"), CERO palabras cliché de bot ("sumérgete", "revolucionario", "en el vertiginoso mundo"), CERO hashtags de creadores (#viral, #fyp), CERO lenguaje de e-commerce ("oferta imperdible", "compra ya").
+
+${isCarousel ? `
+COMO EL FORMATO ES CARRUSEL:
+Genera un desglose slide a slide para 5 diapositivas con esta estructura exacta:
+--- SLIDES ---
+Slide 1 | [Titular corto Spectral] | [Texto Outfit] | [Idea visual fotográfica]
+Slide 2 | [Titular corto Spectral] | [Texto Outfit] | [Idea visual fotográfica]
+Slide 3 | [Titular corto Spectral] | [Texto Outfit] | [Idea visual fotográfica]
+Slide 4 | [Titular corto Spectral] | [Texto Outfit] | [Idea visual fotográfica]
+Slide 5 | [Titular corto Spectral] | [Texto Outfit] | [Idea visual fotográfica]
+--- FIN SLIDES ---
+` : ''}
+
+${isReel ? `
+COMO EL FORMATO ES REEL:
+Genera una estructura de guión dinámico de 30 a 35 segundos:
+- 0 a 3s (Gancho visual y texto en pantalla)
+- 4 a 15s (El problema real del anfitrión chileno con reservas manuales)
+- 16 a 28s (Solución en vivo en Agendio en pantalla o celular)
+- 29 a 35s (Llamado a la acción con link en bio)
+` : ''}
+
+Entrega el texto final listo para publicar.
+`;
+
+    let generatedText = '';
+    let carouselSlides = [];
+    let reelScript = null;
+
+    if (apiKey) {
+      try {
+        const res = await this.generateWithGemini({
+          topic: `Publicación sobre "${topic || 'Gestión de reservas de cabañas'}" para Agendio.cl`,
+          tone: 'cercano, chileno y empático',
+          goal: 'conversión y consultas de cotización',
+          platform: 'both',
+          brandName: 'Agendio',
+          customInstructions: systemPrompt,
+          apiKey
+        });
+        generatedText = res.fullPost;
+      } catch (err) {
+        console.warn('Fallo llamada a Gemini en generateAgendioContent, usando fallback inteligente:', err.message);
+        generatedText = this.getAgendioFallbackCopy({ topic, pillar, targetAudience });
+      }
+    } else {
+      generatedText = this.getAgendioFallbackCopy({ topic, pillar, targetAudience });
+    }
+
+    if (isCarousel) {
+      carouselSlides = this.parseAgendioCarouselSlides(generatedText, topic);
+    }
+
+    if (isReel) {
+      reelScript = this.parseAgendioReelScript(generatedText, topic);
+    }
+
+    const cleanPost = this.cleanCaptionAI(
+      generatedText.replace(/--- SLIDES ---[\s\S]*?--- FIN SLIDES ---/gi, '').trim()
+    );
+
+    const cleanPhotoPart = masterImagePrompt.includes('[2.')
+      ? masterImagePrompt.split('[2.')[0].replace('[1. FOTOGRAFÍA COMERCIAL LIMPIA PARA GEMINI (SIN TEXTO NI LOGOS)]', '').trim()
+      : masterImagePrompt;
+
+    const designGuidePart = masterImagePrompt.includes('[2.')
+      ? ('[2.' + masterImagePrompt.split('[2.')[1]).trim()
+      : '';
+
+    return {
+      success: true,
+      topic,
+      format,
+      pillar,
+      targetAudience,
+      copy: cleanPost,
+      masterImagePrompt,
+      cleanPhotoPrompt: cleanPhotoPart,
+      designGuide: designGuidePart,
+      carouselSlides,
+      reelScript,
+      tokens: {
+        colors: {
+          bgDark: '#0B1B12',
+          bgHeader: '#142B1E',
+          bgLight: '#FBF7F0',
+          accentCta: '#D99A2B',
+          accentHover: '#E5A63F',
+          accentEyebrow: '#EEBE6C',
+          textDark: '#FFFFFF',
+          textMuted: '#C9DCC9',
+          successGreen: '#34D399',
+          alertRed: '#F87171'
+        },
+        fonts: {
+          heading: 'Spectral (700 bold / 600 semibold)',
+          body: 'Outfit (400 normal / 500 medium)',
+          cta: 'Outfit (700 bold)'
+        },
+        borderRadius: '2px (rounded-xs / 0.125rem)'
+      }
+    };
+  }
+
+  /**
+   * Fallback inteligente de alta fidelidad para Agendio
+   */
+  getAgendioFallbackCopy({ topic, pillar, targetAudience }) {
+    if (pillar === 'funcionalidad') {
+      return `¿Cuántas reservas se te han escapado por no responder WhatsApp a tiempo?..\n\nCon Agendio tus pasajeros cotizan y reservan solos en tu link público 24/7. Las fechas se bloquean en vivo y la confirmación llega automática.\n\nSin dobles reservas ni clientes esperando respuesta.. la calma de operar bien.\n\n📲 Escríbenos por WhatsApp o cotiza tu plan en agendio.cl\n\n#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje`;
+    }
+
+    if (targetAudience === 'equipo') {
+      return `Coordinar aseo, recepción y check-ins no debería ser un dolor de cabeza diario..\n\nEn Agendio cada miembro de tu equipo tiene su rol claro: aseo sabe qué cabaña está lista y recepción ve en tiempo real qué pasajeros ingresan.\n\nMenos roces internos y una operación impecable para tus huéspedes..\n\n📲 Solicita tu cotización en agendio.cl o conversemos por WhatsApp.\n\n#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje`;
+    }
+
+    return `¿Te ha pasado que te entra una reserva mientras dormías y la cabaña ya estaba ocupada?..\n\nCada vez que la información vive en un cuaderno, WhatsApp y Excel a la vez, el riesgo de una doble reserva lo pagas tú con estrés y clientes molestos.\n\nCon Agendio centralizas reservas, huéspedes, finanzas y aseo en un solo panel intuitivo..\n\n📲 Escríbenos por WhatsApp o cotiza tu plan en agendio.cl y recupera la calma de operar bien.\n\n#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje`;
+  }
+
+  /**
+   * Parsea diapositivas de carrusel para Agendio
+   */
+  parseAgendioCarouselSlides(text, topic) {
+    const slides = [];
+    const blockMatch = text.match(/--- SLIDES ---([\s\S]*?)--- FIN SLIDES ---/i);
+    if (blockMatch) {
+      const lines = blockMatch[1].split('\n').map(l => l.trim()).filter(Boolean);
+      lines.forEach((line, idx) => {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length >= 3) {
+          slides.push({
+            slideNumber: idx + 1,
+            headline: parts[1] || `Paso ${idx + 1}`,
+            subtext: parts[2] || '',
+            visualIdea: parts[3] || 'Cabaña de madera nativa con paleta Agendio #0B1B12 y #D99A2B'
+          });
+        }
+      });
+    }
+
+    if (slides.length >= 3) return slides;
+
+    // Fallback estructurado de 5 slides
+    return [
+      {
+        slideNumber: 1,
+        headline: '¿Por qué sigues persiguiendo problemas en tu alojamiento?',
+        subtext: 'El estrés de gestionar reservas a mano no es parte del trabajo.',
+        visualIdea: 'Cabaña de madera cálida al anochecer con tenue luz ámbar #D99A2B y fondo verde noche #0B1B12.'
+      },
+      {
+        slideNumber: 2,
+        headline: 'El caos invisible de cada temporada',
+        subtext: 'Un cuaderno en recepción, 4 chats de WhatsApp y un Excel que nadie actualizó.',
+        visualIdea: 'Detalle de libreta de reservas y celular recibiendo mensajes a deshora.'
+      },
+      {
+        slideNumber: 3,
+        headline: 'El costo real: dobles reservas y llamadas perdidas',
+        subtext: 'Una llamada a medianoche sin responder significa un pasajero que reservó al lado.',
+        visualIdea: 'Plano cinematográfico de cabaña vacía con iluminación suave.'
+      },
+      {
+        slideNumber: 4,
+        headline: 'Todo eso cabe en un solo panel',
+        subtext: 'Disponibilidad en vivo 24/7, cotización directa y confirmación automática por WhatsApp.',
+        visualIdea: 'Mockup limpio de Agendio (reserva.agendio.cl) con días libres en esmeralda #34D399.'
+      },
+      {
+        slideNumber: 5,
+        headline: 'La calma de operar bien',
+        subtext: 'Automatiza tu temporada hoy. Cotiza tu plan en agendio.cl o escríbenos por WhatsApp.',
+        visualIdea: 'Paisaje amplio de bosque nativo chileno con cabaña iluminada y logo Agendio.'
+      }
+    ];
+  }
+
+  /**
+   * Parsea guión de Reel para Agendio
+   */
+  parseAgendioReelScript(text, topic) {
+    return {
+      hook: '0 a 3s: "¿Te ha pasado que te entra una reserva mientras dormías y la cabaña ya estaba ocupada?" (Texto en Spectral bold, corte rápido a pantalla de celular).',
+      agitation: '4 a 15s: Muestra la libreta con tachones, 3 chats de WhatsApp abiertos y la planilla de Excel desactualizada: "El desorden te cuesta tiempo, estrés y pasajeros perdidos".',
+      solution: '16 a 28s: Transición fluida a la pantalla de Agendio en celular: "Con Agendio tus clientes cotizan y reservan solos en tu link 24/7. Las fechas se bloquean en vivo y tú operas tranquilo".',
+      cta: '29 a 35s: "Cotiza tu plan en agendio.cl o escríbenos por WhatsApp y ten tu sistema listo en minutos".',
+      visualStyle: 'Tomas limpias de cabañas en el sur de Chile, iluminación ámbar cálida (#D99A2B) y verde bosque (#0B1B12).'
+    };
+  }
+
+  /**
    * Sugerencias Proactivas Semanales (Miércoles & Sábados)
    * 100% adaptadas a la realidad de cada negocio
    */
@@ -1411,20 +1710,20 @@ Estructura a entregar:
         accountType: 'agendio',
         days: [
           {
-            dayName: 'Miércoles (Slot de Productividad & Citas)',
+            dayName: 'Miércoles (Slot de Operación & Calma)',
             slot: '13:00 / 19:00',
             type: 'feed',
-            title: '⚡ Automatiza tu Agenda y Olvídate del WhatsApp Manual',
-            suggestion: 'Muestra cómo ahorrar horas cada semana compartiendo tu link de Agendio para coordinar citas en piloto automático.',
-            presetTopic: 'Automatización de reservas y citas profesionales en piloto automático con Agendio App'
+            title: '⚡ Fin de la Doble Reserva y de las Llamadas a Medianoche',
+            suggestion: 'Muestra cómo el calendario interactivo de Agendio bloquea fechas en tiempo real para operar sin dobles reservas ni planillas de Excel desactualizadas.',
+            presetTopic: 'Cómo evitar la doble reserva y las llamadas a deshora en cabañas y alojamientos turísticos'
           },
           {
-            dayName: 'Sábado (Slot de Conversión & Clientes)',
+            dayName: 'Sábado (Slot de Ventas Directas 24/7)',
             slot: '11:00 / 18:00',
             type: 'carousel',
-            title: '🚀 De Seguidor a Cliente en 1 Clic con tu Link de Agendio',
-            suggestion: 'Carrusel paso a paso mostrando cómo colocar tu enlace de Agendio en la Bio de Instagram para captar reservas 24/7.',
-            presetTopic: 'Cómo convertir seguidores en citas agendadas automáticamente con Agendio'
+            title: '🚀 Tus Pasajeros Cotizan y Reservan Solos en Vivo 24/7',
+            suggestion: 'Carrusel paso a paso mostrando el link público de Agendio en la Bio de Instagram para que los clientes elijan fechas y confirmen sin esperas.',
+            presetTopic: 'Cómo automatizar reservas directas de cabañas y hostales con el link de cotización 24/7 de Agendio'
           }
         ]
       };
@@ -1947,7 +2246,10 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     const isCustomMasterPrompt = prompt.toLowerCase().includes('diseñador') || prompt.length > 80;
 
     if (!isCustomMasterPrompt) {
-      if (baseImageUrl) {
+      const isAgendio = (accountName || '').toLowerCase().includes('agendio');
+      if (isAgendio) {
+        optimizedPrompt = `High quality commercial social media photography for travel and accommodation, 4:5 vertical aspect ratio. Cozy Chilean wooden cabin in a lush native forest, warm golden hour glowing interior light (#D99A2B, #EEBE6C) shining through large glass windows, rich dark green tones (#0B1B12, #142B1E) in the foliage, peaceful serene atmosphere, 8k resolution, cinematic lighting, photorealistic. CRITICAL: completely clean natural photo, strictly NO text, NO typography, NO watermark, NO logos. Subject: ${prompt}`;
+      } else if (baseImageUrl) {
         optimizedPrompt = `Commercial product advertising poster, 4:5 vertical aspect ratio. Using this reference photo as the hero product subject, create a clean commercial advertising flyer with striking typography in Spanish, appetizing studio presentation, vibrant colors, premium packaging, 8k resolution, photorealistic, cinematic lighting. Subject: ${prompt}`;
       } else {
         optimizedPrompt = `High quality commercial social media advertising poster, 4:5 vertical aspect ratio, striking typography in Spanish, ${prompt}, 8k resolution, cinematic lighting, photorealistic`;
@@ -2252,18 +2554,32 @@ Responde estrictamente en formato JSON con la siguiente estructura:
     if (isAgendio) {
       return {
         id: 'agendio',
-        name: 'Agendio App (@agendio.cl)',
+        name: 'Agendio (@agendio.cl)',
         tag: 'Agendio',
-        emoji: '⚡',
+        emoji: '📅',
         whatsapp: '+56 9 7900 4253',
         web: 'www.agendio.cl',
-        rules: [
-          'Agendio es un software de agendamiento inteligente y reservas automatizadas para profesionales y negocios.',
-          'Enfocarse en ahorrar tiempo, eliminar chats manuales de coordinación y aumentar conversiones.',
-          'Destacar el enlace de reservas en bio de Instagram y botón de reservas en WhatsApp.',
-          'Tono moderno, tecnológico, directo y profesional.'
+        taglines: [
+          'Nunca más pierdas una reserva.',
+          'La calma de operar bien.'
         ],
-        knowledge: 'Plataforma SaaS de citas online y gestión de agenda automatizada.'
+        proposal: 'Centraliza y gestiona las reservas, horarios, huéspedes y pagos de tu cabaña, hostal u hospedaje en una sola plataforma intuitiva y automatizada.',
+        painPoints: [
+          'La doble reserva: Dos familias reservan la misma cabaña para el mismo fin de semana.',
+          'La llamada perdida: Suena el teléfono a medianoche y cuando atiendes ya reservó en otro lado.',
+          'La planilla que no aparece: Cuadernos, WhatsApp y Excel descoordinados, nadie sabe qué está libre.',
+          'El pago que se olvida: Entre check-ins y aseo se te escapa cobrar lo ya trabajado.'
+        ],
+        rules: [
+          'Agendio vende erradicar dolores operativos específicos en alojamientos turísticos de Chile (cabañas, hostales, hospedajes, domos), NO funciones abstractas de software.',
+          'Tono chileno, cercano, directo, empático y sin tecnicismos ("la calma de operar bien").',
+          'Destacar el fin de las dobles reservas, el calendario interactivo en vivo y el link público 24/7.',
+          'Prohibido lenguaje de ecommerce ("oferta", "compra ya") o hashtags de creadores (#viral, #fyp).',
+          'Paleta visual estricta: Verde bosque profundo (#0B1B12), Verde oscuro (#142B1E), Dorado ámbar CTA (#D99A2B), Crema cálido (#FBF7F0), Esmeralda (#34D399).',
+          'Tipografía: Spectral para titulares y Outfit para cuerpo de texto. Bordes rectos de 2px (rounded-xs).'
+        ],
+        hashtags: '#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje',
+        knowledge: 'Plataforma SaaS chilena para gestión integral de cabañas y alojamientos turísticos. Elimina dobles reservas, automatiza confirmaciones de WhatsApp y ofrece cotización directa 24/7.'
       };
     }
 
