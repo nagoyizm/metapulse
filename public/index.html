@@ -384,17 +384,46 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Hook Barometer (Instagram 2026: Corte de 125 caracteres) -->
+                  <div class="hook-barometer-wrap" id="hook-barometer-wrap" style="margin-bottom: 6px; padding: 6px 10px; background: var(--bg-surface-subtle); border-radius: var(--radius-xs); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 0.76rem;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span id="hook-status-icon">🎯</span>
+                      <span style="font-weight: 600; color: var(--text-primary);">Gancho Instagram (1-125 car.):</span>
+                      <span id="hook-status-text" style="color: var(--text-muted);">Escribe las 2 primeras líneas para detener el scroll...</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="width: 80px; height: 6px; background: var(--border-subtle); border-radius: 3px; overflow: hidden;">
+                        <div id="hook-progress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.2s ease, background 0.2s ease;"></div>
+                      </div>
+                      <span id="hook-char-count" style="font-weight: 700; color: var(--text-secondary); min-width: 48px; text-align: right;">0 / 125</span>
+                    </div>
+                  </div>
+
                   <textarea id="post-content" class="form-control composer-textarea" rows="6" placeholder="Escribe el copy de tu publicación aquí o usa el botón 'Asistente IA' arriba..."></textarea>
                   
-                  <!-- Quick Hashtag Suggestions -->
-                  <div class="quick-tags" id="quick-tags-container">
+                  <!-- Guardián de Marca en Tiempo Real (Anti-Alucinaciones y Anti-Errores CM) -->
+                  <div id="brand-guardrail-banner" style="display: none; margin-top: 6px; padding: 8px 12px; border-radius: var(--radius-xs); font-size: 0.78rem; font-weight: 500; align-items: center; gap: 8px;">
+                    <span id="brand-guardrail-icon">⚠️</span>
+                    <span id="brand-guardrail-msg"></span>
+                  </div>
+
+                  <!-- Inyectores de CTA 1-Clic Específicos por Marca -->
+                  <div class="quick-ctas" id="quick-cta-container" style="margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+                    <span class="tag-title" style="font-weight: 700;">⚡ CTA 1-Clic:</span>
+                    <div id="brand-cta-chips-list" style="display: inline-flex; flex-wrap: wrap; gap: 6px;">
+                      <!-- Poblar dinámicamente según la cuenta activa -->
+                    </div>
+                  </div>
+
+                  <!-- Quick Hashtag Suggestions Dinámicos por Marca -->
+                  <div class="quick-tags" id="quick-tags-container" style="margin-top: 6px;">
                     <span class="tag-title">Hashtags sugeridos:</span>
-                    <button class="tag-chip" data-tag="#marketingdigital">#marketingdigital</button>
-                    <button class="tag-chip" data-tag="#socialmedia">#socialmedia</button>
-                    <button class="tag-chip" data-tag="#emprendimiento">#emprendimiento</button>
-                    <button class="tag-chip" data-tag="#branding">#branding</button>
-                    <button class="tag-chip" data-tag="#viral">#viral</button>
-                    <button class="tag-chip" data-tag="#creadoresdecontenido">#creadoresdecontenido</button>
+                    <div id="brand-hashtags-list" style="display: inline-flex; flex-wrap: wrap; gap: 6px;">
+                      <button type="button" class="tag-chip" data-tag="#marketingdigital">#marketingdigital</button>
+                      <button type="button" class="tag-chip" data-tag="#socialmedia">#socialmedia</button>
+                      <button type="button" class="tag-chip" data-tag="#branding">#branding</button>
+                    </div>
                   </div>
                 </div>
 
@@ -403,6 +432,10 @@
                   <div class="media-upload-header">
                     <span class="form-label">Archivos Multimedia (Imágenes / Videos)</span>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                      <!-- Botón especializado Agendio -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-agendio-scene-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #065f46; border-color: #065f46;">
+                        📅 Maquetar Escena B2B 4:5
+                      </button>
                       <!-- Botón especializado Cabañas La Campiña -->
                       <button type="button" class="btn btn-primary btn-sm" id="btn-campina-flyer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #059669; border-color: #059669;">
                         🌲 Maquetar Flyer Editorial 4:5 ($0)

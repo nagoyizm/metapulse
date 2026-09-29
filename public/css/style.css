@@ -965,6 +965,29 @@ textarea.form-control, .composer-textarea {
   transform: translateY(-1px);
 }
 
+.cta-chip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.73rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
+}
+
+.cta-chip:hover {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
 /* Dropzone */
 .dropzone {
   border: 1.5px dashed var(--border-strong);

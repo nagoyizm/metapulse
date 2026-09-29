@@ -543,6 +543,7 @@ async function handleAccountSwitch(opt) {
       if (window.loadWatermarksList) window.loadWatermarksList();
       if (window.loadActiveSealPreview) window.loadActiveSealPreview();
       if (window.loadInboxData) window.loadInboxData();
+      if (window.adaptComposerToActiveBrand) window.adaptComposerToActiveBrand();
     }
   } catch (e) {
     showToast('Error cambiando de cuenta: ' + e.message, 'error');
@@ -592,6 +593,7 @@ async function loadAccountSwitcher() {
 
     // Actualizar badges visuales
     window.updateActiveAccountBadges();
+    if (window.adaptComposerToActiveBrand) window.adaptComposerToActiveBrand();
 
     select.onchange = () => {
       const opt = select.options[select.selectedIndex];

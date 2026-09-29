@@ -143,7 +143,205 @@ document.addEventListener('DOMContentLoaded', () => {
       mockIgMedia.innerHTML = '<div class="media-placeholder">Sin imagen seleccionada</div>';
       mockStoryMedia.innerHTML = '<div class="media-placeholder">Imagen de Historia (9:16)</div>';
     }
+
+    // 2026 Skills: Barómetro de Gancho (<125 car) y Guardarraíles de Marca
+    updateHookBarometer(text);
+    updateBrandGuardrails(text);
   }
+
+  // Barómetro de Gancho Instagram (Regla 125 caracteres antes del corte "...más")
+  function updateHookBarometer(text = '') {
+    const bar = document.getElementById('hook-progress-bar');
+    const charCountEl = document.getElementById('hook-char-count');
+    const statusTextEl = document.getElementById('hook-status-text');
+    const iconEl = document.getElementById('hook-status-icon');
+    if (!bar || !charCountEl || !statusTextEl) return;
+
+    const trimmed = text.trim();
+    if (!trimmed) {
+      bar.style.width = '0%';
+      bar.style.background = 'var(--text-muted)';
+      charCountEl.textContent = '0 / 125';
+      statusTextEl.textContent = 'Escribe las 2 primeras líneas para detener el scroll...';
+      if (iconEl) iconEl.textContent = '🎯';
+      return;
+    }
+
+    const firstLine = trimmed.split('\n')[0].trim();
+    const hookSample = firstLine.length <= 125 ? firstLine : firstLine.slice(0, 125);
+    const hookLen = hookSample.length;
+    const pct = Math.min(100, Math.round((hookLen / 125) * 100));
+
+    bar.style.width = `${pct}%`;
+    charCountEl.textContent = `${hookLen} / 125`;
+
+    const hasQuestion = /[?¿]/.test(hookSample);
+    const hasExclamation = /[!¡]/.test(hookSample);
+    const hasNumber = /\d+/.test(hookSample);
+
+    if (hookLen < 25) {
+      bar.style.background = '#f59e0b';
+      statusTextEl.textContent = 'Gancho muy breve: agrega curiosidad, dolor o beneficio';
+      if (iconEl) iconEl.textContent = '⏳';
+    } else if (firstLine.length > 125) {
+      bar.style.background = '#ef4444';
+      statusTextEl.textContent = '⚠️ Instagram cortará aquí con "...más". Pon lo crucial al inicio';
+      if (iconEl) iconEl.textContent = '✂️';
+    } else {
+      bar.style.background = '#10b981';
+      let praise = '🎯 Gancho óptimo antes del corte';
+      if (hasQuestion) praise += ' (con pregunta)';
+      else if (hasExclamation) praise += ' (con impacto)';
+      else if (hasNumber) praise += ' (con cifra)';
+      statusTextEl.textContent = praise;
+      if (iconEl) iconEl.textContent = '🔥';
+    }
+  }
+
+  // Guardarraíles de Marca en Vivo (Previene errores de CM y afirmaciones falsas)
+  function updateBrandGuardrails(text = '') {
+    const banner = document.getElementById('brand-guardrail-banner');
+    const msgEl = document.getElementById('brand-guardrail-msg');
+    const iconEl = document.getElementById('brand-guardrail-icon');
+    if (!banner || !msgEl) return;
+
+    const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+    const isCampina = brand.includes('campiña') || brand.includes('campina') || brand.includes('cabaña') || brand.includes('cabana');
+    const isKmarket = brand.includes('kmarket');
+    const isAgendio = brand.includes('agendio') || (AppState.config?.instagramUsername || '').toLowerCase().includes('agendio') || (AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id')) === '1236967112842449';
+
+    const lower = text.toLowerCase();
+
+    // 1. Guardarraíl La Campiña: CERO tinajas
+    if (isCampina && /\b(tinaja|tinajas|hot\s*tub|hottub|jacuzzi)\b/i.test(lower)) {
+      banner.style.display = 'flex';
+      banner.style.background = 'rgba(239, 68, 68, 0.12)';
+      banner.style.border = '1px solid rgba(239, 68, 68, 0.35)';
+      banner.style.color = '#ef4444';
+      if (iconEl) iconEl.textContent = '🚫';
+      msgEl.innerHTML = '<strong>Regla estricta Cabañas La Campiña:</strong> Este complejo <u>NO cuenta con tinajas</u> ni hot tubs. Elimina esta mención para evitar quejas de clientes.';
+      return;
+    }
+
+    // 2. Guardarraíl Kmarket: CERO carnicería / carbón
+    if (isKmarket && /\b(carne\s*fresca|carne\s*cruda|carnicer[ií]a|asado\s*familiar|carb[oó]n\b)/i.test(lower)) {
+      banner.style.display = 'flex';
+      banner.style.background = 'rgba(245, 158, 11, 0.12)';
+      banner.style.border = '1px solid rgba(245, 158, 11, 0.35)';
+      banner.style.color = '#f59e0b';
+      if (iconEl) iconEl.textContent = '⚠️';
+      msgEl.innerHTML = '<strong>Alerta Kmarket Algarrobo:</strong> Es una tienda de abarrotes y snacks coreanos empaquetados, no una carnicería. Verifica no confundir con productos frescos locales.';
+      return;
+    }
+
+    // 3. Guardarraíl Agendio: Enfoque B2B Propietarios
+    if (isAgendio && /\b(turista|turistas|ven\s*a\s*descansar|reserva\s*tu\s*caba[ñn]a\s*este\s*fin|escapada\s*rom[aá]ntica)\b/i.test(lower)) {
+      banner.style.display = 'flex';
+      banner.style.background = 'rgba(59, 130, 246, 0.12)';
+      banner.style.border = '1px solid rgba(59, 130, 246, 0.35)';
+      banner.style.color = '#3b82f6';
+      if (iconEl) iconEl.textContent = '💡';
+      msgEl.innerHTML = '<strong>Recordatorio Agendio B2B:</strong> El público objetivo son administradores y dueños de cabañas, no turistas. Revisa que el enfoque sea solucionar reservas y desorden manual.';
+      return;
+    }
+
+    // Sin inconsistencias detectadas
+    banner.style.display = 'none';
+  }
+
+  // Adaptación Camaleónica del Composer a la Marca Activa (Hashtags de Nicho y CTAs 1-Clic)
+  function adaptComposerToActiveBrand() {
+    const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+    const igUser = (AppState.config?.instagramUsername || '').toLowerCase();
+    const activeAccId = AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+
+    const isAgendio = brand.includes('agendio') || igUser.includes('agendio') || activeAccId === '1236967112842449';
+    const isKmarket = brand.includes('kmarket');
+    const isCampina = brand.includes('campiña') || brand.includes('campina') || brand.includes('cabaña') || brand.includes('cabana');
+
+    const ctaContainer = document.getElementById('brand-cta-chips-list');
+    const tagsContainer = document.getElementById('brand-hashtags-list');
+
+    // 1. Inyectores de CTA 1-Clic
+    let ctas = [];
+    if (isCampina) {
+      ctas = [
+        { label: '📲 WhatsApp Directo', text: '\n\n🌲 Reserva directa al WhatsApp +56 9 7900 4253 (enlace en el perfil). ¡Cupos limitados para este fin de semana!' },
+        { label: '🥩 Quinchos Privados', text: '\n\n🌿 Cada cabaña cuenta con quincho privado para tu asado familiar. ¡Consulta disponibilidad directo al WhatsApp!' },
+        { label: '📍 Ubicación Algarrobo', text: '\n\n📍 Te esperamos en Cabañas La Campiña, Algarrobo. Naturaleza, tranquilidad y desconexión a pasos del bosque.' }
+      ];
+    } else if (isKmarket) {
+      ctas = [
+        { label: '📍 Visítanos en El Boldo 366', text: '\n\n📍 Encuéntranos en El Boldo 366, local 13 (Espacio Algarrobo). ¡Te esperamos de lunes a domingo con lo mejor de Corea!' },
+        { label: '🍜 Etiqueta a un Amigo', text: '\n\n👇 Etiqueta en comentarios con quién vas a venir a probar este antojo hoy mismo.' },
+        { label: '⚡ Stock Limitado', text: '\n\n🔥 ¡Unidades limitadas en tienda física! Pásate antes de que se agote tu favorito.' }
+      ];
+    } else if (isAgendio) {
+      ctas = [
+        { label: '📅 Agendar Demo 15m', text: '\n\n👉 Escríbenos al DM o ingresa a agendio.cl para agendar tu demo personalizada de 15 minutos sin costo.' },
+        { label: '💬 Comenta "DEMO"', text: '\n\n👇 Comenta "DEMO" y te enviamos el enlace directo a tu bandeja de entrada para probar Agendio.' },
+        { label: '🚫 Cero Comisiones OTAs', text: '\n\n💡 Deja de pagar hasta 18% en comisiones a plataformas. Centraliza tus reservas directas con tu propio motor Agendio.' }
+      ];
+    } else {
+      ctas = [
+        { label: '📩 Escríbenos al DM', text: '\n\n📩 ¡Escríbenos por mensaje directo para más información y responder todas tus dudas!' },
+        { label: '🔗 Enlace en Bio', text: '\n\n🔗 Conoce más ingresando al enlace directo en nuestro perfil.' }
+      ];
+    }
+
+    if (ctaContainer) {
+      ctaContainer.innerHTML = ctas.map(c => `
+        <button type="button" class="cta-chip" data-cta="${encodeURIComponent(c.text)}">
+          ${c.label}
+        </button>
+      `).join('');
+
+      ctaContainer.querySelectorAll('.cta-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const insertText = decodeURIComponent(btn.dataset.cta);
+          if (!postContent.value.includes(insertText.trim())) {
+            postContent.value = (postContent.value ? `${postContent.value.trim()}\n${insertText}` : insertText.trim()).trim();
+            updateLivePreviews();
+            showToast('CTA inyectado al final del copy', 'success');
+          } else {
+            showToast('El CTA ya está incluido en el texto', 'info');
+          }
+        });
+      });
+    }
+
+    // 2. Hashtags contextuales de nicho
+    let tags = [];
+    if (isCampina) {
+      tags = ['#cabañasalgarrobo', '#algarrobo', '#escapadaschile', '#turismochile', '#quinchoprivado', '#descansoenfamilia', '#findesemana'];
+    } else if (isKmarket) {
+      tags = ['#kmarketalgarrobo', '#ramencoreano', '#snackscoreanos', '#comidacoreana', '#algarrobo', '#kfoodchile', '#antojoscoreanos'];
+    } else if (isAgendio) {
+      tags = ['#agendio', '#cabañaschile', '#hostaleschile', '#gestionhotelera', '#softwareturismo', '#hotelerosdechile', '#reservasdirectas'];
+    } else {
+      tags = ['#marketingdigital', '#redessociales', '#emprendimiento', '#negocios', '#chile'];
+    }
+
+    if (tagsContainer) {
+      tagsContainer.innerHTML = tags.map(t => `<button type="button" class="tag-chip" data-tag="${t}">${t}</button>`).join('');
+      tagsContainer.querySelectorAll('.tag-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const tag = chip.dataset.tag;
+          if (!postContent.value.includes(tag)) {
+            postContent.value = postContent.value ? `${postContent.value} ${tag}` : tag;
+            updateLivePreviews();
+          }
+        });
+      });
+    }
+
+    // 3. Sincronizar botones de cabecera multimedia
+    if (typeof updateBaseImageVisibility === 'function') {
+      updateBaseImageVisibility();
+    }
+  }
+
+  window.adaptComposerToActiveBrand = adaptComposerToActiveBrand;
 
   window.updateComposerPreviews = updateLivePreviews;
   window.updateLivePreviews = updateLivePreviews;
@@ -273,19 +471,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCreateAdPoster = document.getElementById('btn-create-ad-poster');
   const btnCampinaFlyerTrigger = document.getElementById('btn-campina-flyer-trigger');
   const btnKmarketDesignerTrigger = document.getElementById('btn-kmarket-designer-trigger');
+  const btnAgendioSceneTrigger = document.getElementById('btn-agendio-scene-trigger');
 
   function updateBaseImageVisibility() {
     const hasMedia = ComposerState.mediaFiles.length > 0;
-    const brand = (AppState.config?.pageName || '').toLowerCase();
-    const isCampina = brand.includes('campiña') || brand.includes('cabaña');
+    const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+    const igUser = (AppState.config?.instagramUsername || '').toLowerCase();
+    const activeAccId = AppState.config?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
+
+    const isAgendio = brand.includes('agendio') || igUser.includes('agendio') || activeAccId === '1236967112842449';
+    const isCampina = brand.includes('campiña') || brand.includes('campina') || brand.includes('cabaña') || brand.includes('cabana');
     const isKmarket = brand.includes('kmarket');
 
     setElementDisplay('lbl-use-base-image', hasMedia ? 'flex' : 'none');
     if (chkUseBaseImage && hasMedia) chkUseBaseImage.checked = true;
 
+    setElementDisplay('btn-agendio-scene-trigger', (hasMedia && isAgendio) ? 'inline-flex' : 'none');
     setElementDisplay('btn-campina-flyer-trigger', (hasMedia && isCampina) ? 'inline-flex' : 'none');
     setElementDisplay('btn-kmarket-designer-trigger', (hasMedia && isKmarket) ? 'inline-flex' : 'none');
-    setElementDisplay('btn-create-ad-poster', (hasMedia && !isCampina && !isKmarket) ? 'inline-flex' : 'none');
+    setElementDisplay('btn-create-ad-poster', (hasMedia && !isCampina && !isKmarket && !isAgendio) ? 'inline-flex' : 'none');
     setElementDisplay('btn-watermark-overlay', 'inline-flex');
   }
 
@@ -566,6 +770,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prodNameInput && !prodNameInput.value) prodNameInput.value = postTitleVal;
 
         modalKmarketDesigner.style.display = 'flex';
+      });
+    }
+
+    if (btnAgendioSceneTrigger) {
+      btnAgendioSceneTrigger.addEventListener('click', () => {
+        if (aiModal) aiModal.style.display = 'flex';
+        switchAiModalTab('agendio');
+        if (typeof syncAgendioModalThumb === 'function') syncAgendioModalThumb();
       });
     }
 
@@ -2845,4 +3057,5 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCampinaControls();
   bindAgendioControls();
   bindHumanizerAndCarouselControls();
+  adaptComposerToActiveBrand();
 });
