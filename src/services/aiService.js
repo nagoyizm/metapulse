@@ -3,8 +3,103 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { getSetting } = require('../database/db');
 const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite } = require('../data/campinaKnowledge');
+const aiCacheService = require('./aiCacheService');
+
+// Modelos válidos verificados para Google Generative AI (Gemini)
+const VALID_GEMINI_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-flash-latest',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash'
+];
+
+function sanitizeGeminiModels(configuredModel, preferredList = []) {
+  const list = [
+    ...preferredList,
+    configuredModel,
+    ...VALID_GEMINI_MODELS
+  ].filter(m => m && typeof m === 'string');
+  return [...new Set(list)];
+}
+
+const circuitBreaker = {
+  state: 'CLOSED', // 'CLOSED', 'OPEN', 'HALF-OPEN'
+  consecutiveFailures: 0,
+  failureThreshold: 3,
+  cooldownPeriodMs: 30000,
+  lastFailureTime: 0,
+  recordSuccess() {
+    this.consecutiveFailures = 0;
+    this.state = 'CLOSED';
+  },
+  recordFailure() {
+    this.consecutiveFailures++;
+    this.lastFailureTime = Date.now();
+    if (this.consecutiveFailures >= this.failureThreshold) {
+      this.state = 'OPEN';
+      console.warn(`[CircuitBreaker] ⚠️ Tripped OPEN! Fallos consecutivos en Gemini API: ${this.consecutiveFailures}. Cooldown de ${this.cooldownPeriodMs / 1000}s.`);
+    }
+  },
+  canExecute() {
+    if (this.state === 'CLOSED') return true;
+    if (this.state === 'OPEN') {
+      if (Date.now() - this.lastFailureTime > this.cooldownPeriodMs) {
+        this.state = 'HALF-OPEN';
+        console.log('[CircuitBreaker] 🔄 Entrando en estado HALF-OPEN (prueba).');
+        return true;
+      }
+      return false;
+    }
+    return true; // HALF-OPEN
+  }
+};
+
+function logAiMetric({ operation, durationMs, cacheHit = false, provider = 'gemini', model = '', status = 'success', error = null }) {
+  console.log('[AI Metrics]', JSON.stringify({
+    timestamp: new Date().toISOString(),
+    operation,
+    duration_ms: durationMs,
+    cache_hit: cacheHit,
+    provider,
+    model,
+    status,
+    error: error ? (error.message || String(error)) : null,
+    circuit_breaker_state: circuitBreaker.state
+  }));
+}
+
+async function retryWithBackoff(fn, { maxRetries = 2, baseDelay = 600 } = {}) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt++;
+      const isRetryable = err.response?.status === 429 ||
+                          err.response?.status === 503 ||
+                          err.code === 'ECONNRESET' ||
+                          err.code === 'ETIMEDOUT' ||
+                          err.message?.includes('timeout');
+      if (attempt > maxRetries || !isRetryable) {
+        throw err;
+      }
+      const jitter = Math.floor(Math.random() * 300);
+      const delay = Math.pow(2, attempt - 1) * baseDelay + jitter;
+      console.warn(`[AI Retry] Reintentando llamada (${err.message}) en ${delay}ms (intento ${attempt}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
 
 class AIService {
+  getCircuitBreakerStatus() {
+    return {
+      state: circuitBreaker.state,
+      consecutiveFailures: circuitBreaker.consecutiveFailures,
+      lastFailureTime: circuitBreaker.lastFailureTime ? new Date(circuitBreaker.lastFailureTime).toISOString() : null
+    };
+  }
+
   getApiKey() {
     return getSetting('ai_api_key') || process.env.GEMINI_API_KEY || '';
   }
@@ -16,14 +111,14 @@ class AIService {
   /**
    * Genera copys atractivos y hashtags según el tema, tono y objetivo
    */
-  async generateCopy({ topic, tone = 'engaging', goal = 'engagement', platform = 'both', brandName = '', customInstructions = '' }) {
+  async generateCopy({ topic, tone = 'engaging', goal = 'engagement', platform = 'both', brandName = '', customInstructions = '', bypassCache = false }) {
     const provider = getSetting('ai_provider') || 'local';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
 
     // Si hay una API Key configurada para Gemini
     if (provider === 'gemini' && apiKey) {
       try {
-        return await this.generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey });
+        return await this.generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey, bypassCache });
       } catch (err) {
         console.warn('⚠️ Falló llamada a Gemini API, usando generador inteligente local:', err.message);
       }
@@ -52,26 +147,50 @@ class AIService {
   }
 
   /**
-   * Generación mediante Google Gemini API
+   * Generación mediante Google Gemini API con Caching L1/L2, Circuit Breaker y Reintentos
    */
-  async generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey }) {
+  async generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey, bypassCache = false }) {
+    const startTime = Date.now();
+    const cacheKey = aiCacheService.generateKey('gemini_copy', { topic, tone, goal, platform, brandName, customInstructions });
+
+    // 1. Revisar Caché L1/L2 Determinista
+    if (!bypassCache) {
+      const cached = aiCacheService.get(cacheKey);
+      if (cached.hit) {
+        logAiMetric({
+          operation: 'generateWithGemini',
+          durationMs: Date.now() - startTime,
+          cacheHit: true,
+          provider: 'gemini',
+          model: cached.model || 'cache',
+          status: 'success'
+        });
+        return cached.data;
+      }
+    }
+
+    // 2. Comprobar Circuit Breaker
+    if (!circuitBreaker.canExecute()) {
+      logAiMetric({
+        operation: 'generateWithGemini',
+        durationMs: Date.now() - startTime,
+        cacheHit: false,
+        provider: 'circuit_breaker',
+        model: 'none',
+        status: 'circuit_open_fallback'
+      });
+      throw new Error('Circuit Breaker OPEN: Gemini API temporalmente en enfriamiento para prevenir saturación.');
+    }
+
     const prompt = this.buildPrompt({ topic, tone, goal, platform, brandName, customInstructions });
-    const configuredModel = getSetting('ai_model') || 'gemini-3.8-flash';
-    const modelsToTry = [
-      'gemini-3.8-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      configuredModel,
-      'gemini-flash-latest'
-    ];
-    // Eliminar duplicados manteniendo orden
-    const uniqueModels = [...new Set(modelsToTry)];
+    const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+    const uniqueModels = sanitizeGeminiModels(configuredModel);
 
     let lastError = null;
     for (const model of uniqueModels) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await axios.post(url, {
+        const response = await retryWithBackoff(() => axios.post(url, {
           systemInstruction: {
             parts: [{ text: 'Eres un copywriter experto en marketing digital para redes sociales (Facebook e Instagram). Genera directamente el texto final listo para copiar y publicar. No incluyas introducciones como "Aquí tienes tu post", ni notas de explicación ni meta-comentarios.' }]
           },
@@ -80,18 +199,43 @@ class AIService {
             temperature: 0.7,
             maxOutputTokens: 2048
           }
-        }, { timeout: 25000 });
+        }, { timeout: 20000 }), { maxRetries: 1 });
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
         const actualPart = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
         if (actualPart) {
-          return this.parseAIResponse(actualPart, topic);
+          const parsed = this.parseAIResponse(actualPart, topic);
+          circuitBreaker.recordSuccess();
+
+          // Guardar en caché L1/L2 (12 horas)
+          aiCacheService.set(cacheKey, parsed, 43200, 'gemini', model);
+
+          logAiMetric({
+            operation: 'generateWithGemini',
+            durationMs: Date.now() - startTime,
+            cacheHit: false,
+            provider: 'gemini',
+            model,
+            status: 'success'
+          });
+
+          return parsed;
         }
       } catch (err) {
         lastError = err;
         console.warn(`[Gemini API] Falló intento con modelo ${model}:`, err.response?.data?.error?.message || err.message);
       }
     }
+
+    circuitBreaker.recordFailure();
+    logAiMetric({
+      operation: 'generateWithGemini',
+      durationMs: Date.now() - startTime,
+      cacheHit: false,
+      provider: 'gemini',
+      status: 'error',
+      error: lastError
+    });
 
     throw lastError || new Error('No se pudo generar respuesta con ningún modelo de Gemini.');
   }
@@ -310,7 +454,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
     const apiKey = this.getApiKey();
 
     if (apiKey) {
-      const modelsToTry = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
+      const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'));
       for (const m of modelsToTry) {
         try {
           const prompt = `
@@ -1002,8 +1146,16 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
    * Análisis Autónomo de Dirección de Arte con IA (Gemini)
    * Analiza la temática, busca referencias visuales de afiches y define paleta cromática sin sesgos de dorado
    */
-  async analyzeCampinaArtDirection({ theme, targetDate = '', apiKey }) {
+  async analyzeCampinaArtDirection({ theme, targetDate = '', apiKey, bypassCache = false }) {
     if (!apiKey) return null;
+    const cacheKey = aiCacheService.generateKey('campina_art_direction', { theme, targetDate });
+    if (!bypassCache) {
+      const cached = aiCacheService.get(cacheKey);
+      if (cached.hit) {
+        return cached.data;
+      }
+    }
+
     try {
       const prompt = `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding, cartelería comercial y diseño editorial para turismo de naturaleza y hotelería boutique ("Cabañas La Campiña", Algarrobo, Chile).
       
@@ -1035,9 +1187,8 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   "sublineHeadline": "Subtítulo editorial de máximo 6 palabras"
 }`;
 
-      const configuredModel = getSetting('ai_model') || 'gemini-3.6-flash';
-      const modelsToTry = ['gemini-3.6-flash', configuredModel, 'gemini-2.5-flash', 'gemini-flash-latest'];
-      const uniqueModels = [...new Set(modelsToTry)];
+      const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+      const uniqueModels = sanitizeGeminiModels(configuredModel);
 
       for (const model of uniqueModels) {
         try {
@@ -1054,7 +1205,10 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
           const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
             const parsed = JSON.parse(text);
-            if (parsed.heroHeadline) return parsed;
+            if (parsed.heroHeadline) {
+              aiCacheService.set(cacheKey, parsed, 86400, 'gemini', model);
+              return parsed;
+            }
           }
         } catch (e) {
           // continuar con el siguiente modelo
@@ -1222,64 +1376,12 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     typographyStyle = 'auto',
     brandTreatment = 'auto',
     colorPalette = 'auto',
-    posterReference = 'auto'
+    posterReference = 'auto',
+    bypassCache = false
   }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
-
-    // 1. Análisis Autónomo de Dirección de Arte con IA (Referencias de Afiche + Paleta Cromática Cultural)
-    let aiAnalysis = null;
-    if (apiKey) {
-      aiAnalysis = await this.analyzeCampinaArtDirection({ theme, targetDate, apiKey });
-    }
-
-    const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
-    const finalHero = heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero;
-    const finalSubline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
-
-    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
-      ? hierarchy.detectedStyle
-      : typographyStyle;
-    
-    const stylesCatalog = this.getCampinaTypographyStyles();
-    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
-
-    const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
-      ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
-    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
-      : brandTreatment;
-    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
-
-    const palettesCatalog = this.getCampinaColorPalettes();
-    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
-      ? this.detectCampinaColorPalette(theme, targetDate)
-      : colorPalette;
-    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
-
-    const posterRefsCatalog = this.getCampinaPosterReferences();
-    const activePosterRefKey = (!posterReference || posterReference === 'auto')
-      ? this.detectCampinaPosterReference(theme, targetDate)
-      : posterReference;
-    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
-
-    const masterImagePrompt = this.buildCampinaImagePrompt({
-      theme,
-      targetDate,
-      extraNotes,
-      heroHeadline: finalHero,
-      sublineHeadline: finalSubline,
-      respectBackground,
-      extraElements,
-      typographyStyle: activeStyleKey,
-      brandTreatment: activeTreatmentKey,
-      colorPalette: activePaletteKey,
-      posterReference: activePosterRefKey,
-      aiAnalysis
-    });
 
     const systemPrompt = `
 ${campinaKnowledge}
@@ -1332,27 +1434,84 @@ Estructura a entregar:
 `}
 `;
 
-    let generatedText = '';
-    if (apiKey) {
-      try {
-        const res = await this.generateWithGemini({
+    // PIPELINE CONCURRENTE: Lanzar análisis de arte y redactor de copy en paralelo
+    const artPromise = apiKey
+      ? this.analyzeCampinaArtDirection({ theme, targetDate, apiKey, bypassCache })
+      : Promise.resolve(null);
+
+    const copyPromise = apiKey
+      ? this.generateWithGemini({
           topic: `${theme} en Cabañas La Campiña Algarrobo (${targetDate || 'próximo fin de semana'})`,
           tone: 'cercano, familiar e inspiracional',
           goal: 'reservas y consultas',
           platform: 'both',
           brandName: 'Cabañas La Campiña - Algarrobo',
           customInstructions: systemPrompt,
-          apiKey
-        });
-        generatedText = res.fullPost;
-      } catch (err) {
-        // En caso de fallo o indisponibilidad en la API de Gemini, se utiliza el copy local verificado
-        console.warn('Fallo llamada a Gemini en generateCampinaPost, usando fallback local:', err.message);
-        generatedText = `🌿✨ ¡Disfruta una escapada de descanso en Cabañas La Campiña! ✨🌿\n\nEste ${targetDate || 'fin de semana'}, ven a desconectarte de la rutina en Cabañas La Campiña 🏡.\n\nReúne a toda la familia o ven en pareja, prepara un rico asado en nuestros quinchos 🥩🔥, recorre nuestros jardines temáticos y senderos naturales ❤️🌿.\n\nPero ojo… 👀 ¡nos van quedando las últimas cabañas y suites disponibles!\n\n📅 ${targetDate || 'Próximo fin de semana'}\n🔥 Quinchos privados para disfrutar en familia\n🌿 Amplias áreas verdes y senderos\n🏡 Últimas cabañas y suites disponibles\n\n📲 Reservas y consultas: +56 9 7900 4253\n\n🌿 ¡Asegura tu estadía y descansa en La Campiña! 🌿\n\n#cabañaslacampiña #algarrobo #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral`;
-      }
+          apiKey,
+          bypassCache
+        })
+      : Promise.resolve(null);
+
+    const [artResult, copyResult] = await Promise.allSettled([artPromise, copyPromise]);
+
+    const aiAnalysis = artResult.status === 'fulfilled' ? artResult.value : null;
+
+    let generatedText = '';
+    if (copyResult.status === 'fulfilled' && copyResult.value?.fullPost) {
+      generatedText = copyResult.value.fullPost;
     } else {
+      if (copyResult.status === 'rejected') {
+        console.warn('Fallo llamada a Gemini en generateCampinaPost, usando fallback local:', copyResult.reason?.message);
+      }
       generatedText = `🌿✨ ¡Disfruta una escapada de descanso en Cabañas La Campiña! ✨🌿\n\nEste ${targetDate || 'fin de semana'}, ven a desconectarte de la rutina en Cabañas La Campiña 🏡.\n\nReúne a toda la familia o ven en pareja, prepara un rico asado en nuestros quinchos 🥩🔥, recorre nuestros jardines temáticos y senderos naturales ❤️🌿.\n\nPero ojo… 👀 ¡nos van quedando las últimas cabañas y suites disponibles!\n\n📅 ${targetDate || 'Próximo fin de semana'}\n🔥 Quinchos privados para disfrutar en familia\n🌿 Amplias áreas verdes y senderos\n🏡 Últimas cabañas y suites disponibles\n\n📲 Reservas y consultas: +56 9 7900 4253\n\n🌿 ¡Asegura tu estadía y descansa en La Campiña! 🌿\n\n#cabañaslacampiña #algarrobo #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral`;
     }
+
+    const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
+    const finalHero = heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero;
+    const finalSubline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
+
+    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
+      ? hierarchy.detectedStyle
+      : typographyStyle;
+    
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
+      ? this.detectCampinaColorPalette(theme, targetDate)
+      : colorPalette;
+    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+    const activePosterRefKey = (!posterReference || posterReference === 'auto')
+      ? this.detectCampinaPosterReference(theme, targetDate)
+      : posterReference;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+
+    const masterImagePrompt = this.buildCampinaImagePrompt({
+      theme,
+      targetDate,
+      extraNotes,
+      heroHeadline: finalHero,
+      sublineHeadline: finalSubline,
+      respectBackground,
+      extraElements,
+      typographyStyle: activeStyleKey,
+      brandTreatment: activeTreatmentKey,
+      colorPalette: activePaletteKey,
+      posterReference: activePosterRefKey,
+      aiAnalysis
+    });
 
     return {
       theme,
@@ -1414,7 +1573,7 @@ Estructura a entregar:
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-3.1-flash-image',
+      model: 'gemini-2.5-flash',
       accountName: 'Cabañas La Campiña',
       baseImageUrl
     });
@@ -1538,8 +1697,16 @@ Estructura a entregar:
   /**
    * Análisis inteligente con Gemini para formular hooks y dirección de arte a medida
    */
-  async analyzeAgendioMarketingDesign({ topic, pillar = 'dolor_real', targetAudience = 'duenos', apiKey }) {
+  async analyzeAgendioMarketingDesign({ topic, pillar = 'dolor_real', targetAudience = 'duenos', apiKey, bypassCache = false }) {
     if (!apiKey) return null;
+    const cacheKey = aiCacheService.generateKey('agendio_hierarchy', { topic, pillar, targetAudience });
+    if (!bypassCache) {
+      const cached = aiCacheService.get(cacheKey);
+      if (cached.hit) {
+        return cached.data;
+      }
+    }
+
     try {
       const prompt = `Actúa como un Diseñador Gráfico Publicitario y Director de Arte Senior especializado en marketing y cartelería comercial para plataformas de hospitalidad y cabañas turísticas en Chile ("Agendio.cl").
 
@@ -1564,9 +1731,8 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   "calloutText": "Llamado corto"
 }`;
 
-      const configuredModel = getSetting('ai_model') || 'gemini-3.6-flash';
-      const modelsToTry = ['gemini-3.6-flash', configuredModel, 'gemini-2.5-flash', 'gemini-flash-latest'];
-      const uniqueModels = [...new Set(modelsToTry)];
+      const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+      const uniqueModels = sanitizeGeminiModels(configuredModel);
 
       for (const model of uniqueModels) {
         try {
@@ -1584,13 +1750,15 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
           if (text) {
             const parsed = JSON.parse(text);
             if (parsed.heroHeadline && parsed.sublineHeadline) {
-              return {
+              const result = {
                 hero: parsed.heroHeadline.toUpperCase().trim(),
                 keyword: (parsed.keyword || '').toUpperCase().trim(),
                 subline: parsed.sublineHeadline.trim(),
                 badge: (parsed.badgeText || 'AGENDIO.CL · GESTIÓN INTEGRAL').toUpperCase().trim(),
                 callout: parsed.calloutText || 'Calendario en Vivo'
               };
+              aiCacheService.set(cacheKey, result, 86400, 'gemini', model);
+              return result;
             }
           }
         } catch (_) {
@@ -1687,34 +1855,12 @@ ${scenicDirective}
     targetAudience = 'duenos',
     pillar = 'dolor_real',
     extraNotes = '',
-    baseImageUrl = ''
+    baseImageUrl = '',
+    bypassCache = false
   }) {
     const apiKey = this.getApiKey();
     const isCarousel = format === 'carousel';
     const isReel = format === 'reel';
-
-    // 1. Análisis Inteligente de Dirección de Arte & Hooks de Marketing (Diseñador Senior IA)
-    let marketingHierarchy = null;
-    if (apiKey) {
-      marketingHierarchy = await this.analyzeAgendioMarketingDesign({ topic, pillar, targetAudience, apiKey });
-    }
-    if (!marketingHierarchy) {
-      marketingHierarchy = this.extractAgendioMarketingHierarchy({ topic, pillar, targetAudience });
-    }
-
-    // 2. Generar prompt maestro para Gemini con estricta dirección de arte publicitaria
-    const masterImagePrompt = this.buildAgendioImagePrompt({
-      topic,
-      format,
-      pillar,
-      targetAudience,
-      baseImageUrl,
-      heroHeadline: marketingHierarchy.hero,
-      keyword: marketingHierarchy.keyword,
-      sublineHeadline: marketingHierarchy.subline,
-      badgeText: marketingHierarchy.badge,
-      calloutText: marketingHierarchy.callout
-    });
 
     const pillarDescriptions = {
       dolor_real: 'Pilar 1: Dolor real (La doble reserva, la llamada perdida a medianoche, la planilla de Excel perdida, el cobro que se olvida cobrar).',
@@ -1775,27 +1921,55 @@ Genera una estructura de guión dinámico de 30 a 35 segundos:
 Entrega el texto final listo para publicar.
 `;
 
-    let generatedText = '';
-    let carouselSlides = [];
-    let reelScript = null;
+    // PIPELINE CONCURRENTE: Lanzar análisis de jerarquía de marketing y copywriting en paralelo
+    const hierarchyPromise = apiKey
+      ? this.analyzeAgendioMarketingDesign({ topic, pillar, targetAudience, apiKey, bypassCache })
+      : Promise.resolve(null);
 
-    if (apiKey) {
-      try {
-        const res = await this.generateWithGemini({
+    const copyPromise = apiKey
+      ? this.generateWithGemini({
           topic: `Publicación sobre "${topic || 'Gestión de reservas de cabañas'}" para Agendio.cl`,
           tone: 'cercano, chileno y empático',
           goal: 'conversión y consultas de cotización',
           platform: 'both',
           brandName: 'Agendio',
           customInstructions: systemPrompt,
-          apiKey
-        });
-        generatedText = res.fullPost;
-      } catch (err) {
-        console.warn('Fallo llamada a Gemini en generateAgendioContent, usando fallback inteligente:', err.message);
-        generatedText = this.getAgendioFallbackCopy({ topic, pillar, targetAudience });
-      }
+          apiKey,
+          bypassCache
+        })
+      : Promise.resolve(null);
+
+    const [hierarchyResult, copyResult] = await Promise.allSettled([hierarchyPromise, copyPromise]);
+
+    let marketingHierarchy = hierarchyResult.status === 'fulfilled' && hierarchyResult.value ? hierarchyResult.value : null;
+    if (!marketingHierarchy) {
+      marketingHierarchy = this.extractAgendioMarketingHierarchy({ topic, pillar, targetAudience });
+    }
+
+    // Generar prompt maestro para Gemini con estricta dirección de arte publicitaria (< 1ms sincrónico)
+    const masterImagePrompt = this.buildAgendioImagePrompt({
+      topic,
+      format,
+      pillar,
+      targetAudience,
+      baseImageUrl,
+      heroHeadline: marketingHierarchy.hero,
+      keyword: marketingHierarchy.keyword,
+      sublineHeadline: marketingHierarchy.subline,
+      badgeText: marketingHierarchy.badge,
+      calloutText: marketingHierarchy.callout
+    });
+
+    let generatedText = '';
+    let carouselSlides = [];
+    let reelScript = null;
+
+    if (copyResult.status === 'fulfilled' && copyResult.value?.fullPost) {
+      generatedText = copyResult.value.fullPost;
     } else {
+      if (copyResult.status === 'rejected') {
+        console.warn('Fallo llamada a Gemini en generateAgendioContent, usando fallback inteligente:', copyResult.reason?.message);
+      }
       generatedText = this.getAgendioFallbackCopy({ topic, pillar, targetAudience });
     }
 
@@ -2374,9 +2548,8 @@ ESTRUCTURA DE RESPUESTA REQUERIDA (en formato Markdown claro y profesional):
 ### 5. 🚀 Plan Táctico Recomendado (3 Ideas Listas para Publicar)
 (3 propuestas concretas con: Formato, Gancho de 2 segundos, Idea de contenido y Llamado a la Acción).`;
 
-    const configuredModel = getSetting('ai_model') || 'gemini-3.5-flash';
-    const modelsToTry = [configuredModel, 'gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
-    const uniqueModels = [...new Set(modelsToTry)];
+    const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+    const uniqueModels = sanitizeGeminiModels(configuredModel);
 
     for (const model of uniqueModels) {
       try {
@@ -2482,7 +2655,8 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
    * Fallback: Gemini 3.1 Flash Image / Gemini 2.5 Flash Image
    * Fallback secundario: Flux (Pollinations AI)
    */
-  async generateDirectImage({ prompt, format = 'feed', model = 'gemini-3.1-flash-lite-image', accountName = '', baseImageUrl = null }) {
+  async generateDirectImage({ prompt, format = 'feed', model = 'gemini-2.5-flash', accountName = '', baseImageUrl = null }) {
+    const startTime = Date.now();
     let width = 864;
     let height = 1080; // 4:5 vertical ideal para feed de Instagram
     if (format === 'story' || format === 'reel') {
@@ -2513,20 +2687,19 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       fs.mkdirSync(destDir, { recursive: true });
     }
 
-    // 1. INTENTO CON GOOGLE GEMINI FLASH LITE / FLASH IMAGE (LA OPCIÓN MÁS ECONÓMICA Y RÁPIDA)
+    // 1. INTENTO CON GOOGLE GEMINI / IMAGEN (TIMEOUT ACOTADO 25s)
     const apiKey = this.getImageApiKey();
     if (apiKey) {
-      const requestedModel = model || 'gemini-3.1-flash-image';
+      const requestedModel = (model && !model.includes('3.1') && !model.includes('3-pro')) ? model : 'imagen-3.0-generate-002';
       const geminiModels = [...new Set([
         requestedModel,
-        'gemini-3.1-flash-image',
-        'gemini-3-pro-image',
-        'gemini-3.1-flash-lite-image'
+        'imagen-3.0-generate-002',
+        'gemini-2.0-flash'
       ])];
 
       for (const gm of geminiModels) {
         try {
-          console.log(`Intentando generación económica con ${gm}...`);
+          console.log(`Intentando generación con ${gm}...`);
           const parts = [];
 
           // Si hay imagen base, incluirla como inlineData multimodal
@@ -2590,28 +2763,36 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
               contents: [{ parts }],
               generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
             },
-            { timeout: 70000 }
+            { timeout: 25000 }
           );
 
           const imgPart = geminiRes.data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
           if (imgPart?.inlineData?.data) {
             const ext = imgPart.inlineData.mimeType?.includes('png') ? 'png' : 'jpg';
-            const filename = `gemini_lite_${Date.now()}.${ext}`;
+            const filename = `gemini_${Date.now()}.${ext}`;
             const destPath = path.join(destDir, filename);
             const imgBuffer = Buffer.from(imgPart.inlineData.data, 'base64');
             fs.writeFileSync(destPath, imgBuffer);
 
-            console.log(`✅ Imagen económica generada con éxito con ${gm}: ${filename}`);
-            return {
+            console.log(`✅ Imagen generada con éxito con ${gm}: ${filename}`);
+            const result = {
               success: true,
               filename,
               url: `/uploads/generated/${filename}`,
               width,
               height,
               model: gm,
-              engine: 'Gemini 3.1 Flash Lite Image (Económico)',
+              engine: 'Google Imagen / Gemini AI',
               prompt: optimizedPrompt
             };
+            logAiMetric({
+              operation: 'generateDirectImage',
+              durationMs: Date.now() - startTime,
+              provider: 'gemini',
+              model: gm,
+              status: 'success'
+            });
+            return result;
           }
         } catch (geminiErr) {
           console.warn(`Aviso: Error con modelo ${gm}:`, geminiErr.response?.data?.error?.message || geminiErr.message);
@@ -2619,7 +2800,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       }
     }
 
-    // 2. FALLBACK SECUNDARIO CON FLUX (POLLINATIONS)
+    // 2. FALLBACK SECUNDARIO CON FLUX (POLLINATIONS) CON TIMEOUT ACOTADO (20s)
     console.log('Utilizando motor secundario Flux (Pollinations)...');
     const encoded = encodeURIComponent(optimizedPrompt);
     const seed = Math.floor(Math.random() * 1000000);
@@ -2632,10 +2813,10 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     const filename = `ai_flux_${Date.now()}.jpg`;
     const destPath = path.join(destDir, filename);
 
-    const response = await axios.get(fluxUrl, { responseType: 'arraybuffer', timeout: 45000 });
+    const response = await axios.get(fluxUrl, { responseType: 'arraybuffer', timeout: 20000 });
     fs.writeFileSync(destPath, response.data);
 
-    return {
+    const result = {
       success: true,
       filename,
       url: `/uploads/generated/${filename}`,
@@ -2645,6 +2826,14 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       engine: 'Flux / Pollinations',
       prompt: optimizedPrompt
     };
+    logAiMetric({
+      operation: 'generateDirectImage',
+      durationMs: Date.now() - startTime,
+      provider: 'flux',
+      model: 'flux',
+      status: 'success'
+    });
+    return result;
   }
 
   /**
@@ -2662,7 +2851,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-3.1-flash-image',
+      model: 'gemini-2.5-flash',
       accountName: '',
       baseImageUrl
     });
@@ -2729,12 +2918,7 @@ Responde estrictamente en formato JSON con la siguiente estructura:
   "copyPost": "Texto completo para post de Instagram siguiendo estrictamente la fórmula oficial de Kmarket: 1) Título entre emojis temáticos: '[Emojis] [Nombre] en Kmarket Algarrobo [Emojis]'; 2) Breve párrafo descriptivo de textura/sabor; 3) '✨ ¿Qué lo hace especial?' (1 párrafo); 4) '[Emoji] Perfecto para disfrutar como:' con 3-4 viñetas '•'; 5) Párrafo breve de conexión; 6) Dirección exacta obligatoria: '📍 Encuéntralo en Kmarket Algarrobo\\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo'; 7) Cierre cálido '🧡 Descubre por qué...'; 8) EXACTAMENTE ENTRE 5 Y 7 HASHTAGS (#KmarketAlgarrobo #KFood y los del producto; NUNCA más de 7)."
 }`;
 
-    const modelsToTry = [
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-latest'
-    ];
+    const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'));
     let lastErr = null;
 
     // Probar con apiKey actual y si falla probar con la clave alternativa

@@ -139,6 +139,28 @@ function initializeDatabase() {
       is_archived INTEGER DEFAULT 0,
       created_local_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS ai_cache (
+      key TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      response TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_cache_expires ON ai_cache (expires_at);
+
+    CREATE TABLE IF NOT EXISTS ai_jobs (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      payload TEXT NOT NULL,
+      result TEXT,
+      error TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status);
   `);
 
   try {
@@ -548,6 +570,61 @@ function markCommentNotified(id) {
   return db.prepare('UPDATE inbox_comments SET notified_whatsapp = 1 WHERE id = ?').run(id);
 }
 
+function getAiCache(key) {
+  const row = db.prepare("SELECT * FROM ai_cache WHERE key = ? AND expires_at > datetime('now')").get(key);
+  return row || null;
+}
+
+function setAiCache(key, provider, model, response, expiresAt) {
+  return db.prepare(`
+    INSERT INTO ai_cache (key, provider, model, response, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      provider = excluded.provider,
+      model = excluded.model,
+      response = excluded.response,
+      expires_at = excluded.expires_at,
+      created_at = CURRENT_TIMESTAMP
+  `).run(key, provider, model, response, expiresAt);
+}
+
+function cleanExpiredAiCache() {
+  return db.prepare("DELETE FROM ai_cache WHERE expires_at <= datetime('now')").run();
+}
+
+function createAiJob(id, type, payload) {
+  return db.prepare(`
+    INSERT INTO ai_jobs (id, type, status, payload, created_at, updated_at)
+    VALUES (?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(id, type, typeof payload === 'string' ? payload : JSON.stringify(payload));
+}
+
+function getAiJob(id) {
+  const row = db.prepare('SELECT * FROM ai_jobs WHERE id = ?').get(id);
+  if (!row) return null;
+  return {
+    ...row,
+    payload: row.payload ? (typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload) : {},
+    result: row.result ? (typeof row.result === 'string' ? JSON.parse(row.result) : row.result) : null
+  };
+}
+
+function updateAiJob(id, status, result = null, error = null) {
+  return db.prepare(`
+    UPDATE ai_jobs
+    SET status = ?,
+        result = ?,
+        error = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    status,
+    result ? (typeof result === 'string' ? result : JSON.stringify(result)) : null,
+    error ? (typeof error === 'string' ? error : JSON.stringify(error)) : null,
+    id
+  );
+}
+
 module.exports = {
   db,
   initializeDatabase,
@@ -570,5 +647,12 @@ module.exports = {
   getInboxCommentsCount,
   markCommentAnswered,
   getUnnotifiedComments,
-  markCommentNotified
+  markCommentNotified,
+  getAiCache,
+  setAiCache,
+  cleanExpiredAiCache,
+  createAiJob,
+  getAiJob,
+  updateAiJob
 };
+

@@ -31,6 +31,8 @@ const metaService = require('../services/metaService');
 const schedulerService = require('../services/schedulerService');
 const imageService = require('../services/imageService');
 const aiService = require('../services/aiService');
+const aiCacheService = require('../services/aiCacheService');
+const aiJobQueueService = require('../services/aiJobQueueService');
 const slotService = require('../services/slotService');
 const whatsappService = require('../services/whatsappService');
 const inboxSyncService = require('../services/inboxSyncService');
@@ -1618,13 +1620,15 @@ router.post('/ai/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Debes proporcionar una idea o tema para el post.' });
     }
 
+    const bypassCache = Boolean(req.body.bypass_cache || req.query.bypass_cache);
     const generated = await aiService.generateCopy({
       topic,
       tone,
       goal,
       platform,
       brandName,
-      customInstructions
+      customInstructions,
+      bypassCache
     });
 
     res.json({ success: true, data: generated });
@@ -1691,13 +1695,15 @@ router.post('/ai/agendio-content', async (req, res) => {
     if (!topic && !pillar) {
       return res.status(400).json({ success: false, error: 'Debes ingresar un tema o seleccionar un pilar de contenido para Agendio.' });
     }
+    const bypassCache = Boolean(req.body.bypass_cache || req.query.bypass_cache);
     const result = await aiService.generateAgendioContent({
       topic: topic || 'Gestión y reservas de cabañas turísticas',
       format: format || 'feed',
       targetAudience: targetAudience || 'duenos',
       pillar: pillar || 'dolor_real',
       extraNotes: extraNotes || '',
-      baseImageUrl: baseImageUrl || ''
+      baseImageUrl: baseImageUrl || '',
+      bypassCache
     });
     res.json({ success: true, data: result });
   } catch (err) {
@@ -1741,7 +1747,7 @@ async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWaterm
 
 router.post('/ai/generate-image', async (req, res) => {
   try {
-    const { prompt, format = 'feed', model = 'gemini-3.1-flash-image', baseImageUrl } = req.body;
+    const { prompt, format = 'feed', model = 'gemini-2.5-flash', baseImageUrl } = req.body;
     if (!prompt && !baseImageUrl) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar un prompt o una imagen base.' });
     }
@@ -1749,6 +1755,20 @@ router.post('/ai/generate-image', async (req, res) => {
     const rawAccountParam = req.body.account_id || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
     const creds = metaService.getAccountCredentials(rawAccountParam);
     const activeAccountName = creds?.name || getSetting('meta_page_name') || '';
+
+    // Soporte para ejecución desacoplada asíncrona si el cliente lo solicita
+    if (req.body.isAsync || req.query.async === 'true') {
+      const job = aiJobQueueService.enqueueImageJob({
+        prompt,
+        format,
+        model,
+        baseImageUrl,
+        account_id: rawAccountParam,
+        account_name: activeAccountName
+      });
+      return res.json(job);
+    }
+
     const igUsername = creds?.instagram?.username || '';
     const isKmarket = activeAccountName.toLowerCase().includes('kmarket');
     const isAgendio = activeAccountName.toLowerCase().includes('agendio') || igUsername.toLowerCase().includes('agendio');
@@ -1776,16 +1796,81 @@ router.post('/ai/generate-image', async (req, res) => {
     // Registrar en media_items para que aparezca en la galería multimedia
     try {
       const activeAccountId = req.body.account_id || getSetting('meta_page_id') || '';
-      const activeAccountName = req.body.account_name || getSetting('meta_page_name') || '';
+      const actAccName = req.body.account_name || getSetting('meta_page_name') || '';
       db.prepare(`
         INSERT INTO media_items (filename, original_name, filepath, mime_type, width, height, account_id, account_name)
         VALUES (?, ?, ?, 'image/jpeg', ?, ?, ?, ?)
-      `).run(result.filename, `AI-${(prompt || 'Imagen').slice(0, 25)}.jpg`, result.url, result.width, result.height, activeAccountId, activeAccountName);
+      `).run(result.filename, `AI-${(prompt || 'Imagen').slice(0, 25)}.jpg`, result.url, result.width, result.height, activeAccountId, actAccName);
     } catch (dbErr) {
       console.warn('No se pudo registrar media_item:', dbErr.message);
     }
 
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 5.1. COLA ASÍNCRONA DE TAREAS PESADAS DE IA
+// ==========================================
+router.post('/ai/jobs/image', (req, res) => {
+  try {
+    const { prompt, format = 'feed', model = 'gemini-2.5-flash', baseImageUrl } = req.body;
+    if (!prompt && !baseImageUrl) {
+      return res.status(400).json({ success: false, error: 'Debes proporcionar un prompt o una imagen base.' });
+    }
+    const rawAccountParam = req.body.account_id || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
+    const creds = metaService.getAccountCredentials(rawAccountParam);
+    const activeAccountName = creds?.name || req.body.account_name || getSetting('meta_page_name') || '';
+
+    const job = aiJobQueueService.enqueueImageJob({
+      prompt,
+      format,
+      model,
+      baseImageUrl,
+      account_id: rawAccountParam,
+      account_name: activeAccountName
+    });
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/ai/jobs/:id', (req, res) => {
+  try {
+    const job = aiJobQueueService.getJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Trabajo no encontrado.' });
+    }
+    res.json({ success: true, data: job });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/ai/jobs/:id/stream', (req, res) => {
+  aiJobQueueService.attachSSEStream(req.params.id, req, res);
+});
+
+// ==========================================
+// 5.2. CACHÉ & OBSERVABILIDAD CLOUD & DEVOPS
+// ==========================================
+router.get('/ai/cache/stats', (req, res) => {
+  try {
+    const stats = aiCacheService.getStats();
+    const circuitBreaker = aiService.getCircuitBreakerStatus ? aiService.getCircuitBreakerStatus() : { state: 'UNKNOWN' };
+    res.json({ success: true, cache: stats, circuitBreaker });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/cache/clear', (req, res) => {
+  try {
+    aiCacheService.cleanup();
+    res.json({ success: true, message: 'Caché de IA depurada exitosamente.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1882,6 +1967,7 @@ router.post('/ai/campina-content', async (req, res) => {
     if (!theme) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
+    const bypassCache = Boolean(req.body.bypass_cache || req.query.bypass_cache);
     const result = await aiService.generateCampinaContent({
       theme,
       format,
@@ -1894,7 +1980,8 @@ router.post('/ai/campina-content', async (req, res) => {
       typographyStyle,
       brandTreatment,
       colorPalette,
-      posterReference
+      posterReference,
+      bypassCache
     });
     res.json({ success: true, data: result });
   } catch (err) {
