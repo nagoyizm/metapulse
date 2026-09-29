@@ -1421,27 +1421,260 @@ Estructura a entregar:
   }
 
   /**
-   * Generador de Prompt de Imagen para Gemini según los Tokens Reales de Agendio.cl
+   * Extrae la jerarquía de diseño y hooks publicitarios de alto impacto para Agendio.cl
    */
-  buildAgendioImagePrompt({ topic, format = 'feed', pillar = 'dolor_real', targetAudience = 'duenos', baseImageUrl = '' }) {
+  extractAgendioMarketingHierarchy({ topic = '', pillar = 'dolor_real', targetAudience = 'duenos' }) {
+    const t = (topic || '').toLowerCase();
+
+    if (t.includes('doble') || t.includes('overbooking') || t.includes('duplicad')) {
+      return {
+        hero: '¿OTRA VEZ DOBLE RESERVA?',
+        keyword: 'DOBLE RESERVA',
+        subline: 'La calma de operar tu alojamiento con calendario en vivo',
+        badge: 'AGENDIO.CL · CERO DOBLES RESERVAS',
+        callout: 'Calendario en Vivo 24/7'
+      };
+    }
+    if (t.includes('medianoche') || t.includes('dorm') || t.includes('llamada') || t.includes('deshora') || t.includes('whatsapp')) {
+      return {
+        hero: 'CERO LLAMADAS A MEDIANOCHE',
+        keyword: 'A MEDIANOCHE',
+        subline: 'Tus pasajeros cotizan y reservan solos en tu link 24/7',
+        badge: 'AGENDIO.CL · LINK PÚBLICO 24/7',
+        callout: 'Cotización Automática'
+      };
+    }
+    if (t.includes('excel') || t.includes('cuaderno') || t.includes('planilla') || t.includes('papel') || t.includes('enred')) {
+      return {
+        hero: 'ADIÓS AL EXCEL PERDIDO',
+        keyword: 'EXCEL PERDIDO',
+        subline: 'Centraliza reservas, pagos y huéspedes en un solo panel',
+        badge: 'AGENDIO.CL · UN SOLO PANEL',
+        callout: 'Todo en un Solo Lugar'
+      };
+    }
+    if (t.includes('aseo') || t.includes('recep') || t.includes('turno') || t.includes('equipo') || t.includes('check-in') || t.includes('checkout')) {
+      return {
+        hero: 'RECEPCIÓN Y ASEO ALINEADOS',
+        keyword: 'ALINEADOS',
+        subline: 'Coordinación impecable entre turnos sin planillas de papel',
+        badge: 'AGENDIO.CL · EQUIPO Y OPERACIONES',
+        callout: 'Roles Claros en Celular'
+      };
+    }
+    if (t.includes('bio') || t.includes('link') || t.includes('instagram') || t.includes('web')) {
+      return {
+        hero: 'TU LINK EN BIO 24/7',
+        keyword: 'LINK EN BIO',
+        subline: 'Tus pasajeros reservan directo desde Instagram sin intermediarios',
+        badge: 'AGENDIO.CL · RESERVAS DIRECTAS',
+        callout: 'Cero Comisiones'
+      };
+    }
+    if (t.includes('temporada') || t.includes('verano') || t.includes('invierno') || t.includes('feriado') || t.includes('fiesta')) {
+      return {
+        hero: 'PREPARA TU TEMPORADA ALTA',
+        keyword: 'TEMPORADA ALTA',
+        subline: 'Asegura máxima ocupación y tarifas sin estrés operativo',
+        badge: 'AGENDIO.CL · TURISMO CHILE',
+        callout: 'Tarifas y Fechas en Vivo'
+      };
+    }
+
+    const byPillar = {
+      dolor_real: {
+        hero: 'NUNCA MÁS PIERDAS UNA RESERVA',
+        keyword: 'NUNCA MÁS',
+        subline: 'La calma de operar con calendario en vivo y reservas directas',
+        badge: 'AGENDIO.CL · OPERA EN CALMA',
+        callout: 'Sin Dobles Reservas'
+      },
+      funcionalidad: {
+        hero: 'CALENDARIO EN VIVO SIEMPRE',
+        keyword: 'EN VIVO',
+        subline: 'Disponibilidad sincronizada y reservas automáticas 24/7',
+        badge: 'AGENDIO.CL · LINK PÚBLICO',
+        callout: 'Cotizador en Celular'
+      },
+      para_quien: targetAudience === 'equipo' ? {
+        hero: 'OPERACIÓN CON EQUIPO EN CALMA',
+        keyword: 'EQUIPO EN CALMA',
+        subline: 'Aseo, recepción y administración alineados en tiempo real',
+        badge: 'AGENDIO.CL · MULTI-USUARIO',
+        callout: 'Roles y Turnos Claros'
+      } : {
+        hero: 'LA CALMA DE OPERAR BIEN',
+        keyword: 'OPERAR BIEN',
+        subline: 'Diseñado para dueños de cabañas y hostales que valoran su tiempo',
+        badge: 'AGENDIO.CL · CABAÑAS CHILE',
+        callout: 'Fácil desde tu Celular'
+      },
+      prueba_social: {
+        hero: 'ORDEN Y PAZ MENTAL',
+        keyword: 'PAZ MENTAL',
+        subline: 'Cabañas en todo Chile operando sin planillas enredadas',
+        badge: 'AGENDIO.CL · CASOS REALES',
+        callout: '100% Tranquilidad'
+      },
+      faq: {
+        hero: 'FÁCIL DESDE TU CELULAR',
+        keyword: 'TU CELULAR',
+        subline: 'Sin instalaciones complejas: listo para operar en minutos',
+        badge: 'AGENDIO.CL · FÁCIL Y DIRECTO',
+        callout: 'Listo en Minutos'
+      },
+      educativo: {
+        hero: 'MÁS RESERVAS DIRECTAS',
+        keyword: 'DIRECTAS',
+        subline: 'Tips de gestión y hospitalidad para dueños de alojamientos',
+        badge: 'AGENDIO.CL · HOSPITALIDAD',
+        callout: 'Claves de Gestión'
+      }
+    };
+
+    return byPillar[pillar] || byPillar.dolor_real;
+  }
+
+  /**
+   * Análisis inteligente con Gemini para formular hooks y dirección de arte a medida
+   */
+  async analyzeAgendioMarketingDesign({ topic, pillar = 'dolor_real', targetAudience = 'duenos', apiKey }) {
+    if (!apiKey) return null;
+    try {
+      const prompt = `Actúa como un Diseñador Gráfico Publicitario y Director de Arte Senior especializado en marketing y cartelería comercial para plataformas de hospitalidad y cabañas turísticas en Chile ("Agendio.cl").
+
+El usuario solicita un afiche publicitario comercial para Instagram (1080x1350 px, vertical 4:5):
+- Tema o Guía: "${topic}"
+- Pilar de Contenido: "${pillar}"
+- Audiencia: "${targetAudience}"
+
+Formula la jerarquía de diseño publicitario de autor más contundente, visual y persuasiva para este afiche:
+1. "heroHeadline": Titular Hero de alto impacto (EXACTAMENTE DE 2 A 4 PALABRAS EN MAYÚSCULAS) con ritmo publicitario (ej: "¿OTRA VEZ DOBLE RESERVA?", "NUNCA MÁS PIERDAS RESERVAS", "LA CALMA DE OPERAR BIEN", "TU LINK EN BIO 24/7", "CERO LLAMADAS A MEDIANOCHE", "RECEPCIÓN Y ASEO ALINEADOS", "ADIÓS AL EXCEL PERDIDO"). PROHIBIDO oraciones largas.
+2. "keyword": La palabra o frase clave exacta del titular hero que irá destacada en color Dorado Ámbar (#D99A2B).
+3. "sublineHeadline": Subtítulo editorial o frase llamativa (1 sola línea corta, máximo 6 a 8 palabras) en estilo sans-serif contemporáneo.
+4. "badgeText": Pastilla o badge superior institucional (ej: "AGENDIO.CL · CERO DOBLES RESERVAS", "AGENDIO.CL · LINK PÚBLICO 24/7", "AGENDIO.CL · GESTIÓN INTEGRAL").
+5. "calloutText": Frase de acción corta o micro-botón en pastilla dorada (ej: "Calendario en Vivo 24/7", "Cotización Automática", "Sin Comisiones").
+
+Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
+{
+  "heroHeadline": "TITULAR HERO EN MAYÚSCULAS",
+  "keyword": "PALABRA CLAVE",
+  "sublineHeadline": "Subtítulo editorial corto",
+  "badgeText": "AGENDIO.CL · TAG",
+  "calloutText": "Llamado corto"
+}`;
+
+      const configuredModel = getSetting('ai_model') || 'gemini-3.6-flash';
+      const modelsToTry = ['gemini-3.6-flash', configuredModel, 'gemini-2.5-flash', 'gemini-flash-latest'];
+      const uniqueModels = [...new Set(modelsToTry)];
+
+      for (const model of uniqueModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await axios.post(url, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 512,
+              responseMimeType: 'application/json'
+            }
+          }, { timeout: 8000 });
+
+          const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            const parsed = JSON.parse(text);
+            if (parsed.heroHeadline && parsed.sublineHeadline) {
+              return {
+                hero: parsed.heroHeadline.toUpperCase().trim(),
+                keyword: (parsed.keyword || '').toUpperCase().trim(),
+                subline: parsed.sublineHeadline.trim(),
+                badge: (parsed.badgeText || 'AGENDIO.CL · GESTIÓN INTEGRAL').toUpperCase().trim(),
+                callout: parsed.calloutText || 'Calendario en Vivo'
+              };
+            }
+          }
+        } catch (_) {
+          // continuar con siguiente modelo
+        }
+      }
+    } catch (err) {
+      console.warn('[Agendio] Error en analyzeAgendioMarketingDesign:', err.message);
+    }
+    return null;
+  }
+
+  /**
+   * Generador de Prompt Maestro para Gemini (Diseñador Gráfico Publicitario Senior 4:5)
+   */
+  buildAgendioImagePrompt({
+    topic,
+    format = 'feed',
+    pillar = 'dolor_real',
+    targetAudience = 'duenos',
+    baseImageUrl = '',
+    heroHeadline = '',
+    keyword = '',
+    sublineHeadline = '',
+    badgeText = '',
+    calloutText = ''
+  }) {
     const isReel = format === 'reel';
     const isStory = format === 'story';
     const aspect = (isReel || isStory) ? '9:16 vertical (1080x1920px)' : '4:5 vertical (1080x1350px)';
 
-    return `[1. FOTOGRAFÍA COMERCIAL LIMPIA PARA GEMINI (SIN TEXTO NI LOGOS)]
-Fotografía arquitectónica y comercial de alta gama para redes sociales, en formato ${aspect}.
-Escena: Acogedora cabaña de madera nativa chilena (roble, ciprés y piedra volcánica) inmersa en un frondoso bosque nativo del sur de Chile al atardecer (golden hour) o en una noche estrellada y serena.
-Iluminación: Resplandor dorado ámbar (#D99A2B, #EEBE6C) emanando a través de amplios ventanales vidriados de la cabaña, generando un ambiente sumamente cálido y acogedor.
-Paleta de colores oficial de Agendio: Fondo y vegetación en verde noche profundo (#0B1B12) y verde bosque oscuro (#142B1E), contrastando armoniosamente con las luces interiores doradas (#D99A2B) y maderas cálidas.
-Atmósfera: Tranquilidad absoluta, orden, refugio natural y hospitalidad de alto estándar ("La calma de operar bien").
-Tema del contenido: "${topic || 'Gestión y reserva directa de cabañas turísticas'}".
-REGLA CRÍTICA PARA GEMINI: Generar una fotografía puramente natural y limpia. ESTRICTAMENTE SIN texto, sin letras, sin números, sin marcas de agua, sin logos falsos, ni pantallas flotantes con falsas interfaces. Dejar espacio visual limpio (aire negativo) en la zona superior y lateral para montaje posterior.
+    const defaultHierarchy = this.extractAgendioMarketingHierarchy({ topic, pillar, targetAudience });
+    const finalHero = (heroHeadline || defaultHierarchy.hero).toUpperCase().trim();
+    const finalKeyword = (keyword || defaultHierarchy.keyword || finalHero.split(' ').slice(-1)[0] || 'RESERVAS').toUpperCase().trim();
+    const finalSubline = (sublineHeadline || defaultHierarchy.subline).trim();
+    const finalBadge = (badgeText || defaultHierarchy.badge).toUpperCase().trim();
+    const finalCallout = calloutText || defaultHierarchy.callout;
 
-[2. GUÍA DE DISEÑO POSTERIOR Y OVERLAY MANUAL]
-- Titular principal (H1/H2): Tipografía "Spectral" (Google Fonts), serif editorial sobria, peso 700 bold, color blanco (#FFFFFF) con palabras clave destacadas en dorado miel (#E5A63F).
-- Subtítulos y cuerpo: Tipografía "Outfit" (Google Fonts), sans-serif geométrica limpia, peso 500/600, color crema cálido (#FBF7F0) o verde suave (#C9DCC9).
-- Tarjetas y Botones: Esquinas con micro-suavizado fino de 2px (rounded-xs / .125rem). Botón CTA con fondo ámbar (#D99A2B) y texto verde grafito (#1C2B22).
-- Mockup UI de Agendio: Montar en perspectiva limpia la pantalla de 'reserva.agendio.cl/tu-recinto' con calendario interactivo mostrando fechas disponibles en esmeralda (#34D399) y ocupadas en coral (#F87171).`;
+    let scenicDirective = '';
+    if (baseImageUrl) {
+      scenicDirective = `- BASE ESCÉNICA FOTOGRÁFICA REAL:
+  * Utiliza la fotografía de fondo adjunta (cabaña, bosque o entorno de hospitalidad) como base real de la escena, manteniendo su arquitectura nativa intacta.
+  * Aplica un etalonaje cinematográfico sutil con iluminación crepuscular o luz cálida de atardecer, integrando la paleta de Verde Noche (#0B1B12) y resplandor Dorado Ámbar (#D99A2B).
+  * Monta el lockup publicitario y titular sobre esta escena con alto contraste y legibilidad cristalina.`;
+    } else {
+      scenicDirective = `- PUESTA EN ESCENA FOTOGRÁFICA Y ARQUITECTÓNICA:
+  * Fotografía arquitectónica y comercial de alta gama: Hermosa cabaña de madera nativa chilena (roble, ciprés y piedra volcánica) rodeada de un frondoso bosque nativo chileno en iluminación "golden hour" de atardecer o noche serena templada.
+  * Iluminación: Cálida y acogedora, con resplandor dorado ámbar (#D99A2B, #EEBE6C) emanando a través de ventanales vidriados de la cabaña, transmitiendo refugio, serenidad y hospitalidad de alto estándar.
+  * Vegetación y entorno en tonos verdes profundos (#0B1B12, #142B1E), contrastando con la luz interior dorada.`;
+    }
+
+    return `Actúa como un Diseñador Gráfico Publicitario y Director de Arte Senior especializado en marketing visual para marcas de hospitalidad, alojamientos turísticos y plataformas de software de alto impacto (estilo Linear, Stripe, Airbnb Host, Kinfolk).
+
+OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL ${aspect} para redes sociales (Instagram Feed 4:5) de la plataforma "Agendio.cl", siguiendo estrictamente su identidad visual oficial y jerarquía de diseño publicitario de autor.
+
+1. JERARQUÍA TIPOGRÁFICA Y HOOKS DE TEXTO VISUAL (OBLIGATORIO RENDERIZAR EN LA IMAGEN):
+El afiche DEBE incluir diseño tipográfico publicitario nítido, legible y profesional:
+- BADGE DE MARCA / EYEBROW SUPERIOR: "${finalBadge}"
+  * Pastilla pequeña con micro-borde dorado fino (#D99A2B) y fondo verde noche (#0B1B12), tipografía sans-serif "Outfit" bold en mayúsculas doradas (#EEBE6C).
+- TITULAR HERO PRINCIPAL (H1): "${finalHero}"
+  * Tipografía: "Spectral" (Google Fonts), serif editorial sobria, peso 700 bold, letras grandes, elegantes y de alto impacto publicitario.
+  * Estilo cromático: Texto en blanco marfil / crema cálido (#FBF7F0), con la palabra/frase clave "${finalKeyword}" destacada con brillo cálido en dorado ámbar (#D99A2B).
+  * Ubicación: Tercio superior o tercio central de la composición, montado con contraste perfecto e impecable legibilidad.
+- SUBTÍTULO EDITORIAL / FRASE LLAMATIVA (H2): "${finalSubline}"
+  * Tipografía: "Outfit" (Google Fonts), sans-serif geométrica moderna y limpia, peso 500 medium, tamaño medio equilibrado.
+  * Color: Crema suave (#FBF7F0) o verde claro sutil (#C9DCC9).
+  * Ubicación: Justo debajo del titular principal.
+
+2. PALETA CROMÁTICA OFICIAL DE AGENDIO.CL:
+- Fondo predominante y sombras: Verde noche profundo (#0B1B12) y verde bosque oscuro (#142B1E).
+- Acentos luminosos y llamadas a la acción: Dorado ámbar (#D99A2B, #EEBE6C).
+- Textos principales y titulares: Blanco marfil (#FBF7F0 / #FFFFFF).
+- Elementos de orden y disponibilidad: Verde esmeralda (#34D399) y rojo coral (#F87171).
+
+3. COMPOSICIÓN ESCÉNICA Y ARTE COMERCIAL:
+${scenicDirective}
+- Integración publicitaria: La composición no es una simple foto vacía; combina una fotografía arquitectónica cálida y aspiracional con una tarjeta publicitaria o lockup gráfico contemporáneo ("Glassmorphism Dark" en verde noche con borde sutil dorado), donde el titular "${finalHero}" y el subtítulo "${finalSubline}" tienen protagonismo absoluto.
+- Detalle visual sutil de software: Incluye en la escena una tarjeta o pantalla limpia con un micro-mockup del calendario de Agendio en perspectiva elegante, con fechas disponibles marcadas en esmeralda (#34D399) y ocupadas en coral (#F87171), o un botón de llamado a la acción con pastilla dorada (#D99A2B) que dice "${finalCallout}" o "Cotizar 24/7".
+
+4. REGLAS ESTRICTAS DE CALIDAD PUBLICITARIA:
+- TODO TEXTO en español con acentos y ortografía impecable.
+- CERO texto de relleno ("Lorem ipsum"), CERO garabatos o letras deformes.
+- Renderizar exactamente los textos entrecomillados ("${finalHero}", "${finalSubline}", "${finalBadge}").
+- Acabado publicitario de revista premium, iluminación cinematográfica, 8k de nitidez, diseño digno de una agencia de marketing top tier.`.trim();
   }
 
   /**
@@ -1460,13 +1693,27 @@ REGLA CRÍTICA PARA GEMINI: Generar una fotografía puramente natural y limpia. 
     const isCarousel = format === 'carousel';
     const isReel = format === 'reel';
 
-    // 1. Generar prompt maestro para Gemini con estricta separación
+    // 1. Análisis Inteligente de Dirección de Arte & Hooks de Marketing (Diseñador Senior IA)
+    let marketingHierarchy = null;
+    if (apiKey) {
+      marketingHierarchy = await this.analyzeAgendioMarketingDesign({ topic, pillar, targetAudience, apiKey });
+    }
+    if (!marketingHierarchy) {
+      marketingHierarchy = this.extractAgendioMarketingHierarchy({ topic, pillar, targetAudience });
+    }
+
+    // 2. Generar prompt maestro para Gemini con estricta dirección de arte publicitaria
     const masterImagePrompt = this.buildAgendioImagePrompt({
       topic,
       format,
       pillar,
       targetAudience,
-      baseImageUrl
+      baseImageUrl,
+      heroHeadline: marketingHierarchy.hero,
+      keyword: marketingHierarchy.keyword,
+      sublineHeadline: marketingHierarchy.subline,
+      badgeText: marketingHierarchy.badge,
+      calloutText: marketingHierarchy.callout
     });
 
     const pillarDescriptions = {
@@ -1580,8 +1827,13 @@ Entrega el texto final listo para publicar.
       targetAudience,
       copy: cleanPost,
       masterImagePrompt,
-      cleanPhotoPrompt: cleanPhotoPart,
-      designGuide: designGuidePart,
+      heroHeadline: marketingHierarchy.hero,
+      keyword: marketingHierarchy.keyword,
+      sublineHeadline: marketingHierarchy.subline,
+      badgeText: marketingHierarchy.badge,
+      calloutText: marketingHierarchy.callout,
+      cleanPhotoPrompt: masterImagePrompt,
+      designGuide: '',
       carouselSlides,
       reelScript,
       tokens: {
@@ -2248,7 +2500,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     if (!isCustomMasterPrompt) {
       const isAgendio = (accountName || '').toLowerCase().includes('agendio');
       if (isAgendio) {
-        optimizedPrompt = `High quality commercial social media photography for travel and accommodation, 4:5 vertical aspect ratio. Cozy Chilean wooden cabin in a lush native forest, warm golden hour glowing interior light (#D99A2B, #EEBE6C) shining through large glass windows, rich dark green tones (#0B1B12, #142B1E) in the foliage, peaceful serene atmosphere, 8k resolution, cinematic lighting, photorealistic. CRITICAL: completely clean natural photo, strictly NO text, NO typography, NO watermark, NO logos. Subject: ${prompt}`;
+        optimizedPrompt = `High quality commercial social media advertising poster for Agendio (agendio.cl hospitality management), 4:5 vertical aspect ratio. Modern editorial poster design featuring Chilean wooden cabin in lush native forest, warm golden hour glowing interior light (#D99A2B), deep dark green night background (#0B1B12, #142B1E). Bold editorial typography with Spectral serif and Outfit sans-serif fonts, sharp advertising headline in Spanish with striking marketing hooks, pristine 8k resolution, cinematic lighting. Subject: ${prompt}`;
       } else if (baseImageUrl) {
         optimizedPrompt = `Commercial product advertising poster, 4:5 vertical aspect ratio. Using this reference photo as the hero product subject, create a clean commercial advertising flyer with striking typography in Spanish, appetizing studio presentation, vibrant colors, premium packaging, 8k resolution, photorealistic, cinematic lighting. Subject: ${prompt}`;
       } else {

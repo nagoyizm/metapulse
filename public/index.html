@@ -6,7 +6,7 @@
   <title>MetaPulse — Suite de Gestión y Automatización de Redes Sociales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
@@ -2290,10 +2290,40 @@
                 </div>
               </div>
 
+              <!-- Tarjeta de Hooks Publicitarios y Tipografía (Diseñador Senior IA) -->
+              <div class="card" id="agendio-art-direction-card" style="display:none; margin-bottom:12px; border:1px solid rgba(217, 154, 43, 0.35); background:linear-gradient(135deg, rgba(11, 27, 18, 0.95) 0%, rgba(20, 43, 30, 0.95) 100%);">
+                <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                  <strong style="font-size:0.82rem; color:#eebe6c; display:flex; align-items:center; gap:6px;">
+                    <span>⚡ Hooks Publicitarios & Tipografía Oficial (Diseñador Senior IA)</span>
+                  </strong>
+                  <span class="badge" style="background:rgba(217, 154, 43, 0.2); color:#eebe6c; border:1px solid rgba(217, 154, 43, 0.4); font-size:0.7rem;">Spectral & Outfit</span>
+                </div>
+                <div class="card-body" style="padding:10px 12px;">
+                  <div class="form-grid-2" style="margin-bottom:8px;">
+                    <div class="form-group" style="margin-bottom:6px;">
+                      <label class="form-label" for="agendio-hero-input" style="font-size:0.75rem; color:#c9dcc9;">Titular Hero (Fuente "Spectral" Bold):</label>
+                      <input type="text" id="agendio-hero-input" class="form-control form-control-sm" style="font-family:'Spectral', Georgia, serif; font-weight:700; color:#ffffff; background:#0B1B12; border:1px solid rgba(217, 154, 43, 0.4);" placeholder="Ej: ¿OTRA VEZ DOBLE RESERVA?">
+                    </div>
+                    <div class="form-group" style="margin-bottom:6px;">
+                      <label class="form-label" for="agendio-subline-input" style="font-size:0.75rem; color:#c9dcc9;">Subtítulo Editorial (Fuente "Outfit" Clean):</label>
+                      <input type="text" id="agendio-subline-input" class="form-control form-control-sm" style="font-family:'Outfit', sans-serif; font-weight:500; color:#FBF7F0; background:#0B1B12; border:1px solid rgba(217, 154, 43, 0.4);" placeholder="Ej: La calma de operar tu alojamiento con calendario en vivo">
+                    </div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <div style="font-size:0.72rem; color:#c9dcc9;">
+                      <span style="color:#d99a2b;">✨ En dorado ámbar:</span> <strong id="agendio-keyword-badge" style="color:#eebe6c;">--</strong> · <span style="color:#34d399;">Badge:</span> <span id="agendio-badge-tag" style="color:#34d399;">--</span>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-sync-agendio-prompt" style="font-size:0.72rem; color:#eebe6c; border:1px solid rgba(217, 154, 43, 0.3);">
+                      🔄 Re-sincronizar Prompt
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Prompt Maestro para Imagen en Gemini -->
               <div class="card" style="margin-bottom:12px; border: 1px dashed #d99a2b; background:var(--bg-secondary);">
                 <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                  <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt de Imagen para Gemini (Separación Fotográfica + Diseño):</strong>
+                  <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt Maestro para Gemini (Afiche Publicitario Senior 4:5):</strong>
                   <div style="display:flex; gap:6px;">
                     <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-agendio-image" style="background:linear-gradient(135deg, #1c3a28, #33603f); color:#fff; border:1px solid #d99a2b; font-weight:700;">✨ Generar con Gemini</button>
                     <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-image-prompt">📋 Copiar Prompt</button>

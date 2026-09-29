@@ -2154,6 +2154,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (agendioGeneratedCopy) agendioGeneratedCopy.value = d.copy || '';
       if (agendioImagePromptText) agendioImagePromptText.value = d.masterImagePrompt || '';
 
+      const heroInput = document.getElementById('agendio-hero-input');
+      const sublineInput = document.getElementById('agendio-subline-input');
+      const kwBadge = document.getElementById('agendio-keyword-badge');
+      const badgeTag = document.getElementById('agendio-badge-tag');
+      const artCard = document.getElementById('agendio-art-direction-card');
+
+      if (heroInput && d.heroHeadline) heroInput.value = d.heroHeadline;
+      if (sublineInput && d.sublineHeadline) sublineInput.value = d.sublineHeadline;
+      if (kwBadge && d.keyword) kwBadge.textContent = d.keyword;
+      if (badgeTag && d.badgeText) badgeTag.textContent = d.badgeText;
+      if (artCard) artCard.style.display = 'block';
+
       if (agendioResultsBox) agendioResultsBox.style.display = 'block';
 
       // Renderizar Carrusel si aplica
@@ -2245,6 +2257,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('No se pudo copiar automáticamente', 'warning');
       });
     }
+  }
+
+  function updateAgendioPromptFromInputs() {
+    const hero = document.getElementById('agendio-hero-input')?.value?.trim();
+    const subline = document.getElementById('agendio-subline-input')?.value?.trim();
+    if (!hero && !subline) return;
+
+    let p = agendioImagePromptText?.value || '';
+    if (hero) {
+      p = p.replace(/- TITULAR HERO PRINCIPAL \(H1\): ".*?"/, `- TITULAR HERO PRINCIPAL (H1): "${hero.toUpperCase()}"`);
+      p = p.replace(/donde el titular ".*?"/, `donde el titular "${hero.toUpperCase()}"`);
+      p = p.replace(/el titular ".*?"/, `el titular "${hero.toUpperCase()}"`);
+    }
+    if (subline) {
+      p = p.replace(/- SUBTÍTULO EDITORIAL \/ FRASE LLAMATIVA \(H2\): ".*?"/, `- SUBTÍTULO EDITORIAL / FRASE LLAMATIVA (H2): "${subline}"`);
+      p = p.replace(/y el subtítulo ".*?"/, `y el subtítulo "${subline}"`);
+    }
+    if (agendioImagePromptText) {
+      agendioImagePromptText.value = p;
+    }
+    showToast('Prompt re-sincronizado con los nuevos hooks', 'info');
   }
 
   async function handleGenerateAgendioImageDirect() {
@@ -2355,6 +2388,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnModalGenerateAgendioImage) {
       btnModalGenerateAgendioImage.addEventListener('click', handleGenerateAgendioImageDirect);
+    }
+
+    const btnSyncAgendioPrompt = document.getElementById('btn-sync-agendio-prompt');
+    if (btnSyncAgendioPrompt) {
+      btnSyncAgendioPrompt.addEventListener('click', updateAgendioPromptFromInputs);
+    }
+    const heroInput = document.getElementById('agendio-hero-input');
+    const sublineInput = document.getElementById('agendio-subline-input');
+    if (heroInput) {
+      heroInput.addEventListener('change', updateAgendioPromptFromInputs);
+    }
+    if (sublineInput) {
+      sublineInput.addEventListener('change', updateAgendioPromptFromInputs);
     }
   }
 
