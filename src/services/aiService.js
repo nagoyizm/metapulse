@@ -1357,12 +1357,6 @@ ${colorPaletteSection}
 
 - CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
 
-6. ZONAS SEGURAS (SAFE ZONES) Y RESERVA ESPACIAL SEMÁNTICA (COMPOSICIÓN 4:5 - RAMA C):
-- MARGEN SUPERIOR DE SEGURIDAD (15% superior / aprox 200px): Completamente libre de tipografía crucial o elementos clave para no colisionar con el header y avatar de Instagram.
-- ZONA DE RESERVA TIPOGRÁFICA (25-30% en tercio superior-medio): Área de contraste limpio con penumbra natural de bosque, cielo crepuscular suave o textura de madera que permita al rótulo publicitario ("${hero}") respirar con 100% de legibilidad y sin interferencia visual.
-- SUJETO PRINCIPAL (CABAÑAS / QUINCHOS / NATURALEZA): Ubicado en el tercio inferior y centro-bajo, respetando un margen inferior de seguridad del 15% para no chocar con la botonera de me gusta, comentarios y guardar.
-- PARÁMETROS ÓPTICOS DE ESTUDIO / EXTERIOR: Fotografía con lente 50mm / 85mm f/4-f/5.6 para enfoque nítido de la madera y vegetación con suave bokeh natural, iluminación crepuscular dorada ("golden hour god rays") filtrada entre los pinos y sombras de oclusión ambiental suave ("ambient occlusion") que integren el rótulo volumétricamente.
-
 Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
   }
 
@@ -1579,7 +1573,7 @@ Estructura a entregar:
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.5-flash',
       accountName: 'Cabañas La Campiña',
       baseImageUrl
     });
@@ -1848,13 +1842,7 @@ ${scenicDirective}
 - TODO TEXTO en español con acentos y ortografía impecable.
 - CERO texto de relleno ("Lorem ipsum"), CERO garabatos o letras deformes.
 - Renderizar exactamente los textos entrecomillados ("${finalHero}", "${finalSubline}", "${finalBadge}").
-- Acabado publicitario de revista premium, iluminación cinematográfica, 8k de nitidez, diseño digno de una agencia de marketing top tier.
-
-5. ZONAS SEGURAS (SAFE ZONES) Y RESERVA ESPACIAL SEMÁNTICA (COMPOSICIÓN 4:5 / 9:16 - RAMA C):
-- MARGEN SUPERIOR DE SEGURIDAD (15% superior): Completamente despejado para no colisionar con el header y avatar de Instagram.
-- RESERVA DE CONTRASTE TIPOGRÁFICA (25-30% en tercio superior-medio): Área dominada por el Verde Noche (#0B1B12) con sutil contraste de iluminación interior para que el lockup editorial (Badge + H1 Spectral 700 + H2 Outfit) tenga legibilidad cristalina y protagonismo absoluto.
-- SUJETO ARQUITECTÓNICO HERO: En el tercio inferior y medio-bajo, con margen inferior de seguridad del 15% libre de texto esencial para evitar los botones de interacción de Instagram.
-- PARÁMETROS ÓPTICOS: Fotografía arquitectónica y comercial con lente prime 50mm tilt-shift o 85mm f/4, iluminación crepuscular exterior con cálido resplandor interior (#D99A2B) visible a través de los ventanales y reflejos controlados sin ruido digital.`.trim();
+- Acabado publicitario de revista premium, iluminación cinematográfica, 8k de nitidez, diseño digno de una agencia de marketing top tier.`.trim();
   }
 
   /**
@@ -2686,11 +2674,11 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     if (!isCustomMasterPrompt) {
       const isAgendio = (accountName || '').toLowerCase().includes('agendio');
       if (isAgendio) {
-        optimizedPrompt = `High quality commercial social media advertising poster for Agendio (agendio.cl hospitality management), 4:5 vertical aspect ratio (Rama C Safe Zones & Studio Optics). 15% top margin clear of text, 25% clean negative space reserve in dark forest green (#0B1B12) for typography lockup, cabin hero centered in lower third with 15% bottom safety margin. Architectural photography with prime 85mm f/4 optics, warm golden hour interior glow (#D99A2B), deep green night contrast (#142B1E). Bold Spectral serif headline and Outfit sans-serif subtitle in Spanish with high-converting marketing hooks, pristine 8k commercial quality, cinematic lighting. Subject: ${prompt}`;
+        optimizedPrompt = `High quality commercial social media advertising poster for Agendio (agendio.cl hospitality management), 4:5 vertical aspect ratio. Modern editorial poster design featuring Chilean wooden cabin in lush native forest, warm golden hour glowing interior light (#D99A2B), deep dark green night background (#0B1B12, #142B1E). Bold editorial typography with Spectral serif and Outfit sans-serif fonts, sharp advertising headline in Spanish with striking marketing hooks, pristine 8k resolution, cinematic lighting. Subject: ${prompt}`;
       } else if (baseImageUrl) {
-        optimizedPrompt = `Commercial product advertising poster, 4:5 vertical aspect ratio (Rama C Hybrid Specification). Using this reference photo as the hero product subject, place product in lower-center third respecting 15% bottom margin. 15% top margin safe zone, with 25-30% clean contrast reserve in upper-center for striking Spanish headline (2 to 4 words maximum). Professional studio photography with 85mm macro lens f/4, 45-degree softbox key lighting, crisp rim light separating product edges from background, appetizing presentation, authentic packaging textures, 8k resolution, photorealistic commercial art direction. Subject: ${prompt}`;
+        optimizedPrompt = `Commercial product advertising poster, 4:5 vertical aspect ratio. Using this reference photo as the hero product subject, create a clean commercial advertising flyer with striking typography in Spanish, appetizing studio presentation, vibrant colors, premium packaging, 8k resolution, photorealistic, cinematic lighting. Subject: ${prompt}`;
       } else {
-        optimizedPrompt = `High quality commercial social media advertising poster, 4:5 vertical aspect ratio (Rama C Safe Zones & Studio Optics). 15% top and bottom margins clear for social UI, 25% clean contrast reserve for typography, studio photography lighting with 85mm optics, striking concise typography in Spanish (2-4 words), ${prompt}, 8k resolution, cinematic lighting, photorealistic`;
+        optimizedPrompt = `High quality commercial social media advertising poster, 4:5 vertical aspect ratio, striking typography in Spanish, ${prompt}, 8k resolution, cinematic lighting, photorealistic`;
       }
     }
 
@@ -2702,12 +2690,11 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     // 1. INTENTO CON GOOGLE GEMINI / IMAGEN (TIMEOUT ACOTADO 25s)
     const apiKey = this.getImageApiKey();
     if (apiKey) {
-      const requestedModel = (model && !model.includes('3.1') && !model.includes('3-pro') && !model.includes('2.0') && !model.includes('2.5')) ? model : 'imagen-3.0-generate-002';
+      const requestedModel = (model && !model.includes('3.1') && !model.includes('3-pro')) ? model : 'imagen-3.0-generate-002';
       const geminiModels = [...new Set([
         requestedModel,
         'imagen-3.0-generate-002',
-        'gemini-3.8-flash',
-        'gemini-flash-latest'
+        'gemini-2.0-flash'
       ])];
 
       for (const gm of geminiModels) {
@@ -2858,33 +2845,14 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     const prod = (productName || scannedData?.productName || '').trim();
     const productMention = prod ? `de este producto ("${prod}")` : 'de este producto';
 
-    // Prompt Maestro Enriquecido con RAMA C: Enfoque Híbrido con Reserva Espacial Semántica & Óptica Pro
-    const designerPrompt = `Actúa como un Diseñador Gráfico Publicitario Senior y Director de Arte Comercial experto en marketing visual para redes sociales.
-
-OBJETIVO: Crear un afiche publicitario comercial de alto impacto 4:5 vertical (1080x1350 px) para Instagram ${productMention}.
-
-1. FIDELIDAD DEL PRODUCTO Y PUESTA EN ESCENA COMERCIAL:
-- Debes incluir el empaque o lata auténtico del producto exactamente como aparece en la foto de referencia adjunta (mismo logotipo original, colores y diseño del fabricante).
-- Integración natural en fotografía publicitaria comercial apetitosa de estudio (no un simple recorte plano sobre blanco).
-- PARÁMETROS ÓPTICOS DE ESTUDIO: Lente prime 85mm macro f/4 para máxima nitidez en tipografías del empaque sin distorsión óptica, iluminación key light con softbox a 45 grados (ratio 1:3), y luz de recorte trasera (rim light / backlight) que despegue con elegancia la silueta del producto del fondo. Reflejos especulares naturales en el empaque y micro-textura hiperrealista.
-
-2. ZONAS SEGURAS (SAFE ZONES) Y RESERVA ESPACIAL SEMÁNTICA (COMPOSICIÓN 4:5 - RAMA C):
-- MARGEN SUPERIOR DE SEGURIDAD (15% superior / aprox 200px): Completamente libre de elementos críticos para no colisionar con el header y avatar de Instagram.
-- ZONA DE RESERVA TIPOGRÁFICA (25-30% en tercio superior-medio): Área de contraste limpio con degradado suave o textura sobria, especialmente reservada para que el titular respire con legibilidad cristalina sin chocar con objetos ruidosos del fondo.
-- POSICIONAMIENTO DEL PRODUCTO HERO: Centrado en el tercio inferior y medio-bajo, respetando un margen inferior de seguridad del 15% para no chocar con la botonera de interacción de la app.
-
-3. JERARQUÍA TIPOGRÁFICA Y REGLAS DE TEXTO:
-- TITULAR PRINCIPAL: Breve y de alto impacto visual (EXACTAMENTE DE 2 A 4 PALABRAS) en español, con tipografía dinámica y armónica con la personalidad del producto, ubicado en la zona de reserva tipográfica.
-- SUBTÍTULO: De menor tamaño, sobrio, elegante y de máximo 4 a 6 palabras.
-- PROHIBICIONES ESTRICTAS: CERO emojis o párrafos largos en el diseño gráfico de la imagen. Todo texto en español impecable. No hacer referencia a tiendas ni botones como "comprar ahora". No saturar con leyendas de "sabor coreano" ni sobredimensionar marcas secundarias.
-
-Resultado: Afiche publicitario de nivel de agencia internacional, composición equilibrada con zonas seguras perfectas, producto apetitoso y tipografía nítida.`.trim();
+    // Usar el PROMPT MAESTRO EXACTO del usuario sin contaminarlo con subtítulos largos ni directivas artificiales
+    const designerPrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria ${productMention} de dimensiones 4:5 vertical para instagram. Usar una fuente tipográfica similar a la del producto, pero dinámica, y el subtítulo con una fuente de menor tamaño pero elegante y un diseño similar para poner el título de lo que es. En el afiche DEBES incluir el empaque o lata auténtico del producto exactamente como aparece en la foto de referencia adjunta (mismo logotipo original, colores y diseño del fabricante), pero integrado con naturalidad en una puesta en escena fotográfica publicitaria comercial de estudio (es decir, no un simple recorte plano sobre blanco, sino una fotografía comercial apetitosa de estudio). Todo texto en español. No hacer referencia a ninguna tienda en especial, ni poner nada como comprar ahora. No dar tanto énfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña y discreta. PROHIBIDO terminantemente incluir emojis o párrafos largos en el diseño gráfico o texto de la imagen. Titulares breves y de alto impacto visual.`.trim();
 
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-3.8-flash',
-      accountName: 'Kmarket Algarrobo',
+      model: 'gemini-2.5-flash',
+      accountName: '',
       baseImageUrl
     });
   }
