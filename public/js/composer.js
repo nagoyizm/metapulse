@@ -1484,16 +1484,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function buildKmarketMasterPrompt(prodName, brand = '', details = '') {
+    const prod = (prodName || '').trim() || 'este producto';
+    const brandStr = brand ? ` (${brand})` : '';
+    const descStr = details ? `\nDetalles: ${details}` : '';
+    return `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${prod}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${prod}${brandStr}${descStr}`.trim();
+  }
+
   function applyScannedProductData(data) {
     currentScannedProduct = data;
     const prodName = data.name || data.productName || '';
     if (prodName) setInputValue('kmarket-prod-name', prodName);
-    setInputValue('kmarket-prod-desc', formatProductDetailsText(data));
+    const prodDesc = formatProductDetailsText(data);
+    setInputValue('kmarket-prod-desc', prodDesc);
 
-    if (data.masterImagePrompt) {
-      setInputValue('kmarket-image-prompt-text', data.masterImagePrompt);
-      setElementDisplay('kmarket-image-prompt-box', 'block');
-    }
+    const masterPrompt = data.masterImagePrompt || buildKmarketMasterPrompt(prodName, data.brand, prodDesc);
+    setInputValue('kmarket-image-prompt-text', masterPrompt);
+    setElementDisplay('kmarket-image-prompt-box', 'block');
 
     const copy = data.suggestedCopy || data.copyPost || '';
     if (copy) {
@@ -1597,11 +1604,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function handleOpenGeminiWebFloating() {
     const prodName = document.getElementById('kmarket-prod-name')?.value.trim() || 'este producto';
-    const promptToCopy = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto (${prodName}) de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña`;
+    const prodDesc = document.getElementById('kmarket-prod-desc')?.value.trim() || '';
+    const brand = currentScannedProduct?.brand || '';
+    const promptInput = document.getElementById('kmarket-image-prompt-text');
+    const existingPrompt = promptInput?.value.trim();
+
+    const promptToCopy = existingPrompt || buildKmarketMasterPrompt(prodName, brand, prodDesc);
 
     try {
       await navigator.clipboard.writeText(promptToCopy);
-      showToast('📋 ¡Prompt copiado al portapapeles! Abre Gemini Web, adjunta la foto y pega (Ctrl+V).', 'success');
+      showToast('📋 ¡Prompt maestro copiado al portapapeles! Abre Gemini Web, adjunta la foto y pega (Ctrl+V).', 'success');
     } catch (_clipErr) {
       // Ignorar si el navegador bloquea acceso asíncrono al portapapeles sin foco
     }
@@ -1647,6 +1659,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnOpenGeminiWebFloating) {
       btnOpenGeminiWebFloating.addEventListener('click', handleOpenGeminiWebFloating);
     }
+
+    const prodNameInput = document.getElementById('kmarket-prod-name');
+    const prodDescInput = document.getElementById('kmarket-prod-desc');
+    const refreshPromptBox = () => {
+      const promptBox = document.getElementById('kmarket-image-prompt-box');
+      if (promptBox && promptBox.style.display !== 'none') {
+        const pName = prodNameInput?.value.trim();
+        const pDesc = prodDescInput?.value.trim();
+        const brand = currentScannedProduct?.brand || '';
+        if (pName) {
+          setInputValue('kmarket-image-prompt-text', buildKmarketMasterPrompt(pName, brand, pDesc));
+        }
+      }
+    };
+    if (prodNameInput) prodNameInput.addEventListener('input', refreshPromptBox);
+    if (prodDescInput) prodDescInput.addEventListener('input', refreshPromptBox);
   }
 
   // =======================================================

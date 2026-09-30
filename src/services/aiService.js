@@ -2843,10 +2843,12 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
    */
   async generateKmarketDesignerPoster({ baseImageUrl, productName = '', extraNotes = '', scannedData = null }) {
     const prod = (productName || scannedData?.productName || '').trim();
-    const productMention = prod ? `de este producto ("${prod}")` : 'de este producto';
+    const brand = scannedData?.brand || '';
+    const details = extraNotes || scannedData?.details || scannedData?.description || '';
+    const descSection = details ? `\nDetalles: ${details}` : '';
 
-    // Usar el PROMPT MAESTRO EXACTO del usuario sin contaminarlo con subtítulos largos ni directivas artificiales
-    const designerPrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria ${productMention} de dimensiones 4:5 vertical para instagram. Usar una fuente tipográfica similar a la del producto, pero dinámica, y el subtítulo con una fuente de menor tamaño pero elegante y un diseño similar para poner el título de lo que es. En el afiche DEBES incluir el empaque o lata auténtico del producto exactamente como aparece en la foto de referencia adjunta (mismo logotipo original, colores y diseño del fabricante), pero integrado con naturalidad en una puesta en escena fotográfica publicitaria comercial de estudio (es decir, no un simple recorte plano sobre blanco, sino una fotografía comercial apetitosa de estudio). Todo texto en español. No hacer referencia a ninguna tienda en especial, ni poner nada como comprar ahora. No dar tanto énfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña y discreta. PROHIBIDO terminantemente incluir emojis o párrafos largos en el diseño gráfico o texto de la imagen. Titulares breves y de alto impacto visual.`.trim();
+    // Prompt Maestro Oficial de Kmarket con las indicaciones buenas exactas
+    const designerPrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${prod || 'este producto'}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${prod || 'este producto'}${brand ? ` (${brand})` : ''}${descSection}`.trim();
 
     return await this.generateDirectImage({
       prompt: designerPrompt,
@@ -3000,6 +3002,9 @@ Responde estrictamente en formato JSON con la siguiente estructura:
             const origin = parsed.origin || 'Corea del Sur';
             const copyPost = parsed.copyPost || parsed.suggestedCopy || '';
 
+            const descSection = details ? `\nDetalles: ${details}` : '';
+            const masterPrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${productName}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${productName}${brand ? ` (${brand})` : ''}${descSection}`.trim();
+
             const normalizedData = {
               name: productName,
               productName: productName,
@@ -3014,7 +3019,7 @@ Responde estrictamente en formato JSON con la siguiente estructura:
               adSubtitle: parsed.adSubtitle || '',
               suggestedCopy: copyPost,
               copyPost: copyPost,
-              masterImagePrompt: parsed.masterImagePrompt || `Fotografía publicitaria comercial de estudio para ${productName} de ${brand}, iluminación cálida de estudio y detalles apetitosos.`
+              masterImagePrompt: masterPrompt
             };
 
             return {
