@@ -2,6 +2,10 @@
 // MetaPulse - Story Music & FFmpeg Video Generation Controller
 // =============================================================================
 
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
 const StoryMusicState = {
   enabled: false,
   activeSource: 'curated',
@@ -74,13 +78,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  function getIsKmarketBrand() {
+    const brand = (window.AppState?.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+    return brand.includes('kmarket');
+  }
+
   // 3. Cargar Catálogo Curado de Música Sin Copyright
-  async function loadCatalog(category = 'all', query = '') {
+  async function loadCatalog(category = null, query = '') {
     try {
       tracklistContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.8rem;">Cargando catálogo sin copyright...</div>';
       
+      const targetCategory = category !== null ? category : (getIsKmarketBrand() ? 'kpop' : 'all');
       const params = new URLSearchParams();
-      if (category && category !== 'all') params.append('category', category);
+      if (targetCategory && targetCategory !== 'all') params.append('category', targetCategory);
       if (query && query.trim()) params.append('q', query.trim());
 
       const res = await fetch(`/api/music/library?${params.toString()}`);
@@ -88,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (json.success && json.data) {
         StoryMusicState.catalog = json.data.tracks || [];
-        renderCategoryPills(json.data.categories || []);
+        renderCategoryPills(json.data.categories || [], targetCategory);
         renderTrackList(StoryMusicState.catalog);
 
         // Si no hay pista seleccionada aún, preseleccionar la primera
@@ -101,13 +111,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderCategoryPills(categories) {
+  function renderCategoryPills(categories, activeCatId = 'all') {
     if (!categoryPillsContainer) return;
     categoryPillsContainer.innerHTML = '';
     categories.forEach(cat => {
       const pill = document.createElement('button');
       pill.type = 'button';
-      pill.className = `music-cat-pill ${cat.id === 'all' ? 'active' : ''}`;
+      pill.className = `music-cat-pill ${cat.id === activeCatId ? 'active' : ''}`;
       pill.textContent = cat.label;
       pill.addEventListener('click', () => {
         categoryPillsContainer.querySelectorAll('.music-cat-pill').forEach(p => p.classList.remove('active'));
@@ -352,32 +362,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 10. Búsqueda en Jamendo API
+  // 10. Búsqueda en Audius / K-Pop API
   const btnJamendoSearch = document.getElementById('btn-jamendo-search');
   const jamendoInput = document.getElementById('jamendo-search-input');
   const jamendoResults = document.getElementById('jamendo-results-list');
 
+  // Chips de acceso rápido (K-Pop Hits, Seoul Lo-Fi, etc.)
+  document.querySelectorAll('.music-chip-btn').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.music-chip-btn').forEach(c => {
+        c.style.background = 'var(--bg-surface)';
+        c.style.color = 'var(--text-secondary)';
+        c.style.borderColor = 'var(--border-subtle)';
+      });
+      chip.style.background = 'rgba(236,72,153,0.15)';
+      chip.style.color = '#ec4899';
+      chip.style.borderColor = 'rgba(236,72,153,0.4)';
+      const q = chip.dataset.q;
+      if (jamendoInput) jamendoInput.value = q;
+      searchAudiusTracks(q);
+    });
+  });
+
   if (btnJamendoSearch && jamendoInput) {
-    btnJamendoSearch.addEventListener('click', searchJamendoTracks);
+    btnJamendoSearch.addEventListener('click', () => searchAudiusTracks(jamendoInput.value));
     jamendoInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') searchJamendoTracks();
+      if (e.key === 'Enter') searchAudiusTracks(jamendoInput.value);
     });
   }
 
-  async function searchJamendoTracks() {
-    const query = jamendoInput?.value?.trim();
+  async function searchAudiusTracks(customQuery = '') {
+    const query = (customQuery || jamendoInput?.value || '').trim();
     if (!query) return;
 
-    jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">Buscando en Jamendo...</div>';
+    jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">🌸 Buscando en Audius API...</div>';
 
     try {
-      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=15`);
+      const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=20`);
       const json = await res.json();
 
       if (json.success && json.data?.results) {
         const results = json.data.results;
         if (results.length === 0) {
-          jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">No se encontraron resultados en Jamendo.</div>';
+          jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">No se encontraron canciones para esa búsqueda. Intenta con "kpop", "korean lofi" o "asian beat".</div>';
           return;
         }
 
@@ -385,16 +412,20 @@ document.addEventListener('DOMContentLoaded', () => {
         results.forEach(track => {
           const item = document.createElement('div');
           item.className = 'music-track-item';
+          const artImg = track.artworkUrl
+            ? `<img src="${track.artworkUrl}" style="width:34px; height:34px; border-radius:4px; object-fit:cover; margin-right:4px;" alt="art">`
+            : '';
           item.innerHTML = `
             <div class="track-left">
               <button type="button" class="track-play-btn" data-id="${track.id}">▶</button>
+              ${artImg}
               <div class="track-info">
-                <span class="track-title">${track.title}</span>
-                <span class="track-artist-meta">👤 ${track.artist} • ⏱ ${formatDuration(track.durationSec)}</span>
+                <span class="track-title">${escapeHtml(track.title)}</span>
+                <span class="track-artist-meta">👤 ${escapeHtml(track.artist)} • ⏱ ${formatDuration(track.durationSec)} ${track.mood ? `• <span style="color:#ec4899;">${escapeHtml(track.mood)}</span>` : ''}</span>
               </div>
             </div>
             <div class="track-right">
-              <span class="track-badge">Jamendo</span>
+              <span class="track-badge">${escapeHtml(track.badge || 'Audius')}</span>
               <button type="button" class="btn-select-track" data-id="${track.id}">Seleccionar</button>
             </div>
           `;

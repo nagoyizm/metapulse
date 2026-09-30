@@ -632,7 +632,7 @@
                           <span>📁 Subir mi Canción</span>
                         </button>
                         <button type="button" class="music-tab-btn" data-tab="jamendo">
-                          <span>🔍 Explorar Jamendo API</span>
+                          <span>🌸 K-Pop & Audius API</span>
                         </button>
                       </div>
 
@@ -661,15 +661,23 @@
                         </div>
                       </div>
 
-                      <!-- TAB 3: Jamendo API -->
+                      <!-- TAB 3: Audius & K-Pop API Libre -->
                       <div id="music-tab-jamendo" class="music-tab-content" style="display:none;">
-                        <div style="display:flex; gap:8px; margin-bottom:10px;">
-                          <input type="text" id="jamendo-search-input" aria-label="Buscar en catálogo Jamendo" class="music-search-input" placeholder="Buscar en catálogo libre Jamendo (ej: summer, lofi, upbeat)...">
+                        <div style="display:flex; gap:8px; margin-bottom:8px;">
+                          <input type="text" id="jamendo-search-input" aria-label="Buscar K-Pop, Beats y Canciones en Audius" class="music-search-input" placeholder="Buscar K-Pop, Korean Lo-Fi, Asian Beats o cualquier artista...">
                           <button type="button" class="btn btn-primary btn-sm" id="btn-jamendo-search" style="padding:0 14px; white-space:nowrap;">Buscar</button>
+                        </div>
+                        <!-- Chips de Acceso Rápido para Kmarket / K-Pop -->
+                        <div class="music-quick-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+                          <button type="button" class="music-chip-btn active" data-q="kpop" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid rgba(236,72,153,0.3); background:rgba(236,72,153,0.1); color:#ec4899; cursor:pointer;">🌸 K-Pop Hits</button>
+                          <button type="button" class="music-chip-btn" data-q="korean lofi" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">☕ Seoul Lo-Fi</button>
+                          <button type="button" class="music-chip-btn" data-q="kpop remix" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">⚡ K-Dance Beat</button>
+                          <button type="button" class="music-chip-btn" data-q="k-indie" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">🎸 K-Indie & Acoustic</button>
+                          <button type="button" class="music-chip-btn" data-q="kawaii beat" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">✨ Kawaii Trap</button>
                         </div>
                         <div class="music-track-list" id="jamendo-results-list">
                           <div style="text-align:center; padding:15px; color:var(--text-secondary); font-size:0.8rem;">
-                            Escribe una palabra clave para buscar millones de canciones Creative Commons en Jamendo.
+                            Escribe una palabra clave o toca un chip arriba para buscar miles de canciones K-Pop libres en Audius.
                           </div>
                         </div>
                       </div>
@@ -3051,7 +3059,7 @@
                 <span>📁 Subir MP3</span>
               </button>
               <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="jamendo">
-                <span>🔍 Jamendo API</span>
+                <span>🌸 K-Pop & Audius</span>
               </button>
             </div>
 
@@ -3060,7 +3068,7 @@
               <div class="music-category-pills" id="batch-music-category-pills" style="margin-bottom:8px;"></div>
               <div class="music-search-bar" style="margin:0 0 8px 0;">
                 <span class="music-search-icon">🔍</span>
-                <input type="text" id="batch-music-search-input" aria-label="Buscar música" class="music-search-input" placeholder="Buscar por estilo o mood..." style="font-size:0.8rem;">
+                <input type="text" id="batch-music-search-input" aria-label="Buscar música" class="music-search-input" placeholder="Buscar por estilo, k-pop o mood..." style="font-size:0.8rem;">
               </div>
               <div class="music-track-list" id="batch-music-track-list" style="max-height:190px; overflow-y:auto;"></div>
             </div>
@@ -3075,14 +3083,14 @@
               </div>
             </div>
 
-            <!-- TAB 3: Jamendo -->
+            <!-- TAB 3: Audius / K-Pop -->
             <div id="batch-music-tab-jamendo" class="batch-music-tab-pane" style="display:none;">
               <div style="display:flex; gap:6px; margin-bottom:8px;">
-                <input type="text" id="batch-jamendo-search-input" aria-label="Buscar en Jamendo" class="music-search-input" placeholder="Buscar canciones Creative Commons en Jamendo..." style="font-size:0.8rem;">
+                <input type="text" id="batch-jamendo-search-input" aria-label="Buscar en Audius" class="music-search-input" placeholder="Buscar K-Pop, Korean Lo-Fi o cualquier artista en Audius..." style="font-size:0.8rem;">
                 <button type="button" class="btn btn-primary btn-sm" id="btn-batch-jamendo-search" style="padding:4px 12px; font-size:0.78rem;">Buscar</button>
               </div>
               <div class="music-track-list" id="batch-jamendo-results-list" style="max-height:190px; overflow-y:auto;">
-                <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.78rem;">Escribe una palabra clave para buscar en Jamendo.</div>
+                <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.78rem;">Escribe una palabra clave para buscar canciones libres en Audius.</div>
               </div>
             </div>
 

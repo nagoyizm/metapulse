@@ -32,6 +32,110 @@ class MusicService {
         recommendedFor: 'Promociones, ofertas de temporada y novedades'
       },
       {
+        id: 'kpop_demon_hunters',
+        title: 'K-Pop Demon Hunters (Remix)',
+        artist: 'Knights of Volition (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Energía K-Pop, Beat Moderno, Dinámico',
+        durationSec: 174,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/Q0JKxYB/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'K-Pop Viral',
+        recommendedFor: 'Reels dinámicos de Kmarket, snacks virales y novedades'
+      },
+      {
+        id: 'kpop_golden_porter',
+        title: 'Golden K-Pop Beats (Remix)',
+        artist: 'Michael Porter Music (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Pop Brillante, Melódico, Upbeat',
+        durationSec: 135,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/Y94XWaq/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'K-Pop Hit',
+        recommendedFor: 'Presentación de bebidas Milkis, dulces y postres coreanos'
+      },
+      {
+        id: 'kpop_no_jutsu',
+        title: 'K-Pop No Jutsu (Anime & Kawaii Trap)',
+        artist: 'Eugene Cam (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Kawaii, Trap Melódico, Divertido',
+        durationSec: 108,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/P5K7R/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'Kawaii Beat',
+        recommendedFor: 'Ramen Buldak, golosinas asiáticas y unboxings'
+      },
+      {
+        id: 'kpop_seoul_wave',
+        title: 'Huntrix - Golden Seoul Wave',
+        artist: 'SUTSU x YGG (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Electro Pop, Estilo Idol, Festival',
+        durationSec: 192,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/r9ywoPN/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'Seoul Pop',
+        recommendedFor: 'Ofertas de fin de semana, ramen bar y productos importados'
+      },
+      {
+        id: 'kpop_korean_samba',
+        title: 'Korean Samba & Summer Vibes',
+        artist: 'Alex Madore (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Fresco, Alegre, Playa & Verano',
+        durationSec: 128,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/mRY7r/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'Verano K',
+        recommendedFor: 'Helados coreanos Melona, bebidas heladas y paseos en Algarrobo'
+      },
+      {
+        id: 'kpop_romcoms',
+        title: 'Korean Rom-Coms Chill Guitar',
+        artist: 'Saint Coke (Audius)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Acústico K-Drama, Dulce, Romántico',
+        durationSec: 72,
+        streamUrl: 'https://discoveryprovider.audius.co/v1/tracks/ep2YM/stream?app_name=metapulse',
+        license: 'Creative Commons / Audius Free',
+        badge: 'K-Drama',
+        recommendedFor: 'Snacks dulces, té matcha y momentos acogedores'
+      },
+      {
+        id: 'incomp_lotus',
+        title: 'Lotus Asian Harmony',
+        artist: 'Kevin MacLeod (Incompetech)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Tradición Oriental, Suave, Elegante',
+        durationSec: 215,
+        streamUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Lotus.mp3',
+        license: 'Creative Commons CC-BY 3.0',
+        badge: 'Tradicional',
+        recommendedFor: 'Té coreano, kimchi artesanal y gastronomía tradicional'
+      },
+      {
+        id: 'incomp_eastern',
+        title: 'Eastern Thought & Zen Beats',
+        artist: 'Kevin MacLeod (Incompetech)',
+        category: 'kpop',
+        categoryLabel: '🌸 K-Pop & Asia',
+        mood: 'Zen, Meditativo, Instrumentos Asiáticos',
+        durationSec: 198,
+        streamUrl: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Eastern%20Thought.mp3',
+        license: 'Creative Commons CC-BY 3.0',
+        badge: 'Zen Asia',
+        recommendedFor: 'Productos orgánicos, dumplings Mandu al vapor y gastronomía coreana'
+      },
+      {
         id: 'incomp_airport',
         title: 'Airport Lounge & Chill',
         artist: 'Kevin MacLeod (Incompetech)',
@@ -187,8 +291,18 @@ class MusicService {
       throw new Error(`Archivo de audio local no encontrado: ${url}`);
     }
 
-    // Nombre de archivo en caché basado en hash o id
-    const cleanId = trackId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    // Nombre de archivo en caché basado en hash o id único
+    let cleanId = trackId;
+    if (!cleanId || cleanId === 'custom') {
+      const audiusMatch = url.match(/\/tracks\/([a-zA-Z0-9_-]+)\/stream/);
+      if (audiusMatch) {
+        cleanId = `audius_${audiusMatch[1]}`;
+      } else {
+        const crypto = require('crypto');
+        cleanId = `audio_${crypto.createHash('md5').update(url).digest('hex').slice(0, 16)}`;
+      }
+    }
+    cleanId = cleanId.replace(/[^a-zA-Z0-9_-]/g, '_');
     const localFile = path.join(this.cacheDir, `${cleanId}.mp3`);
 
     if (fs.existsSync(localFile) && fs.statSync(localFile).size > 10000) {
@@ -197,9 +311,81 @@ class MusicService {
 
     // Descargar a caché
     console.log(`[MusicService] Descargando audio sin copyright a caché: ${url}`);
-    const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 30000 });
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 35000,
+      maxRedirects: 5,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
     fs.writeFileSync(localFile, Buffer.from(response.data));
     return localFile;
+  }
+
+  /**
+   * Búsqueda en Audius API (Plataforma abierta y libre de música sin copyright y remixes K-Pop)
+   * 100% gratuita, sin clave de API requerida.
+   */
+  async searchAudius({ query = 'kpop', limit = 20 }) {
+    const cleanQ = (query || 'kpop').trim();
+    const discoveryHosts = [
+      'https://discoveryprovider.audius.co',
+      'https://api.audius.co'
+    ];
+
+    let lastErr = null;
+    for (const host of discoveryHosts) {
+      try {
+        const res = await axios.get(`${host}/v1/tracks/search`, {
+          params: {
+            query: cleanQ,
+            app_name: 'metapulse'
+          },
+          timeout: 9000,
+          headers: {
+            'User-Agent': 'MetaPulse/1.0 (Windows NT 10.0)'
+          }
+        });
+
+        if (res.data && Array.isArray(res.data.data)) {
+          const streamable = res.data.data
+            .filter(t => t.is_streamable !== false && !t.is_gated && !t.stream_conditions && t.duration < 600)
+            .slice(0, limit)
+            .map(t => {
+              const artwork = t.artwork?.['150x150'] || t.artwork?.['480x480'] || '';
+              return {
+                id: `audius_${t.id}`,
+                title: t.title,
+                artist: t.user?.name || 'Artista Independiente',
+                category: 'kpop',
+                categoryLabel: 'Audius Free Music',
+                mood: t.genre || 'K-Pop / Beat',
+                durationSec: t.duration || 120,
+                streamUrl: `${host}/v1/tracks/${t.id}/stream?app_name=metapulse`,
+                artworkUrl: artwork,
+                license: 'Creative Commons / Audius Free',
+                badge: 'Audius',
+                recommendedFor: 'Reels, Stories y videos de Kmarket'
+              };
+            });
+
+          return {
+            source: 'audius_api',
+            results: streamable
+          };
+        }
+      } catch (err) {
+        lastErr = err;
+        console.warn(`[MusicService] Audius host ${host} falló:`, err.message);
+      }
+    }
+
+    return {
+      source: 'audius_api',
+      error: lastErr ? lastErr.message : 'No se pudo conectar a Audius',
+      results: []
+    };
   }
 
   /**
@@ -208,7 +394,6 @@ class MusicService {
   async searchJamendo({ query = '', tag = '', limit = 15 }) {
     const clientId = getSetting('jamendo_client_id');
     if (!clientId) {
-      // Si no hay API key configurada, buscar en catálogo curado
       return {
         source: 'curated_fallback',
         results: this.getCuratedCatalog(tag, query)
@@ -254,6 +439,54 @@ class MusicService {
         results: this.getCuratedCatalog(tag, query)
       };
     }
+  }
+
+  /**
+   * Búsqueda inteligente multi-proveedor (Audius prioritario para K-Pop, Jamendo y Catálogo Curado)
+   */
+  async searchAllSources({ query = '', tag = '', limit = 20, provider = 'all' }) {
+    const q = (query || '').trim();
+
+    // 1. Si el usuario solicita explícitamente Audius o busca temáticas K-Pop / Asia
+    const isKpopQuery = q.toLowerCase().includes('kpop') ||
+      q.toLowerCase().includes('k-pop') ||
+      q.toLowerCase().includes('korean') ||
+      q.toLowerCase().includes('asian') ||
+      q.toLowerCase().includes('seoul') ||
+      q.toLowerCase().includes('bts') ||
+      q.toLowerCase().includes('twice') ||
+      q.toLowerCase().includes('blackpink') ||
+      q.toLowerCase().includes('kawaii') ||
+      tag === 'kpop';
+
+    if (provider === 'audius' || isKpopQuery) {
+      const audiusRes = await this.searchAudius({ query: q || 'kpop', limit });
+      if (audiusRes.results && audiusRes.results.length > 0) {
+        return audiusRes;
+      }
+    }
+
+    // 2. Si hay Jamendo configurado con Client ID
+    if (provider === 'jamendo' || getSetting('jamendo_client_id')) {
+      const jamRes = await this.searchJamendo({ query: q, tag, limit });
+      if (jamRes.results && jamRes.results.length > 0 && jamRes.source === 'jamendo_api') {
+        return jamRes;
+      }
+    }
+
+    // 3. Búsqueda en Audius abierta
+    if (q) {
+      const audiusRes = await this.searchAudius({ query: q, limit });
+      if (audiusRes.results && audiusRes.results.length > 0) {
+        return audiusRes;
+      }
+    }
+
+    // 4. Fallback al catálogo curado local
+    return {
+      source: 'curated_fallback',
+      results: this.getCuratedCatalog(tag, q)
+    };
   }
 
   /**

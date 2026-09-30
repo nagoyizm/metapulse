@@ -2266,6 +2266,7 @@ router.get('/music/library', (req, res) => {
         userAudios,
         categories: [
           { id: 'all', label: '🔥 Todos los Géneros' },
+          { id: 'kpop', label: '🌸 K-Pop & Asia' },
           { id: 'pop', label: '✨ Pop & Alegre' },
           { id: 'lofi', label: '☕ Lo-Fi & Relax' },
           { id: 'acoustic', label: '🎸 Acústico & Cálido' },
@@ -2282,8 +2283,18 @@ router.get('/music/library', (req, res) => {
 
 router.get('/music/search', async (req, res) => {
   try {
-    const { q = '', tag = '', limit = 15 } = req.query;
-    const result = await musicService.searchJamendo({ query: q, tag, limit: Number(limit) });
+    const { q = '', tag = '', limit = 20, provider = 'all' } = req.query;
+    const result = await musicService.searchAllSources({ query: q, tag, limit: Number(limit), provider });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/music/audius', async (req, res) => {
+  try {
+    const { q = 'kpop', limit = 20 } = req.query;
+    const result = await musicService.searchAudius({ query: q, limit: Number(limit) });
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
