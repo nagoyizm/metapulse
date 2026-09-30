@@ -2871,11 +2871,15 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
         // Si la URL no es parseable como URL completa, se mantiene la ruta provista
       }
     }
+    try {
+      cleanRel = decodeURIComponent(cleanRel);
+    } catch (_) {}
     cleanRel = cleanRel.replace(/^[/\\]+/, '');
 
     const candidates = [
       imagePath,
       path.join(__dirname, '../../', cleanRel),
+      path.join(__dirname, '../../public', cleanRel),
       path.join(__dirname, '../../uploads', path.basename(cleanRel)),
       path.join(__dirname, '../../uploads/processed', path.basename(cleanRel)),
       path.join(__dirname, '../../uploads/generated', path.basename(cleanRel)),
@@ -2890,19 +2894,43 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       }
     }
 
-    if (!fullPath) {
+    let fileBuf = null;
+    let mimeType = 'image/jpeg';
+
+    if (fullPath) {
+      fileBuf = fs.readFileSync(fullPath);
+      const ext = path.extname(fullPath).toLowerCase();
+      if (ext === '.png') {
+        mimeType = 'image/png';
+      } else if (ext === '.webp') {
+        mimeType = 'image/webp';
+      } else if (ext === '.gif') {
+        mimeType = 'image/gif';
+      }
+    } else if (imagePath.startsWith('http')) {
+      try {
+        const dlRes = await axios.get(imagePath, { responseType: 'arraybuffer', timeout: 15000 });
+        fileBuf = Buffer.from(dlRes.data);
+        const ct = (dlRes.headers['content-type'] || '').toLowerCase();
+        if (ct.includes('png')) mimeType = 'image/png';
+        else if (ct.includes('webp')) mimeType = 'image/webp';
+        else if (ct.includes('gif')) mimeType = 'image/gif';
+      } catch (dlErr) {
+        throw new Error(`No se pudo cargar la imagen del producto desde internet: ${dlErr.message}`);
+      }
+    } else {
       throw new Error(`La imagen del producto no existe en disco: ${cleanRel}`);
     }
 
-    const fileBuf = fs.readFileSync(fullPath);
-    const ext = path.extname(fullPath).toLowerCase();
-    let mimeType = 'image/jpeg';
-    if (ext === '.png') {
-      mimeType = 'image/png';
-    } else if (ext === '.webp') {
-      mimeType = 'image/webp';
-    }
     const apiKey = this.getApiKey();
+    const imageKey = this.getImageApiKey();
+    const keysToTry = [apiKey];
+    if (imageKey && imageKey !== apiKey) keysToTry.push(imageKey);
+    const validKeys = keysToTry.filter(Boolean);
+
+    if (validKeys.length === 0) {
+      throw new Error('No hay una clave de API configurada para Gemini (ai_api_key o GEMINI_API_KEY). Configúrala en Ajustes.');
+    }
 
     const prompt = String.raw`Actúa como un Director Creativo Senior y Copywriter publicitario de clase mundial para Kmarket Algarrobo.
 Analiza minuciosamente la imagen del empaque de este producto y extrae la información real del producto.
@@ -2918,15 +2946,10 @@ Responde estrictamente en formato JSON con la siguiente estructura:
   "copyPost": "Texto completo para post de Instagram siguiendo estrictamente la fórmula oficial de Kmarket: 1) Título entre emojis temáticos: '[Emojis] [Nombre] en Kmarket Algarrobo [Emojis]'; 2) Breve párrafo descriptivo de textura/sabor; 3) '✨ ¿Qué lo hace especial?' (1 párrafo); 4) '[Emoji] Perfecto para disfrutar como:' con 3-4 viñetas '•'; 5) Párrafo breve de conexión; 6) Dirección exacta obligatoria: '📍 Encuéntralo en Kmarket Algarrobo\\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo'; 7) Cierre cálido '🧡 Descubre por qué...'; 8) EXACTAMENTE ENTRE 5 Y 7 HASHTAGS (#KmarketAlgarrobo #KFood y los del producto; NUNCA más de 7)."
 }`;
 
-    const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'));
+    const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'), ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']);
     let lastErr = null;
 
-    // Probar con apiKey actual y si falla probar con la clave alternativa
-    const keysToTry = [apiKey];
-    const imageKey = this.getImageApiKey();
-    if (imageKey && imageKey !== apiKey) keysToTry.push(imageKey);
-
-    for (const currentKey of keysToTry) {
+    for (const currentKey of validKeys) {
       for (const m of modelsToTry) {
         try {
           const res = await axios.post(
@@ -2943,24 +2966,65 @@ Responde estrictamente en formato JSON con la siguiente estructura:
                 temperature: 0.4
               }
             },
-            { timeout: 25000 }
+            { timeout: 35000 }
           );
 
           const textResponse = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (textResponse) {
-            const parsed = JSON.parse(textResponse);
+            let clean = textResponse.trim();
+            if (clean.startsWith('```json')) clean = clean.slice(7);
+            if (clean.startsWith('```')) clean = clean.slice(3);
+            if (clean.endsWith('```')) clean = clean.slice(0, -3);
+            clean = clean.trim();
+
+            let parsed;
+            try {
+              parsed = JSON.parse(clean);
+            } catch (jsonErr) {
+              const match = clean.match(/\{[\s\S]*\}/);
+              if (match) {
+                parsed = JSON.parse(match[0]);
+              } else {
+                throw jsonErr;
+              }
+            }
+
             if (parsed.copyPost) {
               parsed.copyPost = this.cleanCaptionAI(parsed.copyPost);
             }
+
+            const productName = parsed.productName || parsed.name || 'Producto Kmarket';
+            const brand = parsed.brand || 'Corea';
+            const details = parsed.details || parsed.description || '';
+            const flavorNotes = parsed.flavorNotes || details;
+            const origin = parsed.origin || 'Corea del Sur';
+            const copyPost = parsed.copyPost || parsed.suggestedCopy || '';
+
+            const normalizedData = {
+              name: productName,
+              productName: productName,
+              brand: brand,
+              category: parsed.category || 'Alimentos Coreanos',
+              productShape: parsed.productShape || '',
+              origin: origin,
+              flavorNotes: flavorNotes,
+              description: details,
+              details: details,
+              adHeadline: parsed.adHeadline || '',
+              adSubtitle: parsed.adSubtitle || '',
+              suggestedCopy: copyPost,
+              copyPost: copyPost,
+              masterImagePrompt: parsed.masterImagePrompt || `Fotografía publicitaria comercial de estudio para ${productName} de ${brand}, iluminación cálida de estudio y detalles apetitosos.`
+            };
+
             return {
               success: true,
-              data: parsed
+              data: normalizedData
             };
           }
         } catch (err) {
           lastErr = err;
           console.warn(`[scanProductFromImage] Falló con ${m}:`, err.response?.data?.error?.message || err.message);
-          // Si es 503 o 429, esperar 500ms antes del siguiente intento
           if (err.response?.status === 503 || err.response?.status === 429) {
             await new Promise(r => setTimeout(r, 600));
           }
@@ -2968,7 +3032,7 @@ Responde estrictamente en formato JSON con la siguiente estructura:
       }
     }
 
-    throw new Error(lastErr ? lastErr.message : 'No se pudo analizar la imagen del producto');
+    throw new Error(lastErr ? (lastErr.response?.data?.error?.message || lastErr.message) : 'No se pudo analizar la imagen del producto');
   }
 
   /**

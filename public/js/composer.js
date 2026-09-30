@@ -62,7 +62,8 @@ function formatProductDetailsText(data) {
   if (data.brand) details.push(`Marca: ${data.brand}`);
   if (data.origin) details.push(`Origen: ${data.origin}`);
   if (data.flavorNotes) details.push(`Notas de sabor: ${data.flavorNotes}`);
-  if (data.description) details.push(data.description);
+  const extraDesc = data.description || data.details;
+  if (extraDesc && extraDesc !== data.flavorNotes) details.push(extraDesc);
   return details.join('\n');
 }
 
@@ -1485,7 +1486,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function applyScannedProductData(data) {
     currentScannedProduct = data;
-    if (data.name) setInputValue('kmarket-prod-name', data.name);
+    const prodName = data.name || data.productName || '';
+    if (prodName) setInputValue('kmarket-prod-name', prodName);
     setInputValue('kmarket-prod-desc', formatProductDetailsText(data));
 
     if (data.masterImagePrompt) {
@@ -1493,13 +1495,14 @@ document.addEventListener('DOMContentLoaded', () => {
       setElementDisplay('kmarket-image-prompt-box', 'block');
     }
 
-    if (data.suggestedCopy) {
-      setInputValue('ai-generated-text', data.suggestedCopy);
+    const copy = data.suggestedCopy || data.copyPost || '';
+    if (copy) {
+      setInputValue('ai-generated-text', copy);
       setElementDisplay('ai-result-box', 'block');
       setElementDisplay('btn-apply-ai-copy', 'inline-flex');
     }
 
-    setElementHtml('kmarket-scan-status', `✅ Identificado: <strong>${data.name || 'Producto'}</strong> (${data.brand || 'Corea'}).`);
+    setElementHtml('kmarket-scan-status', `✅ Identificado: <strong>${prodName || 'Producto'}</strong> (${data.brand || 'Corea'}).`);
   }
 
   async function handleScanProductAuto() {
@@ -1520,7 +1523,16 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imagePath: targetPath })
       });
-      const json = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let json;
+      if (contentType.includes('application/json')) {
+        json = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(`Respuesta no válida del servidor (${res.status}): ${text.slice(0, 100)}`);
+      }
+
       if (json.success && json.data) {
         applyScannedProductData(json.data);
         showToast('¡Producto investigado con éxito! Ficha y Copy listos.', 'success');
@@ -1529,8 +1541,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (kmarketScanStatus) kmarketScanStatus.textContent = 'No se pudo identificar: ' + (json.error || '');
       }
     } catch (err) {
-      showToast('Error de conexión: ' + err.message, 'error');
-      if (kmarketScanStatus) kmarketScanStatus.textContent = 'Error de conexión: ' + err.message;
+      showToast('Error al investigar producto: ' + err.message, 'error');
+      if (kmarketScanStatus) kmarketScanStatus.textContent = 'Error: ' + err.message;
     } finally {
       btnScanProductAuto.disabled = false;
       btnScanProductAuto.textContent = '🔍 Escanear e Investigar Producto';

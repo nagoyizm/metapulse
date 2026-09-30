@@ -1689,6 +1689,21 @@ router.post('/ai/kmarket-product', async (req, res) => {
   }
 });
 
+router.post('/ai/scan-product', async (req, res) => {
+  try {
+    const { imagePath } = req.body;
+    if (!imagePath) {
+      return res.status(400).json({ success: false, error: 'Debes proporcionar la foto o ruta del producto a escanear.' });
+    }
+    const result = await aiService.scanProductFromImage(imagePath);
+    res.json(result);
+  } catch (err) {
+    console.error('[AI Scan Product] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 router.post('/ai/agendio-content', async (req, res) => {
   try {
     const { topic, format, targetAudience, pillar, extraNotes, baseImageUrl } = req.body;
