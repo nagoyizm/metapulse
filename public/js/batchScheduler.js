@@ -1026,6 +1026,22 @@
         })
       });
 
+      if (!res.ok) {
+        let errorMsg = `Error del servidor (${res.status})`;
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) errorMsg = errData.error;
+        } catch (_) {
+          if (res.status === 522) {
+            errorMsg = 'Error 522 (Timeout de conexión). Por favor intenta nuevamente; el renderizado ahora es ultra-rápido.';
+          } else {
+            const rawText = await res.text();
+            errorMsg = `Error ${res.status}: ${rawText.slice(0, 100)}`;
+          }
+        }
+        throw new Error(errorMsg);
+      }
+
       const json = await res.json();
 
       if (json.success && json.data?.relativeUrl) {

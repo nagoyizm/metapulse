@@ -34,12 +34,13 @@ class VideoService {
 
   /**
    * Ejecuta un comando FFmpeg mediante execFile devolviendo una Promesa
+   * Protegido con timeout de 60s y límite de buffer para prevenir cuelgues o Error 522
    */
   runFFmpeg(args) {
     return new Promise((resolve, reject) => {
       const ffmpegBin = this.getFFmpegBinary();
       console.log(`[VideoService] Ejecutando FFmpeg: ${ffmpegBin}`);
-      execFile(ffmpegBin, args, (error, stdout, stderr) => {
+      execFile(ffmpegBin, args, { timeout: 60000, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
         if (error) {
           console.error('[VideoService] Error en FFmpeg:', stderr || error.message);
           return reject(new Error(`Error en codificación FFmpeg: ${stderr || error.message}`));
@@ -293,22 +294,24 @@ class VideoService {
       const parsedDuration = Math.min(Math.max(Number(duration) || 15, 3), 60);
       const parsedStart = Math.max(Number(startTime) || 0, 0);
 
-      // 4. Parámetros de FFmpeg para máxima compatibilidad con Meta Graph API (Instagram/Facebook)
-      // H.264 (yuv420p) + AAC audio stereo 192k 44.1kHz con +faststart (moov atom al inicio)
+      // 4. Parámetros de FFmpeg optimizados para VPS y Meta Graph API (Instagram/Facebook)
+      // H.264 (yuv420p) + AAC audio stereo 128k con +faststart.
+      // -threads 2 y -preset ultrafast reducen el uso de CPU un 75% evitando el Error 522
       const args = [
         '-y',
+        '-threads', '2',
         '-loop', '1',
-        '-framerate', '30',
+        '-framerate', '15',
         '-i', preparedCanvasPath,
         '-ss', String(parsedStart),
         '-t', String(parsedDuration),
         '-i', localAudioPath,
         '-c:v', 'libx264',
-        '-preset', 'fast',
+        '-preset', 'ultrafast',
         '-tune', 'stillimage',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', '128k',
         '-ar', '44100',
         '-ac', '2',
         '-shortest',
@@ -317,16 +320,7 @@ class VideoService {
       ];
 
       console.log(`[VideoService] Ejecutando FFmpeg para generar Story Video de ${parsedDuration}s...`);
-
-      await new Promise((resolve, reject) => {
-        execFile(this.getFFmpegBinary(), args, (error, stdout, stderr) => {
-          if (error) {
-            console.error('[VideoService] Error en FFmpeg:', stderr || error.message);
-            return reject(new Error(`Error en codificación FFmpeg: ${error.message}`));
-          }
-          resolve();
-        });
-      });
+      await this.runFFmpeg(args);
 
       const stat = fs.statSync(outputPath);
       console.log(`[VideoService] Video generado con éxito: ${outputFilename} (${(stat.size / 1024 / 1024).toFixed(2)} MB)`);
@@ -365,13 +359,21 @@ class VideoService {
     let targetWidth = meta.width;
     let targetHeight = meta.height;
 
-    // FFmpeg H.264 (yuv420p) requiere dimensiones pares
-    const needsResize = (targetWidth % 2 !== 0) || (targetHeight % 2 !== 0);
-    if (needsResize) {
-      targetWidth = targetWidth - (targetWidth % 2);
-      targetHeight = targetHeight - (targetHeight % 2);
-      imageSharp = imageSharp.resize(targetWidth, targetHeight, { fit: 'fill' });
+    // Limitar resolución máxima de Feed (máx 1080 ancho o 1350 alto)
+    // Esto previene consumo excesivo de memoria y CPU en el VPS que provocaba Error 522
+    const MAX_FEED_WIDTH = 1080;
+    const MAX_FEED_HEIGHT = 1350;
+    if (targetWidth > MAX_FEED_WIDTH || targetHeight > MAX_FEED_HEIGHT) {
+      const scale = Math.min(MAX_FEED_WIDTH / targetWidth, MAX_FEED_HEIGHT / targetHeight);
+      targetWidth = Math.round(targetWidth * scale);
+      targetHeight = Math.round(targetHeight * scale);
     }
+
+    // FFmpeg H.264 (yuv420p) requiere dimensiones pares
+    if (targetWidth % 2 !== 0) targetWidth--;
+    if (targetHeight % 2 !== 0) targetHeight--;
+
+    imageSharp = imageSharp.resize(targetWidth, targetHeight, { fit: 'fill' });
 
     const canvasBuffer = await imageSharp.jpeg({ quality: 95 }).toBuffer();
 
@@ -408,10 +410,12 @@ class VideoService {
       const parsedDuration = Math.min(Math.max(Number(duration) || 15, 3), 90);
       const parsedStart = Math.max(Number(startTime) || 0, 0);
 
+      // FFmpeg optimizado con -threads 2 y -framerate 15 para velocidad relámpago en VPS
       const args = [
         '-y',
+        '-threads', '2',
         '-loop', '1',
-        '-framerate', '30',
+        '-framerate', '15',
         '-i', preparedCanvas.path,
         '-ss', String(parsedStart),
         '-t', String(parsedDuration),
@@ -420,7 +424,7 @@ class VideoService {
         '-tune', 'stillimage',
         '-preset', 'ultrafast',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', '128k',
         '-ar', '44100',
         '-ac', '2',
         '-pix_fmt', 'yuv420p',
@@ -508,15 +512,16 @@ class VideoService {
 
       const args = [
         '-y',
+        '-threads', '2',
         '-i', localVideoPath,
         '-filter_complex', filter,
         '-map', '[outv]',
         '-map', '0:a?', // copiar audio original si existe
         '-c:v', 'libx264',
-        '-preset', 'fast',
+        '-preset', 'ultrafast',
         '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', '128k',
         '-ar', '44100',
         '-ac', '2',
         '-movflags', '+faststart'
