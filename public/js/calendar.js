@@ -843,7 +843,7 @@ function formatPlatformDeliveryItem(name, icon, result) {
   return `<div style="color:#f43f5e; margin-bottom:2px;">${icon} <strong>${name}:</strong> Falló (${result.error || 'Error'})</div>`;
 }
 
-function updatePlannerDeliveryBreakdown(deliveryEl, metaRes) {
+function updatePlannerDeliveryBreakdown(deliveryEl, metaRes, post) {
   if (!deliveryEl) return;
   if (!metaRes?.facebook && !metaRes?.instagram) {
     deliveryEl.style.display = 'none';
@@ -857,12 +857,31 @@ function updatePlannerDeliveryBreakdown(deliveryEl, metaRes) {
     (metaRes.instagram && !metaRes.instagram.success)
   );
   const isMissingPerms = Boolean(hasPartialError && metaRes.facebook?.error?.includes('pages_manage_posts'));
+  const isIgMediaIdNotAvailable = Boolean(hasPartialError && metaRes.instagram?.error?.toLowerCase().includes('media id is not available'));
+  const isIgProcessing = Boolean(hasPartialError && (metaRes.instagram?.error?.includes('IN_PROGRESS') || metaRes.instagram?.error?.includes('procesamiento')));
 
-  const permWarningHtml = isMissingPerms ? `
-    <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(239, 68, 68, 0.3); font-size:0.75rem; color:var(--text-secondary);">
-      💡 <em>Tu token actual no tiene concedido el permiso <strong>pages_manage_posts</strong> en Meta. Por eso Instagram sí publica pero Facebook rechaza el post.</em>
-    </div>
-  ` : '';
+  let warningHtml = '';
+  if (isMissingPerms) {
+    warningHtml += `
+      <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(239, 68, 68, 0.3); font-size:0.75rem; color:var(--text-secondary);">
+        💡 <em>Tu token actual no tiene concedido el permiso <strong>pages_manage_posts</strong> en Meta. Por eso Instagram sí publica pero Facebook rechaza el post.</em>
+      </div>
+    `;
+  }
+  if (isIgMediaIdNotAvailable || isIgProcessing) {
+    warningHtml += `
+      <div style="margin-top:8px; padding-top:6px; border-top:1px dashed rgba(239, 68, 68, 0.3); font-size:0.75rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:6px;">
+        <div>💡 <em><strong>¿Qué ocurrió con Instagram?</strong> Meta tardó más tiempo del habitual en descargar y transcodificar el video/Reel en sus servidores ("Media ID is not available"). Tu post de Facebook ya quedó publicado exitosamente y no se duplicará.</em></div>
+        ${post ? `
+          <div style="margin-top:2px;">
+            <button type="button" class="btn btn-xs" onclick="window.publishPostNow(${post.id})" style="background:linear-gradient(135deg,#e1306c,#833ab4); color:#fff; border:none; font-weight:700; border-radius:4px; padding:4px 8px; cursor:pointer;">
+              ⚡ Reintentar entrega en Instagram
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
 
   deliveryEl.innerHTML = `
     <div style="font-weight:700; margin-bottom:6px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
@@ -870,7 +889,7 @@ function updatePlannerDeliveryBreakdown(deliveryEl, metaRes) {
     </div>
     ${fbHtml}
     ${igHtml}
-    ${permWarningHtml}
+    ${warningHtml}
   `;
   deliveryEl.style.display = 'block';
   deliveryEl.style.background = hasPartialError ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.08)';
@@ -883,7 +902,7 @@ function updatePlannerDetailStatus(post, metaRes, isScheduled) {
     statusEl.innerHTML = getPlannerStatusPillHtml(post, metaRes, isScheduled);
   }
   const deliveryEl = document.getElementById('planner-detail-delivery-breakdown');
-  updatePlannerDeliveryBreakdown(deliveryEl, metaRes);
+  updatePlannerDeliveryBreakdown(deliveryEl, metaRes, post);
 }
 
 function updatePlannerDetailMedia(post, mediaUrls) {
@@ -1268,8 +1287,18 @@ function renderQueueTable(posts) {
         : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${post.id})" style="width:36px; height:36px; object-fit:cover; border-radius:4px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
     }
 
+    let metaRes = null;
+    try { metaRes = typeof post.meta_result === 'string' ? JSON.parse(post.meta_result || '{}') : (post.meta_result || {}); } catch (_) {}
+    const hasPartialFailure = post.status === 'published' && metaRes && (
+      (metaRes.facebook && !metaRes.facebook.success) ||
+      (metaRes.instagram && !metaRes.instagram.success)
+    );
+
     let statusPill = `<span class="status-pill ${post.status}">${post.status}</span>`;
-    if (post.status === 'failed' && post.retry_count > 0) {
+    if (hasPartialFailure) {
+      const partialLabel = metaRes.instagram && !metaRes.instagram.success ? 'Solo FB' : 'Solo IG';
+      statusPill = `<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;" title="Una de las plataformas no se completó">⚠️ Parcial (${partialLabel})</span>`;
+    } else if (post.status === 'failed' && post.retry_count > 0) {
       statusPill += `<br><small style="color:var(--accent-rose); font-size:0.7rem;">Reintento ${post.retry_count}/${post.max_retries}</small>`;
     }
 
@@ -1301,6 +1330,9 @@ function renderQueueTable(posts) {
             <button class="btn btn-secondary btn-xs" onclick="window.showPlannerPostDetailById(${post.id})" title="Ver detalle y vista previa (Mockup IG/FB)" style="font-weight:700;">👁️ Ver</button>
             ${post.status === 'scheduled' ? `
               <button class="btn btn-primary btn-xs" onclick="publishPostNow(${post.id})" title="Publicar Ahora">⚡ Enviar</button>
+            ` : ''}
+            ${hasPartialFailure ? `
+              <button class="btn btn-xs" onclick="publishPostNow(${post.id})" title="Completar entrega pendiente en Meta" style="background:#f59e0b; color:#fff; border:none; font-weight:700;">⚡ Completar (${metaRes.instagram && !metaRes.instagram.success ? 'IG' : 'FB'})</button>
             ` : ''}
             ${post.status === 'failed' ? `
               <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>

@@ -183,19 +183,35 @@ class SchedulerService {
         }
       }
 
+      // Revisar resultados previos en caso de reintento parcial (ej: Facebook ya publicado y reintento solo para Instagram)
+      let prevMeta = {};
+      try {
+        prevMeta = typeof post.meta_result === 'string' ? JSON.parse(post.meta_result || '{}') : (post.meta_result || {});
+      } catch (_) {}
+
       if (platforms.includes('facebook')) {
-        results.facebook = await this.dispatchToFacebook(post, mediaUrls, creds);
-        if (!results.facebook.success) {
-          hasError = true;
-          errorMessage += `FB: ${results.facebook.error}; `;
+        if (prevMeta.facebook && prevMeta.facebook.success && (prevMeta.facebook.postId || prevMeta.facebook.id)) {
+          console.log(`[Scheduler] 📘 Facebook ya fue publicado exitosamente con anterioridad (#${prevMeta.facebook.postId || prevMeta.facebook.id}). Omitiendo republicación duplicada.`);
+          results.facebook = prevMeta.facebook;
+        } else {
+          results.facebook = await this.dispatchToFacebook(post, mediaUrls, creds);
+          if (!results.facebook.success) {
+            hasError = true;
+            errorMessage += `FB: ${results.facebook.error}; `;
+          }
         }
       }
 
       if (platforms.includes('instagram')) {
-        results.instagram = await this.dispatchToInstagram(post, mediaUrls, creds);
-        if (!results.instagram.success) {
-          hasError = true;
-          errorMessage += `IG: ${results.instagram.error}; `;
+        if (prevMeta.instagram && prevMeta.instagram.success && (prevMeta.instagram.postId || prevMeta.instagram.id)) {
+          console.log(`[Scheduler] 📷 Instagram ya fue publicado exitosamente con anterioridad (#${prevMeta.instagram.postId || prevMeta.instagram.id}). Omitiendo republicación duplicada.`);
+          results.instagram = prevMeta.instagram;
+        } else {
+          results.instagram = await this.dispatchToInstagram(post, mediaUrls, creds);
+          if (!results.instagram.success) {
+            hasError = true;
+            errorMessage += `IG: ${results.instagram.error}; `;
+          }
         }
       }
 

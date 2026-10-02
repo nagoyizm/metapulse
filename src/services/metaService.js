@@ -544,27 +544,46 @@ class MetaService {
   /**
    * Espera a que un contenedor multimedia de Instagram termine de procesarse
    */
-  async waitForInstagramContainer(containerId, igToken, maxAttempts = 15) {
+  async waitForInstagramContainer(containerId, igToken, maxAttempts = 30, intervalMs = 2500) {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const statusRes = await axios.get(`${this.graphUrl}/${containerId}`, {
-        params: {
-          fields: 'status_code,status',
-          access_token: igToken
+      let statusCode = null;
+      let statusDetail = null;
+
+      try {
+        const statusRes = await axios.get(`${this.graphUrl}/${containerId}`, {
+          params: {
+            fields: 'status_code,status',
+            access_token: igToken
+          },
+          timeout: 10000
+        });
+
+        statusCode = statusRes.data.status_code;
+        statusDetail = statusRes.data.status;
+
+        console.log(`[MetaService] ⏳ Verificando contenedor IG ${containerId}: estado "${statusCode || 'DESCONOCIDO'}" (intento ${attempt + 1}/${maxAttempts})`);
+
+        if (statusCode === 'FINISHED') {
+          console.log(`[MetaService] ✅ Contenedor IG ${containerId} listo para publicar (FINISHED).`);
+          return true;
         }
-      });
 
-      const statusCode = statusRes.data.status_code;
-      if (statusCode === 'FINISHED') {
-        return true;
-      }
-      if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
-        throw new Error(`Error procesando media en Instagram: ${statusRes.data.status || statusCode}`);
+        if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
+          throw new Error(`Error procesando media en Instagram: ${statusDetail || statusCode}`);
+        }
+      } catch (err) {
+        if (err.message && err.message.includes('Error procesando media en Instagram')) {
+          throw err;
+        }
+        console.warn(`[MetaService] Advertencia temporal consultando contenedor IG ${containerId}:`, err.message);
       }
 
-      // Esperar 2 segundos antes de volver a consultar
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, intervalMs));
     }
-    return true; // Intentar publicar si no falló explícitamente
+
+    // Si terminó el bucle y el contenedor sigue sin estar FINISHED, no intentar publicar a ciegas
+    // porque la Graph API de Meta lanzará inmediatamente "Media ID is not available"
+    throw new Error('El video aún se encuentra en procesamiento en los servidores de Instagram (IN_PROGRESS). Meta no ha finalizado la transcodificación. Puedes pulsar "Publicar Ahora" o "Reintentar" en 1 o 2 minutos para completar la entrega.');
   }
 
   async createStoryContainer(igUserId, token, mediaUrl) {
@@ -583,7 +602,8 @@ class MetaService {
       params: containerParams
     });
     const creationId = containerRes.data.id;
-    await this.waitForInstagramContainer(creationId, token);
+    // Videos/historias necesitan más tiempo de procesamiento que imágenes
+    await this.waitForInstagramContainer(creationId, token, isVideo ? 60 : 15, isVideo ? 3000 : 2000);
     return creationId;
   }
 
@@ -598,7 +618,8 @@ class MetaService {
       }
     });
     const creationId = containerRes.data.id;
-    await this.waitForInstagramContainer(creationId, token);
+    // Los Reels en Meta toman típicamente entre 45s y 180s en descargarse y transcodificarse (60 intentos x 3s = 180s)
+    await this.waitForInstagramContainer(creationId, token, 60, 3000);
     return creationId;
   }
 
@@ -623,7 +644,7 @@ class MetaService {
       });
       const itemId = itemRes.data.id;
       if (isVideo) {
-        await this.waitForInstagramContainer(itemId, token);
+        await this.waitForInstagramContainer(itemId, token, 60, 3000);
       }
       itemContainerIds.push(itemId);
     }
@@ -657,7 +678,7 @@ class MetaService {
       params: containerParams
     });
     const creationId = containerRes.data.id;
-    await this.waitForInstagramContainer(creationId, token);
+    await this.waitForInstagramContainer(creationId, token, isVideo ? 60 : 15, isVideo ? 3000 : 2000);
     return creationId;
   }
 
