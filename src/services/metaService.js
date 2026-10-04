@@ -468,8 +468,33 @@ class MetaService {
       }
     }
 
-    // Caso 2: Una sola imagen o múltiples imágenes (Publicación directa en el Feed / Muro de la Página)
-    if (resolvedMedia.length >= 1 && postType !== 'reel' && postType !== 'story' && !isVideoUrl(resolvedMedia[0])) {
+    // Caso 2A: Una sola imagen (Publicación directa en el Feed / Muro de la Página)
+    if (resolvedMedia.length === 1 && postType !== 'reel' && postType !== 'story' && !isVideoUrl(resolvedMedia[0])) {
+      try {
+        const res = await axios.post(`${this.graphUrl}/${pageId}/photos`, null, {
+          params: {
+            url: resolvedMedia[0],
+            caption: message || '',
+            published: true,
+            access_token: pageToken
+          }
+        });
+        const publishedId = res.data.post_id || res.data.id;
+        return {
+          success: true,
+          platform: 'facebook',
+          postType: 'feed',
+          postId: publishedId,
+          url: `https://facebook.com/${publishedId}`
+        };
+      } catch (singleErr) {
+        console.warn('⚠️ Error en publicación directa /photos de Facebook:', singleErr.response?.data?.error?.message || singleErr.message);
+        throw singleErr;
+      }
+    }
+
+    // Caso 2B: Múltiples imágenes (Álbum / Carrusel en el Feed de la Página)
+    if (resolvedMedia.length > 1 && postType !== 'reel' && postType !== 'story' && !isVideoUrl(resolvedMedia[0])) {
       try {
         const uploadedMediaIds = [];
         for (const imgUrl of resolvedMedia) {
@@ -486,37 +511,40 @@ class MetaService {
         }
 
         if (uploadedMediaIds.length > 0) {
-          const feedRes = await axios.post(`${this.graphUrl}/${pageId}/feed`, null, {
-            params: {
-              message: message,
-              attached_media: JSON.stringify(uploadedMediaIds),
-              access_token: pageToken
-            }
+          const postData = new URLSearchParams();
+          postData.append('message', message || '');
+          postData.append('access_token', pageToken);
+          uploadedMediaIds.forEach((item, index) => {
+            postData.append(`attached_media[${index}]`, JSON.stringify(item));
           });
+
+          const feedRes = await axios.post(`${this.graphUrl}/${pageId}/feed`, postData);
 
           return {
             success: true,
             platform: 'facebook',
+            postType: 'feed',
             postId: feedRes.data.id,
             url: `https://facebook.com/${feedRes.data.id}`
           };
         }
       } catch (feedErr) {
         console.warn('⚠️ Fallback al método directo /photos en Facebook:', feedErr.response?.data?.error?.message || feedErr.message);
-        // Fallback directo a /photos
         const res = await axios.post(`${this.graphUrl}/${pageId}/photos`, null, {
           params: {
             url: resolvedMedia[0],
-            caption: message,
+            caption: message || '',
             published: true,
             access_token: pageToken
           }
         });
+        const publishedId = res.data.post_id || res.data.id;
         return {
           success: true,
           platform: 'facebook',
-          postId: res.data.id || res.data.post_id,
-          url: `https://facebook.com/${res.data.id || res.data.post_id}`
+          postType: 'feed',
+          postId: publishedId,
+          url: `https://facebook.com/${publishedId}`
         };
       }
     }
@@ -526,13 +554,15 @@ class MetaService {
       const res = await axios.post(`${this.graphUrl}/${pageId}/videos`, null, {
         params: {
           file_url: resolvedMedia[0],
-          description: message,
+          description: message || '',
+          published: true,
           access_token: pageToken
         }
       });
       return {
         success: true,
         platform: 'facebook',
+        postType: postType === 'reel' ? 'reel' : 'feed_video',
         postId: res.data.id,
         url: `https://facebook.com/${res.data.id}`
       };
