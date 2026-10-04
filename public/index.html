@@ -326,14 +326,21 @@
 
                 <!-- Target Platforms -->
                 <div class="form-group">
-                  <span class="form-label">Destinos de Publicación:</span>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                    <span class="form-label" style="margin:0;">Destinos de Publicación:</span>
+                    <div class="platform-quick-filters" style="display:flex; gap:4px;">
+                      <button type="button" class="btn btn-xs btn-ghost" id="btn-platform-only-fb" title="Publicar solo en Facebook">Solo Facebook</button>
+                      <button type="button" class="btn btn-xs btn-ghost" id="btn-platform-only-ig" title="Publicar solo en Instagram">Solo Instagram</button>
+                      <button type="button" class="btn btn-xs btn-ghost active" id="btn-platform-both" title="Publicar en Facebook e Instagram">Ambos</button>
+                    </div>
+                  </div>
                   <div class="platforms-selector">
-                    <label class="platform-checkbox fb active">
+                    <label class="platform-checkbox fb active" id="lbl-platform-fb" for="platform-fb">
                       <input type="checkbox" id="platform-fb" value="facebook" checked>
                       <span class="platform-badge-icon">f</span>
                       <span>Facebook Page</span>
                     </label>
-                    <label class="platform-checkbox ig active">
+                    <label class="platform-checkbox ig active" id="lbl-platform-ig" for="platform-ig">
                       <input type="checkbox" id="platform-ig" value="instagram" checked>
                       <span class="platform-badge-icon">📷</span>
                       <span>Instagram Business</span>

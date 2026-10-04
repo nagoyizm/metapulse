@@ -868,6 +868,37 @@ textarea.form-control, .composer-textarea {
   box-shadow: var(--shadow-sm);
 }
 
+.platform-checkbox.fb.active {
+  border-color: #1877f2;
+  background: rgba(24, 119, 242, 0.12);
+  color: #1877f2;
+  box-shadow: 0 0 0 1px rgba(24, 119, 242, 0.3);
+}
+
+.platform-checkbox.ig.active {
+  border-color: #ec4899;
+  background: rgba(236, 72, 153, 0.12);
+  color: #ec4899;
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.3);
+}
+
+.platform-checkbox:not(.active) {
+  opacity: 0.5;
+  filter: grayscale(0.7);
+  border-style: dashed;
+}
+
+.platform-checkbox:hover {
+  opacity: 0.95;
+}
+
+.platform-quick-filters .btn.active {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: var(--primary);
+  font-weight: 700;
+}
+
 /* Radio Pills (Segmented Tabs) */
 .radio-pill-group {
   display: inline-flex;

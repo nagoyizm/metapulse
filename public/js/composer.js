@@ -852,6 +852,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function updatePlatformToggles() {
+    const chkFb = document.getElementById('platform-fb');
+    const chkIg = document.getElementById('platform-ig');
+    const lblFb = document.getElementById('lbl-platform-fb') || chkFb?.closest('.platform-checkbox');
+    const lblIg = document.getElementById('lbl-platform-ig') || chkIg?.closest('.platform-checkbox');
+    const btnOnlyFb = document.getElementById('btn-platform-only-fb');
+    const btnOnlyIg = document.getElementById('btn-platform-only-ig');
+    const btnBoth = document.getElementById('btn-platform-both');
+    const counterFb = document.getElementById('counter-fb');
+    const counterIg = document.getElementById('counter-ig');
+
+    const isFb = Boolean(chkFb?.checked);
+    const isIg = Boolean(chkIg?.checked);
+
+    if (lblFb) lblFb.classList.toggle('active', isFb);
+    if (lblIg) lblIg.classList.toggle('active', isIg);
+
+    if (btnOnlyFb) btnOnlyFb.classList.toggle('active', isFb && !isIg);
+    if (btnOnlyIg) btnOnlyIg.classList.toggle('active', !isFb && isIg);
+    if (btnBoth) btnBoth.classList.toggle('active', isFb && isIg);
+
+    if (counterFb) counterFb.style.opacity = isFb ? '1' : '0.4';
+    if (counterIg) counterIg.style.opacity = isIg ? '1' : '0.4';
+
+    // Ajustar pestaña de vista previa automáticamente si la activa no está seleccionada
+    if (isFb && !isIg) {
+      switchPreviewTab('fb');
+    } else if (!isFb && isIg) {
+      const postType = document.querySelector('input[name="post_type"]:checked')?.value;
+      switchPreviewTab(postType === 'story' ? 'story' : 'ig');
+    }
+  }
+
+  function setPlatformSelection(allowFb, allowIg) {
+    const chkFb = document.getElementById('platform-fb');
+    const chkIg = document.getElementById('platform-ig');
+    if (chkFb) chkFb.checked = allowFb;
+    if (chkIg) chkIg.checked = allowIg;
+    updatePlatformToggles();
+  }
+
+  window.updatePlatformToggles = updatePlatformToggles;
+  window.setPlatformSelection = setPlatformSelection;
+
   function getSelectedPlatforms() {
     const platforms = [];
     if (document.getElementById('platform-fb')?.checked) platforms.push('facebook');
@@ -1153,15 +1197,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const chkFb = document.getElementById('platform-fb');
-    if (chkFb) {
-      chkFb.checked = true;
-      chkFb.closest('.platform-checkbox')?.classList.add('active');
-    }
+    if (chkFb) chkFb.checked = true;
     const chkIg = document.getElementById('platform-ig');
-    if (chkIg) {
-      chkIg.checked = true;
-      chkIg.closest('.platform-checkbox')?.classList.add('active');
-    }
+    if (chkIg) chkIg.checked = true;
+    updatePlatformToggles();
 
     const feedRadio = document.querySelector('input[name="post_type"][value="feed"]');
     if (feedRadio) {
@@ -2846,15 +2885,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function bindBasicComposerControls() {
     postContent.addEventListener('input', updateLivePreviews);
 
-    // Selección de Plataformas
-    document.querySelectorAll('.platform-checkbox').forEach(cb => {
-      const input = cb.querySelector('input');
-      cb.addEventListener('click', (e) => {
-        if (e.target !== input) {
-          input.checked = !input.checked;
+    // Selección de Plataformas (Facebook / Instagram)
+    const chkFb = document.getElementById('platform-fb');
+    const chkIg = document.getElementById('platform-ig');
+
+    if (chkFb) {
+      chkFb.addEventListener('change', () => {
+        if (!chkFb.checked && (!chkIg || !chkIg.checked)) {
+          chkFb.checked = true;
+          showToast('Debes mantener al menos una plataforma seleccionada (Facebook o Instagram)', 'info');
         }
-        cb.classList.toggle('active', input.checked);
+        updatePlatformToggles();
       });
+    }
+
+    if (chkIg) {
+      chkIg.addEventListener('change', () => {
+        if (!chkIg.checked && (!chkFb || !chkFb.checked)) {
+          chkIg.checked = true;
+          showToast('Debes mantener al menos una plataforma seleccionada (Facebook o Instagram)', 'info');
+        }
+        updatePlatformToggles();
+      });
+    }
+
+    document.getElementById('btn-platform-only-fb')?.addEventListener('click', () => {
+      setPlatformSelection(true, false);
+      showToast('Destino configurado: Solo Facebook Page', 'info');
+    });
+
+    document.getElementById('btn-platform-only-ig')?.addEventListener('click', () => {
+      setPlatformSelection(false, true);
+      showToast('Destino configurado: Solo Instagram Business', 'info');
+    });
+
+    document.getElementById('btn-platform-both')?.addEventListener('click', () => {
+      setPlatformSelection(true, true);
+      showToast('Destino configurado: Facebook e Instagram', 'info');
     });
 
     // Formato del Post (Radio Pills)
@@ -3005,14 +3072,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const chkFb = document.getElementById('platform-fb');
     const chkIg = document.getElementById('platform-ig');
-    if (chkFb) {
-      chkFb.checked = plats.includes('facebook');
-      chkFb.closest('.platform-checkbox')?.classList.toggle('active', chkFb.checked);
-    }
-    if (chkIg) {
-      chkIg.checked = plats.includes('instagram');
-      chkIg.closest('.platform-checkbox')?.classList.toggle('active', chkIg.checked);
-    }
+    if (chkFb) chkFb.checked = plats.includes('facebook');
+    if (chkIg) chkIg.checked = plats.includes('instagram');
+    updatePlatformToggles();
   }
 
   function applyLoadedPostSchedule(scheduledAt) {
