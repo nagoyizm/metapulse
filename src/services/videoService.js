@@ -284,8 +284,11 @@ class VideoService {
         songArtist
       });
 
-      // 2. Resolver y asegurar el audio en local
-      const localAudioPath = await musicService.ensureTrackCached(audioInput);
+      // 2. Resolver y asegurar el audio en local con metadatos para fallback inteligente
+      const localAudioPath = await musicService.ensureTrackCached(audioInput, {
+        title: songTitle,
+        artist: songArtist
+      });
 
       // 3. Definir archivo de salida
       const outputFilename = `story_video_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.mp4`;
@@ -391,7 +394,9 @@ class VideoService {
     imageInput,
     audioInput,
     duration = 15,
-    startTime = 0
+    startTime = 0,
+    songTitle = '',
+    songArtist = ''
   }) {
     let resolvedImage = null;
     let preparedCanvas = null;
@@ -402,7 +407,10 @@ class VideoService {
         imagePath: resolvedImage.path
       });
 
-      const localAudioPath = await musicService.ensureTrackCached(audioInput);
+      const localAudioPath = await musicService.ensureTrackCached(audioInput, {
+        title: songTitle,
+        artist: songArtist
+      });
 
       const outputFilename = `feed_video_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.mp4`;
       const outputPath = path.join(this.storiesDir, outputFilename);
@@ -592,7 +600,9 @@ class VideoService {
         imageInput,
         audioInput,
         duration,
-        startTime
+        startTime,
+        songTitle,
+        songArtist
       });
     }
   }

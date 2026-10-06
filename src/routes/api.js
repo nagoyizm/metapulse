@@ -2301,6 +2301,19 @@ router.get('/music/audius', async (req, res) => {
   }
 });
 
+router.post('/music/precache', async (req, res) => {
+  try {
+    const { url, id, category, title, artist } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'URL requerida' });
+    }
+    const cachedPath = await musicService.ensureTrackCached(url, { id, category, title, artist });
+    res.json({ success: true, data: { cachedPath } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/music/upload', uploadAudio.single('audio'), (req, res) => {
   try {
     if (!req.file) {

@@ -353,7 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
       tab.classList.toggle('active', tab.dataset.preview === target);
     });
     document.querySelectorAll('.mockup').forEach(m => {
-      m.classList.toggle('active', m.id === `mockup-${target}`);
+      const isActive = m.id === `mockup-${target}`;
+      m.classList.toggle('active', isActive);
+      if (!isActive) {
+        m.querySelectorAll('video').forEach(v => {
+          v.muted = true;
+          try { v.pause(); } catch (_) {}
+        });
+      }
     });
     ComposerState.activePreview = target;
   }

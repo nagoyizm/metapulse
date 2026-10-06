@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const { pipeline } = require('stream/promises');
 const axios = require('axios');
 const { getSetting } = require('../database/db');
 
@@ -189,14 +190,33 @@ class MusicService {
 
   /**
    * Devuelve una ruta local de audio de respaldo garantizada (cero dependencia de red)
+   * con consciencia de categoría para mantener fidelidad temática (ej. K-Pop para Kmarket)
    */
-  getFallbackTrackLocal() {
-    const candidates = [
+  getFallbackTrackLocal(preferredCategory = 'all') {
+    const isKpop = preferredCategory === 'kpop' || 
+                   (typeof preferredCategory === 'string' && (
+                     preferredCategory.toLowerCase().includes('kpop') ||
+                     preferredCategory.toLowerCase().includes('k-pop') ||
+                     preferredCategory.toLowerCase().includes('korean') ||
+                     preferredCategory.toLowerCase().includes('audius') ||
+                     preferredCategory.toLowerCase().includes('asia')
+                   ));
+
+    const kpopCandidates = [
+      path.join(__dirname, '../../public/audio/kpop_demon_hunters.mp3'),
+      path.join(__dirname, '../../public/audio/kpop_golden_porter.mp3'),
+      path.join(__dirname, '../../public/audio/kpop_seoul_wave.mp3'),
+      path.join(__dirname, '../../public/audio/kpop_no_jutsu.mp3'),
+      path.join(__dirname, '../../public/audio/kpop_lollipops.mp3')
+    ];
+
+    const generalCandidates = [
       path.join(__dirname, '../../public/audio/incomp_carefree.mp3'),
       path.join(this.cacheDir, 'fallback_carefree.mp3'),
-      path.join(__dirname, '../../public/audio/kpop_demon_hunters.mp3'),
       path.join(__dirname, '../../public/audio/incomp_riley.mp3')
     ];
+
+    const candidates = isKpop ? [...kpopCandidates, ...generalCandidates] : [...generalCandidates, ...kpopCandidates];
 
     for (const cand of candidates) {
       if (fs.existsSync(cand) && fs.statSync(cand).size > 10000) {
@@ -222,27 +242,37 @@ class MusicService {
    * Asegura que una pista remota o local esté disponible en el disco
    * Multi-host failover y fallback local garantizado para erradicar el Error 522
    */
-  async ensureTrackCached(trackOrUrl) {
+  async ensureTrackCached(trackOrUrl, meta = {}) {
     let url = trackOrUrl;
-    let trackId = 'custom';
+    let trackId = meta.id || 'custom';
+    let trackTitle = meta.title || '';
+    let trackCategory = meta.category || '';
 
     if (typeof trackOrUrl === 'object' && trackOrUrl !== null) {
       url = trackOrUrl.streamUrl || trackOrUrl.url || '';
-      trackId = trackOrUrl.id || 'custom';
+      trackId = trackOrUrl.id || trackId;
+      trackTitle = trackOrUrl.title || trackTitle;
+      trackCategory = trackOrUrl.category || trackCategory;
     } else if (typeof trackOrUrl === 'string') {
       const found = this.curatedCatalog.find(t => t.id === trackOrUrl || t.streamUrl === trackOrUrl);
       if (found) {
         url = found.streamUrl;
         trackId = found.id;
+        trackTitle = found.title;
+        trackCategory = found.category;
       }
     }
 
+    const isKpopTarget = trackCategory === 'kpop' ||
+      /k-?pop|korea|asian|seoul|bts|twice|kawaii|audius/i.test(trackTitle || '') ||
+      /k-?pop|korea|asian|seoul|audius/i.test(url || '');
+
     if (!url || typeof url !== 'string') {
       console.warn('[MusicService] URL de audio no proporcionada, usando audio de respaldo.');
-      return this.getFallbackTrackLocal();
+      return this.getFallbackTrackLocal(isKpopTarget ? 'kpop' : 'all');
     }
 
-    // 1. Si es ruta local (ej: /audio/incomp_carefree.mp3 o /uploads/...)
+    // 1. Si es ruta local (ej: /audio/kpop_demon_hunters.mp3 o /uploads/...)
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       const cleanRel = url.split('?')[0].replace(/^[\\\/]+/, '');
       const baseName = path.basename(cleanRel);
@@ -264,7 +294,7 @@ class MusicService {
       }
 
       console.warn(`[MusicService] Audio local no encontrado (${url}), aplicando fallback garantizado.`);
-      return this.getFallbackTrackLocal();
+      return this.getFallbackTrackLocal(isKpopTarget ? 'kpop' : 'all');
     }
 
     // 2. Si es URL remota (HTTP / HTTPS), verificar caché previa
@@ -283,15 +313,13 @@ class MusicService {
       return localFile;
     }
 
-    // 3. Preparar lista de URLs para failover si es Audius
+    // 3. Preparar lista de URLs para failover si es Audius (solo hosts activos saludables)
     const urlsToTry = [url];
     if (audiusMatch) {
       const tid = audiusMatch[1];
       const audiusHosts = [
         'https://api.audius.co',
-        'https://discoveryprovider.audius.co',
-        'https://audius-discovery-1.cultur3stake.com',
-        'https://audius-dp.amsterdam.creatorseed.com'
+        'https://discoveryprovider.audius.co'
       ];
       for (const host of audiusHosts) {
         const u = `${host}/v1/tracks/${tid}/stream?app_name=metapulse`;
@@ -299,31 +327,39 @@ class MusicService {
       }
     }
 
-    // 4. Intentar descarga rápida con timeout corto (7s) por intento para prevenir 522
+    // 4. Descarga streaming con pipeline y timeout de 25s para redes de música
     for (const tryUrl of urlsToTry) {
+      const tempLocal = `${localFile}.part_${Date.now()}`;
       try {
         console.log(`[MusicService] Descargando audio a caché: ${tryUrl}`);
         const response = await axios.get(tryUrl, {
-          responseType: 'arraybuffer',
-          timeout: 7000,
-          maxRedirects: 5,
+          responseType: 'stream',
+          timeout: 25000,
+          maxRedirects: 8,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           }
         });
-        if (response.data && response.data.length > 5000) {
-          fs.writeFileSync(localFile, Buffer.from(response.data));
+
+        await pipeline(response.data, fs.createWriteStream(tempLocal));
+
+        if (fs.existsSync(tempLocal) && fs.statSync(tempLocal).size > 10000) {
+          fs.renameSync(tempLocal, localFile);
+          console.log(`[MusicService] Audio descargado y cacheado con éxito: ${localFile}`);
           return localFile;
         }
       } catch (err) {
+        if (fs.existsSync(tempLocal)) {
+          try { fs.unlinkSync(tempLocal); } catch (_) {}
+        }
         console.warn(`[MusicService] Intento falló para ${tryUrl}: ${err.message} (status: ${err.response?.status || 'timeout'})`);
       }
     }
 
-    // 5. Fallback seguro: si el servidor remoto de audio falló (Error 522/timeout/403/404),
-    // NUNCA interrumpir la generación de video, usar la pista local garantizada
-    console.warn(`[MusicService] El servidor de la pista remota no respondió (${url}). Aplicando audio local garantizado.`);
-    return this.getFallbackTrackLocal();
+    // 5. Fallback inteligente: si la descarga remota falló,
+    // usar un tema del mismo género garantizado (ej: K-Pop -> kpop_demon_hunters.mp3)
+    console.warn(`[MusicService] El servidor de la pista remota no respondió (${url}). Aplicando audio local garantizado (Categoría: ${isKpopTarget ? 'K-Pop' : 'General'}).`);
+    return this.getFallbackTrackLocal(isKpopTarget ? 'kpop' : 'all');
   }
 
   /**

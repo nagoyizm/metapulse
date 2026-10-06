@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const activePanel = document.getElementById('story-active-music-panel');
   const activeTrackTitle = document.getElementById('active-music-title');
   const activeTrackArtist = document.getElementById('active-music-artist');
+  const activeTrackBadge = document.getElementById('active-music-badge');
   const btnActivePlay = document.getElementById('btn-active-music-play');
   const trimSlider = document.getElementById('music-trim-slider');
   const trimDisplay = document.getElementById('music-trim-display');
@@ -101,8 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCategoryPills(json.data.categories || [], targetCategory);
         renderTrackList(StoryMusicState.catalog);
 
-        // Si no hay pista seleccionada aún, preseleccionar la primera
-        if (!StoryMusicState.selectedTrack && StoryMusicState.catalog.length > 0) {
+        // Si se cambió a categoría específica (ej: kpop), o si no hay pista aún
+        const shouldSelectFirst = !StoryMusicState.selectedTrack || 
+          (targetCategory !== 'all' && StoryMusicState.selectedTrack.category !== targetCategory);
+        if (shouldSelectFirst && StoryMusicState.catalog.length > 0) {
           selectTrack(StoryMusicState.catalog[0], false);
         }
       }
@@ -196,6 +199,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (activeTrackTitle) activeTrackTitle.textContent = track.title;
     if (activeTrackArtist) activeTrackArtist.textContent = track.artist;
+    if (activeTrackBadge) {
+      activeTrackBadge.textContent = track.badge || (track.category === 'kpop' ? '🌸 K-Pop' : 'Música');
+      activeTrackBadge.style.display = 'inline-block';
+    }
 
     // Actualizar slider de recorte
     const maxSec = Math.max((track.durationSec || 120) - StoryMusicState.duration, 10);
@@ -203,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     trimSlider.value = StoryMusicState.startTime || 0;
     updateTrimDisplay();
 
-    // Actualizar selección visual en la lista
+    // Actualizar selección visual en la lista (tanto en catálogo curado como en Audius)
     document.querySelectorAll('.music-track-item').forEach(el => {
       const isThis = el.querySelector(`.btn-select-track[data-id="${track.id}"]`);
       el.classList.toggle('selected', Boolean(isThis));
@@ -212,6 +219,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     updateMockupMusicOverlay();
+
+    // Pre-cache en background en el servidor para pistas remotas de Audius
+    if (track.streamUrl && track.streamUrl.startsWith('http')) {
+      fetch('/api/music/precache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: track.streamUrl,
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          category: track.category || 'kpop'
+        })
+      }).catch(() => {});
+    }
 
     if (playSnippet) {
       playTrackSnippet(track.streamUrl, StoryMusicState.startTime, track.id);
@@ -223,6 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (StoryMusicState.playingTrackId === track.id) {
       stopAudio();
     } else {
+      // Regla de UX: al reproducir una canción para escucharla, seleccionarla como activa
+      selectTrack(track, false);
       playTrackSnippet(track.streamUrl, StoryMusicState.startTime || 0, track.id);
     }
   }
@@ -241,7 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function stopAudio() {
-    StoryMusicState.audioPlayer.pause();
+    if (StoryMusicState.audioPlayer) {
+      try {
+        StoryMusicState.audioPlayer.pause();
+        StoryMusicState.audioPlayer.currentTime = 0;
+        StoryMusicState.audioPlayer.removeAttribute('src');
+        StoryMusicState.audioPlayer.load();
+      } catch (_) {}
+    }
+    // Silenciar videos en mockups para evitar que la canción quede corriendo en segundo plano
+    document.querySelectorAll('.mockup video').forEach(v => {
+      v.muted = true;
+    });
     StoryMusicState.playingTrackId = null;
     updatePlayButtonsState();
   }
@@ -410,14 +445,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         jamendoResults.innerHTML = '';
         results.forEach(track => {
+          const isSelected = StoryMusicState.selectedTrack && StoryMusicState.selectedTrack.id === track.id;
+          const isPlaying = StoryMusicState.playingTrackId === track.id;
+
           const item = document.createElement('div');
-          item.className = 'music-track-item';
+          item.className = `music-track-item ${isSelected ? 'selected' : ''}`;
           const artImg = track.artworkUrl
             ? `<img src="${track.artworkUrl}" style="width:34px; height:34px; border-radius:4px; object-fit:cover; margin-right:4px;" alt="art">`
             : '';
           item.innerHTML = `
             <div class="track-left">
-              <button type="button" class="track-play-btn" data-id="${track.id}">▶</button>
+              <button type="button" class="track-play-btn ${isPlaying ? 'playing' : ''}" data-id="${track.id}">
+                ${isPlaying ? '⏸' : '▶'}
+              </button>
               ${artImg}
               <div class="track-info">
                 <span class="track-title">${escapeHtml(track.title)}</span>
@@ -426,7 +466,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="track-right">
               <span class="track-badge">${escapeHtml(track.badge || 'Audius')}</span>
-              <button type="button" class="btn-select-track" data-id="${track.id}">Seleccionar</button>
+              <button type="button" class="btn-select-track" data-id="${track.id}">
+                ${isSelected ? '✓ Seleccionada' : 'Seleccionar'}
+              </button>
             </div>
           `;
 
@@ -436,6 +478,11 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           item.querySelector('.btn-select-track').addEventListener('click', () => {
             selectTrack(track, true);
+          });
+          item.addEventListener('click', (e) => {
+            if (!e.target.closest('.track-play-btn')) {
+              selectTrack(track, true);
+            }
           });
 
           jamendoResults.appendChild(item);
@@ -464,15 +511,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const isFeed = currentPostType === 'feed';
 
     btnGenerateVideo.disabled = true;
+    const shortTitle = (StoryMusicState.selectedTrack.title || 'Música').slice(0, 22);
     btnGenerateVideo.innerHTML = isFeed
-      ? '⏳ Codificando video Feed MP4 con FFmpeg...'
-      : '⏳ Codificando video Story MP4 9:16 con FFmpeg...';
+      ? `⏳ Codificando video Feed con "${escapeHtml(shortTitle)}" en FFmpeg...`
+      : `⏳ Codificando video Story 9:16 con "${escapeHtml(shortTitle)}" en FFmpeg...`;
     stopAudio();
 
     if (typeof showToast === 'function') {
       showToast(isFeed
-        ? 'Generando Video Feed con música en resolución original... (~2-4s)'
-        : 'Generando Video Story vertical 9:16 con FFmpeg... (~2-4s)', 'info');
+        ? `Generando Video Feed con "${shortTitle}" en resolución original... (~2-4s)`
+        : `Generando Video Story vertical 9:16 con "${shortTitle}"... (~2-4s)`, 'info');
     }
 
     try {
@@ -523,11 +571,11 @@ document.addEventListener('DOMContentLoaded', () => {
           window.updateComposerPreviews();
         }
 
-        // Si es story, actualizar mockup de Instagram Story con el video real
+        // Si es story, actualizar mockup de Instagram Story con el video real (siempre muted para no fugar audio)
         const mockStoryMedia = document.getElementById('mock-story-media');
         if (mockStoryMedia) {
           mockStoryMedia.innerHTML = `
-            <video src="${json.data.relativeUrl}" controls autoplay loop style="width:100%; height:100%; object-fit:cover;"></video>
+            <video src="${json.data.relativeUrl}" controls ${isFeed ? '' : 'autoplay'} muted loop playsinline style="width:100%; height:100%; object-fit:cover;"></video>
           `;
         }
 
