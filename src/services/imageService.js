@@ -240,7 +240,9 @@ class ImageService {
 
   /**
    * Crea una imagen vertical 9:16 (1080x1920) estilo Historia a partir de un post
-   * con fondo artístico difuminado y el post centrado listo para Instagram / Facebook Story
+   * con fondo artístico difuminado y el post centrado listo para Instagram / Facebook Story.
+   * NOTA CLAVE: La imagen del post ya contiene su logotipo oficial de marca incorporado al crearse;
+   * por diseño, esta función NUNCA superpone ningún logo adicional ni ajeno para evitar duplicados.
    */
   async createStoryCard({ inputImagePath, brandName = '' }) {
     let inputBuffer = null;

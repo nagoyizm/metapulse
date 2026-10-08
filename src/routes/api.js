@@ -2201,21 +2201,24 @@ router.get('/watermarks', (req, res) => {
 router.post('/watermark/apply', async (req, res) => {
   try {
     const { imagePath, watermarkId, position, opacity, scalePercent, xPercent, yPercent } = req.body;
-    const activeAccountId = req.body.account_id || req.headers['x-account-id'] || '';
+    const activeAccountId = req.body.account_id || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
 
-    let watermarkRow;
+    let watermarkRow = null;
     if (watermarkId) {
       watermarkRow = db.prepare('SELECT * FROM watermarks WHERE id = ?').get(watermarkId);
     }
     if (!watermarkRow && activeAccountId) {
-      watermarkRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
-    }
-    if (!watermarkRow && !activeAccountId) {
-      watermarkRow = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
+      watermarkRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? AND is_default = 1 ORDER BY id DESC LIMIT 1').get(activeAccountId);
+      if (!watermarkRow) {
+        watermarkRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
+      }
     }
 
     if (!watermarkRow) {
-      return res.status(400).json({ success: false, error: 'No hay ningún logotipo registrado para esta cuenta en Multimedia & Logos. Sube uno primero.' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No hay ningún logotipo registrado para esta marca en Multimedia & Logos. Sube tu logo PNG primero.' 
+      });
     }
 
     const absImagePath = path.isAbsolute(imagePath)
@@ -2245,6 +2248,43 @@ router.post('/watermark/apply', async (req, res) => {
     }
 
     res.json({ success: true, data: processed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/watermark/:id/set-default', (req, res) => {
+  try {
+    const wm = db.prepare('SELECT * FROM watermarks WHERE id = ?').get(req.params.id);
+    if (!wm) {
+      return res.status(404).json({ success: false, error: 'Logotipo no encontrado' });
+    }
+    if (wm.account_id) {
+      db.prepare('UPDATE watermarks SET is_default = 0 WHERE account_id = ?').run(wm.account_id);
+    } else {
+      db.prepare('UPDATE watermarks SET is_default = 0').run();
+    }
+    db.prepare('UPDATE watermarks SET is_default = 1 WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Logotipo establecido como predeterminado de la marca' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/watermark/:id', (req, res) => {
+  try {
+    const wm = db.prepare('SELECT * FROM watermarks WHERE id = ?').get(req.params.id);
+    if (!wm) {
+      return res.status(404).json({ success: false, error: 'Logotipo no encontrado' });
+    }
+    db.prepare('DELETE FROM watermarks WHERE id = ?').run(req.params.id);
+    if (wm.is_default && wm.account_id) {
+      const nextDefault = db.prepare('SELECT id FROM watermarks WHERE account_id = ? ORDER BY id DESC LIMIT 1').get(wm.account_id);
+      if (nextDefault) {
+        db.prepare('UPDATE watermarks SET is_default = 1 WHERE id = ?').run(nextDefault.id);
+      }
+    }
+    res.json({ success: true, message: 'Logotipo eliminado correctamente' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2631,12 +2671,25 @@ router.post('/batch/process-images', upload.array('files', 15), async (req, res)
       return res.status(400).json({ success: false, error: 'Debes subir al menos una imagen para procesar el lote.' });
     }
 
-    console.log(`[Batch Autopilot] Procesando lote de ${files.length} imágenes...`);
+    const activeAccountId = req.body.account_id || req.headers['x-account-id'] || getSetting('meta_page_id') || '';
+    const activeAccountName = req.body.account_name || req.headers['x-account-name'] || getSetting('meta_page_name') || '';
+    console.log(`[Batch Autopilot] Procesando lote de ${files.length} imágenes para ${activeAccountName || activeAccountId || 'cuenta activa'}...`);
 
-    // 1. Obtener watermark oficial por defecto
-    const wmRow = db.prepare('SELECT * FROM watermarks ORDER BY is_default DESC, id DESC LIMIT 1').get();
-    const shouldStamp = getSetting('auto_stamp_seal') !== 'false' && wmRow;
+    // 1. Obtener watermark oficial por defecto EXCLUSIVAMENTE para la cuenta activa
+    let wmRow = null;
+    if (activeAccountId) {
+      wmRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? AND is_default = 1 ORDER BY id DESC LIMIT 1').get(activeAccountId);
+      if (!wmRow) {
+        wmRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
+      }
+    }
+    const shouldStamp = getSetting('auto_stamp_seal') !== 'false' && Boolean(wmRow);
     const wmPath = wmRow ? path.join(__dirname, '../../uploads/watermarks', wmRow.filename) : null;
+    if (shouldStamp) {
+      console.log(`[Batch Autopilot] ✅ Usando logo oficial de la marca: ${wmRow.name} (${wmRow.filename}) para cuenta ${activeAccountId}`);
+    } else {
+      console.log(`[Batch Autopilot] ℹ️ Sin logo configurado para cuenta ${activeAccountId || 'desconocida'}. Omitiendo estampado de logos ajenos.`);
+    }
 
     // 2. Calcular los próximos slots disponibles para la cantidad de imágenes
     const availableSlots = slotService.getAvailableSlots(files.length);

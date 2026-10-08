@@ -204,13 +204,20 @@
     if (progressSub) progressSub.textContent = 'Estampando sellos oficiales Kmarket, redactando copies y calculando slots libres...';
 
     try {
+      const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
       const formData = new FormData();
       validImages.forEach(file => {
         formData.append('files', file);
       });
+      if (activeAcc?.pageId) formData.append('account_id', activeAcc.pageId);
+      if (activeAcc?.pageName) formData.append('account_name', activeAcc.pageName);
+
+      const headers = {};
+      if (activeAcc?.pageId) headers['x-account-id'] = activeAcc.pageId;
 
       const res = await fetch('/api/batch/process-images', {
         method: 'POST',
+        headers,
         body: formData
       });
 

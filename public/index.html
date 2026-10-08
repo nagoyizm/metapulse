@@ -1306,13 +1306,49 @@
             <div class="card-body">
               <p class="section-hint">Sube el logotipo de tu marca en PNG transparente y estámpalo automáticamente en cualquier flyer o fotografía.</p>
 
+              <!-- Logotipo Oficial Activo de la Marca Seleccionada -->
+              <div class="active-brand-logo-box" id="active-brand-logo-box">
+                <div class="active-brand-logo-header">
+                  <div>
+                    <span class="active-brand-title">Logotipo Activo Oficial</span>
+                    <span class="active-brand-name" id="media-active-brand-name">Cuenta Activa</span>
+                  </div>
+                  <span id="media-active-brand-badge" class="badge badge-accent">Oficial</span>
+                </div>
+
+                <div class="active-logo-preview-card">
+                  <div class="active-logo-canvas" id="media-active-logo-canvas" title="Fondo ajedrezado para visualizar transparencias PNG">
+                    <img id="media-active-logo-img" src="" alt="Logotipo Activo" style="display:none;">
+                    <div id="media-active-logo-placeholder" class="active-logo-empty">
+                      <span class="empty-icon">⚠️</span>
+                      <span class="empty-text">Sin logotipo para esta marca</span>
+                    </div>
+                  </div>
+                  <div class="active-logo-info">
+                    <div class="active-logo-filename" id="media-active-logo-filename">Cargando logotipo...</div>
+                    <div class="active-logo-status" id="media-active-logo-status">Verificando configuración de la marca...</div>
+                  </div>
+                </div>
+
+                <!-- Selector de otros logos guardados para esta misma marca -->
+                <div id="media-brand-logos-selector-wrap" style="display:none; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-subtle);">
+                  <label class="form-label" style="font-size:0.75rem; margin-bottom:4px; color:var(--text-secondary);">Cambiar logo activo para esta marca:</label>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <select id="media-brand-logos-select" class="form-control form-control-sm" style="font-size:0.8rem; flex:1;">
+                    </select>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-set-default-logo" title="Fijar como logo oficial predeterminado" style="white-space:nowrap; font-weight:600;">★ Fijar Oficial</button>
+                    <button type="button" class="btn btn-ghost btn-xs" id="btn-delete-logo" title="Eliminar este logo de la marca" style="color:#ef4444; padding:4px 6px;">🗑️</button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Subir Logo -->
-              <div class="form-group">
-                <label class="form-label" for="logo-file-input">Subir Logotipo (PNG transparente)</label>
+              <div class="form-group" style="margin-top:12px;">
+                <label class="form-label" for="logo-file-input">Subir Nuevo Logotipo (PNG transparente)</label>
                 <div class="logo-upload-box">
                   <input type="file" id="logo-file-input" aria-label="Subir Logotipo PNG" accept="image/png,image/webp" style="display:none;">
-                  <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logo-file-input').click()">
-                    Seleccionar Logo PNG
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('logo-file-input').click()">
+                    📁 Seleccionar Logo PNG
                   </button>
                   <span id="logo-file-name" class="text-muted">Ningún logo seleccionado</span>
                 </div>

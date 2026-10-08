@@ -264,22 +264,88 @@ window.useMediaAsPostAndStory = function(filePath) {
 window.loadWatermarksList = async function() {
   try {
     const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
-    const url = activeAcc?.pageId ? `/api/watermarks?account_id=${encodeURIComponent(activeAcc.pageId)}` : '/api/watermarks';
+    const pageId = activeAcc?.pageId || '';
+    const pageName = activeAcc?.pageName || 'Esta Cuenta';
+
+    const brandNameEl = document.getElementById('media-active-brand-name');
+    if (brandNameEl) brandNameEl.textContent = pageName;
+
+    const url = pageId 
+      ? `/api/watermarks?account_id=${encodeURIComponent(pageId)}` 
+      : '/api/watermarks';
     const res = await fetch(url);
     const json = await res.json();
     if (!json.success) return;
 
-    const watermarks = json.data;
+    const watermarks = json.data || [];
+    const accountWatermarks = pageId 
+      ? watermarks.filter(w => String(w.account_id) === String(pageId))
+      : watermarks;
+
+    const activeLogo = accountWatermarks.find(w => w.is_default === 1) || accountWatermarks[0] || null;
+
+    const imgEl = document.getElementById('media-active-logo-img');
+    const placeholderEl = document.getElementById('media-active-logo-placeholder');
+    const filenameEl = document.getElementById('media-active-logo-filename');
+    const statusEl = document.getElementById('media-active-logo-status');
+    const badgeEl = document.getElementById('media-active-brand-badge');
+    const selectorWrap = document.getElementById('media-brand-logos-selector-wrap');
+    const selectEl = document.getElementById('media-brand-logos-select');
     const nameEl = document.getElementById('logo-file-name');
-    if (nameEl) {
-      if (watermarks && watermarks.length > 0) {
-        nameEl.textContent = `Logo activo (${activeAcc?.pageName || 'Esta cuenta'}): ${watermarks[0].name} (${watermarks[0].filename})`;
+
+    if (activeLogo) {
+      if (imgEl) {
+        imgEl.src = activeLogo.filepath;
+        imgEl.style.display = 'block';
+      }
+      if (placeholderEl) placeholderEl.style.display = 'none';
+      if (filenameEl) {
+        filenameEl.textContent = activeLogo.name || activeLogo.filename;
+        filenameEl.title = `${activeLogo.name} (${activeLogo.filename})`;
+      }
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:var(--color-success); font-weight:600;">✓ Logo oficial de ${pageName}</span> <span style="font-size:0.75rem; color:var(--text-muted);">(${activeLogo.filename})</span>`;
+      }
+      if (badgeEl) {
+        badgeEl.textContent = 'Oficial Activo';
+        badgeEl.className = 'badge badge-accent';
+      }
+      if (nameEl) {
+        nameEl.textContent = `Logo activo (${pageName}): ${activeLogo.name} (${activeLogo.filename})`;
         nameEl.classList.remove('text-muted');
         nameEl.classList.add('text-emerald');
-      } else {
-        nameEl.textContent = `Ningún logo configurado para ${activeAcc?.pageName || 'esta cuenta'}`;
+      }
+    } else {
+      if (imgEl) {
+        imgEl.src = '';
+        imgEl.style.display = 'none';
+      }
+      if (placeholderEl) placeholderEl.style.display = 'flex';
+      if (filenameEl) filenameEl.textContent = 'Sin logotipo configurado';
+      if (statusEl) {
+        statusEl.textContent = `Ningún logo configurado para ${pageName}. Sube tu logo PNG abajo.`;
+      }
+      if (badgeEl) {
+        badgeEl.textContent = 'Sin Logo';
+        badgeEl.className = 'badge';
+      }
+      if (nameEl) {
+        nameEl.textContent = `Ningún logo configurado para ${pageName}`;
         nameEl.classList.remove('text-emerald');
         nameEl.classList.add('text-muted');
+      }
+    }
+
+    if (selectorWrap && selectEl) {
+      if (accountWatermarks.length > 1) {
+        selectorWrap.style.display = 'block';
+        selectEl.innerHTML = accountWatermarks.map(w => `
+          <option value="${w.id}" ${w.id === activeLogo?.id ? 'selected' : ''}>
+            ${w.name} ${w.is_default ? '★ (Principal)' : ''} (${w.filename})
+          </option>
+        `).join('');
+      } else {
+        selectorWrap.style.display = 'none';
       }
     }
   } catch (err) {
@@ -333,6 +399,75 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         showToast('Error subiendo logo: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // 1.1 Gestión de Logos de la Marca (Cambiar Activo / Eliminar)
+  const btnSetDefault = document.getElementById('btn-set-default-logo');
+  const btnDeleteLogo = document.getElementById('btn-delete-logo');
+  const selectBrandLogos = document.getElementById('media-brand-logos-select');
+
+  if (selectBrandLogos) {
+    selectBrandLogos.addEventListener('change', () => {
+      const selectedId = selectBrandLogos.value;
+      if (!selectedId) return;
+      // Previsualizar temporalmente el logo seleccionado
+      fetch(`/api/watermarks`)
+        .then(r => r.json())
+        .then(json => {
+          if (!json.success || !json.data) return;
+          const found = json.data.find(w => String(w.id) === String(selectedId));
+          if (found) {
+            const imgEl = document.getElementById('media-active-logo-img');
+            const fnEl = document.getElementById('media-active-logo-filename');
+            const stEl = document.getElementById('media-active-logo-status');
+            if (imgEl) { imgEl.src = found.filepath; imgEl.style.display = 'block'; }
+            if (fnEl) fnEl.textContent = found.name || found.filename;
+            if (stEl) stEl.innerHTML = `<span style="color:var(--text-secondary);">Seleccionado: ${found.filename} (Pulsa "Fijar Oficial" para activar)</span>`;
+          }
+        })
+        .catch(() => {});
+    });
+  }
+
+  if (btnSetDefault) {
+    btnSetDefault.addEventListener('click', async () => {
+      const selectedId = selectBrandLogos?.value;
+      if (!selectedId) return;
+      showToast('Estableciendo como logotipo oficial...', 'info');
+      try {
+        const res = await fetch(`/api/watermark/${selectedId}/set-default`, { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast('¡Logotipo establecido como oficial para esta marca!', 'success');
+          await window.loadWatermarksList();
+        } else {
+          showToast('Error: ' + json.error, 'error');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    });
+  }
+
+  if (btnDeleteLogo) {
+    btnDeleteLogo.addEventListener('click', async () => {
+      const selectedId = selectBrandLogos?.value;
+      if (!selectedId) return;
+      if (!confirm('¿Seguro que deseas eliminar este logotipo de la marca?')) return;
+      showToast('Eliminando logotipo...', 'info');
+      try {
+        const res = await fetch(`/api/watermark/${selectedId}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (json.success) {
+          showToast('Logotipo eliminado con éxito', 'info');
+          await window.loadWatermarksList();
+        } else {
+          showToast('Error: ' + json.error, 'error');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
       }
     });
   }
@@ -768,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const json = await res.json();
           if (json.success) {
             showToast('¡Logotipo subido y listo para estampar!', 'success');
-            await loadWatermarksForStampModal();
+            if (window.loadWatermarksList) await window.loadWatermarksList();
           } else {
             showToast('Error subiendo logo: ' + json.error, 'error');
           }

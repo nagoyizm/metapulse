@@ -321,6 +321,10 @@ function initializeDatabase() {
         VALUES ('Logo Oficial Cabañas La Campiña', 'campina_logo_oficial.png', '/uploads/watermarks/campina_logo_oficial.png', 1, '153949194468281', 'Cabañas La Campiña - Algarrobo')
       `).run();
     }
+    const kmarketWm = db.prepare("SELECT * FROM watermarks WHERE account_id = '624008434133090' AND is_default = 1").get();
+    if (kmarketWm && kmarketWm.name === 'logo') {
+      db.prepare("UPDATE watermarks SET name = 'Logo Oficial Kmarket' WHERE id = ?").run(kmarketWm.id);
+    }
   } catch (_) {}
 }
 
