@@ -1091,6 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInputValue('ai-generated-text', '');
     setElementDisplay('ai-result-box', 'none');
+    setElementDisplay('ai-editorial-plan-badge', 'none');
     setElementDisplay('btn-apply-ai-copy', 'none');
 
     const aiModalEl = document.getElementById('ai-modal');
@@ -1343,6 +1344,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (aiGeneratedText) aiGeneratedText.value = json.data.fullPost;
         setElementDisplay('ai-result-box', 'block');
         setElementDisplay('btn-apply-ai-copy', 'inline-flex');
+
+        const planBadge = document.getElementById('ai-editorial-plan-badge');
+        const planName = document.getElementById('ai-editorial-plan-name');
+        const planDesc = document.getElementById('ai-editorial-plan-desc');
+        if (json.data.editorialPlan && planBadge && planName && planDesc) {
+          planName.textContent = json.data.editorialPlan.angleName || 'Estrategia Planificada';
+          planDesc.textContent = json.data.editorialPlan.structureDescription || 'Estructura sobria sin repeticiones';
+          planBadge.style.display = 'flex';
+        } else if (planBadge) {
+          planBadge.style.display = 'none';
+        }
+
         showToast('¡Copy generado con éxito!', 'success');
       } else {
         showToast('Error: ' + (json.error || 'Error desconocido'), 'error');
@@ -2019,6 +2032,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (aiGeneratedText) aiGeneratedText.value = data.content || '';
     setElementDisplay('ai-result-box', 'block');
     setElementDisplay('btn-apply-ai-copy', 'inline-flex');
+
+    const planBadge = document.getElementById('ai-editorial-plan-badge');
+    const planName = document.getElementById('ai-editorial-plan-name');
+    const planDesc = document.getElementById('ai-editorial-plan-desc');
+    if (data.editorialPlan && planBadge && planName && planDesc) {
+      planName.textContent = data.editorialPlan.angleName || 'Estrategia Planificada';
+      planDesc.textContent = data.editorialPlan.structureDescription || 'Estructura sobria sin repeticiones';
+      planBadge.style.display = 'flex';
+    } else if (planBadge) {
+      planBadge.style.display = 'none';
+    }
 
     if (data.heroHeadline && campinaHeroHeadline && !campinaHeroHeadline.value.trim()) {
       campinaHeroHeadline.value = data.heroHeadline;

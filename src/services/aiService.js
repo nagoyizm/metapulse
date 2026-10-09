@@ -4,6 +4,7 @@ const path = require('node:path');
 const { getSetting } = require('../database/db');
 const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite } = require('../data/campinaKnowledge');
 const aiCacheService = require('./aiCacheService');
+const editorialPlannerService = require('./editorialPlannerService');
 
 // Modelos válidos verificados para Google Generative AI (Gemini)
 const VALID_GEMINI_MODELS = [
@@ -328,6 +329,14 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
 `;
     }
 
+    const generalPlan = editorialPlannerService.planStrategy({
+      brandName,
+      topic,
+      tone,
+      goal,
+      format: 'post'
+    });
+
     return `
 Eres un estratega y copywriter de élite para Instagram y Facebook (Metodología Instagram Skills 2026).
 Negocio / Marca: "${brandName || 'Redes Sociales'}"
@@ -336,15 +345,18 @@ Tema: "${topic}"
 Tono: ${tone}
 Objetivo: ${goal}
 ${brandName ? `- Negocio / Marca: "${brandName}"` : ''}
+- Estrategia Editorial Planificada: "${generalPlan.angleName}" (${generalPlan.intent})
+- Enfoque del gancho: "${generalPlan.hookConcept}"
 ${customInstructions ? `- Instrucciones adicionales: ${customInstructions}` : ''}
 
 REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 1. GANCHO INICIAL (Línea 1): DEBE tener MENOS de 120 caracteres antes del primer salto de línea. El algoritmo de Instagram corta con "... más", por lo que la primera línea debe atrapar por sí sola (usa curiosidad, dato numérico específico o verdad contraria).
 2. VOZ HUMANA NATURAL: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o un salto de línea.
 3. PROHIBIDO VOCABULARIO DE IA: NO uses "sumérgete", "en el ajetreado mundo de hoy", "descubre", "revolucionario", "desbloquea", "eleva", "un viaje", "no es solo X, es Y", "un tapiz". Habla como una persona real conversando con otra.
-4. EMOJIS CON RESTRICCIÓN: Usa solo 1 a 3 emojis bien ubicados para dar ritmo, nunca bloques de emojis de spam.
+4. EMOJIS MÍNIMOS Y SOBRIOS (MÁXIMO 1 A 2 EMOJIS EN TODO EL TEXTO): Usa exclusivamente 1 o 2 emojis sobrios, sutiles y elegantes (por ejemplo: 🌿, 📍 o un ícono discreto de contacto). PROHIBIDO llenar el post de emojis, PROHIBIDO colocar emojis al inicio y final de una misma frase (framing), PROHIBIDO emojis en viñetas o listas, PROHIBIDO usar emojis de ojos (👀), fuego repetido (🔥) o caras exageradas.
 5. OBJETIVO DE ALCANCE (Sends & Saves): Diseña el cierre para que la gente quiera GUARDAR el post o ENVIÁRSELO a un amigo por DM (los factores #1 del algoritmo actual).
 6. HASHTAGS 2026: Al final, incluye estrictamente entre 3 y 5 hashtags dimensionados (1 amplio, 2 de nicho/categoría, 1 micro-local ej: #${brandName ? brandName.replace(/[^a-zA-Z0-9]/g, '') : 'Chile'}). NUNCA pongas más de 5 hashtags.
+7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calma, confianza, elegancia y profesionalismo.
 
 Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
 `;
@@ -398,13 +410,42 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       cleaned = cleaned.replace(bw.regex, bw.rep);
     });
 
-    // 3. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5-6 HASHTAGS)
+    // 3. Erradicación de fórmulas repetitivas de escasez y "pero ojo"
+    cleaned = cleaned.replace(/pero ojo[….,\s]*[\p{Extended_Pictographic}\s]*¡?(nos van quedando|nos quedan) las últimas cabañas y suites disponibles!?[^\n]*/giu, 'Para asegurar tus fechas preferidas con tranquilidad, te sugerimos coordinar tu estadía con anticipación.');
+    cleaned = cleaned.replace(/pero ojo[….,\s]*[\p{Extended_Pictographic}\s]*/giu, '');
+    cleaned = cleaned.replace(/ojo con esto[….,\s]*/giu, '');
+    cleaned = cleaned.replace(/ojo[….,\s]+¡nos van quedando/giu, 'Nos van quedando');
+
+    // 4. Desarmar framing de emojis al inicio y final de una misma línea (solo espacios horizontales)
+    cleaned = cleaned.replace(/^[ \t]*[\p{Extended_Pictographic}]+[ \t]*(.*?)[ \t]*[\p{Extended_Pictographic}]+[ \t]*$/gmu, (match, inner) => {
+      return inner.trim().length > 3 ? inner.trim() : match;
+    });
+
+    // 5. Convertir listas con emojis al inicio de línea en viñetas limpias con punto
+    cleaned = cleaned.replace(/^[ \t]*[📅🔥🌿🏡✨•\-*][ \t]*/gmu, '• ');
+
+    // 6. Eliminar emojis ruidosos o de falsa urgencia
+    cleaned = cleaned.replace(/[👀🥩🚨💥🔥🇨🇱❤️]/gu, '');
+
+    // 7. Presupuesto estricto de emojis: permitir máximo 2 emojis sobrios en todo el texto
+    let emojiCount = 0;
+    cleaned = cleaned.replace(/\p{Extended_Pictographic}/gu, (match) => {
+      emojiCount++;
+      return emojiCount <= 2 ? match : '';
+    });
+
+    // 8. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5-6 HASHTAGS)
     const hashtagMatches = cleaned.match(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g);
     if (hashtagMatches && hashtagMatches.length > 6) {
       const keepTags = hashtagMatches.slice(0, 6);
       cleaned = cleaned.replace(/(#[a-z0-9_áéíóúñ]+\s*)+$/gi, '').trim();
       cleaned += '\n\n' + keepTags.join(' ');
     }
+
+    // 9. Normalizar espacios horizontales y saltos de línea
+    cleaned = cleaned.replace(/[ \t]{2,}/g, ' ')
+      .replace(/^[ \t]+/gm, '')
+      .replace(/\n{3,}/g, '\n\n');
 
     return cleaned.trim();
   }
@@ -445,9 +486,9 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       score -= 15;
       issues.push(`Tiene ${hashtags.length} hashtags. En 2026 el algoritmo penaliza el exceso; lo óptimo son de 5 a 6 tags selectos.`);
     }
-    if (emojis.length > 8) {
-      score -= 10;
-      issues.push(`Exceso de emojis (${emojis.length}). Lo recomendado para no parecer spam son de 3 a 5.`);
+    if (emojis.length > 3) {
+      score -= 15;
+      issues.push(`Tiene ${emojis.length} emojis. Para un tono sobrio y profesional sin parecer spam, se recomienda un máximo de 1 a 2 emojis justos y necesarios.`);
     }
 
     let humanizedRewrite = this.cleanCaptionAI(caption);
@@ -598,72 +639,76 @@ Devuelve un JSON válido con esta estructura:
   }
 
   /**
-   * Generador de plantillas copywriting inteligentes de alta conversión (100% offline / local)
+   * Generador de plantillas copywriting inteligentes con planificación editorial (100% offline / local)
    */
   generateSmartTemplate({ topic, tone = 'engaging', goal = 'engagement', platform = 'both', brandName = '' }) {
     const brand = brandName ? ` en ${brandName}` : '';
     
-    // Conjuntos de ganchos (Hooks)
+    // 🧠 Planificación editorial automática para generación offline
+    const plan = editorialPlannerService.planStrategy({
+      brandName,
+      topic,
+      tone,
+      goal,
+      format: 'post'
+    });
+
+    // Conjuntos de ganchos sobrios y elegantes (máx 1 emoji sutil)
     const hooks = {
       sales: [
-        `🔥 ¡Lo que estabas esperando por fin está aquí${brand}! 👇`,
-        `⚡ ATENCIÓN: Si buscas resultados reales con ${topic}, no te pierdas esto.`,
-        `🚀 ¿Quieres llevar tus resultados al siguiente nivel? Descubre esto hoy.`
+        `Lo que estabas buscando para tu día a día ya está disponible${brand}.`,
+        `Si buscas resultados auténticos con ${topic}, hay detalles que marcan la diferencia.`,
+        `Una propuesta pensada para quienes valoran la calidad y el buen servicio${brand}.`
       ],
       educational: [
-        `💡 3 cosas que probablemente no sabías sobre ${topic}:`,
-        `📌 Guarda este post antes de que se te olvide: Guía rápida sobre ${topic}.`,
-        `🧠 El error #1 que la mayoría comete con ${topic} (y cómo evitarlo hoy):`
+        `3 claves esenciales que conviene tener en cuenta sobre ${topic}:`,
+        `Una guía rápida y práctica sobre ${topic} para guardar y revisar con calma.`,
+        `El aspecto más relevante al momento de evaluar ${topic} (y cómo abordarlo bien):`
       ],
       inspirational: [
-        `✨ Cada gran cambio comienza con un pequeño paso${brand}.`,
-        `🌟 El secreto para dominar ${topic} no es la suerte, es la constancia.`,
-        `🎯 La diferencia entre desearlo y lograrlo está en tu decisión de hoy.`
+        `Cada cambio significativo comienza con una decisión consciente${brand}.`,
+        `La constancia y el cuidado en los detalles superan cualquier atajo en ${topic}.`,
+        `La tranquilidad de hacer las cosas bien empieza con una pausa necesaria.`
       ],
       engaging: [
-        `👀 ¿Team A o Team B? Hablemos con sinceridad sobre ${topic}...`,
-        `🔥 Cuéntame en los comentarios: ¿Cuál ha sido tu mayor reto con ${topic}?`,
-        `👇 ¡Esto puede cambiar la forma en que ves ${topic} para siempre!`
+        `Hablemos con sinceridad sobre ${topic}: ¿cuál ha sido tu mayor experiencia?`,
+        `¿Qué valoras más al momento de elegir una propuesta como esta? Cuéntanos.`,
+        `Una mirada diferente sobre ${topic} que te puede interesar compartir.`
       ]
     };
 
     const selectedHooks = hooks[tone] || hooks.engaging;
     const hook = selectedHooks[Math.floor(Math.random() * selectedHooks.length)];
 
-    // CTAs
+    // Llamados a la acción sobrios y directos
     const ctas = [
-      `👉 ¿Te gustó este contenido? Dale like ❤️ y compártelo con alguien que lo necesite.`,
-      `💬 Déjanos tu opinión en los comentarios: ¿Cuál es tu experiencia con este tema?`,
-      `💾 Guarda este post para revisarlo cuando lo necesites y síguenos para más consejos.`,
-      `🔗 Toca el enlace de nuestro perfil para conocer todos los detalles y empezar hoy.`
+      `Guarda esta publicación para revisarla cuando lo necesites o compártela con quien le sea útil.`,
+      `Déjanos tu opinión en los comentarios: nos interesa conocer tu experiencia.`,
+      `Para consultas directas o más detalles, puedes visitar el enlace en nuestra biografía.`,
+      `Si deseas más información sobre fechas o disponibilidad, escríbenos un mensaje directo.`
     ];
     const cta = ctas[Math.floor(Math.random() * ctas.length)];
 
-    // Hashtags limpios y temáticos
+    // Hashtags limpios y temáticos (máximo 5)
     const cleanTag = topic.toLowerCase().replace(/[^a-záéíóúñ0-9]/g, '');
     const hashtags = [
       `#${cleanTag}`,
       '#socialmedia',
-      '#marketingdigital',
-      '#estrategiadigital',
-      '#contenido',
-      '#negociosonline',
-      '#emprendimiento',
-      '#instagramtips',
-      '#facebookpost',
-      '#creadoresdecontenido',
-      '#branding',
-      '#comunidad'
+      '#comunidad',
+      '#calidad',
+      '#experiencia'
     ].join(' ');
 
-    const postContent = `${hook}
+    const soberEmoji = plan.soberEmojis?.[0] || '🌿';
 
-En el mundo de hoy, ${topic} se ha convertido en una pieza clave para destacar y conectar de forma genuina.
+    const postContent = `${soberEmoji} ${hook}
 
-Aquí te compartimos los puntos clave que debes tener en mente:
-✅ Calidad y coherencia en cada paso que das.
-✅ Escuchar a tu audiencia y resolver sus necesidades reales.
-✅ Innovar constantemente sin perder tu esencia.
+Cuando se trata de ${topic}, la claridad y el cuidado en cada detalle son fundamentales para construir una relación cercana y de confianza.
+
+Aspectos clave para tener en cuenta:
+• Calidad y coherencia en cada paso que das
+• Escuchar a tu comunidad y atender sus necesidades reales
+• Avanzar con tranquilidad manteniendo siempre tu esencia
 
 ${cta}
 
@@ -673,6 +718,7 @@ ${hashtags}`;
       fullPost: postContent,
       hook: hook,
       cta: cta,
+      editorialPlan: plan,
       hashtags: hashtags,
       topic: topic,
       generatedAt: new Date().toISOString()
@@ -1383,54 +1429,56 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
 
+    // 🧠 ACTIVACIÓN DE LA MENTE PLANIFICADORA EDITORIAL
+    const editorialPlan = editorialPlannerService.planStrategy({
+      brandName: 'Cabañas La Campiña - Algarrobo',
+      topic: theme,
+      targetDate,
+      format,
+      tone: 'cercano, familiar, sobrio y reflexivo',
+      goal: 'reservas y consultas serenas'
+    });
+
+    const editorialDirectives = editorialPlannerService.buildPromptDirectives(editorialPlan, {
+      topic: theme,
+      targetDate,
+      format
+    });
+
     const systemPrompt = `
 ${campinaKnowledge}
 
-Eres el redactor de "Cabañas La Campiña - Algarrobo". Debes redactar el contenido siguiendo EXACTAMENTE el tono, estilo, quinchos, áreas verdes, viñetas, contacto y hashtags de este post real de La Campiña:
+${editorialDirectives}
 
-EJEMPLO DE REFERENCIA OBLIGATORIA (Imita esta estructura al pie de la letra):
-"""
-🇨🇱🔥 ¡Últimas cabañas y suites para estas Fiestas Patrias! 🔥🇨🇱
+Eres el redactor oficial de "Cabañas La Campiña - Algarrobo".
+Tu misión es redactar un copy de Instagram fresco, humano, sobrio y persuasivo para: "${theme}".
 
-Del 18 al 20 de septiembre, ven a disfrutar unas Fiestas Patrias diferentes en Cabañas La Campiña 🏡.
+INFORMACIÓN CLAVE Y REGLAS DE NEGOCIO:
+- Negocio: Cabañas La Campiña (Algarrobo, desde 1993).
+- Instalaciones reales: Cabañas de 2 a 8 personas con quincho privado en terraza, suites para parejas (Jardín, Balcón) con acceso a quinchos comunitarios grandes, jardines y senderos temáticos (Puente Rojo, Duendecitos, Pinos, Virgen), juegos infantiles, sin Wi-Fi (desconexión genuina).
+- ❌ PROHIBIDO TERMINANTEMENTE mencionar tinajas ni hot tubs.
+- Siempre incluir el contacto oficial al final: 📲 Reservas y consultas: +56 9 7900 4253 | www.cabanaslacampina.cl
 
-Reúne a toda la familia, prepara un buen asado en nuestros quinchos 🥩🔥, disfruta de nuestras amplias áreas verdes y comparte esos momentos que hacen que el 18 sea tan especial ❤️🌿
-
-Pero ojo… 👀 ¡nos quedan las últimas cabañas y suites disponibles!
-
-Si todavía no tienes dónde pasar estas Fiestas Patrias, no dejes pasar la oportunidad de asegurar tu estadía y disfrutar de unos días de descanso, naturaleza y buena compañía en Algarrobo.
-
-📅 18 al 20 de septiembre
-🔥 Quinchos para disfrutar en familia
-🌿 Amplias áreas verdes
-🏡 Últimas cabañas y suites disponibles
-
-📲 Reservas y consultas: +56 9 7900 4253
-
-🇨🇱 ¡Asegura tu lugar y celebra el 18 en La Campiña! 🇨🇱
-
-#cabañaslacampiña #algarrobo #fiestaspatrias #18deseptiembre #18septiembre #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral
-"""
-
-REGLAS ESTRICTAS:
-- Solo instalaciones reales: quinchos privados en terraza de cabañas o comunes en suites, amplias áreas verdes y jardines temáticos (Puente Rojo, Duendecitos, Pinos), cabañas familiares (2 a 8 personas), suites para parejas, juegos infantiles, sin Wi-Fi (desconexión).
-- ❌ NUNCA mencionar tinajas ni hot tubs.
-- Siempre incluir el número oficial: 📲 Reservas y consultas: +56 9 7900 4253
+DIRECTRICES EDITORIALES Y DE VOZ:
+- Desarrolla el texto según el ángulo editorial asignado: "${editorialPlan.angleName}".
+- NO repitas la misma plantilla de siempre. Varía la estructura y el ritmo.
+- Emojis: Máximo 1 a 2 emojis sobrios en TODO el texto (ej: ${editorialPlan.soberEmojis.join(' o ')}). CERO spam de emojis, CERO emojis al inicio y final de una misma frase (framing), CERO emojis en viñetas.
+- Cero clichés de falsa urgencia: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban" o falsas prisas.
 
 ${isReel ? `
 Estructura a entregar:
 🎬 GUION DE REEL (Audiovisual):
-- 0-2s (Hook Visual): Toma de inicio rápida (ej: carne a la parrilla en el quincho con humo 🥩🔥, pareja en el sendero del Puente Rojo 🌿, vista panorámica de la cabaña iluminada al atardecer).
-- 2-8s (Tomas clave): Recorrido por el quincho, terraza, áreas verdes y cabaña acogedora.
-- 8-15s (Cierre & CTA): Toma final con invitación a reservar.
+- 0-2s (Hook Visual): Toma de inicio limpia y llamativa.
+- 2-8s (Tomas clave): Recorrido por el espacio según el ángulo "${editorialPlan.angleName}".
+- 8-15s (Cierre & CTA): Toma final con invitación a coordinar estadía.
 - 💬 Frase en pantalla: Texto conciso y llamativo.
 - 🎵 Música recomendada: Estilo acústico o lofi relajante.
 
 📝 COPY PARA EL PIE DEL POST:
-(Sigue exactamente la estructura del post de ejemplo: título con emojis, invitación, quinchos, áreas verdes, viñetas con emojis, WhatsApp +56 9 7900 4253 y bloque de hashtags).
+(Aplica el ángulo planificado "${editorialPlan.angleName}", con párrafos breves, viñetas limpias si amerita, máximo 1-2 emojis sobrios, contacto de WhatsApp +56 9 7900 4253 y hashtags oficiales al final).
 ` : `
 Estructura a entregar:
-(Sigue exactamente la estructura del post de ejemplo: título con emojis framing, invitación a Cabañas La Campiña 🏡, quinchos 🥩🔥, amplias áreas verdes ❤️🌿, escasez 'Pero ojo… 👀', bloque de 4 viñetas con emojis, WhatsApp: 📲 Reservas y consultas: +56 9 7900 4253, frase de cierre con emojis y bloque de hashtags).
+(Desarrolla el copy completo aplicando el ángulo planificado "${editorialPlan.angleName}", con gancho sobrio, narrativa limpia de 2-3 párrafos, máximo 1-2 emojis sobrios, invitación cordial a coordinar por WhatsApp: 📲 Reservas y consultas: +56 9 7900 4253 y bloque final de 5 hashtags oficiales).
 `}
 `;
 
@@ -1441,9 +1489,9 @@ Estructura a entregar:
 
     const copyPromise = apiKey
       ? this.generateWithGemini({
-          topic: `${theme} en Cabañas La Campiña Algarrobo (${targetDate || 'próximo fin de semana'})`,
-          tone: 'cercano, familiar e inspiracional',
-          goal: 'reservas y consultas',
+          topic: `${theme} en Cabañas La Campiña Algarrobo (${targetDate || 'próximo fin de semana'}) [Estrategia: ${editorialPlan.angleName}]`,
+          tone: 'cercano, familiar, sobrio y reflexivo',
+          goal: 'reservas y consultas serenas',
           platform: 'both',
           brandName: 'Cabañas La Campiña - Algarrobo',
           customInstructions: systemPrompt,
@@ -1461,9 +1509,13 @@ Estructura a entregar:
       generatedText = copyResult.value.fullPost;
     } else {
       if (copyResult.status === 'rejected') {
-        console.warn('Fallo llamada a Gemini en generateCampinaPost, usando fallback local:', copyResult.reason?.message);
+        console.warn('Fallo llamada a Gemini en generateCampinaPost, usando planificador editorial local:', copyResult.reason?.message);
       }
-      generatedText = `🌿✨ ¡Disfruta una escapada de descanso en Cabañas La Campiña! ✨🌿\n\nEste ${targetDate || 'fin de semana'}, ven a desconectarte de la rutina en Cabañas La Campiña 🏡.\n\nReúne a toda la familia o ven en pareja, prepara un rico asado en nuestros quinchos 🥩🔥, recorre nuestros jardines temáticos y senderos naturales ❤️🌿.\n\nPero ojo… 👀 ¡nos van quedando las últimas cabañas y suites disponibles!\n\n📅 ${targetDate || 'Próximo fin de semana'}\n🔥 Quinchos privados para disfrutar en familia\n🌿 Amplias áreas verdes y senderos\n🏡 Últimas cabañas y suites disponibles\n\n📲 Reservas y consultas: +56 9 7900 4253\n\n🌿 ¡Asegura tu estadía y descansa en La Campiña! 🌿\n\n#cabañaslacampiña #algarrobo #vacaciones #familia #asado #quincho #descanso #algarrobochile #litoralcentral`;
+      generatedText = editorialPlannerService.getFallbackCopy(editorialPlan, {
+        theme,
+        targetDate,
+        isReel
+      });
     }
 
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
@@ -1516,6 +1568,7 @@ Estructura a entregar:
     return {
       theme,
       format,
+      editorialPlan,
       masterImagePrompt,
       heroHeadline: finalHero,
       sublineHeadline: finalSubline,

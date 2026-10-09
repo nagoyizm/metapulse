@@ -2449,6 +2449,13 @@
               <label class="form-label" for="ai-generated-text">Texto / Copy del Post:</label>
               <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">🔄 Regenerar</button>
             </div>
+            <!-- Badge / Indicador de Planificación Editorial -->
+            <div id="ai-editorial-plan-badge" style="display: none; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; font-size: 0.76rem; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); color: #bae6fd; align-items: center; justify-content: space-between; gap: 8px;">
+              <span id="ai-editorial-plan-text" style="display: flex; align-items: center; gap: 6px;">
+                <strong style="color: #38bdf8;">🧠 Plan Editorial:</strong> <span id="ai-editorial-plan-name" style="font-weight: 600;">Ángulo Dinámico</span> <span style="opacity: 0.6;">·</span> <span id="ai-editorial-plan-desc" style="opacity: 0.9;">Estructura sobria sin repeticiones</span>
+              </span>
+              <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); color: var(--text-muted); white-space: nowrap;">Emojis sobrios (1-2)</span>
+            </div>
             <textarea id="ai-generated-text" class="form-control" rows="8"></textarea>
           </div>
         </div>
