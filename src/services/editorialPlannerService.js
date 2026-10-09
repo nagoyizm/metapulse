@@ -18,77 +18,76 @@ class EditorialPlannerService {
       {
         id: 'desconexion_sensorial',
         title: 'Desconexión Sensorial & Silencio',
-        badge: '🌿 Desconexión & Silencio',
-        intent: 'Evocar la pausa de la rutina, el aire puro entre los pinos y eucaliptos, la ausencia de Wi-Fi para un descanso real.',
+        badge: '🌿 Desconexión & Naturaleza',
+        intent: 'Evocar la pausa de la rutina, el aire puro entre los pinos y eucaliptos de Algarrobo, y la desconexión real sin Wi-Fi para volver a mirarse a los ojos y conversar con tranquilidad.',
         keywords: ['desconexion', 'descanso', 'naturaleza', 'rutina', 'silencio', 'relajo', 'desconectar', 'escapada'],
         narrativeStructure: 'prose_immersive',
-        structureDescription: 'Prosa inmersiva de 2 párrafos breves y elegantes + invitación serena.',
-        hookConcept: 'La pausa que la mente necesita: silencio, naturaleza y tiempo a tu propio ritmo.',
-        soberEmojis: ['🌿'],
-        sampleTone: 'Sereno, contemplativo y cálido',
+        structureDescription: 'Prosa inmersiva y entrañable de 2 párrafos cálidos + invitación cordial.',
+        hookConcept: 'Ese momento en que dejas el teléfono a un lado y sientes la brisa fresca entre los pinos.',
+        soberEmojis: ['🌲', '🌿', '🏡'],
+        sampleTone: 'Cálido, entrañable, acogedor y sereno',
         buildFallback: ({ targetDate }) => {
           const dateRef = targetDate ? `este ${targetDate}` : 'los próximos días';
-          return `A veces el descanso no se busca sumando planes, sino restando ruido.
+          return `Hay una calma muy especial que solo se siente cuando dejas el teléfono a un lado y escuchas el viento pasar entre los pinos. 🌲
 
-En Cabañas La Campiña el ritmo lo marcan el viento entre los pinos, las caminatas sin apuro y la desconexión real de las pantallas. Un espacio pensado para respirar aire limpio y recuperar la calma en Algarrobo.
+En Cabañas La Campiña pensamos cada rincón para desconectarse de la prisa y volver a lo que de verdad importa: una caminata tranquila por nuestros senderos, una conversación larga sin pantallas y ese aire puro que solo tiene Algarrobo. 🌿
 
-Si estás pensando en una pausa para ${dateRef}, te invitamos a escribirnos para coordinar tu estadía con tranquilidad.
+Si sientes que ya es momento de una pausa para ti y los tuyos ${dateRef}, te esperamos con los brazos abiertos. 🏡
 
-📲 Consultas y reservas por WhatsApp: +56 9 7900 4253
+📲 Reservas y consultas por WhatsApp: +56 9 7900 4253
 www.cabanaslacampina.cl
 
-#cabañaslacampiña #algarrobo #descanso #desconexion #litoralcentral #naturaleza`;
+#cabañaslacampiña #algarrobo #descanso #desconexion #naturaleza #litoralcentral`;
         }
       },
       {
         id: 'quincho_familiar',
         title: 'El Rito del Quincho & Sobremesa',
         badge: '🏡 Quincho Privado & Sobremesa',
-        intent: 'Destacar la terraza con quincho propio en cada cabaña, el asado pausado y la sobremesa en familia sin mirar el reloj.',
+        intent: 'Destacar la terraza con quincho propio en cada cabaña familiar, el asado pausado, la risa compartida y la sobremesa sin mirar el reloj.',
         keywords: ['quincho', 'asado', 'parrilla', 'almuerzo', 'sobremesa', 'terraza', 'carne'],
         narrativeStructure: 'scene_moment',
-        structureDescription: 'Escena vívida de sobremesa + comodidades de cabaña equipada + contacto directo.',
-        hookConcept: 'Un buen asado se disfruta más cuando la sobremesa no tiene prisa ni horarios que cumplir.',
-        soberEmojis: ['🏡'],
-        sampleTone: 'Hogareño, familiar y apetitoso',
+        structureDescription: 'Escena vívida de sobremesa hogareña + comodidades de cabaña equipada + contacto directo.',
+        hookConcept: 'Un buen asado se disfruta más cuando la sobremesa no tiene prisa y la risa fluye en familia.',
+        soberEmojis: ['🏡', '🥩', '🌿'],
+        sampleTone: 'Hogareño, entrañable, cálido y apetitoso',
         buildFallback: ({ targetDate }) => {
-          const dateRef = targetDate ? `Para este ${targetDate}` : 'Para tu próxima escapada';
-          return `Un buen asado no se mide solo por las brasas, sino por la sobremesa tranquila que viene después.
+          const dateRef = targetDate ? `este ${targetDate}` : 'tu próxima escapada';
+          return `Un buen asado no es solo la parrilla: es la risa compartida, el olor a brasas al atardecer y esa sobremesa que se alarga sin que nadie mire la hora. 🥩🌿
 
-En nuestras cabañas disfrutas de tu propio quincho privado en la terraza: el espacio perfecto para reunir a la familia o amigos, cocinar con calma y compartir al aire libre rodeado de áreas verdes.
+En nuestras cabañas familiares disfrutas de tu propio quincho privado en la terraza: el rincón perfecto para reunir a quienes más quieres, cocinar con calma y disfrutar al aire libre rodeado de áreas verdes. 🏡
 
-${dateRef}, ven a disfrutar de Algarrobo con la comodidad de un hogar completamente equipado.
+Ven a vivir esos momentos que quedan grabados en el corazón. Escríbenos para consultar fechas y valores para ${dateRef}.
 
-📲 Consultas y reservas por WhatsApp: +56 9 7900 4253
+📲 Reservas y consultas por WhatsApp: +56 9 7900 4253
 www.cabanaslacampina.cl
 
-#cabañaslacampiña #algarrobo #asado #quincho #familia #descanso #algarrobochile`;
+#cabañaslacampiña #algarrobo #asadoenfamilia #quincho #descanso #algarrobochile`;
         }
       },
       {
         id: 'escapada_parejas',
-        title: 'Refugio en Pareja & Suites con Vista',
+        title: 'Refugio en Pareja & Suites Acogedoras',
         badge: '🌿 Refugio en Pareja (Suites)',
-        intent: 'Destacar la exclusividad y privacidad de las suites (Jardín, Balcón), café matutino con vista y paseos tranquilos.',
+        intent: 'Destacar la intimidad y calidez de las suites para 2 personas (Jardín con vista a las flores, Balcón), café o mate matutino, caminatas tranquilas y descanso sin apuros.',
         keywords: ['pareja', 'parejas', 'suite', 'suites', 'romantico', 'balcon', 'jardin', 'dos personas'],
         narrativeStructure: 'curated_highlights',
-        structureDescription: 'Invitación a la calma compartida de a dos + detalles de confort en 3 viñetas limpias + reserva cordial.',
-        hookConcept: 'Una escapada de a dos donde el único compromiso es disfrutar el momento.',
-        soberEmojis: ['🌿'],
-        sampleTone: 'Íntimo, distinguido y reconfortante',
+        structureDescription: 'Invitación a la calma compartida de a dos + detalles de confort acogedor + reserva cordial.',
+        hookConcept: 'Un café por la mañana mirando el jardín y el tiempo corriendo a su propio ritmo de a dos.',
+        soberEmojis: ['☕', '🌿', '🏡'],
+        sampleTone: 'Íntimo, cariñoso, acogedor y reconfortante',
         buildFallback: ({ targetDate }) => {
-          const dateRef = targetDate ? `pensada para este ${targetDate}` : 'para cuando tú decidas';
-          return `Hay momentos donde el mejor panorama es simplemente cambiar de aire y disfrutar de la tranquilidad compartida.
+          const dateRef = targetDate ? `para este ${targetDate}` : 'para cuando decidan hacer una pausa';
+          return `Un café calientito por la mañana, vista verde desde la ventana y el día entero para disfrutarlo de a dos, sin alarmas ni apuros. ☕🌿
 
-Nuestras suites están diseñadas para parejas que buscan intimidad, descanso y contacto con la naturaleza:
+Nuestras suites son un refugio íntimo pensado especialmente para parejas que buscan descansar y cambiar de aire:
+• Espacio cálido y acogedor con frigobar y coffee bar
+• Vista hermosa hacia nuestros jardines temáticos
+• Senderos naturales para caminar y desconectarse juntos
 
-• Espacio acogedor con frigobar y coffee bar
-• Hermosa vista hacia jardines temáticos o balcón privado
-• Acceso a senderos naturales para caminar y desconectarse
+Regálense unos días de calma compartida ${dateRef} en Algarrobo. Escríbenos por WhatsApp para conocer disponibilidad y valores. 🏡
 
-Una pausa ${dateRef} en Algarrobo. Escríbenos para conocer disponibilidad y valores.
-
-📲 Consultas y reservas por WhatsApp: +56 9 7900 4253
+📲 Consultas y reservas: +56 9 7900 4253
 www.cabanaslacampina.cl
 
 #cabañaslacampiña #algarrobo #escapadadepareja #suites #descanso #litoralcentral`;
@@ -96,106 +95,106 @@ www.cabanaslacampina.cl
       },
       {
         id: 'jardines_senderos',
-        title: 'Senderos Temáticos & Rincones Naturales',
+        title: 'Senderos Temáticos & Rincones del Bosque',
         badge: '🌿 Senderos & Jardines Temáticos',
-        intent: 'Poner en valor los jardines del recinto (Puente Rojo, Duendecitos, Pinos, Virgen) y el contacto directo con la botánica.',
+        intent: 'Poner en valor los jardines del recinto (Puente Rojo, Duendecitos, Pinos, Virgen) y el contacto reconfortante con la naturaleza y el bosque desde 1993.',
         keywords: ['jardines', 'senderos', 'puente rojo', 'flores', 'arboles', 'caminar', 'lectura', 'duendecitos'],
         narrativeStructure: 'prose_immersive',
-        structureDescription: 'Recorrido evocador por el recinto + invitación serena a hospedarse + contacto.',
-        hookConcept: 'Caminar entre jardines temáticos y respirar bosque a solo minutos del mar.',
-        soberEmojis: ['🌿'],
-        sampleTone: 'Inspirador, natural y poético',
+        structureDescription: 'Paseo evocador y reconfortante por el recinto + invitación serena a hospedarse + contacto.',
+        hookConcept: 'Caminar despacio entre jardines temáticos y respirar bosque a solo minutos del mar.',
+        soberEmojis: ['🌿', '🌲', '🌸'],
+        sampleTone: 'Inspirador, entrañable, natural y apacible',
         buildFallback: ({ targetDate }) => {
           const dateRef = targetDate ? `para este ${targetDate}` : 'para tus días libres';
-          return `El Jardín del Puente Rojo, el sendero de los pinos y rincones pensados para sentarse a leer o simplemente contemplar.
+          return `Caminar sin prisa por el Jardín del Puente Rojo, descubrir los rincones de los Duendecitos y sentarse bajo la sombra de los pinos a respirar profundo. 🌲🌿
 
-En Cabañas La Campiña el paisaje no es un decorado: es parte esencial de la estadía. Caminar por nuestros jardines temáticos invita a bajar las revoluciones y reconectar con lo esencial.
+Desde 1993 cuidamos nuestros jardines en Cabañas La Campiña para que cada paseo sea un bálsamo para la rutina. Aquí el paisaje se vive, se respira y te devuelve la calma natural que a veces la ciudad nos quita.
 
-Planea tu estadía ${dateRef} y vive el encanto natural de Algarrobo desde adentro.
-
-📲 Reservas y detalles por WhatsApp: +56 9 7900 4253
-www.cabanaslacampina.cl
-
-#cabañaslacampiña #algarrobo #jardines #naturaleza #senderos #descansototal`;
-        }
-      },
-      {
-        id: 'familia_recuerdos',
-        title: 'Tiempo en Familia & Recuerdos Seguros',
-        badge: '🏡 Encuentro Familiar & Niños',
-        intent: 'Cabañas amplias de 2 a 8 personas, juegos infantiles, áreas verdes seguras y descanso genuino para los padres.',
-        keywords: ['familia', 'hijos', 'niños', 'juegos', 'mascotas', 'abuelos', 'reunion', 'espacio'],
-        narrativeStructure: 'curated_highlights',
-        structureDescription: 'Enfoque generacional acogedor + 3 viñetas limpias de valor + llamada a la acción.',
-        hookConcept: 'Los recuerdos familiares más lindos se construyen al aire libre y sin apuro.',
-        soberEmojis: ['🏡'],
-        sampleTone: 'Afectuoso, seguro y distendido',
-        buildFallback: ({ targetDate }) => {
-          const dateRef = targetDate ? `este ${targetDate}` : 'pronto';
-          return `Ver a los niños correr libres en áreas verdes seguras mientras los adultos disfrutan de una buena conversación sin prisas.
-
-Nuestras cabañas familiares en Algarrobo ofrecen el espacio y equipamiento que necesitas para compartir cómodamente:
-
-• Cabañas independientes totalmente equipadas para 2 a 8 personas
-• Juegos infantiles y amplias áreas verdes seguras
-• Quincho privado para compartir almuerzos familiares
-
-Si estás planificando reunir a la familia ${dateRef}, contáctanos con tiempo para coordinar tu cabaña.
+Planea tu descanso ${dateRef} y ven a disfrutar de la naturaleza más linda de Algarrobo con quienes más quieres. 🏡
 
 📲 Reservas y consultas por WhatsApp: +56 9 7900 4253
 www.cabanaslacampina.cl
 
-#cabañaslacampiña #algarrobo #vacacionesenfamilia #descansofamiliar #algarrobochile`;
+#cabañaslacampiña #algarrobo #jardinestematicos #naturaleza #descansototal #litoralcentral`;
         }
       },
       {
-        id: 'planificacion_serena',
-        title: 'Organización Serena de Fechas',
-        badge: '📍 Planificación Anticipada',
-        intent: 'Anticipar fechas especiales o fines de semana con calma y orden, sin caer en la urgencia artificial de "pero ojo".',
-        keywords: ['fecha', 'fechas', 'fin de semana', 'feriado', 'fiestas patrias', '18', 'vacaciones', 'temporada', 'semana santa'],
-        narrativeStructure: 'question_contrast',
-        structureDescription: 'Ocasión de calendario + propuesta integral de descanso + orientación cordial por WhatsApp.',
-        hookConcept: 'Planificar tu descanso con tiempo es la mejor manera de empezar a disfrutarlo desde ya.',
-        soberEmojis: ['📍'],
-        sampleTone: 'Práctico, cordial y organizado',
+        id: 'familia_recuerdos',
+        title: 'Tiempo en Familia & Recuerdos de Infancia',
+        badge: '🏡 Encuentro Familiar & Niños',
+        intent: 'Cabañas amplias de 2 a 8 personas totalmente equipadas, juegos infantiles seguros, áreas verdes para correr libres, quincho propio y bienvenida a mascotas en cabañas.',
+        keywords: ['familia', 'hijos', 'niños', 'juegos', 'mascotas', 'abuelos', 'reunion', 'espacio'],
+        narrativeStructure: 'curated_highlights',
+        structureDescription: 'Enfoque generacional entrañable + comodidades de valor familiar + llamada afectuosa a reservar.',
+        hookConcept: 'Los recuerdos familiares más lindos se construyen al aire libre: risas, pasto y sobremesa sin apuro.',
+        soberEmojis: ['🏡', '🌿', '👨‍👩‍👧‍👦'],
+        sampleTone: 'Afectuoso, entrañable, hogareño y familiar',
         buildFallback: ({ targetDate }) => {
-          const dateRef = targetDate || 'el próximo fin de semana';
-          return `Planificar el descanso con anticipación permite viajar con tranquilidad y asegurar la cabaña o suite ideal para tu grupo.
+          const dateRef = targetDate ? `este ${targetDate}` : 'pronto';
+          return `Ver a los niños reír y correr libres por el pasto mientras los grandes disfrutan una sobremesa tranquila y sin mirar el reloj. 🏡🌿
 
-En Cabañas La Campiña te esperamos en Algarrobo con cabañas independientes, quinchos privados y amplios jardines para disfrutar de ${dateRef} rodeado de naturaleza.
+En Cabañas La Campiña llevamos más de 30 años recibiendo familias en Algarrobo con todo lo necesario para sentirse en casa:
+• Cabañas independientes totalmente equipadas para 2 a 8 personas
+• Terraza con quincho privado para preparar el asado familiar
+• Juegos infantiles (camas saltarinas y columpios) en áreas verdes seguras
+• ¡Y en cabañas tus mascotas también son bienvenidas! 🐾
 
-Para consultas sobre fechas disponibles, valores y alternativas de estadía, te atendemos de forma personalizada por WhatsApp.
+Si están pensando en reunir a la familia ${dateRef}, escríbannos por WhatsApp para coordinar su cabaña con tiempo y cariño.
 
 📲 Reservas y consultas: +56 9 7900 4253
 www.cabanaslacampina.cl
 
-#cabañaslacampiña #algarrobo #escapada #descanso #turismochile #litoralcentral`;
+#cabañaslacampiña #algarrobo #vacacionesenfamilia #recuerdos #descansofamiliar #algarrobochile`;
+        }
+      },
+      {
+        id: 'planificacion_serena',
+        title: 'Organización Anticipada con Cariño',
+        badge: '📍 Planificación Serena',
+        intent: 'Organizar las fechas de descanso o fines de semana con calma y orden, asegurando el lugar ideal para la familia o pareja sin apuros ni falsas presiones.',
+        keywords: ['fecha', 'fechas', 'fin de semana', 'feriado', 'fiestas patrias', '18', 'vacaciones', 'temporada', 'semana santa'],
+        narrativeStructure: 'question_contrast',
+        structureDescription: 'Ocasión de calendario + propuesta integral de descanso + orientación cordial y cálida por WhatsApp.',
+        hookConcept: 'Saber que tienes un refugio acogedor esperándote en Algarrobo hace que la semana se sienta mucho más liviana.',
+        soberEmojis: ['🏡', '🌿', '📅'],
+        sampleTone: 'Cálido, cordial, previsor y acogedor',
+        buildFallback: ({ targetDate }) => {
+          const dateRef = targetDate || 'el próximo fin de semana';
+          return `Saber que tienes un lugar acogedor esperándote en Algarrobo hace que la semana se sienta mucho más liviana. 🏡🌿
+
+En Cabañas La Campiña te esperamos con cabañas independientes equipadas, quinchos privados en terraza y amplios jardines para disfrutar de ${dateRef} rodeado de bosque y aire puro. 🌲
+
+Coordinar tu estadía con anticipación te permite elegir la cabaña o suite ideal para tu grupo y viajar con total tranquilidad. Te atendemos con gusto por WhatsApp.
+
+📲 Reservas y consultas: +56 9 7900 4253
+www.cabanaslacampina.cl
+
+#cabañaslacampiña #algarrobo #escapada #descanso #familiachile #litoralcentral`;
         }
       },
       {
         id: 'descanso_nocturno',
-        title: 'Silencio Nocturno & Despertar en Calma',
+        title: 'Silencio Nocturno & Despertar con Pájaros',
         badge: '🌿 Silencio Nocturno & Calma',
-        intent: 'La política de silencio a partir de las 21:00 hrs, el descanso nocturno profundo y el despertar con el canto de las aves.',
+        intent: 'La política de silencio a partir de las 21:00 hrs para un sueño verdaderamente reparador, noche estrellada y despertar con el canto de las aves.',
         keywords: ['silencio', 'noche', 'dormir', 'estrellas', 'paz', 'amanecer', 'tranquilidad', 'ruido'],
         narrativeStructure: 'prose_immersive',
-        structureDescription: 'Contraste entre el estrés urbano y la paz nocturna de La Campiña + contacto.',
-        hookConcept: 'Dormir con verdadero silencio y despertar solo con el trinar de las aves es el verdadero lujo.',
-        soberEmojis: ['🌿'],
-        sampleTone: 'Apacible, reconfortante y sobrio',
+        structureDescription: 'Contraste entre el estrés urbano y la paz nocturna de La Campiña + contacto afectuoso.',
+        hookConcept: 'Dormir con verdadero silencio y despertar con el trinar de las aves es un lujo que renueva el cuerpo.',
+        soberEmojis: ['🌲', '🌿', '🏡'],
+        sampleTone: 'Apacible, entrañable, reconfortante y sereno',
         buildFallback: ({ targetDate }) => {
           const dateRef = targetDate ? `este ${targetDate}` : 'tus días de descanso';
-          return `En un mundo lleno de alarmas y notificaciones continuas, dormir en completo silencio se ha transformado en un privilegio.
+          return `Dormir sintiendo la brisa suave entre los árboles, bajo un cielo estrellado y despertar solo con el canto de los pajaritos. 🌲🕊️
 
-En La Campiña cuidamos especialmente la tranquilidad de nuestros huéspedes: a partir de las 21:00 hrs reina el silencio para garantizar un descanso profundo bajo el cielo despejado de Algarrobo.
+En La Campiña cuidamos con mucho cariño el descanso de cada huésped: a partir de las 21:00 hrs reina el silencio en todo el recinto para garantizar una noche de sueño profundo y reparador, lejos de las bocinas y el ruido de la ciudad. 🏡
 
-Ven a renovar energías ${dateRef}. Escríbenos para resolver tus dudas y asegurar tu lugar.
+Ven a recargar energías ${dateRef}. Escríbenos por WhatsApp y preparamos tu llegada.
 
-📲 Consultas y reservas por WhatsApp: +56 9 7900 4253
+📲 Consultas y reservas: +56 9 7900 4253
 www.cabanaslacampina.cl
 
-#cabañaslacampiña #algarrobo #paz #silencio #descanso #bienestar`;
+#cabañaslacampiña #algarrobo #paz #silencio #descanso #bienestar #litoralcentral`;
         }
       }
     ];
@@ -296,9 +295,9 @@ www.cabanaslacampina.cl
       narrativeStructure: selectedAngle.narrativeStructure,
       structureDescription: selectedAngle.structureDescription || 'Estructura equilibrada con respiro visual y llamada natural.',
       hookConcept: selectedAngle.hookConcept || 'Gancho sobrio en 1 línea con curiosidad o empatía.',
-      sampleTone: selectedAngle.sampleTone || tone || 'Sobrio, cálido y profesional',
-      soberEmojis: selectedAngle.soberEmojis || ['🌿'],
-      maxEmojis: 2,
+      sampleTone: isCampina ? 'Cálido, entrañable, acogedor y familiar' : (selectedAngle.sampleTone || tone || 'Cálido, humano y profesional'),
+      soberEmojis: selectedAngle.soberEmojis || ['🏡', '🌿', '☕'],
+      maxEmojis: 5,
       forbiddenPhrases: [
         'pero ojo',
         'pero ojo…',
@@ -328,20 +327,32 @@ www.cabanaslacampina.cl
 - ENFOQUE DEL GANCHO (Línea 1): "${plan.hookConcept}"
 ${targetDate ? `- CONTEXTO DE FECHA O TEMPORADA: "${targetDate}"` : ''}
 
-REGLAS DE ORO OBLIGATORIAS (SOBRIEDAD & CALIDAD EDITORIAL):
-1. EMOJIS MÍNIMOS Y SOBRIOS (MÁXIMO 1 A 2 EN TODO EL TEXTO):
-   - Usa un máximo estricto de 1 o 2 emojis sobrios (por ejemplo: ${plan.soberEmojis.join(' o ')} o un ícono discreto de contacto).
-   - ❌ PROHIBIDO llenar el post de emojis decorativos (cero ✨, cero 🔥 repetidos, cero 🥩, cero 👀).
-   - ❌ PROHIBIDO "framing" con emojis al inicio y final de una misma línea (ej: ¡NUNCA hagas "✨🌿 Título 🌿✨").
-   - ❌ PROHIBIDO poner emojis en cada viñeta o línea de lista. Si usas viñetas, usa viñeta limpia con punto ("•").
+REGLAS DE ORO OBLIGATORIAS (EQUILIBRIO, VOZ ENTRAÑABLE & CERO INVENTOS):
+1. VOZ ENTRAÑABLE, CÁLIDA Y CERCANA (EQUILIBRIO JUSTO, CERO ACARTONAMIENTO):
+   - ❌ PROHIBIDO sonar frío, excesivamente formal, distante o corporativo. No hables como un folleto frío ni des discursos filosóficos densos.
+   - ✅ Habla con calidez humana, cercanía entrañable y hospitalidad sincera, como el anfitrión de una casa de campo en Algarrobo que recibe a su familia con los brazos abiertos.
+   - Evoca momentos que reconfortan el corazón: el asadito en el quincho de la terraza, el café mañanero mirando las flores, la sobremesa sin mirar el reloj, las risas de los niños en el pasto, el silencio apacible del bosque al caer la noche.
 
-2. CERO FÓRMULAS DE FALSA ESCASEZ (PROHIBIDO "PERO OJO"):
-   - ❌ PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "corre que se acaban", "últimos cupos".
-   - Si se menciona disponibilidad o fechas, comunícalo con serenidad, elegancia y tranquilidad:
-     (Ej: "Para consultar fechas disponibles y asegurar tu descanso, te invitamos a escribirnos por WhatsApp" o "Si buscas organizar tu escapada con calma, puedes coordinar tu fecha con anticipación").
+2. EMOJIS EQUILIBRADOS (NI SATURACIÓN CHILLONA NI SEQUÍA FRÍA):
+   - Usa entre 3 y 5 emojis cálidos y bien colocados a lo largo del post (ej: ${plan.soberEmojis.join(', ')} o un ícono discreto de contacto 📲).
+   - ❌ PROHIBIDO saturar el post de emojis (cero spam de emojis en cada palabra, cero emojis chillones de alarma o urgencia como 🚨, 👀 o 💥).
+   - ❌ PROHIBIDO "framing" con emojis al inicio y final de una misma línea (ej: NUNCA hagas "✨🌿 Título 🌿✨").
 
-3. VARIEDAD NARRATIVA REAL:
-   - No copies estructuras monótonas previas. Desarrolla el texto según el ángulo planificado ("${plan.angleName}"), dándole un respiro visual limpio, párrafos breves y una voz humana que suene auténtica.
+3. LEER BIEN LA PÁGINA Y TOMAR LO IMPORTANTE (CERO INVENTOS):
+   - Todo lo que digas debe estar estrictamente respaldado por la web oficial www.cabanaslacampina.cl:
+     * Cabañas familiares (2 a 8 personas) con cocina equipada y quincho privado en terraza.
+     * Suites para parejas (Jardín, Balcón) con frigobar, coffee bar y acceso a quinchos comunitarios.
+     * Amplios jardines y senderos temáticos (Puente Rojo, Duendecitos, Pinos, Virgen) para pasear con calma.
+     * Juegos infantiles en áreas verdes seguras.
+     * Desconexión genuina: NO cuenta con Wi-Fi (para descansar de verdad y reconectar en persona).
+     * Silencio a partir de las 21:00 hrs para un descanso nocturno profundo.
+     * Mascotas bienvenidas en cabañas.
+     * Piscinas al aire libre operativas SOLO en temporada de verano (diciembre a Semana Santa).
+     * ❌ PROHIBIDO TERMINANTEMENTE inventar tinajas, jacuzzis o hot tubs (NO existen).
+
+4. CERO FÓRMULAS DE FALSA ESCASEZ (PROHIBIDO "PERO OJO"):
+   - ❌ PROHIBIDO usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban".
+   - Comunica la invitación a reservar con calidez, confianza y serenidad: "Escríbenos por WhatsApp y coordinamos tu estadía con tiempo y todo el cariño".
 `.trim();
   }
 

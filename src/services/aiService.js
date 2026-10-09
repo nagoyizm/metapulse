@@ -351,12 +351,12 @@ ${customInstructions ? `- Instrucciones adicionales: ${customInstructions}` : ''
 
 REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 1. GANCHO INICIAL (Línea 1): DEBE tener MENOS de 120 caracteres antes del primer salto de línea. El algoritmo de Instagram corta con "... más", por lo que la primera línea debe atrapar por sí sola (usa curiosidad, dato numérico específico o verdad contraria).
-2. VOZ HUMANA NATURAL: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o un salto de línea.
+2. VOZ HUMANA NATURAL Y EQUILIBRADA: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o un salto de línea. Nada de frialdad corporativa ni tecnicismos distantes.
 3. PROHIBIDO VOCABULARIO DE IA: NO uses "sumérgete", "en el ajetreado mundo de hoy", "descubre", "revolucionario", "desbloquea", "eleva", "un viaje", "no es solo X, es Y", "un tapiz". Habla como una persona real conversando con otra.
-4. EMOJIS MÍNIMOS Y SOBRIOS (MÁXIMO 1 A 2 EMOJIS EN TODO EL TEXTO): Usa exclusivamente 1 o 2 emojis sobrios, sutiles y elegantes (por ejemplo: 🌿, 📍 o un ícono discreto de contacto). PROHIBIDO llenar el post de emojis, PROHIBIDO colocar emojis al inicio y final de una misma frase (framing), PROHIBIDO emojis en viñetas o listas, PROHIBIDO usar emojis de ojos (👀), fuego repetido (🔥) o caras exageradas.
+4. EMOJIS EQUILIBRADOS Y CÁLIDOS (MODERADOS, 3 A 5 EN TODO EL TEXTO): Usa un número equilibrado de 3 a 5 emojis cálidos, amables y elegantes que aporten cercanía visual (por ejemplo: 🌿, 🏡, ☕, 📍 o un ícono discreto de contacto 📲). PROHIBIDO llenar el post de emojis chillones (cero 🚨, cero 👀, cero 💥), PROHIBIDO colocar emojis al inicio y final de una misma frase (framing).
 5. OBJETIVO DE ALCANCE (Sends & Saves): Diseña el cierre para que la gente quiera GUARDAR el post o ENVIÁRSELO a un amigo por DM (los factores #1 del algoritmo actual).
 6. HASHTAGS 2026: Al final, incluye estrictamente entre 3 y 5 hashtags dimensionados (1 amplio, 2 de nicho/categoría, 1 micro-local ej: #${brandName ? brandName.replace(/[^a-zA-Z0-9]/g, '') : 'Chile'}). NUNCA pongas más de 5 hashtags.
-7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calma, confianza, elegancia y profesionalismo.
+7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calidez, confianza, serenidad y hospitalidad.
 
 Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
 `;
@@ -421,17 +421,15 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       return inner.trim().length > 3 ? inner.trim() : match;
     });
 
-    // 5. Convertir listas con emojis al inicio de línea en viñetas limpias con punto
-    cleaned = cleaned.replace(/^[ \t]*[📅🔥🌿🏡✨•\-*][ \t]*/gmu, '• ');
+    // 5. Eliminar únicamente emojis chillones de alarma o urgencia artificial (conservando los cálidos: 🏡, 🌿, ☕, 🥩, ❤️, etc.)
+    cleaned = cleaned.replace(/[👀🚨💥]/gu, '');
 
-    // 6. Eliminar emojis ruidosos o de falsa urgencia
-    cleaned = cleaned.replace(/[👀🥩🚨💥🔥🇨🇱❤️]/gu, '');
-
-    // 7. Presupuesto estricto de emojis: permitir máximo 2 emojis sobrios en todo el texto
+    // 6. Presupuesto equilibrado de emojis: permitir hasta 6 emojis cálidos y conservar siempre iconos funcionales de contacto
     let emojiCount = 0;
     cleaned = cleaned.replace(/\p{Extended_Pictographic}/gu, (match) => {
+      if (/^[📲📍📞💬✉️]$/u.test(match)) return match;
       emojiCount++;
-      return emojiCount <= 2 ? match : '';
+      return emojiCount <= 6 ? match : '';
     });
 
     // 8. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5-6 HASHTAGS)
@@ -486,9 +484,9 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       score -= 15;
       issues.push(`Tiene ${hashtags.length} hashtags. En 2026 el algoritmo penaliza el exceso; lo óptimo son de 5 a 6 tags selectos.`);
     }
-    if (emojis.length > 3) {
+    if (emojis.length > 6) {
       score -= 15;
-      issues.push(`Tiene ${emojis.length} emojis. Para un tono sobrio y profesional sin parecer spam, se recomienda un máximo de 1 a 2 emojis justos y necesarios.`);
+      issues.push(`Tiene ${emojis.length} emojis. Para un tono equilibrado y cálido sin parecer spam, se recomienda un rango de 3 a 5 emojis bien colocados.`);
     }
 
     let humanizedRewrite = this.cleanCaptionAI(caption);
@@ -652,6 +650,23 @@ Devuelve un JSON válido con esta estructura:
       goal,
       format: 'post'
     });
+
+    if (plan.isCampina) {
+      const campinaPost = editorialPlannerService.getFallbackCopy(plan, {
+        theme: topic,
+        topic,
+        brandName: 'Cabañas La Campiña - Algarrobo'
+      });
+      return {
+        fullPost: campinaPost,
+        hook: campinaPost.split('\n')[0] || `Descubre el descanso en Cabañas La Campiña 🏡`,
+        cta: '📲 Reservas y consultas por WhatsApp: +56 9 7900 4253',
+        editorialPlan: plan,
+        hashtags: '#cabañaslacampiña #algarrobo #descanso #naturaleza #litoralcentral',
+        topic,
+        generatedAt: new Date().toISOString()
+      };
+    }
 
     // Conjuntos de ganchos sobrios y elegantes (máx 1 emoji sutil)
     const hooks = {
@@ -1435,8 +1450,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
       topic: theme,
       targetDate,
       format,
-      tone: 'cercano, familiar, sobrio y reflexivo',
-      goal: 'reservas y consultas serenas'
+      tone: 'cálido, entrañable, acogedor y familiar',
+      goal: 'reservas y consultas cordiales'
     });
 
     const editorialDirectives = editorialPlannerService.buildPromptDirectives(editorialPlan, {
@@ -1451,34 +1466,40 @@ ${campinaKnowledge}
 ${editorialDirectives}
 
 Eres el redactor oficial de "Cabañas La Campiña - Algarrobo".
-Tu misión es redactar un copy de Instagram fresco, humano, sobrio y persuasivo para: "${theme}".
+Tu misión es redactar un copy de Instagram cálido, entrañable, acogedor, humano y equilibrado para: "${theme}".
 
-INFORMACIÓN CLAVE Y REGLAS DE NEGOCIO:
-- Negocio: Cabañas La Campiña (Algarrobo, desde 1993).
-- Instalaciones reales: Cabañas de 2 a 8 personas con quincho privado en terraza, suites para parejas (Jardín, Balcón) con acceso a quinchos comunitarios grandes, jardines y senderos temáticos (Puente Rojo, Duendecitos, Pinos, Virgen), juegos infantiles, sin Wi-Fi (desconexión genuina).
-- ❌ PROHIBIDO TERMINANTEMENTE mencionar tinajas ni hot tubs.
-- Siempre incluir el contacto oficial al final: 📲 Reservas y consultas: +56 9 7900 4253 | www.cabanaslacampina.cl
+INFORMACIÓN CLAVE Y REGLAS DE NEGOCIO (LEER BIEN LA PÁGINA Y TOMAR LO IMPORTANTE):
+- Negocio: Cabañas La Campiña (Algarrobo, desde 1993: más de 30 años creando recuerdos familiares).
+- Instalaciones reales (www.cabanaslacampina.cl):
+  * Cabañas familiares de 2 a 8 personas: totalmente equipadas (cocina completa, living-comedor, DirecTV, calefacción en invierno), terraza con quincho privado para asados, estacionamiento, admiten mascotas pequeñas/medianas.
+  * Suites para parejas (Jardín, Balcón, Clásica): ambiente acogedor con cama matrimonial, frigobar, coffee bar de cortesía, DirecTV, acceso a quinchos comunitarios grandes (no admiten mascotas, mayores de 12 años).
+  * Recinto natural: amplios jardines y senderos temáticos (Puente Rojo, Duendecitos, Pinos, Virgen) para pasear con calma y respirar bosque a minutos del mar.
+  * Juegos infantiles en áreas verdes seguras (camas saltarinas, columpios, resbalines).
+  * Desconexión genuina: NO cuenta con Wi-Fi (diseñado para descansar de verdad, mirarse a los ojos y reconectar en familia).
+  * Descanso nocturno apacible: silencio a partir de las 21:00 hrs para un sueño reparador.
+  * Piscinas al aire libre: operativas SOLO de diciembre a Semana Santa (verano).
+- ❌ CERO INVENTOS: PROHIBIDO TERMINANTEMENTE mencionar tinajas, jacuzzis o hot tubs (NO existen).
+- Contacto oficial obligatorio al final: 📲 Reservas y consultas: +56 9 7900 4253 | www.cabanaslacampina.cl
 
-DIRECTRICES EDITORIALES Y DE VOZ:
-- Desarrolla el texto según el ángulo editorial asignado: "${editorialPlan.angleName}".
-- NO repitas la misma plantilla de siempre. Varía la estructura y el ritmo.
-- Emojis: Máximo 1 a 2 emojis sobrios en TODO el texto (ej: ${editorialPlan.soberEmojis.join(' o ')}). CERO spam de emojis, CERO emojis al inicio y final de una misma frase (framing), CERO emojis en viñetas.
-- Cero clichés de falsa urgencia: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban" o falsas prisas.
+DIRECTRICES EDITORIALES, VOZ Y EQUILIBRIO:
+- VOZ ENTRAÑABLE, CÁLIDA Y CERCANA: Ni frío ni corporativo ni solemne. Habla con cariño, cercanía y hospitalidad sincera, como el anfitrión de una casa de campo que recibe con amor a su familia. Evoca momentos reconfortantes (el asadito pausado en la terraza, el café mañanero con vista a los jardines, las risas de los niños en el pasto, el silencio del bosque).
+- EQUILIBRIO DE EMOJIS (NI SATURACIÓN NI SEQUÍA): Incluye entre 3 y 5 emojis cálidos y acogedores bien colocados a lo largo del post (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲). CERO spam de emojis, CERO framing estridente al inicio y final de una misma frase.
+- CERO FALSAS URGENCIAS: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban". Invita a coordinar la estadía con calma, simpatía y calidez.
 
 ${isReel ? `
 Estructura a entregar:
 🎬 GUION DE REEL (Audiovisual):
 - 0-2s (Hook Visual): Toma de inicio limpia y llamativa.
-- 2-8s (Tomas clave): Recorrido por el espacio según el ángulo "${editorialPlan.angleName}".
-- 8-15s (Cierre & CTA): Toma final con invitación a coordinar estadía.
+- 2-8s (Tomas clave): Recorrido cálido y entrañable por el espacio según el ángulo "${editorialPlan.angleName}".
+- 8-15s (Cierre & CTA): Toma final con invitación acogedora a coordinar estadía.
 - 💬 Frase en pantalla: Texto conciso y llamativo.
 - 🎵 Música recomendada: Estilo acústico o lofi relajante.
 
 📝 COPY PARA EL PIE DEL POST:
-(Aplica el ángulo planificado "${editorialPlan.angleName}", con párrafos breves, viñetas limpias si amerita, máximo 1-2 emojis sobrios, contacto de WhatsApp +56 9 7900 4253 y hashtags oficiales al final).
+(Aplica el ángulo planificado "${editorialPlan.angleName}", con narrativa entrañable de 2-3 párrafos, entre 3 y 5 emojis cálidos bien colocados, contacto de WhatsApp +56 9 7900 4253 y bloque final de 5 hashtags oficiales).
 ` : `
 Estructura a entregar:
-(Desarrolla el copy completo aplicando el ángulo planificado "${editorialPlan.angleName}", con gancho sobrio, narrativa limpia de 2-3 párrafos, máximo 1-2 emojis sobrios, invitación cordial a coordinar por WhatsApp: 📲 Reservas y consultas: +56 9 7900 4253 y bloque final de 5 hashtags oficiales).
+(Desarrolla el copy completo aplicando el ángulo planificado "${editorialPlan.angleName}", con gancho cálido, narrativa entrañable de 2-3 párrafos que evoque la belleza real del lugar, entre 3 y 5 emojis cálidos bien colocados, invitación afectuosa a coordinar por WhatsApp: 📲 Reservas y consultas: +56 9 7900 4253 y bloque final de 5 hashtags oficiales).
 `}
 `;
 
@@ -1490,8 +1511,8 @@ Estructura a entregar:
     const copyPromise = apiKey
       ? this.generateWithGemini({
           topic: `${theme} en Cabañas La Campiña Algarrobo (${targetDate || 'próximo fin de semana'}) [Estrategia: ${editorialPlan.angleName}]`,
-          tone: 'cercano, familiar, sobrio y reflexivo',
-          goal: 'reservas y consultas serenas',
+          tone: 'cálido, entrañable, acogedor y familiar',
+          goal: 'reservas y consultas cordiales',
           platform: 'both',
           brandName: 'Cabañas La Campiña - Algarrobo',
           customInstructions: systemPrompt,

@@ -111,22 +111,25 @@ async function scrapeCampinaWebsite() {
 function getCampinaKnowledgePrompt() {
   return `
 INFORMACIÓN OFICIAL Y VERIFICADA DE "CABAÑAS LA CAMPIÑA" (ALGARROBO, DESDE 1993):
-- Concepto: Hermoso y tranquilo lugar de descanso familiar y en pareja en Algarrobo, rodeado de naturaleza, bosques y jardines temáticos (Jardín de los Duendecitos, Puente Rojo, Virgen, Pinos, Zarzamoras).
-- Alojamientos reales:
-  * Cabañas de 2 a 5 personas y 5 a 8 personas (con cocina equipada, living, quincho privado en terraza, calefacción en otoño/invierno, DirecTV, admiten mascotas).
-  * Suites de 1 a 2 personas (Suite Jardín, Suite Balcón, Suite Clásica) ideales para parejas, con baño privado, frigobar, coffee bar y acceso a quinchos comunitarios (no admiten mascotas).
-- Instalaciones reales:
-  * Jardines y senderos para caminar y descansar.
-  * Piscinas al aire libre (solo en temporada de verano: diciembre a Semana Santa).
-  * Quinchos y parrillas (privados en cabañas, comunitarios en suites).
-  * Juegos infantiles (camas saltarinas, columpios, resbalines).
-  * Amenidades: Préstamo gratis de juegos de mesa, bebidas calientes de máquina (cappuccino, chocolate caliente), lavandería.
-- REGLAS CRÍTICAS QUE NO DEBES ROMPER:
-  * ❌ NO TIENEN TINAJAS DE AGUA CALIENTE (JAMÁS menciones tinajas, hot tubs ni spas).
-  * ❌ NO TIENEN WI-FI (Destacar la desconexión total de pantallas para descansar).
-  * ✅ Ambiente familiar, silencioso y seguro (sin ruidos molestos, silencio desde las 21:00 hrs).
-- Contacto y Reservas: WhatsApp +56 9 7900 4253, web www.cabanaslacampina.cl, Instagram @cabanaslacampina.cl.
-- Panoramas cercanos en Algarrobo: Playa El Canelo y Canelillo, Humedal de Tunquén, Muelle El Yachting (paseos en lancha a Isla Pájaro Niño), Karting Go Kart Center, Pueblito de los Artesanos, Playa El Pejerrey y Mirasol.
+- Concepto: Hermoso y tranquilo lugar de descanso familiar y en pareja en Algarrobo, rodeado de naturaleza, bosques de pinos y jardines temáticos (Jardín de los Duendecitos, Puente Rojo, Virgen, Pinos, Zarzamoras).
+- Alojamientos reales (www.cabanaslacampina.cl):
+  * Cabañas de 2 a 5 personas y 5 a 8 personas: totalmente equipadas, living-comedor con cocina completa (vajilla, microondas, refrigerador, tetera), terraza con quincho privado para asados, calefacción en invierno, DirecTV. Admiten mascotas pequeñas/medianas.
+  * Suites para parejas (Suite Jardín en 1er piso con vista a jardines, Suite Balcón en 2do piso, Suite Clásica): ambiente acogedor con cama matrimonial, frigobar, tetera / coffee bar de cortesía, vajilla, DirecTV, acceso a quinchos grandes comunitarios (no admiten mascotas, mayores de 12 años).
+- Instalaciones reales del recinto:
+  * Jardines y senderos temáticos para pasear con calma, leer bajo los árboles y respirar bosque.
+  * Piscinas al aire libre (operativas SOLO de Diciembre a Semana Santa en temporada de verano).
+  * Quinchos para asados (privados en terraza de cabañas, comunitarios en suites).
+  * Área de juegos infantiles segura (camas saltarinas, columpios, resbalines en áreas verdes).
+  * Amenidades: máquinas de bebidas calientes (cappuccino, chocolate caliente), préstamo de juegos de mesa para la sobremesa familiar.
+- REGLAS DE ORO Y VERDAD DE MARCA (CERO INVENTOS):
+  * ❌ NO TIENEN TINAJAS NI HOT TUBS (PROHIBIDO TERMINANTEMENTE inventar tinajas o jacuzzis).
+  * ❌ NO CUENTAN CON WI-FI (Desconexión digital genuina para descansar y mirarse a los ojos).
+  * ✅ Ambiente de descanso familiar y seguro: silencio a partir de las 21:00 hrs para un sueño reparador.
+- TONO Y ESTILO DEL COPY:
+  * Voz entrañable y equilibrada: Ni frío/corporativo ni informal/chillón. Debe sonar humano, cariñoso, hogareño y acogedor, como el anfitrión de una casa de campo que recibe a su familia con amor.
+  * Emojis equilibrados: Ni inundación exagerada ni sequía fría. Unos 3 a 5 emojis cálidos y bien colocados (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲) que aporten ternura visual sin ensuciar la lectura.
+- Contacto y Reservas oficiales: WhatsApp +56 9 7900 4253, web www.cabanaslacampina.cl, Instagram @cabanaslacampina.cl.
+- Panoramas cercanos en Algarrobo: Playa El Canelo y Canelillo, Muelle El Yachting (paseos en lancha a Isla Pájaro Niño), Pueblito de los Artesanos, Humedal de Tunquén, gastronomía marina y playas locales.
 `;
 }
 
