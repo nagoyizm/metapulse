@@ -5,6 +5,7 @@ const { db, getSetting } = require('../database/db');
 const metaService = require('./metaService');
 const videoService = require('./videoService');
 const imageService = require('./imageService');
+const { humanizeSlotTime, getRetryDelayMs } = require('../utils/humanTiming');
 
 class SchedulerService {
   cronTask = null;
@@ -245,8 +246,8 @@ class SchedulerService {
     const maxRetries = post.max_retries || 3;
 
     if (currentRetries < maxRetries) {
-      // Reintentar con backoff (+5 minutos)
-      const nextRetryDate = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      // Reintentar con espera variable y creciente
+      const nextRetryDate = new Date(Date.now() + getRetryDelayMs(currentRetries)).toISOString();
       db.prepare(`
         UPDATE posts
         SET status = 'scheduled',
@@ -290,7 +291,7 @@ class SchedulerService {
       // Fallback: dentro de 1 hora
       const d = new Date();
       d.setHours(d.getHours() + 1);
-      return d.toISOString();
+      return humanizeSlotTime(d).toISOString();
     }
 
     let query = "SELECT scheduled_at FROM posts WHERE status = 'scheduled' AND scheduled_at >= ?";
@@ -325,15 +326,15 @@ class SchedulerService {
 
         const slotIso = slotDateTime.toISOString();
 
-        // Verificar si ya hay un post agendado dentro de una ventana de 10 minutos de este slot
+        // Verificar si ya hay un post agendado dentro de una ventana de 30 minutos de este slot
         const isOccupied = scheduledPosts.some(scheduledIso => {
           const scheduledTime = new Date(scheduledIso).getTime();
           const targetTime = slotDateTime.getTime();
-          return Math.abs(scheduledTime - targetTime) < 10 * 60 * 1000;
+          return Math.abs(scheduledTime - targetTime) < 30 * 60 * 1000;
         });
 
         if (!isOccupied) {
-          return slotIso;
+          return humanizeSlotTime(slotDateTime).toISOString();
         }
       }
     }
@@ -342,7 +343,7 @@ class SchedulerService {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(10, 0, 0, 0);
-    return tomorrow.toISOString();
+    return humanizeSlotTime(tomorrow).toISOString();
   }
 }
 

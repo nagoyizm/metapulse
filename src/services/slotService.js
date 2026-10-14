@@ -1,4 +1,5 @@
 const { db } = require('../database/db');
+const { humanizeSlotTime } = require('../utils/humanTiming');
 
 class SlotService {
   /**
@@ -62,7 +63,7 @@ class SlotService {
           const alreadyPicked = resultSlots.some(iso => Math.abs(new Date(iso).getTime() - candidate.getTime()) < 2 * 60 * 60 * 1000);
 
           if (!collision && !alreadyPicked) {
-            resultSlots.push(candidate.toISOString());
+            resultSlots.push(humanizeSlotTime(candidate).toISOString());
             if (resultSlots.length >= count) break;
           }
         }
@@ -77,7 +78,7 @@ class SlotService {
           const alreadyPicked = resultSlots.some(iso => Math.abs(new Date(iso).getTime() - candidate.getTime()) < 2 * 60 * 60 * 1000);
 
           if (!collision && !alreadyPicked) {
-            resultSlots.push(candidate.toISOString());
+            resultSlots.push(humanizeSlotTime(candidate).toISOString());
             if (resultSlots.length >= count) break;
           }
         }
@@ -90,7 +91,7 @@ class SlotService {
     while (resultSlots.length < count) {
       const candidate = new Date(currentDay);
       candidate.setHours(12, 0, 0, 0);
-      resultSlots.push(candidate.toISOString());
+      resultSlots.push(humanizeSlotTime(candidate).toISOString());
       currentDay.setDate(currentDay.getDate() + 1);
     }
 

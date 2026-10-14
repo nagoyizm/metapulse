@@ -5,6 +5,7 @@ const { getSetting } = require('../database/db');
 const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite } = require('../data/campinaKnowledge');
 const aiCacheService = require('./aiCacheService');
 const editorialPlannerService = require('./editorialPlannerService');
+const COPY_RULES = require('../config/copyRules');
 
 // Modelos válidos verificados para Google Generative AI (Gemini)
 const VALID_GEMINI_MODELS = [
@@ -152,25 +153,8 @@ class AIService {
    */
   async generateWithGemini({ topic, tone, goal, platform, brandName, customInstructions, apiKey, bypassCache = false }) {
     const startTime = Date.now();
-    const cacheKey = aiCacheService.generateKey('gemini_copy', { topic, tone, goal, platform, brandName, customInstructions });
 
-    // 1. Revisar Caché L1/L2 Determinista
-    if (!bypassCache) {
-      const cached = aiCacheService.get(cacheKey);
-      if (cached.hit) {
-        logAiMetric({
-          operation: 'generateWithGemini',
-          durationMs: Date.now() - startTime,
-          cacheHit: true,
-          provider: 'gemini',
-          model: cached.model || 'cache',
-          status: 'success'
-        });
-        return cached.data;
-      }
-    }
-
-    // 2. Comprobar Circuit Breaker
+    // Comprobar Circuit Breaker
     if (!circuitBreaker.canExecute()) {
       logAiMetric({
         operation: 'generateWithGemini',
@@ -197,7 +181,7 @@ class AIService {
           },
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.9,
             maxOutputTokens: 2048
           }
         }, { timeout: 20000 }), { maxRetries: 1 });
@@ -207,9 +191,6 @@ class AIService {
         if (actualPart) {
           const parsed = this.parseAIResponse(actualPart, topic);
           circuitBreaker.recordSuccess();
-
-          // Guardar en caché L1/L2 (12 horas)
-          aiCacheService.set(cacheKey, parsed, 43200, 'gemini', model);
 
           logAiMetric({
             operation: 'generateWithGemini',
@@ -424,18 +405,18 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
     // 5. Eliminar únicamente emojis chillones de alarma o urgencia artificial (conservando los cálidos: 🏡, 🌿, ☕, 🥩, ❤️, etc.)
     cleaned = cleaned.replace(/[👀🚨💥]/gu, '');
 
-    // 6. Presupuesto equilibrado de emojis: permitir hasta 6 emojis cálidos y conservar siempre iconos funcionales de contacto
+    // 6. Presupuesto equilibrado de emojis: permitir hasta 5 emojis cálidos y conservar siempre iconos funcionales de contacto
     let emojiCount = 0;
     cleaned = cleaned.replace(/\p{Extended_Pictographic}/gu, (match) => {
       if (/^[📲📍📞💬✉️]$/u.test(match)) return match;
       emojiCount++;
-      return emojiCount <= 6 ? match : '';
+      return emojiCount <= COPY_RULES.MAX_EMOJIS ? match : '';
     });
 
-    // 8. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5-6 HASHTAGS)
+    // 8. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5 HASHTAGS)
     const hashtagMatches = cleaned.match(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g);
-    if (hashtagMatches && hashtagMatches.length > 6) {
-      const keepTags = hashtagMatches.slice(0, 6);
+    if (hashtagMatches && hashtagMatches.length > COPY_RULES.HASHTAGS_MAX) {
+      const keepTags = hashtagMatches.slice(0, COPY_RULES.HASHTAGS_MAX);
       cleaned = cleaned.replace(/(#[a-z0-9_áéíóúñ]+\s*)+$/gi, '').trim();
       cleaned += '\n\n' + keepTags.join(' ');
     }
@@ -509,7 +490,7 @@ REGLAS DE ORO OBLIGATORIAS:
 2. CERO guiones largos ("—", "–", "--"). Usa ".." o saltos de línea.
 3. CERO palabras cliché de IA ("sumérgete", "revolucionario", "eleva", "desbloquea", "un viaje", etc.).
 4. Si el post incluye dirección ("📍 Encuéntralo en Kmarket Algarrobo\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo"), CONSÉRVALA EXACTA.
-5. AL FINAL, EXACTAMENTE DE 5 A 6 HASHTAGS SELECTOS (elimina todos los demás hashtags sobrantes).
+5. AL FINAL, ENTRE 3 Y 5 HASHTAGS SELECTOS (elimina todos los demás hashtags sobrantes).
 6. Cierre cálido y natural.
 
 Devuelve ÚNICAMENTE el texto final reescrito, sin notas ni explicaciones.
@@ -753,7 +734,7 @@ Eres el copywriter oficial de "Kmarket - Algarrobo". Debes redactar la publicaci
 
 FORMATO OFICIAL DE REFERENCIA OBLIGATORIA:
 """
-🍵💚 Descubre el auténtico sabor del matcha en Kmarket Algarrobo 💚🍵
+Descubre el auténtico sabor del matcha en Kmarket Algarrobo 🍵
 
 El té Matcha es una de las bebidas más tradicionales y apreciadas de Asia. Elaborado a partir de hojas de té verde finamente molidas, destaca por su intenso color verde, su sabor suave con notas vegetales y su gran versatilidad.
 
@@ -773,7 +754,7 @@ El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 
 🧡 Descubre por qué el matcha ha conquistado a millones de personas alrededor del mundo.
 
-#KmarketAlgarrobo #Matcha #TeMatcha #MatchaLover #KFood #SaboresDeAsia #AlgarroboMoments
+#KmarketAlgarrobo #Matcha #TeMatcha #MatchaLover #KFood
 """
 
 DATOS DEL PRODUCTO A REDACTAR AHORA:
@@ -782,7 +763,7 @@ DATOS DEL PRODUCTO A REDACTAR AHORA:
 ${extraNotes ? `- Notas adicionales: "${extraNotes}"` : ''}
 
 REGLAS DE ORO OBLIGATORIAS:
-1. Primera línea: Emojis temáticos acordes al producto + Título llamativo + "en Kmarket Algarrobo" + Emojis temáticos.
+1. Primera línea: Título llamativo + "en Kmarket Algarrobo" con COMO MÁXIMO un emoji temático (nunca emojis al inicio y al final de la misma línea).
 2. Párrafo 1 (Presentación): Qué es el producto, de dónde proviene y qué destaca de su textura o sabor.
 3. Sección "✨ ¿Qué lo hace especial?": 1 párrafo conciso explicando su valor o autenticidad.
 4. Sección con viñetas: "[Emoji temático] Perfecto para disfrutar como:" (o "Ideal para disfrutar:"), seguido de 3 a 4 opciones prácticas con viñeta "•".
@@ -791,7 +772,7 @@ REGLAS DE ORO OBLIGATORIAS:
 📍 Encuéntralo en Kmarket Algarrobo
 El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 7. Cierre cálido con emoji 🧡 invitando a probarlo o descubrirlo.
-8. EXACTAMENTE ENTRE 5 Y 7 HASHTAGS (¡PROHIBIDO poner 15 o 20 hashtags!). Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
+8. ENTRE 3 Y 5 HASHTAGS. Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
 
 Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
 `;
@@ -2764,12 +2745,21 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     // 1. INTENTO CON GOOGLE GEMINI / IMAGEN (TIMEOUT ACOTADO 25s)
     const apiKey = this.getImageApiKey();
     if (apiKey) {
+      const freeMode = getSetting('ai_free_mode') !== 'false';
+      console.log(`[generateDirectImage] Modo gratis: ${freeMode ? 'activado (sin modelos imagen-*)' : 'desactivado'}`);
       const requestedModel = (model && !model.includes('3.1') && !model.includes('3-pro')) ? model : 'imagen-3.0-generate-002';
-      const geminiModels = [...new Set([
+      let geminiModels = [...new Set([
         requestedModel,
         'imagen-3.0-generate-002',
         'gemini-2.0-flash'
       ])];
+
+      if (freeMode) {
+        geminiModels = geminiModels.filter(m => !m.startsWith('imagen-'));
+        if (geminiModels.length === 0) {
+          geminiModels = ['gemini-2.0-flash'];
+        }
+      }
 
       for (const gm of geminiModels) {
         try {
@@ -3634,7 +3624,7 @@ IMPORTANTE: Devuelve ÚNICAMENTE un array JSON válido con la siguiente estructu
                   maxOutputTokens: 1024
                 }
               },
-              { timeout: 4000 }
+              { timeout: 9000 }
             );
 
             const rawText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
