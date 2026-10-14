@@ -38,6 +38,7 @@ const whatsappService = require('../services/whatsappService');
 const inboxSyncService = require('../services/inboxSyncService');
 const musicService = require('../services/musicService');
 const videoService = require('../services/videoService');
+const brandProfileService = require('../services/brandProfileService');
 const { scrapeCampinaWebsite, CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
 
 function isVideoUrl(url) {
@@ -1442,6 +1443,26 @@ router.post('/settings', (req, res) => {
     setMultipleSettings(req.body);
     res.json({ success: true, message: 'Configuraciones guardadas correctamente.' });
   } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/brand-profiles', (req, res) => {
+  try {
+    res.json({ success: true, profiles: brandProfileService.listProfiles() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/brand-profiles/:id', (req, res) => {
+  try {
+    const profile = brandProfileService.updateProfile(req.params.id, req.body || {});
+    res.json({ success: true, profile });
+  } catch (err) {
+    if (err.message && (err.message.includes('no encontrado') || err.message.includes('not found') || err.message.includes('No existe'))) {
+      return res.status(404).json({ success: false, error: err.message });
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 });

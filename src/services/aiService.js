@@ -6,6 +6,8 @@ const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite }
 const aiCacheService = require('./aiCacheService');
 const editorialPlannerService = require('./editorialPlannerService');
 const COPY_RULES = require('../config/copyRules');
+const brandProfileService = require('./brandProfileService');
+const contentMemoryService = require('./contentMemoryService');
 
 // Modelos válidos verificados para Google Generative AI (Gemini)
 const VALID_GEMINI_MODELS = [
@@ -285,6 +287,12 @@ ${customInstructions}
 `;
     }
 
+    const profile = this.getBusinessProfile(brandName, '');
+    const recentCaptions = contentMemoryService.getRecentCaptions({ accountName: brandName, limit: 15 });
+    const memoryBlock = contentMemoryService.buildMemoryBlock(recentCaptions);
+    const hashtagLine = profile.hashtagBank ? contentMemoryService.pickHashtags(profile, recentCaptions).join(' ') : '';
+    const voiceLine = profile.voice ? `VOZ DE LA MARCA: ${profile.voice}` : '';
+
     const isAgendio = (brandName || '').toLowerCase().includes('agendio');
 
     if (isAgendio) {
@@ -297,14 +305,16 @@ Tono: cercano, chileno, empático, directo y sin tecnicismos
 Objetivo: ${goal || 'calma operativa, cotizaciones y reservas directas 24/7'}
 ${customInstructions ? `- Instrucciones adicionales: ${customInstructions}` : ''}
 
+${voiceLine}
 REGLAS DE ORO DE AGENDIO:
 1. PROPUESTA: Vende erradicar los 4 dolores operativos (doble reserva, llamada perdida de noche, planilla de Excel perdida, cobro olvidado), NO funciones técnicas. Taglines: "Nunca más pierdas una reserva." y "La calma de operar bien."
 2. GANCHO INICIAL: MENOS de 120 caracteres antes del primer salto de línea para evitar el corte "... más" de Instagram. Ataca el dolor o la oportunidad directamente.
 3. VOZ CHILENA Y HUMANA: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o saltos de línea.
 4. PROHIBIDO CLICHÉS DE IA: Cero "sumérgete", "revolucionario", "en el ajetreado mundo". Habla como un anfitrión chileno conversando con otro.
 5. CIERRE CON LLAMADO CLARO: Invita a cotizar en agendio.cl o escribir por WhatsApp (+56 9 7900 4253 / link en bio).
-6. HASHTAGS OFICIALES EXACTOS (poner al final):
-#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje
+6. HASHTAGS (poner al final, exactamente estos): ${hashtagLine}
+
+${memoryBlock}
 
 Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
 `;
@@ -318,6 +328,10 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       format: 'post'
     });
 
+    const hashtagRule = hashtagLine
+      ? `6. HASHTAGS: al final usa exactamente estos: ${hashtagLine}`
+      : `6. HASHTAGS 2026: Al final, incluye estrictamente entre 3 y 5 hashtags dimensionados (1 amplio, 2 de nicho/categoría, 1 micro-local ej: #${brandName ? brandName.replace(/[^a-zA-Z0-9]/g, '') : 'Chile'}). NUNCA pongas más de 5 hashtags.`;
+
     return `
 Eres un estratega y copywriter de élite para Instagram y Facebook (Metodología Instagram Skills 2026).
 Negocio / Marca: "${brandName || 'Redes Sociales'}"
@@ -330,14 +344,17 @@ ${brandName ? `- Negocio / Marca: "${brandName}"` : ''}
 - Enfoque del gancho: "${generalPlan.hookConcept}"
 ${customInstructions ? `- Instrucciones adicionales: ${customInstructions}` : ''}
 
+${voiceLine}
 REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 1. GANCHO INICIAL (Línea 1): DEBE tener MENOS de 120 caracteres antes del primer salto de línea. El algoritmo de Instagram corta con "... más", por lo que la primera línea debe atrapar por sí sola (usa curiosidad, dato numérico específico o verdad contraria).
 2. VOZ HUMANA NATURAL Y EQUILIBRADA: CERO guiones largos ("—" o "--"). Si necesitas una pausa, usa ".." o un salto de línea. Nada de frialdad corporativa ni tecnicismos distantes.
 3. PROHIBIDO VOCABULARIO DE IA: NO uses "sumérgete", "en el ajetreado mundo de hoy", "descubre", "revolucionario", "desbloquea", "eleva", "un viaje", "no es solo X, es Y", "un tapiz". Habla como una persona real conversando con otra.
 4. EMOJIS EQUILIBRADOS Y CÁLIDOS (MODERADOS, 3 A 5 EN TODO EL TEXTO): Usa un número equilibrado de 3 a 5 emojis cálidos, amables y elegantes que aporten cercanía visual (por ejemplo: 🌿, 🏡, ☕, 📍 o un ícono discreto de contacto 📲). PROHIBIDO llenar el post de emojis chillones (cero 🚨, cero 👀, cero 💥), PROHIBIDO colocar emojis al inicio y final de una misma frase (framing).
 5. OBJETIVO DE ALCANCE (Sends & Saves): Diseña el cierre para que la gente quiera GUARDAR el post o ENVIÁRSELO a un amigo por DM (los factores #1 del algoritmo actual).
-6. HASHTAGS 2026: Al final, incluye estrictamente entre 3 y 5 hashtags dimensionados (1 amplio, 2 de nicho/categoría, 1 micro-local ej: #${brandName ? brandName.replace(/[^a-zA-Z0-9]/g, '') : 'Chile'}). NUNCA pongas más de 5 hashtags.
+${hashtagRule}
 7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calidez, confianza, serenidad y hospitalidad.
+
+${memoryBlock}
 
 Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
 `;
@@ -773,6 +790,8 @@ REGLAS DE ORO OBLIGATORIAS:
 El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 7. Cierre cálido con emoji 🧡 invitando a probarlo o descubrirlo.
 8. ENTRE 3 Y 5 HASHTAGS. Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
+
+${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Kmarket', limit: 15 }))}
 
 Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
 `;
@@ -1467,6 +1486,8 @@ DIRECTRICES EDITORIALES, VOZ Y EQUILIBRIO:
 - EQUILIBRIO DE EMOJIS (NI SATURACIÓN NI SEQUÍA): Incluye entre 3 y 5 emojis cálidos y acogedores bien colocados a lo largo del post (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲). CERO spam de emojis, CERO framing estridente al inicio y final de una misma frase.
 - CERO FALSAS URGENCIAS: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban". Invita a coordinar la estadía con calma, simpatía y calidez.
 
+${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Campiña', limit: 15 }))}
+
 ${isReel ? `
 Estructura a entregar:
 🎬 GUION DE REEL (Audiovisual):
@@ -1930,6 +1951,10 @@ ${scenicDirective}
       ? 'Público: Alojamientos con equipo operativo (recepción, aseo, múltiples unidades). Tono: Estructurado, profesional, centrado en coordinación y turnos sin roces.'
       : 'Público: Dueños de cabañas y hostales (operan solos o con su familia). Tono: Cercano, chileno, empático, sin tecnicismos, enfocado en recuperar tiempo y evitar el caos manual.';
 
+    const agendioProfile = this.getBusinessProfile('Agendio', '');
+    const agendioRecentCaptions = contentMemoryService.getRecentCaptions({ accountName: 'Agendio', limit: 15 });
+    const agendioHashtagLine = agendioProfile.hashtagBank ? contentMemoryService.pickHashtags(agendioProfile, agendioRecentCaptions).join(' ') : '';
+
     const systemPrompt = `
 Eres el redactor y estratega oficial de redes sociales de Agendio (www.agendio.cl), la plataforma de gestión integral para cabañas, hostales y alojamientos turísticos en Chile.
 
@@ -1948,8 +1973,7 @@ REGLAS DE COPY OBLIGATORIAS:
 1. HOOK (Línea 1): MÁXIMO 120 caracteres antes del primer salto de línea. Debe atrapar antes del corte "... más" de Instagram atacando el dolor o la oportunidad en una frase corta.
 2. CUERPO: 1 o 2 frases breves y contundentes ampliando el dolor o la solución ("todo eso cabe en un solo panel").
 3. CTA: Variante clara como "Cotiza tu plan en agendio.cl o escríbenos por WhatsApp para ordenar tu temporada".
-4. HASHTAGS EXACTOS:
-#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje
+4. HASHTAGS (poner al final, exactamente estos): ${agendioHashtagLine}
 5. PROHIBIDO: CERO guiones largos ("—" o "--"), CERO palabras cliché de bot ("sumérgete", "revolucionario", "en el vertiginoso mundo"), CERO hashtags de creadores (#viral, #fyp), CERO lenguaje de e-commerce ("oferta imperdible", "compra ya").
 
 ${isCarousel ? `
@@ -1972,6 +1996,8 @@ Genera una estructura de guión dinámico de 30 a 35 segundos:
 - 16 a 28s (Solución en vivo en Agendio en pantalla o celular)
 - 29 a 35s (Llamado a la acción con link en bio)
 ` : ''}
+
+${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Agendio', limit: 15 }))}
 
 Entrega el texto final listo para publicar.
 `;
@@ -3114,79 +3140,13 @@ Responde estrictamente en formato JSON con la siguiente estructura:
       targetName = getSetting('meta_page_name') || '';
       targetId = getSetting('meta_page_id') || getSetting('meta_instagram_username') || '';
     }
-    const combined = `${targetName} ${targetId}`.toLowerCase();
 
-    const isCampina = combined.includes('campiña') || combined.includes('campina') || combined.includes('cabaña') || combined.includes('cabana');
-    const isKmarket = combined.includes('kmarket') || combined.includes('k-food') || combined.includes('corea');
-    const isAgendio = combined.includes('agendio');
-
-    if (isAgendio) {
-      return {
-        id: 'agendio',
-        name: 'Agendio (@agendio.cl)',
-        tag: 'Agendio',
-        emoji: '📅',
-        whatsapp: '+56 9 7900 4253',
-        web: 'www.agendio.cl',
-        taglines: [
-          'Nunca más pierdas una reserva.',
-          'La calma de operar bien.'
-        ],
-        proposal: 'Centraliza y gestiona las reservas, horarios, huéspedes y pagos de tu cabaña, hostal u hospedaje en una sola plataforma intuitiva y automatizada.',
-        painPoints: [
-          'La doble reserva: Dos familias reservan la misma cabaña para el mismo fin de semana.',
-          'La llamada perdida: Suena el teléfono a medianoche y cuando atiendes ya reservó en otro lado.',
-          'La planilla que no aparece: Cuadernos, WhatsApp y Excel descoordinados, nadie sabe qué está libre.',
-          'El pago que se olvida: Entre check-ins y aseo se te escapa cobrar lo ya trabajado.'
-        ],
-        rules: [
-          'Agendio vende erradicar dolores operativos específicos en alojamientos turísticos de Chile (cabañas, hostales, hospedajes, domos), NO funciones abstractas de software.',
-          'Tono chileno, cercano, directo, empático y sin tecnicismos ("la calma de operar bien").',
-          'Destacar el fin de las dobles reservas, el calendario interactivo en vivo y el link público 24/7.',
-          'Prohibido lenguaje de ecommerce ("oferta", "compra ya") o hashtags de creadores (#viral, #fyp).',
-          'Paleta visual estricta: Verde bosque profundo (#0B1B12), Verde oscuro (#142B1E), Dorado ámbar CTA (#D99A2B), Crema cálido (#FBF7F0), Esmeralda (#34D399).',
-          'Tipografía: Spectral para titulares y Outfit para cuerpo de texto. Bordes rectos de 2px (rounded-xs).'
-        ],
-        hashtags: '#gestiondealojamientos #turismochile #cabañaschile #hostalchile #alojamientoturistico #turismorural #airbnbchile #bookingchile #emprendimientoturistico #cabañas #hospedaje',
-        knowledge: 'Plataforma SaaS chilena para gestión integral de cabañas y alojamientos turísticos. Elimina dobles reservas, automatiza confirmaciones de WhatsApp y ofrece cotización directa 24/7.'
-      };
-    }
-
-    if (isCampina) {
-      return {
-        id: 'campina',
-        name: 'Cabañas La Campiña - Algarrobo',
-        tag: 'Cabañas La Campiña',
-        emoji: '🌲',
-        whatsapp: '+56 9 7900 4253',
-        web: 'www.cabanaslacampina.cl',
-        rules: [
-          'NO TIENEN TINAJAS DE AGUA CALIENTE NI HOT TUBS (Prohibido inventar tinajas).',
-          'NO CUENTA CON WI-FI (Concepto de descanso familiar y desconexión total sin pantallas).',
-          'Piscinas al aire libre operan exclusivamente en temporada de verano (diciembre a Semana Santa).',
-          'Cabañas familiares (2 a 5 y 5 a 8 personas) con cocina equipada, calefacción y quincho privado en terraza.',
-          'Suites para parejas (1 a 2 personas) con frigobar, coffee bar y quinchos comunitarios (no admiten mascotas).',
-          'Mascotas permitidas SOLO en cabañas familiares con recargo adicional (NO en suites ni en piscinas).',
-          'Reservas y tarifas exactas por fechas: Invitar cordialmente a escribir al WhatsApp oficial +56 9 7900 4253.'
-        ],
-        knowledge: typeof getCampinaKnowledgePrompt === 'function' ? getCampinaKnowledgePrompt() : ''
-      };
-    }
-
-    if (isKmarket) {
-      return {
-        id: 'kmarket',
-        name: 'Kmarket Algarrobo (@kmarket_algarrobo)',
-        tag: 'Kmarket Algarrobo',
-        emoji: '🍜',
-        address: 'El Boldo 366, local 13, Espacio Algarrobo, Algarrobo, Chile',
-        specialty: 'Alimentos y snacks coreanos e importados (K-Food): Ramyun (Buldak Carbonara, 4 Quesos, Shin Ramyun, Jin Ramen), Helados Samanco crujientes con crema, bebidas Milkis y Bon Bon con fruta, dulces virales Pepero, Choco Pie, Tteokbokki instantáneo.',
-        rules: [
-          'Ubicación física exacta: El Boldo 366, local 13, Espacio Algarrobo, Algarrobo.',
-          'NO es carnicería ni vende carne de asados.',
-          'Invitar a visitarnos en la tienda de Espacio Algarrobo o escribirnos por DM para coordinar productos.'
-        ]
-      };
+    const stored = brandProfileService.getProfile(targetName, targetId);
+    if (stored) {
+      if (stored.id === 'campina' && !stored.knowledge) {
+        stored.knowledge = typeof getCampinaKnowledgePrompt === 'function' ? getCampinaKnowledgePrompt() : '';
+      }
+      return stored;
     }
 
     return {

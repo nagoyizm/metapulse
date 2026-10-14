@@ -161,6 +161,13 @@ function initializeDatabase() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_ai_jobs_status ON ai_jobs (status);
+
+    CREATE TABLE IF NOT EXISTS brand_profiles (
+      id TEXT PRIMARY KEY,
+      match_keywords TEXT NOT NULL DEFAULT '[]',
+      profile TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try {
@@ -247,6 +254,15 @@ function initializeDatabase() {
 
   for (const s of defaultSettings) {
     insertSetting.run(s.key, s.value);
+  }
+
+  // Populate default brand profiles if empty
+  const brandSeeds = require('../data/brandSeeds');
+  const insertBrandProfile = db.prepare(`
+    INSERT OR IGNORE INTO brand_profiles (id, match_keywords, profile) VALUES (?, ?, ?)
+  `);
+  for (const seed of brandSeeds) {
+    insertBrandProfile.run(seed.id, JSON.stringify(seed.matchKeywords), JSON.stringify(seed.profile));
   }
 
   // Populate default slots if table is empty
