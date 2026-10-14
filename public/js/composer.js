@@ -1253,12 +1253,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function bindResetControls() {
     if (btnClearComposer) {
       btnClearComposer.addEventListener('click', () => {
-        resetComposerProcess();
+        if (confirm('¿Limpiar el redactor? Se borrará el texto, los archivos y la programación.')) {
+          resetComposerProcess();
+        }
       });
     }
     if (btnResetComposerTop) {
       btnResetComposerTop.addEventListener('click', () => {
-        resetComposerProcess();
+        if (confirm('¿Limpiar el redactor? Se borrará el texto, los archivos y la programación.')) {
+          resetComposerProcess();
+        }
       });
     }
     if (btnResetAiModal) {

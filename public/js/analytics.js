@@ -4,36 +4,140 @@
 
 window.currentAdvancedData = null;
 
-window.loadAnalyticsData = async function() {
+function isDark() {
+  return document.body.classList.contains('dark-theme');
+}
+
+function setKpiValue(elementId, value, formatter) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  if (value !== null && value !== undefined && value !== '') {
+    el.textContent = formatter ? formatter(value) : value;
+    el.removeAttribute('title');
+  } else {
+    el.textContent = '—';
+    el.title = 'Sin datos de Meta para este periodo';
+  }
+}
+
+function drawCanvasEmptyState(ctx, width, height, message = 'Aún no hay datos suficientes de Meta para graficar este periodo') {
+  const dark = isDark();
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.fillStyle = dark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, 10, width - 20, height - 20);
+
+  ctx.fillStyle = dark ? '#94a3b8' : '#64748b';
+  ctx.font = '13px "Outfit", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(message, width / 2, height / 2);
+}
+
+window.loadAnalyticsData = async function () {
   try {
+    let insightsData = null;
+
     // 1. Cargar métricas e insights generales
-    const res = await fetch('/api/meta/insights');
-    const json = await res.json();
-    if (json.success && json.data) {
-      const data = json.data;
+    try {
+      const res = await fetch('/api/meta/insights');
+      const json = await res.json();
+      if (json.success && json.data) {
+        insightsData = json.data;
+      }
+    } catch (e) {
+      console.warn('Error fetching insights:', e);
+    }
 
-      // Actualizar KPI Cards
-      if (data.facebook && data.instagram) {
-        const fbReach = data.facebook.weeklyReach || 28400;
-        const igReach = data.instagram.weeklyImpressions ? Math.round(data.instagram.weeklyImpressions * 0.65) : 20520;
-        const totalReach = fbReach + igReach;
+    const isSimulated = Boolean(insightsData && insightsData.simulated === true);
 
-        const totalImpressions = (data.instagram.weeklyImpressions || 45000) + (data.facebook.weeklyReach ? data.facebook.weeklyReach * 1.8 : 44400);
-        const totalFollowers = (data.facebook.pageFollowers || 16540) + (data.instagram.followers || 24310);
+    if (isSimulated) {
+      ['kpi-reach', 'kpi-impressions', 'kpi-followers', 'kpi-engagement'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = '—';
+          el.title = 'Modo simulación: sin datos reales de Meta';
+        }
+      });
+    } else if (insightsData) {
+      const summary = insightsData.summary || {};
+      const fb = insightsData.facebook || {};
+      const ig = insightsData.instagram || {};
 
-        document.getElementById('kpi-reach').textContent = totalReach.toLocaleString();
-        document.getElementById('kpi-impressions').textContent = Math.round(totalImpressions).toLocaleString();
-        document.getElementById('kpi-followers').textContent = totalFollowers.toLocaleString();
-        document.getElementById('kpi-engagement').textContent = data.facebook.engagementRate || '4.8%';
+      // Alcance Total: summary.reach o la suma calculada real
+      let reach = summary.reach;
+      if (reach == null && (fb.weeklyReach != null || ig.reach != null)) {
+        reach = (fb.weeklyReach || 0) + (ig.reach || 0);
       }
 
-      // Dibujar Gráficos Impeccable
-      drawReachChart(data);
-      drawEngagementChart(data);
+      // Impresiones: summary.impressions o impresiones disponibles
+      let impressions = summary.impressions;
+      if (impressions == null && (ig.weeklyImpressions != null || fb.pageImpressions != null)) {
+        impressions = (ig.weeklyImpressions || 0) + (fb.pageImpressions || 0);
+      }
+
+      // Crecimiento Seguidores: summary.followersGrowth o total seguidores
+      let followersGrowth = summary.followersGrowth;
+      if (followersGrowth == null) {
+        if (summary.followers != null) {
+          followersGrowth = summary.followers;
+        } else if (fb.pageFollowers != null || ig.followers != null) {
+          followersGrowth = (fb.pageFollowers || 0) + (ig.followers || 0);
+        }
+      }
+
+      // Engagement Rate: summary.engagementRate o de facebook
+      let engagementRate = summary.engagementRate;
+      if (engagementRate == null && fb.engagementRate != null) {
+        engagementRate = fb.engagementRate;
+      }
+
+      setKpiValue('kpi-reach', reach, val => typeof val === 'number' ? val.toLocaleString() : val);
+      setKpiValue('kpi-impressions', impressions, val => typeof val === 'number' ? Math.round(val).toLocaleString() : val);
+      setKpiValue('kpi-followers', followersGrowth, val => typeof val === 'number' ? val.toLocaleString() : val);
+      setKpiValue('kpi-engagement', engagementRate, val => typeof val === 'number' ? `${val}%` : val);
+    } else {
+      setKpiValue('kpi-reach', null);
+      setKpiValue('kpi-impressions', null);
+      setKpiValue('kpi-followers', null);
+      setKpiValue('kpi-engagement', null);
     }
 
     // 2. Cargar analíticas avanzadas (Top Post, Mejores Horas, Desglose de Formatos)
-    await loadAdvancedInsights();
+    const advancedData = await loadAdvancedInsights();
+
+    // Dibujar Gráficos con datos reales o estado vacío
+    if (isSimulated) {
+      drawReachChart(null, null, null, 'Modo simulación: sin datos reales');
+      drawEngagementChart(null, null, 'Modo simulación: sin datos reales');
+    } else {
+      if (insightsData?.chartLabels && insightsData?.reachData) {
+        drawReachChart(insightsData.chartLabels, insightsData.reachData, insightsData.impressionsData);
+      } else if (insightsData?.facebook?.chartData) {
+        const labels = insightsData.facebook.chartData.map(c => c.day);
+        const reach = insightsData.facebook.chartData.map(c => c.reach || c.value || 0);
+        const imp = insightsData.facebook.chartData.map(c => c.impressions || 0);
+        drawReachChart(labels, reach, imp);
+      } else {
+        drawReachChart(null, null, null);
+      }
+
+      if (insightsData?.chartLabels && insightsData?.engagementData) {
+        drawEngagementChart(insightsData.chartLabels, insightsData.engagementData);
+      } else if (advancedData?.dailyActivity && Object.values(advancedData.dailyActivity).some(v => v > 0)) {
+        drawEngagementChart(Object.keys(advancedData.dailyActivity), Object.values(advancedData.dailyActivity));
+      } else if (insightsData?.facebook?.chartData) {
+        const labels = insightsData.facebook.chartData.map(c => c.day);
+        const eng = insightsData.facebook.chartData.map(c => c.engagement || c.likes || 0);
+        drawEngagementChart(labels, eng);
+      } else {
+        drawEngagementChart(null, null);
+      }
+    }
 
     // 3. Cargar comparativa A/B de Horarios
     await loadScheduleAnalytics();
@@ -46,7 +150,7 @@ async function loadAdvancedInsights() {
   try {
     const res = await fetch('/api/meta/advanced-insights');
     const json = await res.json();
-    if (!json.success || !json.data) return;
+    if (!json.success || !json.data) return null;
 
     const data = json.data;
     window.currentAdvancedData = data;
@@ -82,17 +186,19 @@ async function loadAdvancedInsights() {
         if (imgEl) imgEl.style.display = 'none';
       }
 
-      // Conectar botones
       const btnReuse = document.getElementById('btn-top-post-reuse');
       if (btnReuse) {
         btnReuse.onclick = () => {
           if (window.reusePost && topPost.id) {
             window.reusePost(topPost.id);
           } else {
-            // Cargar directamente en composer
             const contentInput = document.getElementById('post-content');
             if (contentInput) contentInput.value = topPost.caption;
-            window.switchTab('composer');
+            if (typeof navigateToTab === 'function') {
+              navigateToTab('composer');
+            } else if (window.switchTab) {
+              window.switchTab('composer');
+            }
             showToast('Post cargado en el editor', 'success');
           }
         };
@@ -145,8 +251,11 @@ async function loadAdvancedInsights() {
       const imgLikes = document.getElementById('fmt-image-avg-likes');
       if (imgLikes) imgLikes.textContent = `${data.formatBreakdown.image?.avgLikes || 0} likes prom.`;
     }
+
+    return data;
   } catch (err) {
     console.warn('Error cargando advanced insights:', err.message);
+    return null;
   }
 }
 
@@ -202,7 +311,7 @@ async function loadScheduleAnalytics() {
                 </div>
                 <div>
                   <span style="font-size:0.72rem; color:var(--text-secondary); display:block;">Interacción (ER):</span>
-                  <strong style="font-size:1.1rem; color:#10b981;">${p.engagementRate}</strong>
+                  <strong style="font-size:1.1rem; color:#10b981;">${p.engagementRate != null ? p.engagementRate : '—'}</strong>
                 </div>
                 <div>
                   <span style="font-size:0.72rem; color:var(--text-secondary); display:block;">Likes Promedio:</span>
@@ -225,7 +334,7 @@ async function loadScheduleAnalytics() {
               </div>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; pt:8px; border-top:1px solid var(--border-subtle); margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid var(--border-subtle); margin-top:8px;">
               <span style="font-size:0.75rem; color:var(--text-secondary);">
                 <strong>${p.postsCount}</strong> posts probados
               </span>
@@ -259,7 +368,7 @@ async function loadScheduleAnalytics() {
   }
 }
 
-window.activatePresetFromAnalytics = async function(presetId) {
+window.activatePresetFromAnalytics = async function (presetId) {
   try {
     const res = await fetch(`/api/schedule-presets/${presetId}/activate`, { method: 'POST' });
     const json = await res.json();
@@ -277,16 +386,96 @@ window.activatePresetFromAnalytics = async function(presetId) {
   }
 };
 
-// Acción de agendar en el slot sugerido
-window.applyBestSlot = function(day, timeWindow) {
-  showToast(`Ventana sugerida: ${day} a las ${timeWindow}. Redirigiendo al editor...`, 'info');
-  window.switchTab('composer');
+// Acción de agendar en el slot sugerido (applyBestSlot)
+window.applyBestSlot = function (day, timeWindow) {
+  const dayStr = String(day || '').toLowerCase().trim();
+  const timeStr = String(timeWindow || '').trim();
+
+  const dayMap = {
+    'domingo': 0, 'dom': 0,
+    'lunes': 1, 'lun': 1,
+    'martes': 2, 'mar': 2,
+    'miércoles': 3, 'miercoles': 3, 'mié': 3, 'mie': 3,
+    'jueves': 4, 'jue': 4,
+    'viernes': 5, 'vie': 5,
+    'sábado': 6, 'sabado': 6, 'sáb': 6, 'sab': 6
+  };
+
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+  const targetDay = dayMap[dayStr];
+
+  if (targetDay === undefined || !timeMatch) {
+    const toastFn = window.showToast || (typeof showToast === 'function' ? showToast : null);
+    if (toastFn) {
+      toastFn(`Ventana sugerida: ${day} a las ${timeWindow}. Redirigiendo al editor...`);
+    }
+    if (typeof navigateToTab === 'function') {
+      navigateToTab('composer');
+    } else if (typeof window.switchTab === 'function') {
+      window.switchTab('composer');
+    }
+    return;
+  }
+
+  const hour = parseInt(timeMatch[1], 10);
+  const minute = parseInt(timeMatch[2], 10);
+  const now = new Date();
+
+  let daysUntil = (targetDay - now.getDay() + 7) % 7;
+  const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil, hour, minute, 0, 0);
+
+  if (targetDate <= now) {
+    targetDate.setDate(targetDate.getDate() + 7);
+  }
+
+  const pad = n => String(n).padStart(2, '0');
+  const formattedIso = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetDate.getHours())}:${pad(targetDate.getMinutes())}`;
+
+  // Seleccionar radio 'custom' en la sección de programación
+  const radio = document.querySelector('input[name="schedule_option"][value="custom"]') ||
+                document.querySelector('input[name="schedule-type"][value="custom"]');
+  if (radio) {
+    radio.checked = true;
+    radio.dispatchEvent(new Event('input', { bubbles: true }));
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+    document.querySelectorAll('.schedule-radio').forEach(sr => {
+      sr.classList.toggle('active', sr.querySelector('input')?.value === 'custom');
+    });
+  }
+
+  const customDateContainer = document.getElementById('custom-date-container');
+  if (customDateContainer) {
+    customDateContainer.style.display = 'block';
+  }
+
+  // Establecer fecha y disparar eventos 'input' y 'change'
+  const dateInput = document.getElementById('custom-schedule-datetime') ||
+                    document.getElementById('schedule-custom-date') ||
+                    document.querySelector('input[name="schedule_custom_date"]') ||
+                    document.querySelector('input[name="schedule-custom-date"]');
+  if (dateInput) {
+    dateInput.value = formattedIso;
+    dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+    dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // Redirigir a pestaña composer
+  if (typeof navigateToTab === 'function') {
+    navigateToTab('composer');
+  } else if (typeof window.switchTab === 'function') {
+    window.switchTab('composer');
+  }
+
+  const toastFn = window.showToast || (typeof showToast === 'function' ? showToast : null);
+  if (toastFn) {
+    toastFn(`Horario programado: ${day} a las ${pad(hour)}:${pad(minute)} (${targetDate.toLocaleDateString()})`, 'success');
+  }
 };
 
 // ==========================================
 // AUDITORÍA ESTRATÉGICA CON IA
 // ==========================================
-window.triggerAIAudit = async function() {
+window.triggerAIAudit = async function () {
   const cardEl = document.getElementById('card-ai-audit');
   const contentEl = document.getElementById('ai-audit-content');
   const providerBadge = document.getElementById('ai-audit-provider-badge');
@@ -302,15 +491,18 @@ window.triggerAIAudit = async function() {
     </div>
   `;
 
-  // Scroll suave hacia la auditoría
   cardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const brandName = activeAcc?.pageName || 'tu marca';
+    const dynamicFocus = `Maximizar alcance orgánico, retención y conversiones para la cuenta ${brandName}`;
+
     const res = await fetch('/api/meta/ai-audit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        customFocus: 'Maximizar alcance orgánico, retención y conversiones locales en Algarrobo'
+        customFocus: dynamicFocus
       })
     });
 
@@ -324,7 +516,6 @@ window.triggerAIAudit = async function() {
       providerBadge.textContent = audit.provider === 'gemini' ? `Gemini (${audit.model || 'Flash'})` : 'Inteligente (Heurístico)';
     }
 
-    // Renderizar diagnóstico analítico + tarjetas de estrategias ejecutables
     let fullHtml = renderMarkdown(audit.auditMarkdown);
 
     if (audit.actionableStrategies && audit.actionableStrategies.length > 0) {
@@ -346,7 +537,7 @@ window.triggerAIAudit = async function() {
           </p>
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:14px;">
-            ${audit.actionableStrategies.map((strat, idx) => {
+            ${audit.actionableStrategies.map(strat => {
               const stratJson = encodeURIComponent(JSON.stringify(strat));
               const formatEmoji = strat.format === 'reel' ? '🎥 Reel' : strat.format === 'story' ? '📲 Story (9:16)' : strat.format === 'carousel' ? '🖼️ Carrusel' : '📸 Post (4:5)';
               return `
@@ -406,17 +597,16 @@ window.triggerAIAudit = async function() {
   }
 };
 
-// Cargar la estrategia seleccionada directamente en el Composer
-window.loadStrategyToComposer = function(encodedStrat) {
+window.loadStrategyToComposer = function (encodedStrat) {
   try {
     const strat = typeof encodedStrat === 'string' ? JSON.parse(decodeURIComponent(encodedStrat)) : encodedStrat;
 
-    // 1. Cambiar a la pestaña de Composer
-    if (window.switchTab) {
+    if (typeof navigateToTab === 'function') {
+      navigateToTab('composer');
+    } else if (window.switchTab) {
       window.switchTab('composer');
     }
 
-    // 2. Seleccionar el formato (feed, story, reel, carousel)
     const targetFormat = strat.format || 'feed';
     const radio = document.querySelector(`input[name="post_type"][value="${targetFormat}"]`);
     if (radio) {
@@ -424,7 +614,6 @@ window.loadStrategyToComposer = function(encodedStrat) {
       radio.dispatchEvent(new Event('change'));
     }
 
-    // 3. Cargar Título y Copy
     const titleInput = document.getElementById('post-title');
     const contentInput = document.getElementById('post-content');
 
@@ -437,7 +626,6 @@ window.loadStrategyToComposer = function(encodedStrat) {
       contentInput.dispatchEvent(new Event('input'));
     }
 
-    // 4. Cargar tema en asistente de IA
     const aiTopic = document.getElementById('ai-topic');
     if (aiTopic && strat.topic) {
       aiTopic.value = strat.topic;
@@ -448,9 +636,7 @@ window.loadStrategyToComposer = function(encodedStrat) {
       aiCustom.value = strat.visualPrompt;
     }
 
-    // 5. Scroll suave a la parte superior del composer
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
     showToast(`¡Estrategia "${strat.title}" cargada en el Editor!`, 'success');
   } catch (err) {
     console.error('Error cargando estrategia al composer:', err);
@@ -458,43 +644,49 @@ window.loadStrategyToComposer = function(encodedStrat) {
   }
 };
 
-// Formateador markdown limpio para los informes
 function renderMarkdown(text) {
   if (!text) return '';
-  let html = text
-    // Escapar HTML básico
+  return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    // Títulos h3
     .replace(/^### (.*$)/gim, '<h4 style="color:var(--primary); margin:14px 0 6px 0; font-size:0.95rem; font-weight:700;">$1</h4>')
-    // Títulos h2
     .replace(/^## (.*$)/gim, '<h3 style="color:var(--text-primary); margin:18px 0 8px 0; font-size:1.05rem; font-weight:800;">$1</h3>')
-    // Negrita
     .replace(/\*\*(.*?)\*\*/gim, '<strong style="color:var(--text-primary); font-weight:700;">$1</strong>')
-    // Cursiva
     .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    // Listas con viñetas
     .replace(/^\- (.*$)/gim, '<li style="margin-bottom:4px; margin-left:18px;">$1</li>')
     .replace(/^\* (.*$)/gim, '<li style="margin-bottom:4px; margin-left:18px;">$1</li>')
-    // Listas numeradas
     .replace(/^(\d+)\. (.*$)/gim, '<li style="margin-bottom:4px; margin-left:18px;"><strong>$1.</strong> $2</li>')
-    // Saltos de línea dobles a párrafos
     .replace(/\n\n/gim, '<div style="margin-bottom:8px;"></div>');
-
-  return html;
 }
 
-function isDark() {
-  return document.body.classList.contains('dark-theme');
-}
-
-function drawReachChart(data) {
+function drawReachChart(labels, reachData, impressionsData, emptyMessage = 'Aún no hay datos suficientes de Meta para graficar este periodo') {
   const canvas = document.getElementById('chart-reach');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
+
+  let actualLabels = labels;
+  let actualReach = reachData;
+
+  // Si se llamó pasando un objeto de datos de insights
+  if (labels && !Array.isArray(labels) && typeof labels === 'object') {
+    const dataObj = labels;
+    if (dataObj.chartLabels && dataObj.reachData) {
+      actualLabels = dataObj.chartLabels;
+      actualReach = dataObj.reachData;
+    } else if (dataObj.facebook?.chartData) {
+      actualLabels = dataObj.facebook.chartData.map(c => c.day);
+      actualReach = dataObj.facebook.chartData.map(c => c.reach || c.value || 0);
+    }
+  }
+
+  // Si no hay datos reales o las series están vacías, renderizar estado vacío profesional
+  if (!actualLabels || !actualReach || actualReach.length === 0 || actualReach.every(v => !v || v === 0)) {
+    drawCanvasEmptyState(ctx, width, height, emptyMessage);
+    return;
+  }
 
   ctx.clearRect(0, 0, width, height);
 
@@ -503,10 +695,7 @@ function drawReachChart(data) {
   const labelColor = dark ? '#d6d1c8' : '#4b5563';
   const lineColor = dark ? '#f59e0b' : '#cc8800';
 
-  const days = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
-  const values = [4200, 5800, 7100, 6400, 8900, 11200, 9500];
-  const maxVal = 13000;
-
+  const maxVal = Math.max(...actualReach, 100);
   const paddingLeft = 50;
   const paddingBottom = 35;
   const paddingTop = 20;
@@ -531,8 +720,8 @@ function drawReachChart(data) {
     ctx.fillText(labelVal.toLocaleString(), paddingLeft - 8, y + 3);
   }
 
-  const stepX = chartWidth / (days.length - 1);
-  const points = values.map((val, idx) => ({
+  const stepX = chartWidth / Math.max(actualLabels.length - 1, 1);
+  const points = actualReach.map((val, idx) => ({
     x: paddingLeft + idx * stepX,
     y: paddingTop + chartHeight - (val / maxVal) * chartHeight
   }));
@@ -573,26 +762,40 @@ function drawReachChart(data) {
     ctx.fillStyle = labelColor;
     ctx.font = '10px "Chakra Petch", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(days[idx], p.x, height - 12);
+    ctx.fillText(actualLabels[idx] || '', p.x, height - 12);
   });
 }
 
-function drawEngagementChart(data) {
+function drawEngagementChart(dayLabels, engagementData, emptyMessage = 'Aún no hay datos suficientes de Meta para graficar este periodo') {
   const canvas = document.getElementById('chart-engagement');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
 
-  ctx.clearRect(0, 0, width, height);
+  let labels = dayLabels;
+  let values = engagementData;
 
+  if (dayLabels && !Array.isArray(dayLabels) && typeof dayLabels === 'object') {
+    const dataObj = dayLabels;
+    if (dataObj.dailyActivity) {
+      labels = Object.keys(dataObj.dailyActivity);
+      values = Object.values(dataObj.dailyActivity);
+    } else if (dataObj.facebook?.chartData) {
+      labels = dataObj.facebook.chartData.map(c => c.day);
+      values = dataObj.facebook.chartData.map(c => c.engagement || c.likes || 0);
+    }
+  }
+
+  if (!labels || !values || values.length === 0 || values.every(v => !v || v === 0)) {
+    drawCanvasEmptyState(ctx, width, height, emptyMessage);
+    return;
+  }
+
+  ctx.clearRect(0, 0, width, height);
   const dark = isDark();
   const labelColor = dark ? '#d6d1c8' : '#4b5563';
-
-  const days = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
-  const fbData = [320, 410, 580, 490, 720, 890, 650];
-  const igData = [450, 620, 830, 710, 980, 1250, 940];
-  const maxVal = 1400;
+  const maxVal = Math.max(...values, 10);
 
   const paddingLeft = 40;
   const paddingBottom = 35;
@@ -601,24 +804,17 @@ function drawEngagementChart(data) {
 
   const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
-  const barWidth = 10;
-  const groupWidth = chartWidth / days.length;
+  const barWidth = 14;
+  const groupWidth = chartWidth / labels.length;
 
-  days.forEach((day, idx) => {
+  labels.forEach((day, idx) => {
+    const val = values[idx] || 0;
     const groupX = paddingLeft + idx * groupWidth + groupWidth / 2;
+    const barHeight = (val / maxVal) * chartHeight;
 
-    const fbHeight = (fbData[idx] / maxVal) * chartHeight;
-    const igHeight = (igData[idx] / maxVal) * chartHeight;
-
-    // FB Bar (Ámbar)
     ctx.fillStyle = dark ? '#f59e0b' : '#cc8800';
-    ctx.fillRect(groupX - barWidth - 1.5, paddingTop + chartHeight - fbHeight, barWidth, fbHeight);
+    ctx.fillRect(groupX - barWidth / 2, paddingTop + chartHeight - barHeight, barWidth, barHeight);
 
-    // IG Bar (Terracota)
-    ctx.fillStyle = dark ? '#e26d3c' : '#c55221';
-    ctx.fillRect(groupX + 1.5, paddingTop + chartHeight - igHeight, barWidth, igHeight);
-
-    // Etiqueta día
     ctx.fillStyle = labelColor;
     ctx.font = '10px "Chakra Petch", sans-serif';
     ctx.textAlign = 'center';
@@ -650,12 +846,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Redibujar gráficos si cambia el tema
   const themeToggle = document.getElementById('btn-theme-toggle');
   if (themeToggle) {
     themeToggle.addEventListener('click', () => {
       setTimeout(() => {
-        if (AppState.activeTab === 'analytics') {
+        if (typeof AppState !== 'undefined' && AppState.activeTab === 'analytics') {
           window.loadAnalyticsData();
         }
       }, 100);

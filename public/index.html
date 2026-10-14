@@ -43,7 +43,7 @@
           <div style="position: relative;">
             <input type="password" id="auth-password" required class="form-control" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 12px 40px 12px 40px; border-radius: 8px; font-size: 0.9rem; width: 100%; box-sizing: border-box;" placeholder="••••••••••••">
             <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7;">🔑</span>
-            <button type="button" id="btn-toggle-auth-pwd" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="Ver/Ocultar contraseña">👁️</button>
+            <button type="button" id="btn-toggle-auth-pwd" aria-label="Mostrar u ocultar contraseña" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem; padding: 4px;" title="Ver/Ocultar contraseña">👁️</button>
           </div>
         </div>
 
@@ -87,33 +87,40 @@
       <nav class="sidebar-nav">
         <button class="nav-item active" data-tab="dashboard">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-          <span>Panel Principal</span>
+          <span>Hoy</span>
         </button>
         <button class="nav-item" data-tab="composer">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          <span>Crear Post (Composer)</span>
+          <span>Crear</span>
         </button>
         <button class="nav-item" data-tab="queue">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          <span>Planner & Calendario</span>
+          <span>Calendario</span>
           <span class="nav-badge" id="sidebar-queue-badge">0</span>
         </button>
         <button class="nav-item" data-tab="inbox">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          <span>Inbox & Comentarios</span>
+          <span>Bandeja</span>
           <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: #be185d; color: #fff;">0</span>
         </button>
         <button class="nav-item" data-tab="analytics">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
-          <span>Analíticas & Insights</span>
+          <span>Resultados</span>
+        </button>
+        <button class="nav-item" data-tab="brand">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+          <span>Marca</span>
         </button>
         <button class="nav-item" data-tab="media">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          <span>Multimedia & Logos</span>
+          <span>Biblioteca</span>
         </button>
         <button class="nav-item" data-tab="settings">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span>Conexión Meta & Ajustes</span>
+          <span>Ajustes</span>
         </button>
       </nav>
 
@@ -133,7 +140,7 @@
       <!-- Top Bar -->
       <header class="topbar">
         <div class="topbar-left">
-          <h1 id="page-title">Panel Principal</h1>
+          <h1 id="page-title">Hoy</h1>
         </div>
         <div class="topbar-right">
           <div class="account-switcher-wrap" style="display:flex; align-items:center; gap:8px;">
@@ -155,7 +162,7 @@
           </button>
           <button class="btn btn-primary" id="btn-quick-create">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Crear Publicación</span>
+            <span>Crear</span>
           </button>
         </div>
       </header>
@@ -1179,7 +1186,7 @@
               </div>
               <div class="card-body">
                 <p class="section-hint" style="margin-top:0; margin-bottom:12px; font-size:0.8rem;">
-                  Franjas horarias con mayor tracción orgánica detectadas para tu audiencia en Algarrobo:
+                  Franjas horarias con mayor tracción orgánica detectadas para tu audiencia:
                 </p>
                 <div id="best-windows-list" style="display:flex; flex-direction:column; gap:8px;">
                   <!-- Se llena dinámicamente con las ventanas óptimas -->
@@ -1291,6 +1298,93 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: MARCA (BRAND PROFILES) -->
+      <section class="tab-pane" id="tab-brand">
+        <div class="brand-layout">
+          <!-- Columna Izquierda: Lista de Perfiles -->
+          <aside class="brand-sidebar">
+            <div class="card" style="padding: 16px;">
+              <div style="margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 1rem; color: var(--text-primary);">Perfiles de Marca</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">Selecciona la marca que deseas configurar</p>
+              </div>
+              <div class="brand-list" id="brand-profiles-list">
+                <!-- Se rellena dinámicamente desde brand.js -->
+              </div>
+            </div>
+          </aside>
+
+          <!-- Columna Derecha: Editor del Perfil Activo -->
+          <div class="brand-editor">
+            <form id="brand-profile-form">
+              <input type="hidden" id="brand-profile-id" />
+
+              <!-- Bloque 1: Identificación -->
+              <div class="brand-section">
+                <div class="brand-section-header">
+                  <h4 class="brand-section-title">🏷️ Identificación de la Marca</h4>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="brand-name">Nombre de Marca</label>
+                  <input type="text" id="brand-name" class="form-control" readonly />
+                </div>
+              </div>
+
+              <!-- Bloque 2: Tono de Voz y Personalidad -->
+              <div class="brand-section">
+                <div class="brand-section-header">
+                  <h4 class="brand-section-title">🎙️ Tono de Voz y Personalidad</h4>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-voice">Voz de Marca</label>
+                  <textarea id="brand-voice" class="form-control" rows="3" placeholder="Describe la personalidad de la marca..."></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="brand-rules">Reglas Editoriales (una por línea)</label>
+                  <textarea id="brand-rules" class="form-control" rows="4" placeholder="Una regla por línea..."></textarea>
+                  <span class="brand-help">Define lineamientos específicos que la IA respetará en cada copy.</span>
+                </div>
+              </div>
+
+              <!-- Bloque 3: Estrategia de Hashtags -->
+              <div class="brand-section">
+                <div class="brand-section-header">
+                  <h4 class="brand-section-title">#️⃣ Estrategia de Hashtags</h4>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-hashtag-core">Hashtags Principales (Core)</label>
+                  <input type="text" id="brand-hashtag-core" class="form-control" placeholder="#marca, #negocio..." />
+                  <div class="brand-tags-preview" id="brand-core-chips" style="margin-top: 6px;"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="brand-hashtag-bank">Banco de Hashtags Secundarios</label>
+                  <textarea id="brand-hashtag-bank" class="form-control" rows="3" placeholder="#verano, #chile, #playa..."></textarea>
+                  <div class="brand-tags-preview" id="brand-bank-chips" style="margin-top: 6px;"></div>
+                </div>
+              </div>
+
+              <!-- Bloque 4: Detección y Palabras Clave -->
+              <div class="brand-section">
+                <div class="brand-section-header">
+                  <h4 class="brand-section-title">🔍 Detección y Palabras Clave</h4>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="brand-match-keywords">Keywords para auto-detección</label>
+                  <input type="text" id="brand-match-keywords" class="form-control" placeholder="kmarket, algarrobo, minimarket..." />
+                  <span class="brand-help">Términos que vinculan automáticamente una cuenta o tema a este perfil.</span>
+                </div>
+              </div>
+
+              <!-- Barra de Acciones -->
+              <div class="brand-actions">
+                <button type="button" id="btn-brand-reset" class="btn btn-secondary">Deshacer Cambios</button>
+                <button type="submit" id="btn-brand-save" class="btn btn-primary">Guardar Perfil</button>
+              </div>
+            </form>
           </div>
         </div>
       </section>
@@ -1874,7 +1968,7 @@
               <span class="ai-sparkle">✨</span>
               <h3>Estación Creativa de Inteligencia Artificial (Gemini)</h3>
             </div>
-            <button class="modal-close" id="btn-close-ai-modal">&times;</button>
+            <button class="modal-close" id="btn-close-ai-modal" aria-label="Cerrar">&times;</button>
           </div>
           <!-- Mode Tabs -->
           <div class="preview-tabs" style="width: 100%; display: flex; flex-wrap: wrap; gap: 4px;">
@@ -2483,7 +2577,7 @@
             <span id="planner-detail-format-badge" class="badge" style="background:var(--primary); color:#fff; font-size:0.75rem;">📱 Story</span>
             <h3 id="planner-detail-title" style="margin:0; font-size:1.05rem;">Detalle de la Publicación</h3>
           </div>
-          <button class="modal-close" id="btn-close-planner-detail">&times;</button>
+          <button class="modal-close" id="btn-close-planner-detail" aria-label="Cerrar">&times;</button>
         </div>
 
         <div style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
@@ -2576,7 +2670,7 @@
             <span class="badge" style="background:var(--primary); color:#fff; font-size:0.75rem;">✏️ Editor de Post</span>
             <h3 id="edit-post-modal-title" style="margin:0; font-size:1.05rem;">Editar Publicación Programada</h3>
           </div>
-          <button class="modal-close" id="btn-close-edit-post" onclick="window.closeEditPostModal()">&times;</button>
+          <button class="modal-close" id="btn-close-edit-post" aria-label="Cerrar" onclick="window.closeEditPostModal()">&times;</button>
         </div>
         <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:14px; max-height:75vh; overflow-y:auto;">
           <input type="hidden" id="edit-post-id" value="">
@@ -2669,7 +2763,7 @@
             <span class="badge" style="background:#047857; color:#fff; font-size:0.75rem;">🌲 La Campiña 4:5</span>
             <h3 style="margin:0; font-size:1.05rem;">Maquetar Flyer Editorial sobre Foto Real</h3>
           </div>
-          <button class="modal-close" id="btn-close-campina-flyer">&times;</button>
+          <button class="modal-close" id="btn-close-campina-flyer" aria-label="Cerrar">&times;</button>
         </div>
         <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
           <p style="font-size:0.8rem; color:var(--text-secondary); margin:0;">
@@ -2714,7 +2808,7 @@
             <span class="badge" style="background:#c2410c; color:#fff; font-size:0.75rem;">🛒 Kmarket 4:5</span>
             <h3 style="margin:0; font-size:1.05rem;">Diseñador Gráfico Senior (Gemini Flash Lite)</h3>
           </div>
-          <button class="modal-close" id="btn-close-kmarket-designer">&times;</button>
+          <button class="modal-close" id="btn-close-kmarket-designer" aria-label="Cerrar">&times;</button>
         </div>
         <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; gap:12px;">
           <div style="background:rgba(234, 88, 12, 0.08); border:1px solid rgba(234, 88, 12, 0.25); border-radius:6px; padding:10px 12px; font-size:0.78rem; color:var(--text-secondary);">
@@ -2751,7 +2845,7 @@
               <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Arrastra el logotipo libremente sobre la foto para ubicarlo con precisión milimétrica antes de publicar o agregar música.</p>
             </div>
           </div>
-          <button class="modal-close" id="btn-close-stamp-modal" onclick="if (typeof window.closeInteractiveStamp === 'function') window.closeInteractiveStamp();">&times;</button>
+          <button class="modal-close" id="btn-close-stamp-modal" aria-label="Cerrar" onclick="if (typeof window.closeInteractiveStamp === 'function') window.closeInteractiveStamp();">&times;</button>
         </div>
 
         <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1;">
@@ -2868,7 +2962,7 @@
               <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Sube tus afiches generados: se estampa el sello, se redacta el post oficial Kmarket y se agendan en slots libres.</p>
             </div>
           </div>
-          <button class="modal-close" id="btn-close-batch-modal">&times;</button>
+          <button class="modal-close" id="btn-close-batch-modal" aria-label="Cerrar">&times;</button>
         </div>
 
         <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
@@ -3054,7 +3148,7 @@
               <p id="batch-music-target-info" style="margin:0; font-size:0.75rem; color:var(--text-secondary, #94a3b8);">Convirtiendo afiche a video con audio real mediante FFmpeg</p>
             </div>
           </div>
-          <button type="button" class="modal-close" id="btn-close-batch-music-modal" style="background:transparent; border:none; color:var(--text-secondary, #94a3b8); font-size:1.5rem; cursor:pointer; line-height:1;">&times;</button>
+          <button type="button" class="modal-close" id="btn-close-batch-music-modal" aria-label="Cerrar" style="background:transparent; border:none; color:var(--text-secondary, #94a3b8); font-size:1.5rem; cursor:pointer; line-height:1;">&times;</button>
         </div>
 
         <!-- Body -->
@@ -3200,7 +3294,7 @@
               <p style="margin:0; font-size:0.75rem; color:var(--text-secondary);">Mueve publicaciones entre cuentas de Facebook e Instagram</p>
             </div>
           </div>
-          <button class="modal-close" onclick="window.closeReassignModal()">&times;</button>
+          <button class="modal-close" aria-label="Cerrar" onclick="window.closeReassignModal()">&times;</button>
         </div>
         <div class="modal-body" style="padding: 20px;">
           <div id="reassign-single-info" style="margin-bottom: 14px; padding: 12px; background: var(--bg-surface-subtle); border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 0.85rem;">
@@ -3248,14 +3342,15 @@
 
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
-  <script src="js/app.js?v=2.5"></script>
-  <script src="js/composer.js?v=2.4"></script>
+  <script src="js/app.js?v=2.6"></script>
+  <script src="js/composer.js?v=2.5"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
-  <script src="js/analytics.js?v=2.4"></script>
+  <script src="js/analytics.js?v=2.5"></script>
   <script src="js/watermark.js?v=3.2"></script>
   <script src="js/settings.js?v=2.4"></script>
   <script src="js/batchScheduler.js?v=2.4"></script>
   <script src="js/inbox.js?v=2.4"></script>
+  <script src="js/brand.js?v=1.0"></script>
 </body>
 </html>

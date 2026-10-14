@@ -1340,22 +1340,13 @@ function buildPresetAbReport(preset, pIdx, publishedPosts) {
   const avgLikes = Math.round(totalLikes / count);
   const avgComments = Math.round((totalComments / count) * 10) / 10;
   const avgReach = Math.round(totalReach / count);
-  const engagementRate = avgReach > 0 ? ((avgLikes + avgComments) / avgReach * 100).toFixed(1) + '%' : '4.2%';
+  const engagementRate = avgReach > 0 ? ((avgLikes + avgComments) / avgReach * 100).toFixed(1) + '%' : null;
 
-  const fallbackLikes = pIdx === 0 ? 28 : 19;
-  const finalLikes = totalPosts > 0 ? avgLikes : fallbackLikes;
-
-  const fallbackComments = pIdx === 0 ? 3.4 : 2.1;
-  const finalComments = totalPosts > 0 ? avgComments : fallbackComments;
-
-  const fallbackReach = pIdx === 0 ? 520 : 390;
-  const finalReach = totalPosts > 0 ? avgReach : fallbackReach;
-
-  const fallbackRate = pIdx === 0 ? '6.0%' : '4.8%';
-  const finalRate = totalPosts > 0 ? engagementRate : fallbackRate;
-
-  const fallbackScore = pIdx === 0 ? 73 : 48;
-  const finalScore = totalPosts > 0 ? (avgLikes * 2 + avgComments * 5) : fallbackScore;
+  const finalLikes = totalPosts > 0 ? avgLikes : 0;
+  const finalComments = totalPosts > 0 ? avgComments : 0;
+  const finalReach = totalPosts > 0 ? avgReach : 0;
+  const finalRate = totalPosts > 0 ? engagementRate : null;
+  const finalScore = totalPosts > 0 ? (avgLikes * 2 + avgComments * 5) : 0;
 
   const dayMap = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -1371,7 +1362,8 @@ function buildPresetAbReport(preset, pIdx, publishedPosts) {
     avgComments: finalComments,
     avgReach: finalReach,
     engagementRate: finalRate,
-    score: finalScore
+    score: finalScore,
+    insufficientData: totalPosts === 0
   };
 }
 

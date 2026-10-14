@@ -51,13 +51,14 @@ function navigateToTab(tabId) {
 
   // Actualizar título de cabecera
   const titles = {
-    dashboard: 'Panel Principal',
-    composer: 'Crear Publicación',
-    queue: 'Planner',
-    analytics: 'Analítica',
-    media: 'Multimedia',
-    inbox: 'Bandeja de Entrada',
-    settings: 'Conexión Meta & Ajustes'
+    dashboard: 'Hoy',
+    composer: 'Crear',
+    queue: 'Calendario',
+    inbox: 'Bandeja',
+    analytics: 'Resultados',
+    brand: 'Marca',
+    media: 'Biblioteca',
+    settings: 'Ajustes'
   };
 
   const titleEl = document.getElementById('page-title');
@@ -79,6 +80,7 @@ function navigateToTab(tabId) {
     },
     inbox: () => window.loadInboxData?.(),
     analytics: () => window.loadAnalyticsData?.(),
+    brand: () => window.loadBrandProfiles?.(),
     media: () => {
       window.loadMediaGallery?.();
       window.loadWatermarksList?.();
