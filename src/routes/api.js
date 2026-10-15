@@ -1495,7 +1495,33 @@ router.get('/meta/accounts', async (req, res) => {
 
 router.post('/meta/detect-accounts', async (req, res) => {
   try {
-    const userToken = req.body.userToken || getSetting('meta_user_token');
+    const storedToken = getSetting('meta_user_token');
+    let userToken = (req.body.userToken || '').trim() || storedToken;
+    let tokenWarning = null;
+
+    // Si llega un token distinto al guardado, convertirlo a larga duración antes de usarlo,
+    // para que los tokens de página derivados no venzan en 1-2 horas.
+    if (userToken && userToken !== storedToken) {
+      const appId = getSetting('meta_app_id');
+      const appSecret = getSetting('meta_app_secret');
+      if (appId && appSecret) {
+        try {
+          const longLived = await metaService.exchangeForLongLivedUserToken(userToken, appId, appSecret);
+          userToken = longLived.accessToken;
+          setSetting('meta_user_token', longLived.accessToken);
+          setSetting('meta_token_expires_at', longLived.expiresAt);
+        } catch (err) {
+          tokenWarning = 'No se pudo convertir el token a larga duración; las páginas vinculadas con él vencerán pronto. Usa "Convertir a token de larga duración" primero.';
+          console.warn('[detect-accounts] Falló el canje a token largo:', err.response?.data?.error?.message || err.message);
+        }
+      } else {
+        tokenWarning = 'Faltan App ID / App Secret guardados: no se pudo convertir el token a larga duración.';
+      }
+    }
+
+    if (!userToken) {
+      return res.status(400).json({ success: false, error: 'No hay token de usuario guardado ni enviado.' });
+    }
     const { includeHidden } = req.body;
     const pages = await metaService.getManagedPages(userToken, includeHidden !== false);
     if (pages && pages.length > 0) {
@@ -1505,7 +1531,7 @@ router.post('/meta/detect-accounts', async (req, res) => {
         // Ignorar error al escribir la caché en settings
       }
     }
-    res.json({ success: true, data: pages });
+    res.json({ success: true, data: pages, tokenWarning });
   } catch (err) {
     res.status(500).json({ success: false, error: err.response ? (err.response.data?.error?.message || err.message) : err.message });
   }

@@ -136,10 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnDetectPages) {
     btnDetectPages.addEventListener('click', async () => {
       const userToken = document.getElementById('meta-user-token').value.trim();
-      if (!userToken) {
-        showToast('Debes ingresar tu User Token primero', 'error');
-        return;
-      }
 
       btnDetectPages.disabled = true;
       showToast('Consultando tus Páginas de Facebook e Instagram vinculadas...', 'info');
@@ -151,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ userToken })
         });
         const json = await res.json();
+        if (json.tokenWarning) {
+          showToast(json.tokenWarning, 'error');
+        }
 
         if (json.success && json.data) {
           const pages = json.data;
