@@ -9,20 +9,23 @@ const COPY_RULES = require('../config/copyRules');
 const brandProfileService = require('./brandProfileService');
 const contentMemoryService = require('./contentMemoryService');
 
-// Modelos válidos verificados para Google Generative AI (Gemini)
+// Modelos de texto gratis verificados (oct 2026). Google retiró 1.x, 2.0 y 2.5 para claves nuevas.
+// Orden: mejor primero; si uno está saturado (503) se pasa al siguiente.
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 const VALID_GEMINI_MODELS = [
   'gemini-3.8-flash',
-  'gemini-flash-latest',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash'
+  'gemini-3.7-flash',
+  'gemini-3.5-flash',
+  'gemini-3.1-flash-lite'
 ];
+const RETIRED_GEMINI_MODEL = /^gemini-(1\.|2\.)|^gemini-flash-latest$/;
 
 function sanitizeGeminiModels(configuredModel, preferredList = []) {
   const list = [
     ...preferredList,
     configuredModel,
     ...VALID_GEMINI_MODELS
-  ].filter(m => m && typeof m === 'string');
+  ].filter(m => m && typeof m === 'string' && !RETIRED_GEMINI_MODEL.test(m));
   return [...new Set(list)];
 }
 
@@ -170,7 +173,7 @@ class AIService {
     }
 
     const prompt = this.buildPrompt({ topic, tone, goal, platform, brandName, customInstructions });
-    const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+    const configuredModel = getSetting('ai_model') || DEFAULT_GEMINI_MODEL;
     const uniqueModels = sanitizeGeminiModels(configuredModel);
 
     let lastError = null;
@@ -585,19 +588,21 @@ Devuelve un JSON válido con esta estructura:
 `;
 
     if (apiKey) {
-      try {
-        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        }, { timeout: 12000 });
+      for (const m of sanitizeGeminiModels(getSetting('ai_model'))) {
+        try {
+          const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          }, { timeout: 20000 });
 
-        const parts = res.data?.candidates?.[0]?.content?.parts || [];
-        const rawJson = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
-        if (rawJson) {
-          return JSON.parse(rawJson);
+          const parts = res.data?.candidates?.[0]?.content?.parts || [];
+          const rawJson = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+          if (rawJson) {
+            return JSON.parse(rawJson);
+          }
+        } catch (err) {
+          console.warn(`Fallo llamada JSON carrusel en Gemini (${m}):`, err.response?.data?.error?.message || err.message);
         }
-      } catch (err) {
-        console.warn('Fallo llamada JSON carrusel en Gemini:', err.message);
       }
     }
 
@@ -1254,7 +1259,7 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   "sublineHeadline": "Subtítulo editorial de máximo 6 palabras"
 }`;
 
-      const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+      const configuredModel = getSetting('ai_model') || DEFAULT_GEMINI_MODEL;
       const uniqueModels = sanitizeGeminiModels(configuredModel);
 
       for (const model of uniqueModels) {
@@ -1657,7 +1662,7 @@ Estructura a entregar:
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-image',
       accountName: 'Cabañas La Campiña',
       baseImageUrl
     });
@@ -1815,7 +1820,7 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   "calloutText": "Llamado corto"
 }`;
 
-      const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+      const configuredModel = getSetting('ai_model') || DEFAULT_GEMINI_MODEL;
       const uniqueModels = sanitizeGeminiModels(configuredModel);
 
       for (const model of uniqueModels) {
@@ -2639,7 +2644,7 @@ ESTRUCTURA DE RESPUESTA REQUERIDA (en formato Markdown claro y profesional):
 ### 5. 🚀 Plan Táctico Recomendado (3 Ideas Listas para Publicar)
 (3 propuestas concretas con: Formato, Gancho de 2 segundos, Idea de contenido y Llamado a la Acción).`;
 
-    const configuredModel = getSetting('ai_model') || 'gemini-2.5-flash';
+    const configuredModel = getSetting('ai_model') || DEFAULT_GEMINI_MODEL;
     const uniqueModels = sanitizeGeminiModels(configuredModel);
 
     for (const model of uniqueModels) {
@@ -2746,7 +2751,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
    * Fallback: Gemini 3.1 Flash Image / Gemini 2.5 Flash Image
    * Fallback secundario: Flux (Pollinations AI)
    */
-  async generateDirectImage({ prompt, format = 'feed', model = 'gemini-2.5-flash', accountName = '', baseImageUrl = null }) {
+  async generateDirectImage({ prompt, format = 'feed', model = 'gemini-3.1-flash-image', accountName = '', baseImageUrl = null }) {
     const startTime = Date.now();
     let width = 864;
     let height = 1080; // 4:5 vertical ideal para feed de Instagram
@@ -2787,13 +2792,13 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
       let geminiModels = [...new Set([
         requestedModel,
         'imagen-3.0-generate-002',
-        'gemini-2.0-flash'
+        'gemini-3.1-flash-image'
       ])];
 
       if (freeMode) {
         geminiModels = geminiModels.filter(m => !m.startsWith('imagen-'));
         if (geminiModels.length === 0) {
-          geminiModels = ['gemini-2.0-flash'];
+          geminiModels = ['gemini-3.1-flash-image'];
         }
       }
 
@@ -2953,7 +2958,7 @@ Abajo encontrarás cada una de las estrategias desarrolladas con su copy complet
     return await this.generateDirectImage({
       prompt: designerPrompt,
       format: 'feed',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-image',
       accountName: '',
       baseImageUrl
     });
@@ -3048,7 +3053,7 @@ Responde estrictamente en formato JSON con la siguiente estructura:
   "copyPost": "Texto completo para post de Instagram siguiendo estrictamente la fórmula oficial de Kmarket: 1) Título entre emojis temáticos: '[Emojis] [Nombre] en Kmarket Algarrobo [Emojis]'; 2) Breve párrafo descriptivo de textura/sabor; 3) '✨ ¿Qué lo hace especial?' (1 párrafo); 4) '[Emoji] Perfecto para disfrutar como:' con 3-4 viñetas '•'; 5) Párrafo breve de conexión; 6) Dirección exacta obligatoria: '📍 Encuéntralo en Kmarket Algarrobo\\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo'; 7) Cierre cálido '🧡 Descubre por qué...'; 8) EXACTAMENTE ENTRE 5 Y 7 HASHTAGS (#KmarketAlgarrobo #KFood y los del producto; NUNCA más de 7)."
 }`;
 
-    const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'), ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']);
+    const modelsToTry = sanitizeGeminiModels(getSetting('ai_model'));
     let lastErr = null;
 
     for (const currentKey of validKeys) {
@@ -3577,9 +3582,7 @@ IMPORTANTE: Devuelve ÚNICAMENTE un array JSON válido con la siguiente estructu
           conversationHistory
         });
 
-        const configuredModel = getSetting('ai_model') || 'gemini-1.5-flash';
-        const modelsToTry = [configuredModel, 'gemini-1.5-flash', 'gemini-2.0-flash'].filter(m => m && !m.includes('3.5'));
-        const uniqueModels = [...new Set(modelsToTry)];
+        const uniqueModels = sanitizeGeminiModels(getSetting('ai_model'));
 
         for (const m of uniqueModels) {
           try {
