@@ -67,6 +67,7 @@ function formatChileDateTime(rawDate, options = {}) {
     return String(rawDate);
   }
 }
+window.formatChileDateTime = formatChileDateTime;
 
 function isVideoUrl(url) {
   if (!url || typeof url !== 'string') return false;
@@ -234,6 +235,14 @@ function setupPlannerDetailModalActions() {
       const post = modalDetail._currentPost;
       if (!post) return;
       closeModal();
+      if (post.status === 'draft') {
+        if (typeof window.loadPostIntoComposer === 'function') {
+          window.loadPostIntoComposer(post);
+        } else if (typeof window.switchTab === 'function') {
+          window.switchTab('composer');
+        }
+        return;
+      }
       if (typeof window.openEditPostModal === 'function') {
         window.openEditPostModal(post);
       }
@@ -1940,6 +1949,15 @@ window.openEditPostModal = async function(postIdOrPost) {
   const post = await resolvePostForEditing(postIdOrPost);
   if (!post) {
     showToast('No se encontró la publicación a editar', 'error');
+    return;
+  }
+
+  if (post.status === 'draft') {
+    if (typeof window.loadPostIntoComposer === 'function') {
+      window.loadPostIntoComposer(post);
+    } else if (typeof window.switchTab === 'function') {
+      window.switchTab('composer');
+    }
     return;
   }
 

@@ -1886,6 +1886,25 @@ router.post('/ai/agendio-content', async (req, res) => {
   }
 });
 
+router.post('/ai/image-prompt', async (req, res) => {
+  try {
+    const { caption, accountName, accountId, format } = req.body || {};
+    if (!caption || typeof caption !== 'string' || !caption.trim()) {
+      return res.status(400).json({ success: false, error: 'El caption es requerido para sugerir una imagen' });
+    }
+    const result = await aiService.suggestImagePrompt({
+      caption: caption.trim(),
+      accountName,
+      accountId,
+      format
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[AI Image Prompt] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWatermark]') {
   if (getSetting('auto_stamp_seal') === 'false' || !result?.url) return;
   try {

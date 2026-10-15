@@ -300,6 +300,64 @@ function initializeDatabase() {
     insertBrandProfile.run(seed.id, JSON.stringify(seed.matchKeywords), JSON.stringify(seed.profile));
   }
 
+  // Migración para perfiles existentes sin objeto contact (no sobrescribir si ya existe)
+  try {
+    const { CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
+    const existingProfiles = db.prepare('SELECT id, profile FROM brand_profiles').all();
+    const updateProfileStmt = db.prepare('UPDATE brand_profiles SET profile = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+
+    for (const row of existingProfiles) {
+      try {
+        const prof = JSON.parse(row.profile || '{}');
+        const hasContact = prof.contact && typeof prof.contact === 'object' && Object.keys(prof.contact).length > 0;
+        if (!hasContact) {
+          let contact = null;
+          const lowerId = (row.id || '').toLowerCase();
+          if (lowerId.includes('campi')) {
+            contact = {
+              web: CAMPINA_VERIFIED_DATA?.web || 'https://www.cabanaslacampina.cl',
+              whatsapp: CAMPINA_VERIFIED_DATA?.contacto?.whatsapp || '+56 9 7900 4253',
+              telefono: '',
+              email: CAMPINA_VERIFIED_DATA?.contacto?.email || 'contacto@cabanaslacampina.cl',
+              instagram: CAMPINA_VERIFIED_DATA?.contacto?.instagram || '@cabanaslacampina.cl',
+              direccion: CAMPINA_VERIFIED_DATA?.direccion || '',
+              cierre: 'Reserva en la web o escríbenos por WhatsApp'
+            };
+          } else if (lowerId.includes('agendio')) {
+            contact = {
+              web: 'https://www.agendio.cl',
+              whatsapp: '+56 9 7900 4253',
+              telefono: '',
+              email: '',
+              instagram: '@agendio.cl',
+              direccion: '',
+              cierre: 'Cotiza en agendio.cl o escríbenos por WhatsApp'
+            };
+          } else if (lowerId.includes('kmarket')) {
+            contact = {
+              web: '',
+              whatsapp: '',
+              telefono: '',
+              email: '',
+              instagram: '',
+              direccion: 'El Boldo 366, local 13, Espacio Algarrobo, Algarrobo',
+              cierre: ''
+            };
+          }
+
+          if (contact) {
+            prof.contact = contact;
+            updateProfileStmt.run(JSON.stringify(prof), row.id);
+          }
+        }
+      } catch (errProfile) {
+        console.warn(`[db.js] Error migrando perfil ${row.id}:`, errProfile.message);
+      }
+    }
+  } catch (errMigration) {
+    console.warn('[db.js] Error en migración de contact para brand_profiles:', errMigration.message);
+  }
+
   // Populate default slots if table is empty
   const countSlots = db.prepare('SELECT COUNT(*) as count FROM schedule_slots').get();
   if (countSlots.count === 0) {

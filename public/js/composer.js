@@ -459,6 +459,17 @@ document.addEventListener('DOMContentLoaded', () => {
       mediaPreviewGrid.appendChild(div);
     });
     if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
+    updateGeminiCardVisibility();
+  }
+
+  function updateGeminiCardVisibility() {
+    const card = document.getElementById('composer-gemini-prompt-card');
+    if (!card) return;
+    if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
+      card.style.display = 'none';
+    } else {
+      card.style.display = 'block';
+    }
   }
 
   window.renderMediaPreviews = renderMediaPreviews;
@@ -467,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMediaPreviews();
     updateLivePreviews();
     if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
+    updateGeminiCardVisibility();
   };
 
   // 6.b Generador Directo de Imágenes IA (Flux / Pollinations / Gemini)
@@ -1044,11 +1056,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  function handlePostSubmissionSuccess(resOrMessage) {
+  function handlePostSubmissionSuccess(resOrMessage, oldDraftInfo = null) {
     const json = typeof resOrMessage === 'object' ? resOrMessage : { message: resOrMessage };
     const partial = getPartialPublishFailure(json);
 
-    if (partial) {
+    if (oldDraftInfo?.isDraft) {
+      showToast('Borrador convertido en publicación programada', 'success');
+    } else if (partial) {
       showToast(`Publicado solo en ${partial.redOk}. Falló ${partial.redFail}: ${partial.error}`, 'error');
     } else {
       showToast(json.message || '¡Publicación procesada con éxito!', 'success');
@@ -1057,6 +1071,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     loadDashboardStatus(active?.pageId);
     if (window.loadQueuePosts) window.loadQueuePosts(active?.pageId);
+    if (typeof window.loadPlannerData === 'function') window.loadPlannerData();
     navigateToTab('queue');
   }
 
@@ -1066,6 +1081,10 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(error, 'error');
       return;
     }
+
+    const editingId = window._editingScheduledPostId;
+    const editingOriginalStatus = window._editingPostOriginalStatus;
+    const wasDraft = editingOriginalStatus === 'draft';
 
     btnSubmitPost.disabled = true;
     showToast('Procesando solicitud de publicación...', 'info');
@@ -1081,15 +1100,25 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const json = await res.json();
-      if (json.success) {
-        handlePostSubmissionSuccess(json);
-      } else {
-        const partial = getPartialPublishFailure(json);
-        if (partial) {
-          handlePostSubmissionSuccess(json);
-        } else {
-          showToast('Error: ' + (json.error || 'No se pudo guardar la publicación'), 'error');
+      if (json.success || getPartialPublishFailure(json)) {
+        if (editingId) {
+          try {
+            if (editingOriginalStatus === 'draft') {
+              await fetch(`/api/posts/${editingId}`, { method: 'DELETE' });
+            } else if (editingOriginalStatus === 'scheduled') {
+              await fetch(`/api/posts/${editingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'cancelled' })
+              });
+            }
+          } catch (cleanErr) {
+            console.warn('[Composer] Error limpiando post anterior editado:', cleanErr);
+          }
         }
+        handlePostSubmissionSuccess(json, { isDraft: wasDraft });
+      } else {
+        showToast('Error: ' + (json.error || 'No se pudo guardar la publicación'), 'error');
       }
     } catch (err) {
       showToast('Error de conexión: ' + err.message, 'error');
@@ -1254,6 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInputValue('custom-schedule-datetime', '');
     if (btnSubmitText) btnSubmitText.textContent = 'Agendar en Próximo Slot';
     window._editingScheduledPostId = null;
+    window._editingPostOriginalStatus = null;
   }
 
   function resetComposerFlyerModals() {
@@ -1300,6 +1330,60 @@ document.addEventListener('DOMContentLoaded', () => {
     resetComposerMusicState();
     resetComposerScheduleState();
     resetComposerFlyerModals();
+
+    window._editingScheduledPostId = null;
+    window._editingPostOriginalStatus = null;
+
+    const draftBanner = document.getElementById('composer-editing-draft-banner');
+    if (draftBanner) {
+      draftBanner.classList.add('d-none');
+      draftBanner.style.display = 'none';
+    }
+
+    const draftTitleEl = document.getElementById('composer-editing-draft-title');
+    if (draftTitleEl) draftTitleEl.textContent = 'Editando borrador';
+    const draftMetaEl = document.getElementById('composer-editing-draft-meta');
+    if (draftMetaEl) {
+      draftMetaEl.textContent = '';
+      draftMetaEl.style.display = 'none';
+    }
+
+    const geminiCard = document.getElementById('composer-gemini-prompt-card');
+    if (geminiCard) {
+      const promptText = document.getElementById('composer-gemini-prompt-text');
+      if (promptText) promptText.value = '';
+      const promptConcept = document.getElementById('composer-gemini-prompt-concept');
+      if (promptConcept) promptConcept.textContent = 'Concepto';
+      const promptAttachHint = document.getElementById('composer-gemini-attach-hint');
+      if (promptAttachHint) {
+        promptAttachHint.textContent = '';
+        promptAttachHint.style.display = 'none';
+      }
+      const overlayHeadline = document.getElementById('composer-gemini-overlay-headline');
+      if (overlayHeadline) overlayHeadline.textContent = '--';
+      const overlaySubline = document.getElementById('composer-gemini-overlay-subline');
+      if (overlaySubline) overlaySubline.textContent = '--';
+      const promptVariants = document.getElementById('composer-gemini-prompt-variants');
+      if (promptVariants) promptVariants.innerHTML = '';
+      const promptContent = document.getElementById('composer-gemini-prompt-content');
+      if (promptContent) {
+        promptContent.classList.add('d-none');
+        promptContent.style.display = 'none';
+      }
+      const promptLoading = document.getElementById('composer-gemini-prompt-loading');
+      if (promptLoading) {
+        promptLoading.classList.add('d-none');
+        promptLoading.style.display = 'none';
+      }
+      const promptError = document.getElementById('composer-gemini-prompt-error');
+      if (promptError) {
+        promptError.classList.add('d-none');
+        promptError.style.display = 'none';
+        promptError.textContent = '';
+      }
+      currentGeminiPromptData = null;
+      updateGeminiCardVisibility();
+    }
 
     const composerPane = document.getElementById('tab-composer');
     if (composerPane) {
@@ -3225,9 +3309,244 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function matchAndSelectAccountByName(accName) {
+    if (!accName) return null;
+    const cleanTarget = accName.trim().toLowerCase();
+    const accounts = (typeof window.getAccountsList === 'function') ? window.getAccountsList() : [];
+    const matched = accounts.find(a => (a.pageName || a.name || '').trim().toLowerCase() === cleanTarget);
+    if (matched && matched.pageId) {
+      applyLoadedPostAccount(matched.pageId);
+      return matched;
+    }
+    const accSelect = document.getElementById('global-account-select');
+    if (accSelect) {
+      for (const opt of accSelect.options) {
+        const optName = (opt.dataset?.name || opt.textContent || '').trim().toLowerCase();
+        if (optName === cleanTarget || optName.includes(cleanTarget)) {
+          accSelect.value = opt.value;
+          accSelect.dispatchEvent(new Event('change'));
+          if (typeof window.setActiveAccountById === 'function') {
+            window.setActiveAccountById(opt.value);
+          }
+          break;
+        }
+      }
+    }
+    return null;
+  }
+
+  // Sugerencia de imagen para Gemini desde el Redactor
+  let currentGeminiPromptData = null;
+
+  async function suggestImagePromptForComposer(extraIdea = '') {
+    const rawCaption = (postContent ? postContent.value : '').trim();
+    const card = document.getElementById('composer-gemini-prompt-card');
+    const loading = document.getElementById('composer-gemini-prompt-loading');
+    const errorEl = document.getElementById('composer-gemini-prompt-error');
+    const contentBox = document.getElementById('composer-gemini-prompt-content');
+
+    if (!card) return;
+
+    if (!rawCaption) {
+      showToast('Escribe texto en el redactor para sugerir una imagen', 'info');
+      return;
+    }
+
+    if (ComposerState.mediaFiles.length === 0) {
+      card.style.display = 'block';
+    }
+
+    if (loading) {
+      loading.classList.remove('d-none');
+      loading.style.display = 'flex';
+    }
+    if (errorEl) {
+      errorEl.classList.add('d-none');
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+    if (contentBox) {
+      contentBox.classList.add('d-none');
+      contentBox.style.display = 'none';
+    }
+
+    const captionToSend = extraIdea ? `${rawCaption}\n\nIdea visual preferida: ${extraIdea}` : rawCaption;
+
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const accountSelect = document.getElementById('global-account-select');
+    const accountId = activeAcc?.pageId || accountSelect?.value || '';
+    const accountName = activeAcc?.pageName || (accountSelect?.options[accountSelect?.selectedIndex]?.dataset?.name) || '';
+    const postType = document.querySelector('input[name="post_type"]:checked')?.value || 'feed';
+
+    try {
+      const res = await fetch('/api/ai/image-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caption: captionToSend,
+          accountName,
+          accountId,
+          format: postType
+        })
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || 'No se pudo generar la sugerencia de imagen');
+      }
+
+      const data = json.data;
+      currentGeminiPromptData = data;
+
+      const conceptEl = document.getElementById('composer-gemini-prompt-concept');
+      const textEl = document.getElementById('composer-gemini-prompt-text');
+      const attachHintEl = document.getElementById('composer-gemini-attach-hint');
+      const headlineEl = document.getElementById('composer-gemini-overlay-headline');
+      const sublineEl = document.getElementById('composer-gemini-overlay-subline');
+      const variantsContainer = document.getElementById('composer-gemini-prompt-variants');
+
+      if (conceptEl) conceptEl.textContent = data.concept || 'Concepto Comercial';
+      if (textEl) textEl.value = data.geminiPrompt || '';
+
+      if (attachHintEl) {
+        const hint = (data.attachHint || '').trim();
+        if (hint) {
+          attachHintEl.textContent = 'Adjunta en Gemini: ' + hint;
+          attachHintEl.style.display = 'block';
+        } else {
+          attachHintEl.textContent = '';
+          attachHintEl.style.display = 'none';
+        }
+      }
+
+      if (headlineEl) headlineEl.textContent = data.overlay?.headline || '--';
+      if (sublineEl) sublineEl.textContent = data.overlay?.sub || '--';
+
+      if (variantsContainer) {
+        variantsContainer.innerHTML = '';
+        if (Array.isArray(data.variants) && data.variants.length > 0) {
+          data.variants.forEach((v) => {
+            const variantText = typeof v === 'string' ? v : (v?.label || v?.prompt || String(v || ''));
+            if (!variantText) return;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-ghost btn-xs';
+            btn.style.cssText = 'border:1px solid var(--border-subtle); font-size:0.73rem; padding:3px 8px; text-align:left; white-space:normal;';
+            btn.textContent = variantText;
+            btn.addEventListener('click', () => {
+              suggestImagePromptForComposer(variantText);
+            });
+            variantsContainer.appendChild(btn);
+          });
+        }
+      }
+
+      if (contentBox) {
+        contentBox.classList.remove('d-none');
+        contentBox.style.display = 'block';
+      }
+    } catch (err) {
+      console.warn('[Composer] Error sugiriendo imagen Gemini:', err);
+      if (errorEl) {
+        errorEl.textContent = err.message || 'Error generando la sugerencia';
+        errorEl.classList.remove('d-none');
+        errorEl.style.display = 'block';
+      }
+    } finally {
+      if (loading) {
+        loading.classList.add('d-none');
+        loading.style.display = 'none';
+      }
+    }
+  }
+
+  window.suggestImagePromptForComposer = suggestImagePromptForComposer;
+
+  function bindGeminiCardControls() {
+    const copyBtn = document.getElementById('composer-copy-gemini-prompt-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        const textEl = document.getElementById('composer-gemini-prompt-text');
+        if (textEl && textEl.value) {
+          try {
+            await navigator.clipboard.writeText(textEl.value);
+            showToast('Prompt copiado al portapapeles', 'success');
+          } catch (err) {
+            textEl.select();
+            document.execCommand('copy');
+            showToast('Prompt copiado al portapapeles', 'success');
+          }
+        }
+      });
+    }
+
+    const requestBtn = document.getElementById('composer-request-gemini-prompt-btn');
+    if (requestBtn) {
+      requestBtn.addEventListener('click', () => {
+        suggestImagePromptForComposer();
+      });
+    }
+
+    const cancelEditBtn = document.getElementById('composer-cancel-edit-btn');
+    if (cancelEditBtn) {
+      cancelEditBtn.addEventListener('click', () => {
+        window._editingScheduledPostId = null;
+        window._editingPostOriginalStatus = null;
+        const banner = document.getElementById('composer-editing-draft-banner');
+        if (banner) {
+          banner.classList.add('d-none');
+          banner.style.display = 'none';
+        }
+        resetComposerFormState();
+        showToast('Edición de borrador cancelada', 'info');
+      });
+    }
+  }
+
   // Cargar una publicación existente directamente en el Redactor
   window.loadPostIntoComposer = function(post) {
     if (!post) return;
+
+    window._editingScheduledPostId = post.id;
+    window._editingPostOriginalStatus = post.status;
+
+    const draftBanner = document.getElementById('composer-editing-draft-banner');
+    const draftTitleEl = document.getElementById('composer-editing-draft-title');
+    const draftMetaEl = document.getElementById('composer-editing-draft-meta');
+
+    if (post.status === 'draft') {
+      if (draftBanner) {
+        draftBanner.classList.remove('d-none');
+        draftBanner.style.display = 'flex';
+      }
+      let fechaChile = 'Sin fecha';
+      if (typeof window.formatChileDateTime === 'function') {
+        fechaChile = window.formatChileDateTime(post.scheduled_at);
+      } else if (post.scheduled_at) {
+        try {
+          fechaChile = new Date(post.scheduled_at).toLocaleString('es-CL', { timeZone: 'America/Santiago' });
+        } catch (_) {
+          fechaChile = String(post.scheduled_at);
+        }
+      }
+      if (draftTitleEl) {
+        draftTitleEl.textContent = `Editando borrador #${post.id} · ${fechaChile}`;
+      }
+      if (draftMetaEl) {
+        if (post.account_name) {
+          draftMetaEl.textContent = `Cuenta: ${post.account_name}`;
+          draftMetaEl.style.display = 'inline';
+        } else {
+          draftMetaEl.textContent = '';
+          draftMetaEl.style.display = 'none';
+        }
+      }
+    } else {
+      if (draftBanner) {
+        draftBanner.classList.add('d-none');
+        draftBanner.style.display = 'none';
+      }
+    }
 
     if (postTitle) postTitle.value = post.title || '';
     if (postContent) postContent.value = post.content || '';
@@ -3244,7 +3563,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ComposerState.mediaFiles = [...media];
 
     applyLoadedPostSchedule(post.scheduled_at);
-    applyLoadedPostAccount(post.account_id);
+
+    if (post.account_id) {
+      applyLoadedPostAccount(post.account_id);
+    } else if (post.account_name) {
+      matchAndSelectAccountByName(post.account_name);
+    }
+    adaptComposerToActiveBrand();
 
     if (typeof navigateToTab === 'function') {
       navigateToTab('composer');
@@ -3256,8 +3581,11 @@ document.addEventListener('DOMContentLoaded', () => {
       window.syncStorySectionsVisibility();
     }
 
+    if (media.length === 0 && (post.content || '').trim()) {
+      suggestImagePromptForComposer();
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    window._editingScheduledPostId = post.id;
   };
 
   // Inicialización modular de controles
@@ -3270,5 +3598,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCampinaControls();
   bindAgendioControls();
   bindHumanizerAndCarouselControls();
+  bindGeminiCardControls();
+  updateGeminiCardVisibility();
   adaptComposerToActiveBrand();
 });

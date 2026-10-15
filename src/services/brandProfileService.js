@@ -97,6 +97,35 @@ class BrandProfileService {
 
     return mergedProfile;
   }
+
+  buildContactBlock(profile) {
+    if (!profile) return '';
+    const contact = profile.contact;
+    if (!contact || typeof contact !== 'object') return '';
+
+    const lines = [];
+    if (contact.web && String(contact.web).trim()) lines.push(`- Web: ${String(contact.web).trim()}`);
+    if (contact.whatsapp && String(contact.whatsapp).trim()) lines.push(`- WhatsApp: ${String(contact.whatsapp).trim()}`);
+    if (contact.telefono && String(contact.telefono).trim()) lines.push(`- Teléfono: ${String(contact.telefono).trim()}`);
+    if (contact.email && String(contact.email).trim()) lines.push(`- Email: ${String(contact.email).trim()}`);
+    if (contact.instagram && String(contact.instagram).trim()) lines.push(`- Instagram: ${String(contact.instagram).trim()}`);
+    if (contact.direccion && String(contact.direccion).trim()) lines.push(`- Dirección: ${String(contact.direccion).trim()}`);
+
+    const cierre = contact.cierre && String(contact.cierre).trim() ? `Cierre preferido: ${String(contact.cierre).trim()}` : '';
+
+    if (lines.length === 0 && !cierre) {
+      return '';
+    }
+
+    let block = 'DATOS DE CONTACTO OFICIALES (usa al menos la web o el WhatsApp en el cierre, escritos tal cual; no inventes otros datos):';
+    if (lines.length > 0) {
+      block += '\n' + lines.join('\n');
+    }
+    if (cierre) {
+      block += '\n' + cierre;
+    }
+    return block;
+  }
 }
 
 module.exports = new BrandProfileService();

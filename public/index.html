@@ -297,6 +297,13 @@
 
       <!-- TAB 2: COMPOSER (CREAR PUBLICACIÓN) -->
       <section class="tab-pane" id="tab-composer">
+        <div id="composer-editing-draft-banner" class="composer-editing-draft-banner d-none" role="alert">
+          <div class="composer-editing-draft-banner-content">
+            <strong id="composer-editing-draft-title">Editando borrador</strong>
+            <span id="composer-editing-draft-meta" class="composer-editing-draft-meta">Fecha programada original: ...</span>
+          </div>
+          <button type="button" id="composer-cancel-edit-btn" class="btn btn-secondary btn-sm">Salir de la edición</button>
+        </div>
         <div class="composer-container">
           <!-- Left Column: Form & Inputs -->
           <div class="composer-form-col">
@@ -502,6 +509,71 @@
 
                   <!-- Media Previews Grid -->
                   <div class="media-preview-grid" id="media-preview-grid"></div>
+
+                  <!-- Tarjeta Sugerencia de imagen para Gemini -->
+                  <div class="card composer-gemini-prompt-card" id="composer-gemini-prompt-card" style="margin-top: 14px; border: 1px solid rgba(99, 102, 241, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);">
+                      <div>
+                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                          Imagen sugerida para Gemini
+                        </h4>
+                        <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">
+                          Copia este prompt y pégalo en gemini.google.com con tu foto base
+                        </p>
+                      </div>
+                      <button type="button" class="btn btn-secondary btn-xs" id="composer-request-gemini-prompt-btn" style="font-weight: 600;">
+                        Sugerir prompt de imagen
+                      </button>
+                    </div>
+                    <div class="card-body" style="padding: 12px 14px;">
+                      <div id="composer-gemini-prompt-loading" class="d-none" style="display: none; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--primary); padding: 8px 0;">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                        <span>Analizando copy y diseñando prompt para Gemini...</span>
+                      </div>
+                      <div id="composer-gemini-prompt-error" class="d-none" style="display: none; font-size: 0.8rem; color: var(--accent-rose); background: rgba(239, 68, 68, 0.08); padding: 6px 10px; border-radius: var(--radius-xs); margin-bottom: 8px;">
+                      </div>
+                      <div id="composer-gemini-prompt-content" class="d-none" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                          <span id="composer-gemini-prompt-concept" class="badge badge-accent" style="font-size: 0.75rem;">Concepto</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                          <textarea id="composer-gemini-prompt-text" class="form-control" rows="4" readonly style="font-family: monospace; font-size: 0.78rem; background: var(--bg-surface-subtle); resize: vertical;"></textarea>
+                        </div>
+                        <p id="composer-gemini-attach-hint" style="margin: 0 0 10px 0; font-size: 0.75rem; color: var(--text-muted); display: none;"></p>
+
+                        <!-- Titulares sugeridos para sobreponer -->
+                        <div id="composer-gemini-overlay-block" style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); padding: 8px 12px; margin-bottom: 10px; font-size: 0.8rem;">
+                          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; font-size: 0.75rem;">Titulares sugeridos para sobreponer:</div>
+                          <div style="margin-bottom: 2px;">
+                            <span style="color: var(--text-muted); font-size: 0.73rem;">Titular principal:</span>
+                            <strong id="composer-gemini-overlay-headline" style="color: var(--text-primary); margin-left: 4px;">--</strong>
+                          </div>
+                          <div>
+                            <span style="color: var(--text-muted); font-size: 0.73rem;">Bajada / Subtítulo:</span>
+                            <span id="composer-gemini-overlay-subline" style="color: var(--text-secondary); margin-left: 4px;">--</span>
+                          </div>
+                        </div>
+
+                        <!-- Variantes de ángulo/estilo -->
+                        <div style="margin-bottom: 12px;">
+                          <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Variantes de ángulo / estilo:</span>
+                          <div id="composer-gemini-prompt-variants" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;"></div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <button type="button" class="btn btn-secondary btn-sm" id="composer-copy-gemini-prompt-btn" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copiar prompt</span>
+                          </button>
+                          <a id="composer-open-gemini-link" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; text-decoration: none;">
+                            <span>Abrir Gemini</span>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   <!-- Cross-Share to Story Option (Directly under Media Upload) -->
                   <div class="form-group story-cross-share-section" id="story-cross-share-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(168,85,247,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.35); border-radius: var(--radius-xs); padding: 14px; margin-top: 14px;">
@@ -1376,6 +1448,41 @@
                   <label class="form-label" for="brand-match-keywords">Keywords para auto-detección</label>
                   <input type="text" id="brand-match-keywords" class="form-control" placeholder="kmarket, algarrobo, minimarket..." />
                   <span class="brand-help">Términos que vinculan automáticamente una cuenta o tema a este perfil.</span>
+                </div>
+              </div>
+
+              <!-- Bloque 5: Datos de contacto de la marca (para copy y soporte) -->
+              <div class="brand-section">
+                <div class="brand-section-header">
+                  <h4 class="brand-section-title">📞 Datos de contacto de la marca (para copy y soporte)</h4>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-web">Sitio Web</label>
+                  <input type="url" id="brand-contact-web" class="form-control" placeholder="https://ejemplo.cl" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-whatsapp">WhatsApp</label>
+                  <input type="text" id="brand-contact-whatsapp" class="form-control" placeholder="+56 9 1234 5678" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-telefono">Teléfono</label>
+                  <input type="text" id="brand-contact-telefono" class="form-control" placeholder="+56 9 1234 5678" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-email">Email</label>
+                  <input type="email" id="brand-contact-email" class="form-control" placeholder="contacto@ejemplo.cl" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-instagram">Instagram</label>
+                  <input type="text" id="brand-contact-instagram" class="form-control" placeholder="@cuenta o url" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="brand-contact-direccion">Dirección / Ubicación</label>
+                  <input type="text" id="brand-contact-direccion" class="form-control" placeholder="Av. Principal 123, Algarrobo" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="brand-contact-cierre">Frase o CTA de cierre sugerido</label>
+                  <input type="text" id="brand-contact-cierre" class="form-control" placeholder="Ej: Agenda tu visita directo en nuestro sitio" />
                 </div>
               </div>
 

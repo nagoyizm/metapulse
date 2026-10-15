@@ -157,6 +157,62 @@ class AIService {
   }
 
   /**
+   * Sugiere una propuesta visual y prompt para Gemini a partir del copy y perfil de marca
+   */
+  async suggestImagePrompt({ caption, accountName = '', accountId = '', format = 'feed' }) {
+    if (!caption || !caption.trim()) {
+      throw new Error('El parámetro "caption" es requerido para sugerir un prompt de imagen.');
+    }
+
+    const normFormat = (format === 'story' || format === 'reel') ? '9:16 vertical' : '4:5 vertical';
+    const profile = brandProfileService.getProfile(accountName, accountId) || this.getBusinessProfile(accountName, accountId) || {};
+    const brandName = profile.name || accountName || 'Marca';
+    const brandVoice = profile.voice ? `Voz y personalidad de marca: ${profile.voice}` : '';
+    const visualGuidance = profile.visual ? `Directrices visuales de la marca: ${JSON.stringify(profile.visual)}` : '';
+
+    const activeCampaigns = campaignService.getActive({ accountName, accountId, brandId: profile.id });
+    const campaignBlock = campaignService.buildCampaignBlock(activeCampaigns);
+
+    const isCampina = (brandName || '').toLowerCase().includes('campi') || (profile.id || '').toLowerCase().includes('campi');
+    const knowledgeBlock = isCampina ? getCampinaKnowledgePrompt() : '';
+
+    const prompt = `Actúa como un Director de Arte y Fotógrafo Comercial Senior para redes sociales de alta gama (estilo Kinfolk, Architectural Digest, Airbnb Plus, marcas editoriales de prestigio).
+
+Tu misión es crear una propuesta visual y un prompt para Gemini optimizado para generar una FOTOGRAFÍA o ESCENA COMERCIAL auténtica, basado en la siguiente publicación:
+
+MARCA / NEGOCIO: "${brandName}"
+${brandVoice ? brandVoice + '\n' : ''}${visualGuidance ? visualGuidance + '\n' : ''}${knowledgeBlock ? knowledgeBlock + '\n' : ''}${campaignBlock ? campaignBlock + '\n' : ''}
+TEXTO / COPY DE LA PUBLICACIÓN:
+"""
+${caption.trim()}
+"""
+
+FORMATO DE ASPECTO DESEADO: ${normFormat}
+
+REGLAS ESTRICTAS DE DIRECCIÓN DE ARTE:
+1. FOTOGRAFÍA LIMPIA SIN TEXTO NI LOGOS: El prompt para Gemini debe describir ÚNICAMENTE una fotografía escénica o comercial real. NUNCA pidas a Gemini que renderice texto, letras, tipografía, cifras ni logotipos dentro de la imagen. Todo texto va exclusivamente en el campo "overlay".
+2. ESTÉTICA EDITORIAL Y REAL: Fotografía con iluminación natural cinematográfica (luz suave de mañana o golden hour cálido), texturas orgánicas, profundidad de campo sutil y composición profesional. PROHIBIDO "estilo stock", modelos genéricos posando artificialmente, renders 3D plásticos o caricaturas.
+3. RESPIRO VISUAL PARA TEXTO (Negative Space): La composición fotográfica DEBE dejar una zona limpia o despejada (aire visual con fondo desenfocado u oscuro) arriba o abajo para que después se pueda montar el titular de overlay sin tapar el elemento principal.
+4. CERO INVENTOS DE INSTALACIONES: Respeta estrictamente lo que la marca ofrece. Si es Cabañas La Campiña: CERO tinajas, CERO jacuzzis, CERO hot tubs. Describe cabañas rústicas familiares, suites de descanso, quinchos privados con parrilla, o senderos boscosos de pinos y jardines temáticos de Algarrobo.
+5. FOTO BASE RECOMENDADA (attachHint): Si conviene que el usuario adjunte una foto real del negocio en Gemini (por ejemplo, para que mantenga la fachada real de la cabaña, o el producto real en mesa), indícalo en "attachHint" (ej: "foto exterior de la cabaña familiar al atardecer" o "foto del empaque del producto"). Si no aplica o es una escena generalizable, déjalo como "".
+
+Debes devolver ÚNICAMENTE un objeto JSON válido con la siguiente estructura exacta:
+{
+  "concept": "idea visual en una frase",
+  "geminiPrompt": "prompt en español listo para pegar en Gemini: fotografía/escena SIN TEXTO NI LOGOS, encuadre, luz, paleta, ambiente, formato ${normFormat}, dejar zona despejada arriba o abajo para el titular",
+  "attachHint": "qué foto real de la marca conviene adjuntar en Gemini como base (p.ej. 'foto exterior de la cabaña familiar al atardecer') o '' si no aplica",
+  "overlay": {
+    "headline": "titular corto (máx 6 palabras)",
+    "sub": "línea secundaria opcional (p.ej. '25% off lunes a jueves')"
+  },
+  "variants": ["concepto alternativo 1", "concepto alternativo 2"]
+}`;
+
+    const { data } = await this.generateJSON({ prompt, temperature: 0.4 });
+    return data;
+  }
+
+  /**
    * Genera copys atractivos y hashtags según el tema, tono y objetivo
    */
   async generateCopy({ topic, tone = 'engaging', goal = 'engagement', platform = 'both', brandName = '', customInstructions = '', bypassCache = false }) {
@@ -332,6 +388,8 @@ ${customInstructions}
     }
 
     const profile = this.getBusinessProfile(brandName, '');
+    const resolvedProfile = (profile && profile.contact) ? profile : (brandProfileService.getProfile(brandName) || profile);
+    const contactBlock = brandProfileService.buildContactBlock(resolvedProfile);
     const recentCaptions = contentMemoryService.getRecentCaptions({ accountName: brandName, limit: 15 });
     const memoryBlock = contentMemoryService.buildMemoryBlock(recentCaptions);
     const hashtagLine = profile.hashtagBank ? contentMemoryService.pickHashtags(profile, recentCaptions).join(' ') : '';
@@ -357,8 +415,9 @@ REGLAS DE ORO DE AGENDIO:
 4. PROHIBIDO CLICHÉS DE IA: Cero "sumérgete", "revolucionario", "en el ajetreado mundo". Habla como un anfitrión chileno conversando con otro.
 5. CIERRE CON LLAMADO CLARO: Invita a cotizar en agendio.cl o escribir por WhatsApp (+56 9 7900 4253 / link en bio).
 6. HASHTAGS (poner al final, exactamente estos): ${hashtagLine}
+7. FORMATO: texto plano para Instagram/Facebook. PROHIBIDO usar markdown (asteriscos, almohadillas de título, guiones de lista); usa saltos de línea y, si hace falta, viñetas con emoji.
 
-${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
+${contactBlock ? contactBlock + '\n\n' : ''}${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
 
 ${memoryBlock}
 
@@ -399,8 +458,9 @@ REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 5. OBJETIVO DE ALCANCE (Sends & Saves): Diseña el cierre para que la gente quiera GUARDAR el post o ENVIÁRSELO a un amigo por DM (los factores #1 del algoritmo actual).
 ${hashtagRule}
 7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calidez, confianza, serenidad y hospitalidad.
+8. FORMATO: texto plano para Instagram/Facebook. PROHIBIDO usar markdown (asteriscos, almohadillas de título, guiones de lista); usa saltos de línea y, si hace falta, viñetas con emoji.
 
-${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
+${contactBlock ? contactBlock + '\n\n' : ''}${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
 
 ${memoryBlock}
 
@@ -433,6 +493,17 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
   cleanCaptionAI(text) {
     if (!text) return '';
     let cleaned = text;
+
+    // 0. Quitar marcadores markdown no deseados en Instagram/Facebook
+    cleaned = cleaned.replace(/\*\*(.*?)\*\*/gs, '$1')
+      .replace(/__(.*?)__/gs, '$1')
+      .replace(/\*([^\*\n]+)\*/g, '$1');
+
+    // Encabezados markdown (# o ## seguido de espacio) al inicio de línea (sin tocar hashtags como #Algarrobo)
+    cleaned = cleaned.replace(/^#{1,6}\s+(.*)$/gm, '$1');
+
+    // Viñetas markdown (- o *) al inicio de línea -> viñeta con punto
+    cleaned = cleaned.replace(/^[ \t]*[-\*]\s+/gm, '• ');
 
     // 1. Reemplazar guiones largos y dobles por salto de línea o ".." de forma lineal sin backtracking
     cleaned = cleaned.replaceAll('—', '.. ')
@@ -477,6 +548,9 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
       emojiCount++;
       return emojiCount <= COPY_RULES.MAX_EMOJIS ? match : '';
     });
+
+    // 7. Eliminar líneas que solo contienen puntuación, guiones, puntos y espacios (ej: '.. -', '--', '...')
+    cleaned = cleaned.replace(/^[ \t]*[.\-–—_\s]*[.\-–—_][.\-–—_\s]*$/gm, '');
 
     // 8. RECORTAR HASHTAGS DETERMINÍSTICAMENTE (MÁXIMO 5 HASHTAGS)
     const hashtagMatches = cleaned.match(/#[a-zA-Z0-9_áéíóúñÁÉÍÓÚÑ]+/g);
@@ -796,6 +870,9 @@ ${hashtags}`;
     const notesSection = extraNotes ? `\nNotas: ${extraNotes}` : '';
     const masterImagePrompt = `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${productName}") de dimensiones 4:5 vertical para instagram , usar una fuente similar a la del producto, pero dinamica y el subtitulo con una fuente de menor tamaño pero tambien elegante y un diseño similar para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${productName}${descSection}${notesSection}`;
 
+    const kmarketProfile = brandProfileService.getProfile('Kmarket') || this.getBusinessProfile('Kmarket', '');
+    const contactBlock = brandProfileService.buildContactBlock(kmarketProfile);
+
     const promptForCopy = `
 Eres el copywriter oficial de "Kmarket - Algarrobo". Debes redactar la publicación siguiendo EXACTAMENTE la estructura, tono sobrio, dirección física y moderación de hashtags de este post oficial de Kmarket:
 
@@ -840,8 +917,9 @@ REGLAS DE ORO OBLIGATORIAS:
 El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 7. Cierre cálido con emoji 🧡 invitando a probarlo o descubrirlo.
 8. ENTRE 3 Y 5 HASHTAGS. Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
+9. FORMATO: texto plano para Instagram/Facebook. PROHIBIDO usar markdown (asteriscos, almohadillas de título, guiones de lista); usa saltos de línea y, si hace falta, viñetas con emoji.
 
-${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Kmarket' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Kmarket', limit: 3 }))}
+${contactBlock ? contactBlock + '\n\n' : ''}${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Kmarket' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Kmarket', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Kmarket', limit: 15 }))}
 
@@ -1495,6 +1573,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
     const campinaKnowledge = getCampinaKnowledgePrompt();
+    const campinaProfile = brandProfileService.getProfile('Campiña') || this.getBusinessProfile('Campiña', '');
+    const contactBlock = brandProfileService.buildContactBlock(campinaProfile);
 
     // 🧠 ACTIVACIÓN DE LA MENTE PLANIFICADORA EDITORIAL
     const editorialPlan = editorialPlannerService.planStrategy({
@@ -1537,8 +1617,9 @@ DIRECTRICES EDITORIALES, VOZ Y EQUILIBRIO:
 - VOZ ENTRAÑABLE, CÁLIDA Y CERCANA: Ni frío ni corporativo ni solemne. Habla con cariño, cercanía y hospitalidad sincera, como el anfitrión de una casa de campo que recibe con amor a su familia. Evoca momentos reconfortantes (el asadito pausado en la terraza, el café mañanero con vista a los jardines, las risas de los niños en el pasto, el silencio del bosque).
 - EQUILIBRIO DE EMOJIS (NI SATURACIÓN NI SEQUÍA): Incluye entre 3 y 5 emojis cálidos y acogedores bien colocados a lo largo del post (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲). CERO spam de emojis, CERO framing estridente al inicio y final de una misma frase.
 - CERO FALSAS URGENCIAS: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban". Invita a coordinar la estadía con calma, simpatía y calidez.
+- FORMATO: texto plano para Instagram/Facebook. PROHIBIDO usar markdown (asteriscos, almohadillas de título, guiones de lista); usa saltos de línea y, si hace falta, viñetas con emoji.
 
-${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Campiña' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Campiña', limit: 3 }))}
+${contactBlock ? contactBlock + '\n\n' : ''}${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Campiña' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Campiña', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Campiña', limit: 15 }))}
 
@@ -1594,6 +1675,7 @@ Estructura a entregar:
         isReel
       });
     }
+    generatedText = this.cleanCaptionAI(generatedText);
 
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
     const finalHero = heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero;
@@ -2006,6 +2088,7 @@ ${scenicDirective}
       : 'Público: Dueños de cabañas y hostales (operan solos o con su familia). Tono: Cercano, chileno, empático, sin tecnicismos, enfocado en recuperar tiempo y evitar el caos manual.';
 
     const agendioProfile = this.getBusinessProfile('Agendio', '');
+    const contactBlock = brandProfileService.buildContactBlock(brandProfileService.getProfile('Agendio') || agendioProfile);
     const agendioRecentCaptions = contentMemoryService.getRecentCaptions({ accountName: 'Agendio', limit: 15 });
     const agendioHashtagLine = agendioProfile.hashtagBank ? contentMemoryService.pickHashtags(agendioProfile, agendioRecentCaptions).join(' ') : '';
 
@@ -2029,6 +2112,8 @@ REGLAS DE COPY OBLIGATORIAS:
 3. CTA: Variante clara como "Cotiza tu plan en agendio.cl o escríbenos por WhatsApp para ordenar tu temporada".
 4. HASHTAGS (poner al final, exactamente estos): ${agendioHashtagLine}
 5. PROHIBIDO: CERO guiones largos ("—" o "--"), CERO palabras cliché de bot ("sumérgete", "revolucionario", "en el vertiginoso mundo"), CERO hashtags de creadores (#viral, #fyp), CERO lenguaje de e-commerce ("oferta imperdible", "compra ya").
+6. FORMATO: texto plano para Instagram/Facebook. PROHIBIDO usar markdown (asteriscos, almohadillas de título, guiones de lista); usa saltos de línea y, si hace falta, viñetas con emoji.
+${contactBlock ? `\n${contactBlock}\n` : ''}
 
 ${isCarousel ? `
 COMO EL FORMATO ES CARRUSEL:

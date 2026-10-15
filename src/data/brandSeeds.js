@@ -10,6 +10,15 @@ module.exports = [
       emoji: '📅',
       whatsapp: '+56 9 7900 4253',
       web: 'www.agendio.cl',
+      contact: {
+        web: 'https://www.agendio.cl',
+        whatsapp: '+56 9 7900 4253',
+        telefono: '',
+        email: '',
+        instagram: '@agendio.cl',
+        direccion: '',
+        cierre: 'Cotiza en agendio.cl o escríbenos por WhatsApp'
+      },
       taglines: [
         'Nunca más pierdas una reserva.',
         'La calma de operar bien.'
@@ -60,6 +69,15 @@ module.exports = [
       emoji: '🌲',
       whatsapp: '+56 9 7900 4253',
       web: 'www.cabanaslacampina.cl',
+      contact: {
+        web: 'https://www.cabanaslacampina.cl',
+        whatsapp: '+56 9 7900 4253',
+        telefono: '',
+        email: 'contacto@cabanaslacampina.cl',
+        instagram: '@cabanaslacampina.cl',
+        direccion: '',
+        cierre: 'Reserva en la web o escríbenos por WhatsApp'
+      },
       rules: [
         'NO TIENEN TINAJAS DE AGUA CALIENTE NI HOT TUBS (Prohibido inventar tinajas).',
         'NO CUENTA CON WI-FI (Concepto de descanso familiar y desconexión total sin pantallas).',
@@ -97,6 +115,15 @@ module.exports = [
       tag: 'Kmarket Algarrobo',
       emoji: '🍜',
       address: 'El Boldo 366, local 13, Espacio Algarrobo, Algarrobo, Chile',
+      contact: {
+        web: '',
+        whatsapp: '',
+        telefono: '',
+        email: '',
+        instagram: '',
+        direccion: 'El Boldo 366, local 13, Espacio Algarrobo, Algarrobo',
+        cierre: ''
+      },
       specialty: 'Alimentos y snacks coreanos e importados (K-Food): Ramyun (Buldak Carbonara, 4 Quesos, Shin Ramyun, Jin Ramen), Helados Samanco crujientes con crema, bebidas Milkis y Bon Bon con fruta, dulces virales Pepero, Choco Pie, Tteokbokki instantáneo.',
       rules: [
         'Ubicación física exacta: El Boldo 366, local 13, Espacio Algarrobo, Algarrobo.',

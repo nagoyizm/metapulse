@@ -53,6 +53,7 @@
   function populateForm(profileObj) {
     if (!profileObj) return;
     const p = profileObj.profile || {};
+    const c = p.contact || {};
 
     const idInput = document.getElementById('brand-profile-id');
     const nameInput = document.getElementById('brand-name');
@@ -62,6 +63,14 @@
     const bankInput = document.getElementById('brand-hashtag-bank');
     const keywordsInput = document.getElementById('brand-match-keywords');
 
+    const contactWeb = document.getElementById('brand-contact-web');
+    const contactWhatsapp = document.getElementById('brand-contact-whatsapp');
+    const contactTelefono = document.getElementById('brand-contact-telefono');
+    const contactEmail = document.getElementById('brand-contact-email');
+    const contactInstagram = document.getElementById('brand-contact-instagram');
+    const contactDireccion = document.getElementById('brand-contact-direccion');
+    const contactCierre = document.getElementById('brand-contact-cierre');
+
     if (idInput) idInput.value = profileObj.id || '';
     if (nameInput) nameInput.value = p.name || profileObj.id || '';
     if (voiceInput) voiceInput.value = p.voice || '';
@@ -69,6 +78,14 @@
     if (coreInput) coreInput.value = Array.isArray(p.hashtagCore) ? p.hashtagCore.join(', ') : (p.hashtagCore || '');
     if (bankInput) bankInput.value = Array.isArray(p.hashtagBank) ? p.hashtagBank.join(', ') : (p.hashtagBank || '');
     if (keywordsInput) keywordsInput.value = Array.isArray(profileObj.matchKeywords) ? profileObj.matchKeywords.join(', ') : (profileObj.matchKeywords || '');
+
+    if (contactWeb) contactWeb.value = c.web || '';
+    if (contactWhatsapp) contactWhatsapp.value = c.whatsapp || '';
+    if (contactTelefono) contactTelefono.value = c.telefono || '';
+    if (contactEmail) contactEmail.value = c.email || '';
+    if (contactInstagram) contactInstagram.value = c.instagram || '';
+    if (contactDireccion) contactDireccion.value = c.direccion || '';
+    if (contactCierre) contactCierre.value = c.cierre || '';
 
     updateChipPreviews();
   }
@@ -210,6 +227,14 @@
           const bankIn = document.getElementById('brand-hashtag-bank');
           const keywordsInput = document.getElementById('brand-match-keywords');
 
+          const contactWeb = document.getElementById('brand-contact-web');
+          const contactWhatsapp = document.getElementById('brand-contact-whatsapp');
+          const contactTelefono = document.getElementById('brand-contact-telefono');
+          const contactEmail = document.getElementById('brand-contact-email');
+          const contactInstagram = document.getElementById('brand-contact-instagram');
+          const contactDireccion = document.getElementById('brand-contact-direccion');
+          const contactCierre = document.getElementById('brand-contact-cierre');
+
           const voice = voiceInput ? voiceInput.value.trim() : '';
           const rules = rulesInput
             ? rulesInput.value.split('\n').map(r => r.trim()).filter(Boolean)
@@ -224,7 +249,17 @@
             ? keywordsInput.value.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
             : [];
 
-          const payload = { voice, rules, hashtagCore, hashtagBank, matchKeywords };
+          const contact = {
+            web: contactWeb ? contactWeb.value.trim() : '',
+            whatsapp: contactWhatsapp ? contactWhatsapp.value.trim() : '',
+            telefono: contactTelefono ? contactTelefono.value.trim() : '',
+            email: contactEmail ? contactEmail.value.trim() : '',
+            instagram: contactInstagram ? contactInstagram.value.trim() : '',
+            direccion: contactDireccion ? contactDireccion.value.trim() : '',
+            cierre: contactCierre ? contactCierre.value.trim() : ''
+          };
+
+          const payload = { voice, rules, hashtagCore, hashtagBank, matchKeywords, contact };
 
           const res = await fetch(`/api/brand-profiles/${encodeURIComponent(id)}`, {
             method: 'PUT',

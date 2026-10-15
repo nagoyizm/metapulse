@@ -245,6 +245,7 @@ class CampaignService {
         'INDICACIONES VIGENTES DEL CLIENTE (obligatorias, tienen prioridad sobre reglas generales de estilo):'
       ];
       const exceptions = [];
+      let hasNonUrgentCampaign = false;
 
       for (const c of campaigns) {
         const details = typeof c.details === 'string' ? JSON.parse(c.details || '{}') : (c.details || {});
@@ -265,6 +266,8 @@ class CampaignService {
 
         if (details.permitirUrgencia === true) {
           exceptions.push(`EXCEPCIÓN AUTORIZADA: para "${c.title}" sí puedes mencionar disponibilidad limitada real (es un hecho confirmado por el cliente), con tono sereno y sin exagerar.`);
+        } else {
+          hasNonUrgentCampaign = true;
         }
       }
 
@@ -272,6 +275,10 @@ class CampaignService {
 
       if (exceptions.length > 0) {
         lines.push(...exceptions);
+      }
+
+      if (hasNonUrgentCampaign) {
+        lines.push('Para las fichas sin excepción autorizada: NO menciones escasez, cupos limitados, "últimas" ni prisa por reservar.');
       }
 
       return lines.join('\n');

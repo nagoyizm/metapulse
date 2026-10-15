@@ -3283,4 +3283,51 @@ input:checked + .slider:before {
   }
 }
 
+/* =============================================================================
+   FASE 1B: BORRADORES & PROMPTS DE IMAGEN GEMINI
+   ============================================================================= */
+
+.composer-editing-draft-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(204, 136, 0, 0.12) 0%, rgba(197, 82, 33, 0.1) 100%);
+  border: 1px solid var(--border-focus);
+  color: var(--text-primary);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.composer-editing-draft-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.composer-editing-draft-banner-content strong {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.composer-editing-draft-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.composer-gemini-prompt-card {
+  transition: all 0.2s ease;
+}
+
+.composer-gemini-prompt-card .badge-accent {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+  font-weight: 600;
+}
+
+
 
