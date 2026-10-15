@@ -101,7 +101,7 @@ class AICacheService {
   /**
    * Guarda un valor en L1 y L2
    */
-  set(key, value, ttlSeconds = 43200, provider = 'gemini', model = 'gemini-2.5-flash') {
+  set(key, value, ttlSeconds = 43200, provider = 'gemini', model = 'gemini-3.8-flash') {
     if (!key || value === undefined || value === null) return;
 
     const expiresAtMs = Date.now() + (ttlSeconds * 1000);

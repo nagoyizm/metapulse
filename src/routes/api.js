@@ -1804,7 +1804,7 @@ async function tryAutoStampWatermark(result, accountId, logPrefix = '[AutoWaterm
 
 router.post('/ai/generate-image', async (req, res) => {
   try {
-    const { prompt, format = 'feed', model = 'gemini-2.5-flash', baseImageUrl } = req.body;
+    const { prompt, format = 'feed', model = 'gemini-3.1-flash-image', baseImageUrl } = req.body;
     if (!prompt && !baseImageUrl) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar un prompt o una imagen base.' });
     }
@@ -1873,7 +1873,7 @@ router.post('/ai/generate-image', async (req, res) => {
 // ==========================================
 router.post('/ai/jobs/image', (req, res) => {
   try {
-    const { prompt, format = 'feed', model = 'gemini-2.5-flash', baseImageUrl } = req.body;
+    const { prompt, format = 'feed', model = 'gemini-3.1-flash-image', baseImageUrl } = req.body;
     if (!prompt && !baseImageUrl) {
       return res.status(400).json({ success: false, error: 'Debes proporcionar un prompt o una imagen base.' });
     }

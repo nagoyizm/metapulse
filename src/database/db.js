@@ -244,7 +244,7 @@ function initializeDatabase() {
     { key: 'simulation_mode', value: 'false' },
     { key: 'timezone', value: 'America/Santiago' },
     { key: 'ai_provider', value: 'gemini' },
-    { key: 'ai_model', value: 'gemini-1.5-flash' },
+    { key: 'ai_model', value: 'gemini-3.8-flash' },
     { key: 'ai_free_mode', value: 'true' },
     { key: 'public_url_base', value: '' },
     { key: 'meta_app_id', value: '' },
