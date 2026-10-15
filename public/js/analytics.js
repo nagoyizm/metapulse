@@ -168,8 +168,22 @@ async function loadAdvancedInsights() {
 
       if (titleEl) titleEl.textContent = topPost.title || 'Publicación sin título';
       if (captionEl) captionEl.textContent = topPost.caption || 'Sin texto descriptivo';
-      if (likesBadge) likesBadge.textContent = `❤️ ${topPost.likes} me gusta`;
-      if (commentsBadge) commentsBadge.textContent = `💬 ${topPost.comments} Comentarios`;
+      if (data.metricsSource === 'local_sin_metricas') {
+        if (likesBadge) {
+          likesBadge.textContent = 'Sin métricas de Meta para estas publicaciones';
+          likesBadge.style.display = 'inline-block';
+        }
+        if (commentsBadge) commentsBadge.style.display = 'none';
+      } else {
+        if (likesBadge) {
+          likesBadge.textContent = `❤️ ${topPost.likes} me gusta`;
+          likesBadge.style.display = 'inline-block';
+        }
+        if (commentsBadge) {
+          commentsBadge.textContent = `💬 ${topPost.comments} comentarios`;
+          commentsBadge.style.display = 'inline-block';
+        }
+      }
       if (typeBadge) {
         const isVideo = topPost.mediaType === 'VIDEO';
         typeBadge.textContent = isVideo ? '🎥 Reel / video' : '📸 Foto / Feed';
@@ -217,22 +231,39 @@ async function loadAdvancedInsights() {
     }
 
     // B. Renderizar Mejores Horas
+    const bestHoursCard = document.querySelector('.best-hours-card');
+    const badgeEl = bestHoursCard?.querySelector('.card-header .badge');
+    const introEl = bestHoursCard?.querySelector('.card-body .section-hint') || bestHoursCard?.querySelector('.card-body p');
+
+    if (data.bestWindowsSource === 'datos') {
+      if (badgeEl) badgeEl.textContent = 'Según tus datos';
+      if (introEl) introEl.textContent = 'Franjas con más interacción en tus publicaciones:';
+    } else {
+      if (badgeEl) badgeEl.textContent = 'Sugerencia general';
+      if (introEl) introEl.textContent = 'Aún no hay suficientes datos de tu cuenta. Estas franjas son una sugerencia general:';
+    }
+
     const windowsList = document.getElementById('best-windows-list');
     if (windowsList && data.bestWindows) {
-      windowsList.innerHTML = data.bestWindows.map(w => `
+      windowsList.innerHTML = data.bestWindows.map(w => {
+        const hasScore = w.score !== null && w.score !== undefined && String(w.score).trim() !== '';
+        const scoreBadge = hasScore ? `<span class="badge" style="background:rgba(16,185,129,0.12); color:#047857; font-size:0.7rem; padding:1px 6px;">${w.score}</span>` : '';
+        return `
         <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-subtle); padding:10px 12px; border-radius:var(--radius-xs); border:1px solid var(--border-subtle);">
           <div style="display:flex; flex-direction:column; gap:2px;">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-weight:700; font-size:0.86rem; color:var(--text-primary);">${w.day} (${w.timeWindow})</span>
               <span class="badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-size:0.7rem; padding:1px 6px;">${w.tag}</span>
+              ${scoreBadge}
             </div>
             <span style="font-size:0.75rem; color:var(--text-secondary);">${w.reason}</span>
           </div>
           <button class="btn btn-secondary btn-sm" onclick="window.applyBestSlot('${w.day}', '${w.timeWindow}')" style="font-size:0.72rem; padding:4px 8px;">
-            🎯 Usar
+            Usar
           </button>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     // C. Renderizar Formatos
@@ -243,13 +274,13 @@ async function loadAdvancedInsights() {
       }
 
       const vidLikes = document.getElementById('fmt-video-avg-likes');
-      if (vidLikes) vidLikes.textContent = `${data.formatBreakdown.video?.avgLikes || 0} likes prom.`;
+      if (vidLikes) vidLikes.textContent = `${data.formatBreakdown.video?.avgLikes || 0} me gusta prom.`;
 
       const carLikes = document.getElementById('fmt-carousel-avg-likes');
-      if (carLikes) carLikes.textContent = `${data.formatBreakdown.carousel?.avgLikes || 0} likes prom.`;
+      if (carLikes) carLikes.textContent = `${data.formatBreakdown.carousel?.avgLikes || 0} me gusta prom.`;
 
       const imgLikes = document.getElementById('fmt-image-avg-likes');
-      if (imgLikes) imgLikes.textContent = `${data.formatBreakdown.image?.avgLikes || 0} likes prom.`;
+      if (imgLikes) imgLikes.textContent = `${data.formatBreakdown.image?.avgLikes || 0} me gusta prom.`;
     }
 
     return data;
@@ -314,7 +345,7 @@ async function loadScheduleAnalytics() {
                   <strong style="font-size:1.1rem; color:#10b981;">${p.engagementRate != null ? p.engagementRate : '—'}</strong>
                 </div>
                 <div>
-                  <span style="font-size:0.72rem; color:var(--text-secondary); display:block;">Likes Promedio:</span>
+                  <span style="font-size:0.72rem; color:var(--text-secondary); display:block;">Me gusta promedio:</span>
                   <span style="font-size:0.85rem; font-weight:600;">❤️ ${p.avgLikes}</span>
                 </div>
                 <div>
@@ -340,7 +371,7 @@ async function loadScheduleAnalytics() {
               </span>
               ${!isActive ? `
                 <button type="button" class="btn btn-secondary btn-sm" onclick="window.activatePresetFromAnalytics(${p.id})" style="font-size:0.75rem; padding:4px 10px;">
-                  ⚡ Activar Horario
+                  Activar horario
                 </button>
               ` : '<span style="font-size:0.75rem; color:#10b981; font-weight:600;">En uso ahora ✅</span>'}
             </div>
@@ -352,16 +383,20 @@ async function loadScheduleAnalytics() {
     // 4. Franjas Horarias Heatmap List
     const heatmapEl = document.getElementById('schedule-ab-heatmap-list');
     if (heatmapEl && Array.isArray(timeSlotsHeatmap)) {
-      heatmapEl.innerHTML = timeSlotsHeatmap.map(slot => `
+      heatmapEl.innerHTML = timeSlotsHeatmap.map(slot => {
+        const hasScore = slot.score !== null && slot.score !== undefined && String(slot.score).trim() !== '';
+        const scoreBadge = hasScore ? `<span class="badge" style="background:rgba(16,185,129,0.12); color:#047857; font-size:0.68rem; padding:2px 6px;">${slot.score}</span>` : '';
+        return `
         <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:6px; padding:10px 12px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <strong style="font-size:0.82rem; color:var(--text-primary);">${slot.window}</strong>
-            <span class="badge" style="background:rgba(16,185,129,0.12); color:#047857; font-size:0.68rem; padding:2px 6px;">${slot.score}</span>
+            ${scoreBadge}
           </div>
           <div style="font-size:0.74rem; color:var(--accent-brand-text); font-weight:600; margin-bottom:2px;">${slot.day}</div>
           <div style="font-size:0.72rem; color:var(--text-secondary);">${slot.tip}</div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
   } catch (err) {
     console.warn('Error cargando analítica A/B de horarios:', err.message);
@@ -533,7 +568,7 @@ window.triggerAIAudit = async function () {
             </span>
           </div>
           <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:0; margin-bottom:16px;">
-            Cada recomendación del diagnóstico tiene su propuesta completamente redactada. Haz clic en <strong>"Llevar al Editor"</strong> para cargarla directamente con su copy, formato y gancho en el Composer:
+            Cada recomendación del diagnóstico tiene su propuesta completamente redactada. Haz clic en <strong>"Llevar al editor"</strong> para cargarla directamente con su copy, formato y gancho en el editor:
           </p>
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:14px;">
@@ -576,7 +611,7 @@ window.triggerAIAudit = async function () {
                   </div>
 
                   <button class="btn btn-primary btn-sm" onclick="window.loadStrategyToComposer('${stratJson}')" style="width:100%; justify-content:center; font-weight:700; font-size:0.8rem; padding:8px 12px; gap:6px;">
-                    🚀 Llevar al Editor (Composer)
+                    Llevar al editor
                   </button>
                 </div>
               `;

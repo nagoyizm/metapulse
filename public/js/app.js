@@ -102,10 +102,38 @@ function initClock() {
   setInterval(update, 1000);
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function updateDashboardMetrics(counts, nextSlot, config) {
   document.getElementById('dash-stat-scheduled').textContent = counts.scheduled;
   document.getElementById('dash-stat-published').textContent = counts.published;
-  document.getElementById('dash-stat-failed').textContent = counts.failed;
+  
+  const failedEl = document.getElementById('dash-stat-failed');
+  if (failedEl) {
+    failedEl.textContent = counts.failed;
+    const failedCard = failedEl.closest('.stat-card');
+    const subtextEl = failedCard ? failedCard.querySelector('.stat-subtext') : null;
+    if (subtextEl) {
+      if (!subtextEl.dataset.defaultText) {
+        subtextEl.dataset.defaultText = subtextEl.textContent;
+      }
+      if ((counts.partial || 0) > 0) {
+        subtextEl.textContent = `${counts.partial} publicados con falla parcial`;
+        subtextEl.classList.add('text-warning-strong');
+      } else {
+        subtextEl.textContent = subtextEl.dataset.defaultText;
+        subtextEl.classList.remove('text-warning-strong');
+      }
+    }
+  }
   document.getElementById('sidebar-queue-badge').textContent = counts.scheduled;
 
   if (nextSlot) {
@@ -189,8 +217,8 @@ function renderUpcomingPosts(upcomingPosts) {
           </div>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${p.id})" title="Editar hora, texto o imagen">✏️ Editar</button>
-          ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">📥 Bajar</button>` : ''}
+          <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${p.id})" title="Editar hora, texto o imagen">Editar</button>
+          ${firstMedia ? `<button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${firstMedia}', 'scheduled-${p.id}')" title="Descargar imagen">Bajar</button>` : ''}
           <span class="status-pill scheduled">Programado</span>
         </div>
       </div>
@@ -227,6 +255,10 @@ function renderRecentPublishedPosts(recentPublished) {
         : `<img src="${media[0]}" onerror="window.handleThumbError(this, ${p.id})" style="width:40px; height:40px; object-fit:cover; border-radius:6px; flex-shrink:0; border:1px solid var(--border-color);" alt="thumb">`;
     }
 
+    const statusPill = Number(p.partial_failure) === 1
+      ? `<span class="status-pill status-partial" title="${escapeHtml(p.error_message || '')}">Parcial</span>`
+      : `<span class="status-pill published">Publicado</span>`;
+
     return `
       <div class="page-select-card" style="justify-content: space-between; align-items: center; gap:10px;">
         <div class="page-info-block" style="gap:10px; align-items:center;">
@@ -236,18 +268,19 @@ function renderRecentPublishedPosts(recentPublished) {
             <strong style="display:block; font-size:0.85rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
               ${p.title || (p.content.slice(0, 35) + '...')}
             </strong>
-            <p class="text-muted" style="font-size:0.72rem; margin:0;">✅ ${new Date(p.published_at || p.updated_at).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} · Meta</p>
+            <p class="text-muted" style="font-size:0.72rem; margin:0;">${Number(p.partial_failure) === 1 ? '⚠️' : '✅'} ${new Date(p.published_at || p.updated_at).toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })} · Meta</p>
           </div>
         </div>
         <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+          ${statusPill}
           ${media.length > 0 ? `
-            <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'published-${p.id}')" title="Descargar imagen">📥 Bajar</button>
+            <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'published-${p.id}')" title="Descargar imagen">Bajar</button>
           ` : ''}
           <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${p.id})" title="Repostear este post como Historia 9:16">
-            📲 Historia
+            Historia
           </button>
-          <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${p.id})" title="Reutilizar copy en Composer">
-            🔄 Reusar
+          <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${p.id})" title="Reutilizar copy en el editor">
+            Reusar
           </button>
         </div>
       </div>
@@ -288,7 +321,7 @@ async function loadDashboardStatus(customAccountId) {
     if (btnSyncLiveDash) {
       btnSyncLiveDash.onclick = async () => {
         btnSyncLiveDash.disabled = true;
-        btnSyncLiveDash.textContent = '🔄 Sincronizando...';
+        btnSyncLiveDash.textContent = 'Sincronizando...';
         try {
           const syncAcc = targetAccountId || window.getActiveAccount()?.pageId || '';
           const res = await fetch('/api/meta/sync-live-posts', { 
@@ -311,7 +344,7 @@ async function loadDashboardStatus(customAccountId) {
           showToast('Error: ' + e.message, 'error');
         } finally {
           btnSyncLiveDash.disabled = false;
-          btnSyncLiveDash.textContent = '🔄 Sincronizar Feed';
+          btnSyncLiveDash.textContent = 'Sincronizar feed';
         }
       };
     }
@@ -358,7 +391,7 @@ async function loadProactiveRadar(customBrandName) {
           <p style="margin:0; font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">${d.suggestion}</p>
         </div>
         <button class="btn btn-secondary btn-sm btn-full" onclick="useProactiveIdea('${data.accountType}', '${encodeURIComponent(d.presetTopic)}', '${d.type}')">
-          ⚡ Preparar este Post en Composer →
+          Preparar en el editor
         </button>
       </div>
     `).join('');

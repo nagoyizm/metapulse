@@ -314,6 +314,8 @@ REGLAS DE ORO DE AGENDIO:
 5. CIERRE CON LLAMADO CLARO: Invita a cotizar en agendio.cl o escribir por WhatsApp (+56 9 7900 4253 / link en bio).
 6. HASHTAGS (poner al final, exactamente estos): ${hashtagLine}
 
+${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
+
 ${memoryBlock}
 
 Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni comentarios explicativos.
@@ -353,6 +355,8 @@ REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 5. OBJETIVO DE ALCANCE (Sends & Saves): Diseña el cierre para que la gente quiera GUARDAR el post o ENVIÁRSELO a un amigo por DM (los factores #1 del algoritmo actual).
 ${hashtagRule}
 7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calidez, confianza, serenidad y hospitalidad.
+
+${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
 
 ${memoryBlock}
 
@@ -790,6 +794,8 @@ REGLAS DE ORO OBLIGATORIAS:
 El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 7. Cierre cálido con emoji 🧡 invitando a probarlo o descubrirlo.
 8. ENTRE 3 Y 5 HASHTAGS. Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
+
+${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Kmarket', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Kmarket', limit: 15 }))}
 
@@ -1486,6 +1492,8 @@ DIRECTRICES EDITORIALES, VOZ Y EQUILIBRIO:
 - EQUILIBRIO DE EMOJIS (NI SATURACIÓN NI SEQUÍA): Incluye entre 3 y 5 emojis cálidos y acogedores bien colocados a lo largo del post (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲). CERO spam de emojis, CERO framing estridente al inicio y final de una misma frase.
 - CERO FALSAS URGENCIAS: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban". Invita a coordinar la estadía con calma, simpatía y calidez.
 
+${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Campiña', limit: 3 }))}
+
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Campiña', limit: 15 }))}
 
 ${isReel ? `
@@ -1996,6 +2004,8 @@ Genera una estructura de guión dinámico de 30 a 35 segundos:
 - 16 a 28s (Solución en vivo en Agendio en pantalla o celular)
 - 29 a 35s (Llamado a la acción con link en bio)
 ` : ''}
+
+${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Agendio', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Agendio', limit: 15 }))}
 

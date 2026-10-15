@@ -69,4 +69,7 @@ app.listen(PORT, () => {
 
   // Iniciar worker de sincronización de Inbox y alertas WhatsApp
   inboxSyncService.start();
+
+  // Iniciar sincronización diaria de métricas de posts
+  require('./src/services/metricsSyncService').start();
 });

@@ -285,7 +285,7 @@ function setupPlannerDetailModalActions() {
 
       btnPlannerPublishStoryNow.disabled = true;
       const originalText = btnPlannerPublishStoryNow.innerHTML;
-      btnPlannerPublishStoryNow.innerHTML = '<span>⏳</span> Publicando Historia...';
+      btnPlannerPublishStoryNow.textContent = 'Publicando historia...';
 
       try {
         showToast(isReel ? 'Preparando video del Reel y publicando en Historias...' : 'Generando tarjeta 9:16 y publicando historia...', 'info');
@@ -338,7 +338,7 @@ function setupPlannerSyncActions() {
   if (btnSyncLiveQueue) {
     btnSyncLiveQueue.addEventListener('click', async () => {
       btnSyncLiveQueue.disabled = true;
-      btnSyncLiveQueue.textContent = '🔄 Sincronizando...';
+      btnSyncLiveQueue.textContent = 'Sincronizando...';
       try {
         const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
         const targetAcc = activeAcc?.pageId || localStorage.getItem('metapulse_active_account_id') || '';
@@ -362,7 +362,7 @@ function setupPlannerSyncActions() {
         showToast('Error: ' + e.message, 'error');
       } finally {
         btnSyncLiveQueue.disabled = false;
-        btnSyncLiveQueue.textContent = '🔄 Sincronizar Posts de Meta';
+        btnSyncLiveQueue.textContent = 'Sincronizar posts de Meta';
       }
     });
   }
@@ -371,7 +371,7 @@ function setupPlannerSyncActions() {
   if (btnRepairMetaThumbs) {
     btnRepairMetaThumbs.addEventListener('click', async () => {
       btnRepairMetaThumbs.disabled = true;
-      btnRepairMetaThumbs.textContent = '🩹 Reparando...';
+      btnRepairMetaThumbs.textContent = 'Reparando...';
       try {
         const res = await fetch('/api/posts/repair-thumbnails', { method: 'POST' });
         const json = await res.json();
@@ -386,7 +386,7 @@ function setupPlannerSyncActions() {
         showToast('Error: ' + e.message, 'error');
       } finally {
         btnRepairMetaThumbs.disabled = false;
-        btnRepairMetaThumbs.textContent = '🩹 Reparar Miniaturas';
+        btnRepairMetaThumbs.textContent = 'Reparar miniaturas';
       }
     });
   }
@@ -813,7 +813,10 @@ function getPlannerStatusPillHtml(post, metaRes, isScheduled) {
   if (isScheduled) {
     return '<span class="status-pill scheduled">🕒 Programado</span>';
   }
-  if (post.status !== 'published') {
+  if (Number(post?.partial_failure) === 1) {
+    return `<span class="status-pill status-partial" title="${escapeHtml(post?.error_message || '')}">Parcial</span>`;
+  }
+  if (post?.status !== 'published') {
     return '<span class="status-pill failed">❌ Error en envío</span>';
   }
 
@@ -825,14 +828,24 @@ function getPlannerStatusPillHtml(post, metaRes, isScheduled) {
       return '<span class="status-pill published">✅ Publicado (FB + IG)</span>';
     }
     if (igSuccess && !fbSuccess) {
-      return '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Instagram</span>';
+      return `<span class="status-pill status-partial" title="${escapeHtml(post?.error_message || '')}">Parcial</span>`;
     }
     if (fbSuccess && !igSuccess) {
-      return '<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;">⚠️ Publicado solo en Facebook</span>';
+      return `<span class="status-pill status-partial" title="${escapeHtml(post?.error_message || '')}">Parcial</span>`;
     }
   }
 
   return '<span class="status-pill published">✅ Publicado</span>';
+}
+
+function getFailedPlatformsFromError(errorMessage) {
+  const msg = errorMessage || '';
+  const hasFb = msg.includes('FB:');
+  const hasIg = msg.includes('IG:');
+  if (hasFb && hasIg) return 'Facebook, Instagram';
+  if (hasFb) return 'Facebook';
+  if (hasIg) return 'Instagram';
+  return 'Facebook, Instagram';
 }
 
 function formatPlatformDeliveryItem(name, icon, result) {
@@ -875,7 +888,7 @@ function updatePlannerDeliveryBreakdown(deliveryEl, metaRes, post) {
         ${post ? `
           <div style="margin-top:2px;">
             <button type="button" class="btn btn-xs" onclick="window.publishPostNow(${post.id})" style="background:linear-gradient(135deg,#e1306c,#833ab4); color:#fff; border:none; font-weight:700; border-radius:4px; padding:4px 8px; cursor:pointer;">
-              ⚡ Reintentar entrega en Instagram
+              Reintentar entrega en Instagram
             </button>
           </div>
         ` : ''}
@@ -899,7 +912,19 @@ function updatePlannerDeliveryBreakdown(deliveryEl, metaRes, post) {
 function updatePlannerDetailStatus(post, metaRes, isScheduled) {
   const statusEl = document.getElementById('planner-detail-status-pill');
   if (statusEl) {
-    statusEl.innerHTML = getPlannerStatusPillHtml(post, metaRes, isScheduled);
+    let html = getPlannerStatusPillHtml(post, metaRes, isScheduled);
+    if (!isScheduled && Number(post?.partial_failure) === 1) {
+      const failedPlatforms = getFailedPlatformsFromError(post?.error_message);
+      const rawError = post?.error_message || '';
+      const trimmedError = rawError.length > 160 ? rawError.slice(0, 160) : rawError;
+      html += `
+        <div class="planner-partial-error-info" style="margin-top:6px; font-size:0.75rem; color:var(--color-warning); text-align:right;">
+          <div>Falló en: ${failedPlatforms}</div>
+          <div style="opacity:0.9; max-width:280px; word-break:break-word;">${escapeHtml(trimmedError)}</div>
+        </div>
+      `;
+    }
+    statusEl.innerHTML = html;
   }
   const deliveryEl = document.getElementById('planner-detail-delivery-breakdown');
   updatePlannerDeliveryBreakdown(deliveryEl, metaRes, post);
@@ -933,7 +958,7 @@ function updatePlannerDetailMedia(post, mediaUrls) {
           const urlIsVid = isVideoUrl(url);
           return `
             <button type="button" class="btn btn-secondary btn-sm" onclick="window.downloadMediaFile('${url}', 'post-${post.id}-media-${idx + 1}')" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; font-size:0.8rem;">
-              <span>📥</span> Descargar ${urlIsVid ? 'Video' : 'Imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
+              Descargar ${urlIsVid ? 'video' : 'imagen'}${mediaUrls.length > 1 ? ` #${idx + 1}` : ''}
             </button>
           `;
         }).join('')}
@@ -1289,15 +1314,16 @@ function renderQueueTable(posts) {
 
     let metaRes = null;
     try { metaRes = typeof post.meta_result === 'string' ? JSON.parse(post.meta_result || '{}') : (post.meta_result || {}); } catch (_) {}
-    const hasPartialFailure = post.status === 'published' && metaRes && (
-      (metaRes.facebook && !metaRes.facebook.success) ||
-      (metaRes.instagram && !metaRes.instagram.success)
-    );
+    const isPartial = post.status === 'published' && (Number(post.partial_failure) === 1 || Boolean(
+      metaRes && (
+        (metaRes.facebook && !metaRes.facebook.success) ||
+        (metaRes.instagram && !metaRes.instagram.success)
+      )
+    ));
 
     let statusPill = `<span class="status-pill ${post.status}">${post.status}</span>`;
-    if (hasPartialFailure) {
-      const partialLabel = metaRes.instagram && !metaRes.instagram.success ? 'Solo FB' : 'Solo IG';
-      statusPill = `<span class="status-pill" style="background:#f59e0b; color:#fff; font-weight:700;" title="Una de las plataformas no se completó">⚠️ Parcial (${partialLabel})</span>`;
+    if (isPartial) {
+      statusPill = `<span class="status-pill status-partial" title="${escapeHtml(post.error_message || '')}">Parcial</span>`;
     } else if (post.status === 'failed' && post.retry_count > 0) {
       statusPill += `<br><small style="color:var(--accent-rose); font-size:0.7rem;">Reintento ${post.retry_count}/${post.max_retries}</small>`;
     }
@@ -1327,23 +1353,23 @@ function renderQueueTable(posts) {
         <td>${statusPill}</td>
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn btn-secondary btn-xs" onclick="window.showPlannerPostDetailById(${post.id})" title="Ver detalle y vista previa (Mockup IG/FB)" style="font-weight:700;">👁️ Ver</button>
+            <button class="btn btn-secondary btn-xs" onclick="window.showPlannerPostDetailById(${post.id})" title="Ver detalle y vista previa (Mockup IG/FB)" style="font-weight:700;">Ver</button>
             ${post.status === 'scheduled' ? `
-              <button class="btn btn-primary btn-xs" onclick="publishPostNow(${post.id})" title="Publicar Ahora">⚡ Enviar</button>
+              <button class="btn btn-primary btn-xs" onclick="publishPostNow(${post.id})" title="Publicar ahora">Enviar</button>
             ` : ''}
-            ${hasPartialFailure ? `
-              <button class="btn btn-xs" onclick="publishPostNow(${post.id})" title="Completar entrega pendiente en Meta" style="background:#f59e0b; color:#fff; border:none; font-weight:700;">⚡ Completar (${metaRes.instagram && !metaRes.instagram.success ? 'IG' : 'FB'})</button>
+            ${isPartial ? `
+              <button class="btn btn-xs" onclick="publishPostNow(${post.id})" title="Completar entrega pendiente en Meta" style="background:#f59e0b; color:#fff; border:none; font-weight:700;">Completar (${metaRes?.instagram && !metaRes.instagram.success ? 'IG' : 'FB'})</button>
             ` : ''}
             ${post.status === 'failed' ? `
-              <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">🔁 Reintentar</button>
+              <button class="btn btn-secondary btn-xs" onclick="retryPost(${post.id})" title="Reintentar">Reintentar</button>
             ` : ''}
-            <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${post.id})" title="Editar detalles, hora, copy o imagen">✏️ Editar</button>
-            <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">📲 Story</button>
+            <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation(); window.openEditPostModal(${post.id})" title="Editar detalles, hora, copy o imagen">Editar</button>
+            <button class="btn btn-secondary btn-xs" onclick="window.repostAsStory(${post.id})" title="Convertir y repostear como Historia 9:16">Story</button>
             ${media.length > 0 ? `
-              <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'post-${post.id}')" title="Descargar imagen del post">📥 Bajar</button>
+              <button class="btn btn-ghost btn-xs" onclick="window.downloadMediaFile('${media[0]}', 'post-${post.id}')" title="Descargar imagen del post">Bajar</button>
             ` : ''}
-            <button class="btn btn-ghost btn-xs" onclick="window.openReassignModal(${post.id}, '${escapeHtml(post.account_name || '')}', '${post.account_id || ''}')" title="Reasignar a otra cuenta">🏢 Mover</button>
-            <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${post.id})" title="Reutilizar copy en Composer">🔄 Reusar</button>
+            <button class="btn btn-ghost btn-xs" onclick="window.openReassignModal(${post.id}, '${escapeHtml(post.account_name || '')}', '${post.account_id || ''}')" title="Reasignar a otra cuenta">Mover</button>
+            <button class="btn btn-ghost btn-xs" onclick="window.reusePost(${post.id})" title="Reutilizar copy en el editor">Reusar</button>
             <button class="btn btn-ghost btn-xs" style="color:var(--accent-rose);" onclick="deletePost(${post.id})" title="Eliminar">&times;</button>
           </div>
         </td>
@@ -1426,7 +1452,7 @@ window.renderSlotsInDOM = function(slots) {
             <span class="slot-remove" onclick="removeSlot(${dayIdx}, '${s.time_slot}')">&times;</span>
           </div>
         `).join('')}
-        <button class="btn-add-slot" onclick="promptAddSlot(${dayIdx})">+ Agregar Hora</button>
+        <button class="btn-add-slot" onclick="promptAddSlot(${dayIdx})">+ Agregar hora</button>
       </div>
     `;
     container.appendChild(row);
@@ -1657,7 +1683,7 @@ window.openReassignModal = function(postId, currentAccountName, currentAccountId
   if (bulkBox) bulkBox.style.display = 'none';
   if (postLabel) postLabel.textContent = `#${postId}`;
   if (currentAcc) currentAcc.textContent = currentAccountName || 'Cuenta General';
-  if (btnConfirm) btnConfirm.textContent = '✅ Transferir Publicación';
+  if (btnConfirm) btnConfirm.textContent = 'Transferir publicación';
 
   if (targetSelect && window._cachedMetaPages && targetSelect.options.length === 0) {
     targetSelect.innerHTML = window._cachedMetaPages.map(formatMetaPageOption).join('');
@@ -1683,7 +1709,7 @@ window.openBulkReassignModal = function(sourceAccountId, sourceAccountName) {
   if (titleEl) titleEl.textContent = 'Mover Publicaciones en Lote a otra Cuenta';
   if (singleInfo) singleInfo.style.display = 'none';
   if (bulkBox) bulkBox.style.display = 'block';
-  if (btnConfirm) btnConfirm.textContent = '🚀 Transferir Todos los Posts';
+  if (btnConfirm) btnConfirm.textContent = 'Transferir todos los posts';
 
   if (window._cachedMetaPages) {
     const opts = window._cachedMetaPages.map(formatMetaPageOption).join('');
@@ -1774,7 +1800,7 @@ function setupReassignConfirmBtn() {
       showToast('Error: ' + err.message, 'error');
     } finally {
       btnConfirm.disabled = false;
-      btnConfirm.textContent = currentReassignTarget.mode === 'single' ? '✅ Transferir Publicación' : '🚀 Transferir Todos los Posts';
+      btnConfirm.textContent = currentReassignTarget.mode === 'single' ? 'Transferir publicación' : 'Transferir todos los posts';
     }
   });
 }
@@ -2092,7 +2118,7 @@ function setupEditPostModal() {
       }
 
       btnSave.disabled = true;
-      btnSave.innerHTML = '<span>⏳</span> Guardando...';
+      btnSave.textContent = 'Guardando...';
 
       try {
         const origPost = (PlannerState.posts || []).find(p => Number(p.id) === Number(postId));
@@ -2143,7 +2169,7 @@ function setupEditPostModal() {
         showToast('Error al actualizar publicación: ' + err.message, 'error');
       } finally {
         btnSave.disabled = false;
-        btnSave.innerHTML = '<span>💾</span> Guardar Cambios';
+        btnSave.textContent = 'Guardar cambios';
       }
     });
   }
