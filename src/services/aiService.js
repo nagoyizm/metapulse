@@ -8,6 +8,7 @@ const editorialPlannerService = require('./editorialPlannerService');
 const COPY_RULES = require('../config/copyRules');
 const brandProfileService = require('./brandProfileService');
 const contentMemoryService = require('./contentMemoryService');
+const campaignService = require('./campaignService');
 
 // Modelos de texto gratis verificados (oct 2026). Google retiró 1.x, 2.0 y 2.5 para claves nuevas.
 // Orden: mejor primero; si uno está saturado (503) se pasa al siguiente.
@@ -113,6 +114,46 @@ class AIService {
 
   getImageApiKey() {
     return getSetting('ai_image_api_key') || getSetting('ai_api_key') || process.env.GEMINI_API_KEY || '';
+  }
+
+  /**
+   * Helper para generar respuestas estructuradas en JSON con Gemini
+   */
+  async generateJSON({ prompt, temperature = 0.4, maxOutputTokens = 4096 }) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('No hay clave de Gemini configurada');
+    }
+
+    const models = sanitizeGeminiModels(getSetting('ai_model'));
+    let lastError = null;
+
+    for (const m of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+        const res = await axios.post(url, {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature,
+            maxOutputTokens
+          }
+        }, { timeout: 30000 });
+
+        const parts = res.data?.candidates?.[0]?.content?.parts || [];
+        const rawJson = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+        if (!rawJson) {
+          throw new Error('Respuesta vacía de Gemini');
+        }
+        const data = JSON.parse(rawJson);
+        return { data, model: m };
+      } catch (err) {
+        lastError = err;
+        console.warn(`[generateJSON] Falló llamada con modelo ${m}:`, err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    throw lastError || new Error('No se pudo generar JSON con ningún modelo de Gemini');
   }
 
   /**
@@ -317,7 +358,7 @@ REGLAS DE ORO DE AGENDIO:
 5. CIERRE CON LLAMADO CLARO: Invita a cotizar en agendio.cl o escribir por WhatsApp (+56 9 7900 4253 / link en bio).
 6. HASHTAGS (poner al final, exactamente estos): ${hashtagLine}
 
-${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
+${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
 
 ${memoryBlock}
 
@@ -359,7 +400,7 @@ REGLAS DE ORO OBLIGATORIAS (2026 Instagram Voice & Algorithm Rules):
 ${hashtagRule}
 7. CERO FALSAS URGENCIAS NI CLICHÉS REPETITIVOS: PROHIBIDO TERMINANTEMENTE usar expresiones como "Pero ojo...", "Ojo...", "quedan pocas reservas", "apúrate que se acaban" o tácticas artificiales de urgencia. Comunica el llamado a la acción con calidez, confianza, serenidad y hospitalidad.
 
-${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
+${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: brandName })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: brandName, limit: 3 }))}
 
 ${memoryBlock}
 
@@ -800,7 +841,7 @@ El Boldo 366, local 13, Espacio Algarrobo, Algarrobo
 7. Cierre cálido con emoji 🧡 invitando a probarlo o descubrirlo.
 8. ENTRE 3 Y 5 HASHTAGS. Incluye siempre #KmarketAlgarrobo #KFood y los específicos del producto.
 
-${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Kmarket', limit: 3 }))}
+${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Kmarket' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Kmarket', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Kmarket', limit: 15 }))}
 
@@ -1497,7 +1538,7 @@ DIRECTRICES EDITORIALES, VOZ Y EQUILIBRIO:
 - EQUILIBRIO DE EMOJIS (NI SATURACIÓN NI SEQUÍA): Incluye entre 3 y 5 emojis cálidos y acogedores bien colocados a lo largo del post (ej: 🏡, 🌿, ☕, 🥩, 🌲, 📲). CERO spam de emojis, CERO framing estridente al inicio y final de una misma frase.
 - CERO FALSAS URGENCIAS: PROHIBIDO TERMINANTEMENTE usar "Pero ojo…", "Ojo…", "nos van quedando pocas reservas", "apúrate que se acaban". Invita a coordinar la estadía con calma, simpatía y calidez.
 
-${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Campiña', limit: 3 }))}
+${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Campiña' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Campiña', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Campiña', limit: 15 }))}
 
@@ -2010,7 +2051,7 @@ Genera una estructura de guión dinámico de 30 a 35 segundos:
 - 29 a 35s (Llamado a la acción con link en bio)
 ` : ''}
 
-${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Agendio', limit: 3 }))}
+${(() => { try { const b = campaignService.buildCampaignBlock(campaignService.getActive({ accountName: 'Agendio' })); return b ? b + '\n\n' : ''; } catch (_) { return ''; } })()}${contentMemoryService.buildExamplesBlock(contentMemoryService.getTopExamples({ accountName: 'Agendio', limit: 3 }))}
 
 ${contentMemoryService.buildMemoryBlock(contentMemoryService.getRecentCaptions({ accountName: 'Agendio', limit: 15 }))}
 

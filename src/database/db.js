@@ -183,6 +183,23 @@ function initializeDatabase() {
       fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_post_metrics_account ON post_metrics (account_name, score);
+
+    CREATE TABLE IF NOT EXISTS brand_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      brand_id TEXT NOT NULL,            -- id de brand_profiles
+      title TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'promo', -- 'permanente' | 'promo' | 'disponibilidad' | 'evento'
+      starts_on TEXT,                    -- 'YYYY-MM-DD' o NULL (= desde ya)
+      ends_on TEXT,                      -- 'YYYY-MM-DD' o NULL (= sin fin)
+      directive TEXT NOT NULL,           -- instrucción final que leerá la IA, 1-4 frases
+      details TEXT NOT NULL DEFAULT '{}',-- JSON: { oferta, publico, dias, condiciones, cta, permitirUrgencia:boolean }
+      open_questions TEXT NOT NULL DEFAULT '[]', -- JSON array de strings
+      source_text TEXT,                  -- texto original del cliente
+      status TEXT NOT NULL DEFAULT 'activa', -- 'activa' | 'pausada' | 'archivada'
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_brand_campaigns_brand ON brand_campaigns (brand_id, status);
   `);
 
   try {

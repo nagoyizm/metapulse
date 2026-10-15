@@ -39,6 +39,7 @@ const inboxSyncService = require('../services/inboxSyncService');
 const musicService = require('../services/musicService');
 const videoService = require('../services/videoService');
 const brandProfileService = require('../services/brandProfileService');
+const campaignService = require('../services/campaignService');
 const { scrapeCampinaWebsite, CAMPINA_VERIFIED_DATA } = require('../data/campinaKnowledge');
 
 function isVideoUrl(url) {
@@ -1457,6 +1458,122 @@ router.put('/brand-profiles/:id', (req, res) => {
   } catch (err) {
     if (err.message && (err.message.includes('no encontrado') || err.message.includes('not found') || err.message.includes('No existe'))) {
       return res.status(404).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 4.1. CAMPAÑAS E INDICACIONES DE MARCA
+// ==========================================
+router.get('/campaigns', (req, res) => {
+  try {
+    const { brandId } = req.query;
+    if (!brandId) {
+      return res.status(400).json({ success: false, error: 'Parámetro brandId requerido.' });
+    }
+    const campaigns = campaignService.list(brandId);
+    res.json({ success: true, campaigns });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/campaigns/parse-brief', async (req, res) => {
+  try {
+    const { brandId, text } = req.body || {};
+    if (!brandId) {
+      return res.status(400).json({ success: false, error: 'brandId es requerido.' });
+    }
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'Debes proporcionar el texto de las indicaciones del cliente.' });
+    }
+    const data = await campaignService.parseBrief({ brandId, text });
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.message && (err.message.includes('requerido') || err.message.includes('inválid') || err.message.includes('no encontrado') || err.message.includes('No hay clave'))) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/campaigns', (req, res) => {
+  try {
+    const campaign = campaignService.create(req.body || {});
+    res.json({ success: true, campaign });
+  } catch (err) {
+    if (err.message && (err.message.includes('obligatorio') || err.message.includes('inválido') || err.message.includes('no válido') || err.message.includes('formato') || err.message.includes('anterior') || err.message.includes('no existe'))) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/campaigns/:id', (req, res) => {
+  try {
+    const campaign = campaignService.update(req.params.id, req.body || {});
+    res.json({ success: true, campaign });
+  } catch (err) {
+    if (err.message && (err.message.includes('no encontrada') || err.message.includes('no encontrado') || err.message.includes('not found'))) {
+      return res.status(404).json({ success: false, error: err.message });
+    }
+    if (err.message && (err.message.includes('obligatorio') || err.message.includes('inválido') || err.message.includes('no válido') || err.message.includes('formato') || err.message.includes('anterior'))) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/campaigns/:id', (req, res) => {
+  try {
+    campaignService.remove(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    if (err.message && (err.message.includes('no encontrada') || err.message.includes('no encontrado') || err.message.includes('not found'))) {
+      return res.status(404).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/campaigns/plan-month', async (req, res) => {
+  try {
+    const { brandId, month, postsPerWeek } = req.body || {};
+    if (!brandId) {
+      return res.status(400).json({ success: false, error: 'brandId es requerido.' });
+    }
+    if (!month) {
+      return res.status(400).json({ success: false, error: 'Mes (YYYY-MM) es requerido.' });
+    }
+    const data = await campaignService.planMonth({
+      brandId,
+      month,
+      postsPerWeek: postsPerWeek ? Number(postsPerWeek) : 3
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.message && (err.message.includes('requerido') || err.message.includes('inválid') || err.message.includes('no encontrado') || err.message.includes('No hay clave'))) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/campaigns/create-drafts', async (req, res) => {
+  try {
+    const { brandId, items } = req.body || {};
+    if (!brandId) {
+      return res.status(400).json({ success: false, error: 'brandId es requerido.' });
+    }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'Debes enviar al menos un ítem para crear borradores.' });
+    }
+    const data = await campaignService.createDraftsFromPlan({ brandId, items });
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.message && (err.message.includes('requerido') || err.message.includes('vací') || err.message.includes('no encontrado'))) {
+      return res.status(400).json({ success: false, error: err.message });
     }
     res.status(500).json({ success: false, error: err.message });
   }

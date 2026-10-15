@@ -142,6 +142,7 @@
               btn.classList.toggle('active', btn.dataset.profileId === p.id);
             });
             populateForm(p);
+            document.dispatchEvent(new CustomEvent('brand:selected', { detail: { id: p.id } }));
           });
 
           listContainer.appendChild(itemBtn);
@@ -149,6 +150,9 @@
       }
 
       populateForm(selected);
+      if (selected?.id) {
+        document.dispatchEvent(new CustomEvent('brand:selected', { detail: { id: selected.id } }));
+      }
     } catch (err) {
       console.error('Error cargando perfiles de marca:', err);
       const toastFn = window.showToast || (typeof showToast === 'function' ? showToast : null);

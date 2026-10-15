@@ -662,6 +662,7 @@ function renderPlannerCalendar() {
 
       // Aplicar filtro de formato o estado
       if (PlannerState.filter === 'all') return true;
+      if (PlannerState.filter === 'draft') return p.status === 'draft';
       if (PlannerState.filter === 'story') return p.post_type === 'story';
       if (PlannerState.filter === 'reel') return p.post_type === 'reel';
       if (PlannerState.filter === 'feed') return p.post_type === 'feed' || p.post_type === 'carousel';
@@ -720,6 +721,7 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
       const isStory = post.post_type === 'story';
       const isReel = post.post_type === 'reel';
       const isScheduled = post.status === 'scheduled';
+      const isDraft = post.status === 'draft';
 
       let formatClass = 'is-feed';
       let formatIcon = '🖼️';
@@ -731,7 +733,7 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
         formatIcon = '🎥';
       }
 
-      item.className = `planner-card-item ${formatClass} ${isScheduled ? 'is-scheduled' : ''}`;
+      item.className = `planner-card-item ${formatClass} ${isDraft ? 'is-draft' : (isScheduled ? 'is-scheduled' : '')}`;
 
       let mediaUrls = [];
       try {
@@ -743,7 +745,12 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
 
       const rawDate = post.scheduled_at || post.published_at || '';
       const timeStr = formatChileTime(rawDate);
-      const statusIcon = isScheduled ? '🕒' : '✅';
+      let statusIcon = '✅';
+      if (isDraft) {
+        statusIcon = '📝';
+      } else if (isScheduled) {
+        statusIcon = '🕒';
+      }
 
       item.innerHTML = `
         ${thumbUrl ? `<img src="${thumbUrl}" class="planner-card-thumb" alt="media" onerror="window.handleThumbError(this, ${post.id})">` : `<div class="planner-card-thumb" style="background:var(--bg-surface);display:flex;align-items:center;justify-content:center;font-size:0.75rem;">${formatIcon}</div>`}
@@ -810,6 +817,9 @@ function updatePlannerDetailBadges(post, isStory, isReel) {
 }
 
 function getPlannerStatusPillHtml(post, metaRes, isScheduled) {
+  if (post?.status === 'draft') {
+    return '<span class="status-pill status-draft">📝 Borrador</span>';
+  }
   if (isScheduled) {
     return '<span class="status-pill scheduled">🕒 Programado</span>';
   }

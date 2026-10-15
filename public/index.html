@@ -1385,6 +1385,152 @@
                 <button type="submit" id="btn-brand-save" class="btn btn-primary">Guardar Perfil</button>
               </div>
             </form>
+
+            <!-- TARJETA: CAMPAÑAS E INDICACIONES DEL CLIENTE -->
+            <div class="card brand-campaigns-section" id="brand-campaigns-section" style="margin-top: 24px;">
+              <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.25rem;">📢</span>
+                  <div>
+                    <h3 style="margin:0; font-size:1.05rem;">Campañas e Indicaciones</h3>
+                    <p style="margin:2px 0 0 0; font-size:0.75rem; color:var(--text-secondary);">
+                      Interpreta indicaciones libres de clientes, gestiona fichas vigentes y planifica el mes
+                    </p>
+                  </div>
+                </div>
+                <span id="campaigns-brand-badge" class="badge badge-accent" style="font-weight:700;">Marca</span>
+              </div>
+
+              <div class="card-body">
+                <!-- Bloque 1: Pegar indicaciones libres del cliente -->
+                <div style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:16px; margin-bottom:20px;">
+                  <h4 style="margin:0 0 8px 0; font-size:0.92rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                    <span>📥</span> Pegar mensaje del cliente
+                  </h4>
+                  <p style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-secondary);">
+                    Pega el texto libre que te envió el cliente con promos, fechas o énfasis. La IA auditará conflictos con las reglas de marca y estructurará las fichas.
+                  </p>
+                  <div class="form-group" style="margin-bottom:12px;">
+                    <textarea id="campaign-raw-text" class="form-control" rows="3" placeholder="Pega aquí el mensaje del cliente..."></textarea>
+                  </div>
+                  <div style="display:flex; justify-content:flex-end; gap:8px;">
+                    <button type="button" class="btn btn-primary" id="btn-parse-brief">
+                      Interpretar indicaciones
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Bloque de resultados de la interpretación (dinámico) -->
+                <div id="campaign-parse-results" style="display:none; margin-bottom:24px;">
+                  <div id="campaign-parse-summary" style="font-size:0.85rem; padding:10px 14px; background:rgba(99, 102, 241, 0.05); border:1px solid rgba(99, 102, 241, 0.2); border-radius:var(--radius-xs); margin-bottom:14px; color:var(--text-primary);"></div>
+                  <div id="campaign-parse-conflicts" class="campaign-conflicts-alert" style="display:none;"></div>
+                  <div id="campaign-proposed-cards-container"></div>
+                </div>
+
+                <!-- Bloque 2: Fichas guardadas de la marca -->
+                <div style="margin-top:20px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                    <h4 style="margin:0; font-size:0.95rem; color:var(--text-primary);">
+                      Fichas de Campaña Registradas
+                    </h4>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-new-campaign-manual">
+                      + Nueva ficha manual
+                    </button>
+                  </div>
+
+                  <!-- Formulario manual / edición modal o inline -->
+                  <div id="campaign-manual-form-wrap" style="display:none; margin-bottom:20px;"></div>
+
+                  <!-- Listas agrupadas: Vigentes / Próximas / Vencidas-archivadas -->
+                  <div class="campaigns-grouped-list" id="campaigns-grouped-list">
+                    <div id="group-vigentes" class="campaign-group">
+                      <div class="campaign-group-title">
+                        <span>🟢</span> Vigentes
+                      </div>
+                      <div class="campaign-group-items" id="items-vigentes"></div>
+                    </div>
+
+                    <div id="group-proximas" class="campaign-group">
+                      <div class="campaign-group-title">
+                        <span>🟡</span> Próximas
+                      </div>
+                      <div class="campaign-group-items" id="items-proximas"></div>
+                    </div>
+
+                    <div id="group-vencidas" class="campaign-group">
+                      <div class="campaign-group-title">
+                        <span>⚪</span> Vencidas / Archivadas
+                      </div>
+                      <div class="campaign-group-items" id="items-vencidas"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloque 3: Planificador del mes -->
+                <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--border-subtle);">
+                  <div style="margin-bottom:14px;">
+                    <h4 style="margin:0 0 4px 0; font-size:0.98rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                      <span>📅</span> Planificar mes
+                    </h4>
+                    <p style="margin:0; font-size:0.8rem; color:var(--text-secondary);">
+                      Genera una propuesta de calendario mensual distribuyendo las campañas vigentes y posts de marca
+                    </p>
+                  </div>
+
+                  <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+                    <div class="form-group" style="margin-bottom:0; min-width:160px;">
+                      <label class="form-label" for="plan-month-select" style="font-size:0.8rem;">Mes:</label>
+                      <input type="month" id="plan-month-select" class="form-control" style="font-size:0.85rem;" />
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; width:130px;">
+                      <label class="form-label" for="plan-posts-per-week" style="font-size:0.8rem;">Posts / semana:</label>
+                      <input type="number" id="plan-posts-per-week" class="form-control" min="2" max="7" value="3" style="font-size:0.85rem;" />
+                    </div>
+                    <button type="button" class="btn btn-primary" id="btn-propose-plan">
+                      Proponer plan
+                    </button>
+                  </div>
+
+                  <!-- Resultados del plan propuesto -->
+                  <div id="plan-proposal-results" style="display:none;">
+                    <div id="plan-notes-banner" style="font-size:0.83rem; padding:10px 14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); margin-bottom:14px; color:var(--text-secondary);"></div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <button type="button" class="btn btn-ghost btn-xs" id="btn-plan-select-all">Seleccionar todos</button>
+                        <button type="button" class="btn btn-ghost btn-xs" id="btn-plan-deselect-all">Deseleccionar todos</button>
+                      </div>
+                      <span id="plan-selected-count" style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">0 seleccionados</span>
+                    </div>
+
+                    <div class="campaign-plan-table-wrap">
+                      <table class="campaign-plan-table">
+                        <thead>
+                          <tr>
+                            <th style="width:36px; text-align:center;"><input type="checkbox" id="chk-plan-master" checked /></th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Formato</th>
+                            <th>Campaña</th>
+                            <th>Ángulo y Gancho</th>
+                            <th>Estrategia</th>
+                          </tr>
+                        </thead>
+                        <tbody id="plan-items-tbody"></tbody>
+                      </table>
+                    </div>
+
+                    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                      <div id="plan-create-progress" style="font-size:0.85rem; color:var(--primary); font-weight:600;"></div>
+                      <button type="button" class="btn btn-primary" id="btn-create-drafts">
+                        Crear borradores seleccionados
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -3352,5 +3498,6 @@
   <script src="js/batchScheduler.js?v=2.4"></script>
   <script src="js/inbox.js?v=2.4"></script>
   <script src="js/brand.js?v=1.0"></script>
+  <script src="js/campaigns.js"></script>
 </body>
 </html>
