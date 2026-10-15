@@ -13,11 +13,11 @@
 </head>
 <body class="light-theme">
   <!-- PANTALLA DE ACCESO Y SEGURIDAD METAPULSE -->
-  <div id="auth-overlay" style="display: flex; position: fixed; inset: 0; z-index: 999999; background: radial-gradient(circle at top, #1e1e2e 0%, #0a0b10 100%); align-items: center; justify-content: center; padding: 20px; font-family: 'Inter', sans-serif;">
-    <div style="background: rgba(23, 24, 34, 0.95); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 100%; max-width: 440px; padding: 38px 32px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.06); color: #fff;">
+  <div id="auth-overlay" style="display: flex; position: fixed; inset: 0; z-index: 999999; background: radial-gradient(circle at top, #201e1b 0%, #0e0d0c 100%); align-items: center; justify-content: center; padding: 20px; font-family: 'Inter', sans-serif;">
+    <div style="background: rgba(23, 22, 20, 0.95); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 100%; max-width: 440px; padding: 38px 32px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.06); color: #fff;">
       
       <div style="text-align: center; margin-bottom: 28px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6); box-shadow: 0 8px 30px rgba(236,72,153,0.4); margin-bottom: 16px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #cc8800, #c55221); box-shadow: 0 8px 30px rgba(204,136,0,0.35); margin-bottom: 16px;">
           <svg viewBox="0 0 24 24" width="34" height="34" stroke="#fff" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
@@ -49,14 +49,14 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #94a3b8;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="auth-remember" checked style="accent-color: #ec4899; cursor: pointer; width: 16px; height: 16px;">
+            <input type="checkbox" id="auth-remember" checked style="accent-color: #cc8800; cursor: pointer; width: 16px; height: 16px;">
             <span>Mantener sesión iniciada (30 días)</span>
           </label>
         </div>
 
-        <button type="submit" id="btn-submit-auth-login" style="background: linear-gradient(135deg, #be185d, #6d28d9); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 18px rgba(190,24,93,0.45); margin-top: 6px; transition: opacity 0.2s;">
+        <button type="submit" id="btn-submit-auth-login" style="background: linear-gradient(135deg, #cc8800, #c55221); color: #fff; border: none; padding: 13px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 18px rgba(204,136,0,0.35); margin-top: 6px; transition: opacity 0.2s;">
           <span id="btn-auth-spinner" style="display:none;">⏳</span>
-          <span id="btn-auth-text">🔐 Iniciar Sesión</span>
+          <span id="btn-auth-text">Iniciar sesión</span>
         </button>
       </form>
 
@@ -101,7 +101,7 @@
         <button class="nav-item" data-tab="inbox">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>Bandeja</span>
-          <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: #be185d; color: #fff;">0</span>
+          <span class="nav-badge" id="sidebar-inbox-badge" style="display:none; background: var(--secondary); color: #fff;">0</span>
         </button>
         <button class="nav-item" data-tab="analytics">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
@@ -278,7 +278,7 @@
                 <h3>Historial de Publicaciones</h3>
                 <div style="display:flex; gap:8px;">
                   <button class="btn btn-secondary btn-sm" id="btn-sync-live-dash" title="Sincronizar feed en vivo de Instagram">
-                    🔄 Sincronizar Feed
+                    Sincronizar feed
                   </button>
                   <button class="btn btn-ghost btn-sm" onclick="navigateToTab('analytics')">Estadísticas</button>
                 </div>
@@ -307,14 +307,14 @@
                   <div style="display:flex; gap:8px; margin-left:auto; flex-wrap:wrap;">
                     <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-composer-top" title="Reiniciar proceso, borrar Asistente IA y todos los campos" style="display:flex; align-items:center; gap:6px; font-weight:600;">
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
-                      <span>🔄 Reiniciar Proceso</span>
+                      <span>Reiniciar proceso</span>
                     </button>
                     <button class="btn btn-ai btn-sm" id="btn-open-ai-modal">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
                       <span>Asistente IA (Copy)</span>
                     </button>
                     <button type="button" class="btn btn-sm" id="btn-open-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
-                      <span>📦 Carga en Lote (Autopilot)</span>
+                      <span>Carga en lote</span>
                     </button>
                   </div>
                 </div>
@@ -369,7 +369,7 @@
                     </label>
                     <label class="radio-pill">
                       <input type="radio" name="post_type" value="reel">
-                      <span>Reel / Video</span>
+                      <span>Reel / video</span>
                     </label>
                     <label class="radio-pill">
                       <input type="radio" name="post_type" value="carousel">
@@ -390,7 +390,7 @@
                     <label class="form-label" for="post-content">Texto del Post (Copy / Caption)</label>
                     <div style="display:flex; align-items:center; gap:8px;">
                       <button type="button" class="btn btn-secondary btn-xs" id="btn-humanize-composer" title="Auditar gancho <120 caracteres y eliminar rastros de IA">
-                        🔍 Auditar / Humanizar (Anti-IA)
+                        Auditar y humanizar
                       </button>
                       <div class="char-counters">
                         <span class="counter-badge fb" id="counter-fb">FB: 0</span>
@@ -448,18 +448,18 @@
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                       <!-- Botón especializado Agendio -->
                       <button type="button" class="btn btn-primary btn-sm" id="btn-agendio-scene-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #065f46; border-color: #065f46;">
-                        📅 Maquetar Escena B2B 4:5
+                        Maquetar escena B2B 4:5
                       </button>
                       <!-- Botón especializado Cabañas La Campiña -->
                       <button type="button" class="btn btn-primary btn-sm" id="btn-campina-flyer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #059669; border-color: #059669;">
-                        🌲 Maquetar Flyer Editorial 4:5 ($0)
+                        Maquetar flyer editorial
                       </button>
                       <!-- Botón especializado Kmarket -->
                       <button type="button" class="btn btn-primary btn-sm" id="btn-kmarket-designer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #ea580c; border-color: #ea580c;">
-                        🛒 Diseñador Gráfico Senior 4:5
+                        Diseñador gráfico senior
                       </button>
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
-                        ✨ Póster 4:5
+                        Póster 4:5
                       </button>
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
@@ -486,7 +486,7 @@
                         <span>🖼️ Usar foto actual de base</span>
                       </label>
                       <button type="button" class="btn btn-primary btn-sm" id="btn-trigger-direct-image" style="font-size:0.75rem; padding:5px 12px; gap:6px;">
-                        ✨ Generar Imagen Ahora
+                        Generar imagen
                       </button>
                     </div>
                   </div>
@@ -640,13 +640,13 @@
                       <!-- Tabs de Fuentes -->
                       <div class="music-source-tabs">
                         <button type="button" class="music-tab-btn active" data-tab="curated">
-                          <span>🎧 Biblioteca Sin Copyright</span>
+                          <span>Biblioteca sin copyright</span>
                         </button>
                         <button type="button" class="music-tab-btn" data-tab="upload">
-                          <span>📁 Subir mi Canción</span>
+                          <span>Subir mi canción</span>
                         </button>
                         <button type="button" class="music-tab-btn" data-tab="jamendo">
-                          <span>🌸 K-Pop & Audius API</span>
+                          <span>K-Pop y Audius API</span>
                         </button>
                       </div>
 
@@ -710,7 +710,7 @@
                             </div>
                           </div>
                           <button type="button" class="btn btn-secondary btn-sm" id="btn-active-music-play" style="font-size:0.75rem; padding:4px 10px;">
-                            ▶ Escuchar
+                            Escuchar
                           </button>
                         </div>
 
@@ -742,7 +742,7 @@
 
                         <!-- Botón de Generación Instantánea con FFmpeg -->
                         <button type="button" class="btn-generate-story-video" id="btn-generate-story-video">
-                          ⚡ Generar Video Feed con Audio Ahora
+                          Generar video feed con audio
                         </button>
 
                         <!-- Indicador de Éxito -->
@@ -909,23 +909,23 @@
         <!-- Selector Superior de Vistas del Planner -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
           <div class="planner-view-tabs">
-            <button type="button" class="planner-view-btn active" data-view="calendar">📅 Vista Calendario Planner</button>
-            <button type="button" class="planner-view-btn" data-view="list">📋 Vista Lista & Cola</button>
-            <button type="button" class="planner-view-btn" data-view="slots">⏰ Horarios Semanales (Slots)</button>
+            <button type="button" class="planner-view-btn active" data-view="calendar">Vista calendario</button>
+            <button type="button" class="planner-view-btn" data-view="list">Vista lista y cola</button>
+            <button type="button" class="planner-view-btn" data-view="slots">Horarios semanales</button>
           </div>
 
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-open-bulk-reassign" onclick="window.openBulkReassignModal()" title="Mover publicaciones de una cuenta a otra">
-              🏢 Mover Posts en Lote
+              Mover posts en lote
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-sync-live-queue" title="Sincronizar publicaciones en vivo desde Instagram">
-              🔄 Sincronizar Meta
+              Sincronizar Meta
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-repair-meta-thumbs" title="Descargar y almacenar localmente miniaturas expiradas de Meta (URL signature expired)">
-              🩹 Reparar Miniaturas
+              Reparar miniaturas
             </button>
             <button type="button" class="btn btn-sm" id="btn-planner-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
-              📦 Carga en Lote
+              Carga en lote
             </button>
             <button type="button" class="btn btn-primary btn-sm" id="btn-planner-new-post">
               + Crear Post
@@ -946,11 +946,11 @@
             <!-- Filtros de formato y estado -->
             <div class="filter-pills" id="planner-filter-pills">
               <button type="button" class="filter-pill active" data-planner-filter="all">Todos</button>
-              <button type="button" class="filter-pill" data-planner-filter="story">📱 Historias</button>
-              <button type="button" class="filter-pill" data-planner-filter="reel">🎥 Reels</button>
-              <button type="button" class="filter-pill" data-planner-filter="feed">🖼️ Feed</button>
-              <button type="button" class="filter-pill" data-planner-filter="scheduled">🕒 Agendados</button>
-              <button type="button" class="filter-pill" data-planner-filter="published">✅ Publicados</button>
+              <button type="button" class="filter-pill" data-planner-filter="story">Historias</button>
+              <button type="button" class="filter-pill" data-planner-filter="reel">Reels</button>
+              <button type="button" class="filter-pill" data-planner-filter="feed">Feed</button>
+              <button type="button" class="filter-pill" data-planner-filter="scheduled">Agendados</button>
+              <button type="button" class="filter-pill" data-planner-filter="published">Publicados</button>
             </div>
           </div>
 
@@ -1020,13 +1020,13 @@
               </div>
               <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
                 <button class="btn btn-secondary btn-sm" id="btn-save-as-new-preset" title="Guardar la configuración actual como una nueva prueba (ej: Prueba 1, Prueba 2)">
-                  ➕ Guardar como Nueva Prueba
+                  Guardar como nueva prueba
                 </button>
                 <button class="btn btn-secondary btn-sm" id="btn-save-slots" title="Guardar cambios en el horario actual">
-                  💾 Guardar Cambios
+                  Guardar cambios
                 </button>
                 <button class="btn btn-primary btn-sm" id="btn-preset-wed-sat" title="Configurar 2 post semanales: Miércoles y Sábados">
-                  🎯 Preset Miércoles & Sábados
+                  Preset Miércoles y Sábados
                 </button>
               </div>
             </div>
@@ -1046,7 +1046,7 @@
               </div>
               <div style="display:flex; gap:8px;">
                 <button type="button" class="btn btn-primary btn-sm" id="btn-activate-selected-preset" style="font-size:0.8rem;">
-                  ⚡ Activar este Horario
+                  Activar horario
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" id="btn-delete-selected-preset" title="Eliminar este horario guardado" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:4px 8px;">
                   🗑️
@@ -1077,7 +1077,7 @@
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="btn btn-primary" id="btn-trigger-ai-audit" title="Analizar el feed con el algoritmo de Meta">
-                ✨ Auditoría Estratégica con IA
+                Auditoría estratégica con IA
               </button>
               <button class="btn btn-secondary" id="btn-refresh-insights">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
@@ -1109,31 +1109,31 @@
               <div class="stat-icon icon-cyan">👁️</div>
               <div class="stat-content">
                 <span class="stat-label">Alcance Total (Reach)</span>
-                <h3 class="stat-value" id="kpi-reach">48,920</h3>
-                <span class="stat-subtext text-emerald">↑ +14.2% esta semana</span>
+                <h3 class="stat-value" id="kpi-reach">—</h3>
+                <span class="stat-subtext">Últimos 7 días</span>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon icon-violet">📈</div>
               <div class="stat-content">
                 <span class="stat-label">Impresiones Totales</span>
-                <h3 class="stat-value" id="kpi-impressions">89,400</h3>
-                <span class="stat-subtext text-emerald">↑ +8.7% vs mes anterior</span>
+                <h3 class="stat-value" id="kpi-impressions">—</h3>
+                <span class="stat-subtext">Últimos 7 días</span>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon icon-emerald">💬</div>
               <div class="stat-content">
                 <span class="stat-label">Tasa de Interacción</span>
-                <h3 class="stat-value" id="kpi-engagement">4.8%</h3>
-                <span class="stat-subtext">Promedio superior a la media</span>
+                <h3 class="stat-value" id="kpi-engagement">—</h3>
+                <span class="stat-subtext">Interacciones / alcance</span>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon icon-rose">👥</div>
               <div class="stat-content">
                 <span class="stat-label">Seguidores Totales</span>
-                <h3 class="stat-value" id="kpi-followers">40,850</h3>
+                <h3 class="stat-value" id="kpi-followers">—</h3>
                 <span class="stat-subtext">Facebook & Instagram</span>
               </div>
             </div>
@@ -1159,15 +1159,15 @@
                     </div>
                     <div class="top-post-details" style="flex:1; min-width:0;">
                       <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
-                        <span class="badge" id="top-post-likes-badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">❤️ 0 Likes</span>
+                        <span class="badge" id="top-post-likes-badge" style="background:var(--primary-subtle); color:var(--accent-brand-text); font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">❤️ 0 me gusta</span>
                         <span class="badge" id="top-post-comments-badge" style="background:#dbeafe; color:#1e3a8a; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">💬 0 Comentarios</span>
                         <span class="badge" id="top-post-type-badge" style="background:#f3e8ff; color:#581c87; font-weight:700; font-size:0.75rem; padding:2px 8px; border-radius:10px;">🎥 Video</span>
                       </div>
                       <h4 id="top-post-title" style="margin:0 0 6px 0; font-size:0.92rem; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Cargando publicación...</h4>
                       <p id="top-post-caption" style="margin:0 0 10px 0; font-size:0.8rem; color:var(--text-secondary); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;"></p>
                       <div style="display:flex; gap:8px;">
-                        <button class="btn btn-secondary btn-sm" id="btn-top-post-reuse" style="font-size:0.75rem; padding:4px 10px;">🔄 Reusar en Composer</button>
-                        <button class="btn btn-primary btn-sm" id="btn-top-post-story" style="font-size:0.75rem; padding:4px 10px;">📲 Convertir a Historia</button>
+                        <button class="btn btn-secondary btn-sm" id="btn-top-post-reuse" style="font-size:0.75rem; padding:4px 10px;">Reusar en el editor</button>
+                        <button class="btn btn-primary btn-sm" id="btn-top-post-story" style="font-size:0.75rem; padding:4px 10px;">Convertir a historia</button>
                       </div>
                     </div>
                   </div>
@@ -1442,7 +1442,7 @@
                 <div class="logo-upload-box">
                   <input type="file" id="logo-file-input" aria-label="Subir Logotipo PNG" accept="image/png,image/webp" style="display:none;">
                   <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('logo-file-input').click()">
-                    📁 Seleccionar Logo PNG
+                    Seleccionar logo PNG
                   </button>
                   <span id="logo-file-name" class="text-muted">Ningún logo seleccionado</span>
                 </div>
@@ -1569,10 +1569,10 @@
 
                     <div class="wizard-actions">
                       <button class="btn btn-secondary" id="btn-exchange-token">
-                        ⚡ Convertir a Token de Larga Duración (60 días)
+                        Convertir a token de larga duración (60 días)
                       </button>
                       <button class="btn btn-primary" id="btn-detect-pages">
-                        🔍 Detectar Páginas de Facebook e Instagram
+                        Detectar páginas de Facebook e Instagram
                       </button>
                     </div>
 
@@ -1690,7 +1690,7 @@
                     <input type="file" id="settings-seal-file" aria-label="Subir Sello Circular PNG" accept="image/png,image/webp" style="display:none;">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
                       <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('settings-seal-file').click()">
-                        📁 Subir Sello Circular PNG
+                        Subir sello circular PNG
                       </button>
                       <button type="button" class="btn btn-ghost btn-sm" id="btn-view-watermarks-tool" onclick="navigateToTab('media')">
                         Ir al Editor Multimedia ↗
@@ -1722,15 +1722,15 @@
         <div class="inbox-header-toolbar">
           <div class="inbox-subtabs">
             <button type="button" class="inbox-subtab active" data-inbox-view="dms" id="btn-inbox-subtab-dms">
-              <span>✉️ Mensajes Directos (DMs)</span>
+              <span>Mensajes directos (DMs)</span>
               <span class="badge badge-accent" id="inbox-unread-dms-badge" style="display:none;">0</span>
             </button>
             <button type="button" class="inbox-subtab" data-inbox-view="comments" id="btn-inbox-subtab-comments">
-              <span>💬 Comentarios en Posts</span>
+              <span>Comentarios en posts</span>
               <span class="badge badge-accent" id="inbox-unread-comments-badge" style="display:none;">0</span>
             </button>
             <button type="button" class="inbox-subtab" data-inbox-view="whatsapp" id="btn-inbox-subtab-whatsapp">
-              <span>📲 Alertas a WhatsApp</span>
+              <span>Alertas a WhatsApp</span>
               <span class="pulse-dot-green" id="whatsapp-active-indicator" style="display:none;"></span>
             </button>
           </div>
@@ -1742,7 +1742,7 @@
             </span>
             <span id="inbox-last-synced-label" style="font-size: 0.78rem; color: var(--text-secondary); margin-right: 8px;"></span>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-inbox-refresh" title="Sincronizar comentarios y mensajes de Meta">
-              <span id="btn-inbox-refresh-icon">🔄</span> Sincronizar Ahora
+              <span id="btn-inbox-refresh-icon">🔄</span> Sincronizar ahora
             </button>
           </div>
         </div>
@@ -1792,7 +1792,7 @@
                   <div class="chat-ai-dock-header">
                     <span class="chat-ai-dock-title" id="chat-ai-dock-title">✨ Sugerencias Inteligentes IA:</span>
                     <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-dock-refresh" title="Generar nuevas sugerencias" style="padding: 2px 6px; font-size: 0.72rem;">
-                      🔄 Nuevas
+                      Nuevas
                     </button>
                   </div>
                   <div class="chat-ai-chips-list" id="chat-ai-chips-list">
@@ -1807,10 +1807,10 @@
                   </div>
                   <div class="chat-input-actions">
                     <button type="button" class="btn btn-ghost btn-xs" id="btn-chat-ai-suggest" title="Sugerir respuesta profesional con IA adaptada al negocio">
-                      ✨ Sugerir con IA
+                      Sugerir con IA
                     </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btn-chat-send">
-                      <span>Enviar</span> 🚀
+                      <span>Enviar</span>
                     </button>
                   </div>
                 </div>
@@ -1826,7 +1826,7 @@
               <button type="button" class="btn btn-sm btn-secondary active" data-comment-filter="all">Todos</button>
               <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="unanswered">Pendientes de respuesta</button>
               <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="answered">Respondidos</button>
-              <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="archived">📦 Archivados</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-comment-filter="archived">Archivados</button>
             </div>
             <div class="comments-toolbar-info">
               <span class="comments-archive-hint">
@@ -1945,10 +1945,10 @@
 
               <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 12px;">
                 <button type="button" class="btn btn-secondary" id="btn-whatsapp-test">
-                  📲 Enviar WhatsApp de Prueba
+                  Enviar WhatsApp de prueba
                 </button>
                 <button type="button" class="btn btn-primary" id="btn-whatsapp-save">
-                  💾 Guardar Ajustes de WhatsApp
+                  Guardar ajustes de WhatsApp
                 </button>
               </div>
             </div>
@@ -1972,12 +1972,12 @@
           </div>
           <!-- Mode Tabs -->
           <div class="preview-tabs" style="width: 100%; display: flex; flex-wrap: wrap; gap: 4px;">
-            <button type="button" class="preview-tab active" id="btn-ai-tab-general" data-ai-mode="general">✨ Redactor 2026</button>
-            <button type="button" class="preview-tab" id="btn-ai-tab-carousel" data-ai-mode="carousel">📑 Carrusel Slide a Slide</button>
-            <button type="button" class="preview-tab" id="btn-ai-tab-humanize" data-ai-mode="humanize">🔍 Humanizador Anti-IA</button>
-            <button type="button" class="preview-tab" id="btn-ai-tab-kmarket" data-ai-mode="kmarket">🛒 Kmarket: Producto 4:5</button>
-            <button type="button" class="preview-tab" id="btn-ai-tab-campina" data-ai-mode="campina">🏡 La Campiña: Reel & Fechas</button>
-            <button type="button" class="preview-tab" id="btn-ai-tab-agendio" data-ai-mode="agendio" style="display: none;">📅 Agendio: Copy & Escena Gemini</button>
+            <button type="button" class="preview-tab active" id="btn-ai-tab-general" data-ai-mode="general">Redactor 2026</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-carousel" data-ai-mode="carousel">Carrusel slide a slide</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-humanize" data-ai-mode="humanize">Humanizador anti-IA</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-kmarket" data-ai-mode="kmarket">Kmarket: producto 4:5</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-campina" data-ai-mode="campina">La Campiña: reel y fechas</button>
+            <button type="button" class="preview-tab" id="btn-ai-tab-agendio" data-ai-mode="agendio" style="display: none;">Agendio: copy y escena Gemini</button>
           </div>
         </div>
 
@@ -2006,7 +2006,7 @@
               </div>
             </div>
             <button type="button" class="btn btn-ai btn-full" id="btn-generate-carousel">
-              <span>📑 Planificar Carrusel con Metodología 2026</span>
+              <span>Planificar carrusel con metodología 2026</span>
             </button>
             <div id="carousel-results-box" style="display: none; margin-top: 14px; max-height: 280px; overflow-y: auto;">
               <!-- Slides renderizados dinámicamente -->
@@ -2020,7 +2020,7 @@
               <textarea id="humanize-input-text" class="form-control" rows="4" placeholder="Pega tu texto aquí para comprobar gancho <120 caracteres, guiones largos, clichés de IA y hashtags..."></textarea>
             </div>
             <button type="button" class="btn btn-ai btn-full" id="btn-run-humanize">
-              <span>🔍 Auditar y Humanizar Texto</span>
+              <span>Auditar y humanizar texto</span>
             </button>
             <div id="humanize-audit-box" style="display:none; margin-top: 12px; background:var(--bg-surface-subtle); padding:10px 12px; border-radius:var(--radius-xs); border:1px solid var(--border-subtle);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
@@ -2069,7 +2069,7 @@
             </div>
 
             <button class="btn btn-ai btn-full" id="btn-generate-ai-copy">
-              <span>✨ Generar Copy y Hashtags con Gemini</span>
+              <span>Generar texto</span>
             </button>
           </div>
 
@@ -2092,10 +2092,10 @@
                   <input type="file" id="kmarket-scan-file-input" aria-label="Subir foto del empaque de referencia" accept="image/*" style="display:none;">
                   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
                     <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('kmarket-scan-file-input').click()">
-                      📁 Seleccionar Foto
+                      Seleccionar foto
                     </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btn-scan-product-auto">
-                      🔍 Escanear e Investigar Producto
+                      Escanear e investigar producto
                     </button>
                   </div>
                   <div id="kmarket-scan-status" class="text-muted" style="font-size:0.75rem;">Sube la foto del empaque para investigar marca, ingredientes y notas de sabor.</div>
@@ -2115,13 +2115,13 @@
 
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
               <button class="btn btn-ai" style="flex:1;" id="btn-generate-kmarket-ai">
-                <span>📝 Redactar Copy con estos Datos</span>
+                <span>Redactar copy con estos datos</span>
               </button>
               <button class="btn btn-primary" style="flex:1;" id="btn-generate-kmarket-direct-poster">
-                <span>🎨 Generar Afiche 4:5 Ahora</span>
+                <span>Generar afiche 4:5</span>
               </button>
               <button type="button" class="btn btn-secondary" id="btn-open-gemini-web-floating" title="Abrir Gemini Web en ventana auxiliar compacta con el prompt listo">
-                <span>🌐 Abrir Gemini Web</span>
+                <span>Abrir Gemini Web</span>
               </button>
             </div>
 
@@ -2130,8 +2130,8 @@
               <div class="card-header" style="padding: 8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <strong style="font-size:0.82rem;">🎨 Imagen Publicitaria 4:5:</strong>
                 <div style="display:flex; gap:6px;">
-                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-flux-image">✨ Generar con Gemini 3 Pro</button>
-                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-image-prompt">📋 Copiar Prompt</button>
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-flux-image">Generar con Gemini 3 Pro</button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-image-prompt">Copiar prompt</button>
                 </div>
               </div>
               <div class="card-body" style="padding: 8px 12px;">
@@ -2151,7 +2151,7 @@
                 <span style="color: var(--success);">🌐</span> <strong>Datos oficiales de www.cabanaslacampina.cl</strong><br>
                 <span class="text-muted" style="font-size:0.75rem;">Cabañas familiares (2 a 8 p), Suites de pareja, Quinchos privados, Jardines temáticos, Desconexión sin Wi-Fi.</span>
               </div>
-              <button class="btn btn-secondary btn-xs" id="btn-sync-campina-web" title="Re-escanear www.cabanaslacampina.cl">🔄 Sincronizar Web</button>
+              <button class="btn btn-secondary btn-xs" id="btn-sync-campina-web" title="Re-escanear www.cabanaslacampina.cl">Sincronizar web</button>
             </div>
 
             <!-- Box Foto de Fondo para el Afiche Publicitario 4:5 -->
@@ -2169,10 +2169,10 @@
                   <input type="file" id="campina-bg-file-input" aria-label="Subir foto de fondo para el afiche" accept="image/*" style="display:none;">
                   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
                     <button type="button" class="btn btn-secondary btn-sm" id="btn-select-campina-bg">
-                      📁 Subir Foto de Fondo
+                      Subir foto de fondo
                     </button>
                     <button type="button" class="btn btn-ghost btn-sm" id="btn-use-composer-bg" style="font-size:0.78rem;">
-                      🖼️ Usar Foto del Editor
+                      Usar foto del editor
                     </button>
                   </div>
                   <div id="campina-bg-status" class="text-muted" style="font-size:0.75rem;">Adjunta la foto real que deseas usar como base para el afiche 4:5.</div>
@@ -2318,16 +2318,16 @@
 
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
               <button class="btn btn-ai" style="flex:1; min-width:200px;" id="btn-generate-campina-ai">
-                <span>🏡 Generar Guión, Copy + Prompt 4:5</span>
+                <span>Generar guión, copy y prompt 4:5</span>
               </button>
               <button class="btn btn-primary" style="flex:1; min-width:180px;" id="btn-generate-campina-direct-poster" title="Genera el afiche 4:5 con Gemini sobre la foto">
-                <span>🎨 Generar con Gemini</span>
+                <span>Generar con Gemini</span>
               </button>
               <button class="btn btn-secondary" style="flex:1; min-width:190px;" id="btn-generate-campina-editorial-flyer" title="Monta tipografía vectorial nítida sobre la foto 100% real sin tocar el fondo">
-                <span>📐 Afiche Editorial (Foto 100% Real)</span>
+                <span>Afiche editorial (foto 100% real)</span>
               </button>
               <button type="button" class="btn btn-ghost" id="btn-open-gemini-web-campina" title="Abrir Gemini Web con el prompt maestro copiado">
-                <span>🌐 Gemini Web</span>
+                <span>Gemini Web</span>
               </button>
             </div>
 
@@ -2336,8 +2336,8 @@
               <div class="card-header" style="padding: 8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt Maestro para Gemini (Afiche 4:5 Senior):</strong>
                 <div style="display:flex; gap:6px;">
-                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-campina-image">✨ Generar con Gemini</button>
-                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-campina-image-prompt">📋 Copiar Prompt</button>
+                  <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-campina-image">Generar con Gemini</button>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-campina-image-prompt">Copiar prompt</button>
                 </div>
               </div>
               <div class="card-body" style="padding: 8px 12px;">
@@ -2346,7 +2346,7 @@
                   <img id="campina-ai-img-result" src="" alt="Afiche La Campiña Generado" style="max-height:180px; border-radius:6px; border:1px solid var(--border-subtle); object-fit:cover;">
                   <div style="font-size:0.75rem; color:var(--success); margin-top:4px; font-weight:600;">✅ ¡Afiche 4:5 generado con éxito y cargado al Composer!</div>
                   <button type="button" class="btn btn-primary btn-sm" id="btn-stamp-campina-flyer" style="margin-top:8px; width:100%; gap:6px; font-weight:700; background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);" onclick="const cm = document.getElementById('modal-campina-flyer'); if (cm) cm.style.display='none'; const resImg = document.getElementById('campina-ai-img-result'); if (window.openInteractiveStampModal) { window.openInteractiveStampModal(resImg ? resImg.src : ''); } else { const sm = document.getElementById('modal-interactive-stamp'); if (sm) sm.style.display='flex'; }">
-                    🎯 Estampar Logo en este Afiche
+                    Estampar logo en este afiche
                   </button>
                 </div>
               </div>
@@ -2439,10 +2439,10 @@
                   <input type="file" id="agendio-bg-file-input" aria-label="Subir foto de cabaña o base" accept="image/*" style="display:none;">
                   <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
                     <button type="button" class="btn btn-secondary btn-xs" id="btn-select-agendio-bg">
-                      📁 Subir Foto Base
+                      Subir foto base
                     </button>
                     <button type="button" class="btn btn-ghost btn-xs" id="btn-use-composer-agendio-bg" style="font-size:0.75rem;">
-                      🖼️ Usar Foto del Editor
+                      Usar foto del editor
                     </button>
                   </div>
                   <div id="agendio-bg-status" class="text-muted" style="font-size:0.72rem;">Opcional: Si no adjuntas foto, Gemini creará una escena fotográfica completa con la paleta de Agendio.</div>
@@ -2452,7 +2452,7 @@
 
             <!-- Botón Generador Principal -->
             <button type="button" class="btn btn-ai btn-full" id="btn-generate-agendio-ai" style="background: linear-gradient(135deg, #1c3a28, #142b1e); border: 1px solid #d99a2b; color: #ffffff; font-weight:700; padding:10px; font-size:0.88rem;">
-              <span>🚀 Generar Contenido Agendio (Copy + Prompt Gemini)</span>
+              <span>Generar contenido Agendio</span>
             </button>
 
             <!-- Caja de Resultados de Agendio -->
@@ -2462,8 +2462,8 @@
                 <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                   <strong style="font-size:0.82rem; color:var(--text-primary);">📝 Copy Optimizado para Redes (Hospitalidad Chile):</strong>
                   <div style="display:flex; gap:6px;">
-                    <button type="button" class="btn btn-primary btn-xs" id="btn-apply-agendio-copy" style="background:#d99a2b; color:#0b1b12; font-weight:700; border:none;">📋 Aplicar al Editor</button>
-                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-text">📋 Copiar Texto</button>
+                    <button type="button" class="btn btn-primary btn-xs" id="btn-apply-agendio-copy" style="background:#d99a2b; color:#0b1b12; font-weight:700; border:none;">Aplicar al editor</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-text">Copiar texto</button>
                   </div>
                 </div>
                 <div class="card-body" style="padding:8px 12px;">
@@ -2495,7 +2495,7 @@
                       <span style="color:#d99a2b;">✨ En dorado ámbar:</span> <strong id="agendio-keyword-badge" style="color:#eebe6c;">--</strong> · <span style="color:#34d399;">Badge:</span> <span id="agendio-badge-tag" style="color:#34d399;">--</span>
                     </div>
                     <button type="button" class="btn btn-ghost btn-xs" id="btn-sync-agendio-prompt" style="font-size:0.72rem; color:#eebe6c; border:1px solid rgba(217, 154, 43, 0.3);">
-                      🔄 Re-sincronizar Prompt
+                      Re-sincronizar prompt
                     </button>
                   </div>
                 </div>
@@ -2506,8 +2506,8 @@
                 <div class="card-header" style="padding:8px 12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                   <strong style="font-size:0.82rem; color:var(--text-primary);">🎨 Prompt Maestro para Gemini (Afiche Publicitario Senior 4:5):</strong>
                   <div style="display:flex; gap:6px;">
-                    <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-agendio-image" style="background:linear-gradient(135deg, #1c3a28, #33603f); color:#fff; border:1px solid #d99a2b; font-weight:700;">✨ Generar con Gemini</button>
-                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-image-prompt">📋 Copiar Prompt</button>
+                    <button type="button" class="btn btn-primary btn-xs" id="btn-modal-generate-agendio-image" style="background:linear-gradient(135deg, #1c3a28, #33603f); color:#fff; border:1px solid #d99a2b; font-weight:700;">Generar con Gemini</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-agendio-image-prompt">Copiar prompt</button>
                   </div>
                 </div>
                 <div class="card-body" style="padding:8px 12px;">
@@ -2541,7 +2541,7 @@
           <div class="ai-result-box" id="ai-result-box" style="display: none; margin-top: 14px;">
             <div class="ai-result-header">
               <label class="form-label" for="ai-generated-text">Texto / Copy del Post:</label>
-              <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">🔄 Regenerar</button>
+              <button class="btn btn-ghost btn-xs" id="btn-regenerate-ai">Regenerar</button>
             </div>
             <!-- Badge / Indicador de Planificación Editorial -->
             <div id="ai-editorial-plan-badge" style="display: none; margin-bottom: 8px; padding: 6px 12px; border-radius: 6px; font-size: 0.76rem; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); color: #bae6fd; align-items: center; justify-content: space-between; gap: 8px;">
@@ -2586,8 +2586,8 @@
           <div id="planner-preview-col" style="width: 300px; flex-shrink: 0; background: #0a0d14; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 16px 12px; gap: 12px; overflow-y: auto;">
             <!-- Selector de plataforma para el preview -->
             <div style="display: flex; gap: 6px; width: 100%;">
-              <button class="btn btn-xs" id="preview-tab-ig" onclick="window.switchPreviewTab('ig')" style="flex:1; background: linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); color:#fff; border:none; font-weight:700; font-size:0.72rem;">📷 Instagram</button>
-              <button class="btn btn-xs" id="preview-tab-fb" onclick="window.switchPreviewTab('fb')" style="flex:1; background: var(--bg-surface-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle); font-size:0.72rem;">📘 Facebook</button>
+              <button class="btn btn-xs" id="preview-tab-ig" onclick="window.switchPreviewTab('ig')" style="flex:1; background: linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); color:#fff; border:none; font-weight:700; font-size:0.72rem;">Instagram</button>
+              <button class="btn btn-xs" id="preview-tab-fb" onclick="window.switchPreviewTab('fb')" style="flex:1; background: var(--bg-surface-subtle); color:var(--text-secondary); border:1px solid var(--border-subtle); font-size:0.72rem;">Facebook</button>
             </div>
             <!-- Mockup Container -->
             <div id="planner-mockup-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
@@ -2635,10 +2635,10 @@
               </div>
               <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
                 <button type="button" class="btn btn-sm btn-secondary" id="btn-planner-edit-story-composer">
-                  <span>📝</span> Maquetar en Composer
+                  Maquetar en el editor
                 </button>
                 <button type="button" class="btn btn-sm btn-primary" id="btn-planner-publish-story-now" style="background: linear-gradient(135deg, #be185d, #6d28d9); border: none;">
-                  <span>⚡</span> Publicar Historia Ahora
+                  Publicar historia ahora
                 </button>
               </div>
             </div>
@@ -2648,13 +2648,13 @@
 
         <div class="modal-footer" style="justify-content: space-between; border-top: 1px solid var(--border-subtle); padding: 12px 20px;">
           <button type="button" class="btn btn-danger" id="btn-planner-delete-post">
-            🗑️ Desprogramar
+            Desprogramar
           </button>
           <div style="display:flex; gap:8px; align-items:center;">
             <button type="button" class="btn btn-secondary" id="btn-planner-detail-close">Cerrar</button>
-            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">📲 Story 9:16</button>
-            <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;">✏️ Editar Post</button>
-            <button type="button" class="btn btn-primary" id="btn-planner-load-composer">🚀 Cargar en Composer</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-story-footer" style="border-color: rgba(236,72,153,0.5); color: #be185d; font-weight: 600;">Story 9:16</button>
+            <button type="button" class="btn btn-secondary" id="btn-planner-detail-edit" style="font-weight:600;">Editar post</button>
+            <button type="button" class="btn btn-primary" id="btn-planner-load-composer">Cargar en el editor</button>
           </div>
         </div>
       </div>
@@ -2730,7 +2730,7 @@
                     <input type="file" id="edit-post-file-input" aria-label="Subir nueva foto o video" accept="image/*,video/*" style="display:none;">
                   </label>
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-post-stamp-logo" style="font-size:0.78rem; padding:5px 10px; display:inline-flex; align-items:center; gap:5px;" title="Estampar el logotipo oficial sobre esta foto">
-                    <span>🏷️</span> Estampar Logo
+                    Estampar logo
                   </button>
                   <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-clear-media" style="font-size:0.78rem; padding:5px 10px;">Quitar imagen</button>
                 </div>
@@ -2743,11 +2743,11 @@
           <div style="display:flex; gap:8px; align-items:center;">
             <button type="button" class="btn btn-secondary" onclick="window.closeEditPostModal()">Cancelar</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-post-open-composer" style="display:inline-flex; align-items:center; gap:6px; color:var(--primary-light); font-weight:600;" title="Cargar todo al Redactor para volver a generar el video con música o previsualizar maqueta">
-              <span>🚀</span> Abrir en Redactor
+              Abrir en redactor
             </button>
           </div>
           <button type="button" class="btn btn-primary" id="btn-save-edit-post" style="display:flex; align-items:center; gap:6px;">
-            <span>💾</span> Guardar Cambios
+            Guardar cambios
           </button>
         </div>
       </div>
@@ -2792,7 +2792,7 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="btn-cancel-campina-flyer">Cancelar</button>
           <button class="btn btn-primary" id="btn-submit-campina-flyer" style="background:#047857; border-color:#047857;">
-            🌲 Crear Flyer Editorial 4:5 ($0)
+            Crear flyer editorial
           </button>
         </div>
       </div>
@@ -2826,7 +2826,7 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="btn-cancel-kmarket-designer">Cancelar</button>
           <button class="btn btn-primary" id="btn-submit-kmarket-designer" style="background:#c2410c; border-color:#c2410c;">
-            🎨 Generar con Diseñador Senior (Gemini Flash Lite)
+            Generar con Diseñador Senior (Gemini Flash Lite)
           </button>
         </div>
       </div>
@@ -2862,11 +2862,11 @@
             <!-- Presets rápidos -->
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">Esquinas rápidas:</span>
-              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="top-left" title="Esquina Superior Izquierda">↖️ Sup. Izq</button>
-              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="top-right" title="Esquina Superior Derecha">↗️ Sup. Der</button>
-              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="center" title="Centro">🎯 Centro</button>
-              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="bottom-left" title="Esquina Inferior Izquierda">↙️ Inf. Izq</button>
-              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap active" data-pos="bottom-right" title="Esquina Inferior Derecha">↘️ Inf. Der</button>
+              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="top-left" title="Esquina Superior Izquierda">Sup. izq</button>
+              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="top-right" title="Esquina Superior Derecha">Sup. der</button>
+              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="center" title="Centro">Centro</button>
+              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap" data-pos="bottom-left" title="Esquina Inferior Izquierda">Inf. izq</button>
+              <button type="button" class="btn btn-secondary btn-xs btn-stamp-snap active" data-pos="bottom-right" title="Esquina Inferior Derecha">Inf. der</button>
             </div>
           </div>
 
@@ -2884,7 +2884,7 @@
                   <div style="font-size:0.8rem; margin-bottom:14px;">Sube una foto o selecciona una existente para estamparle el logo:</div>
                   <input type="file" id="stamp-base-file-input" aria-label="Subir foto base para estampar" accept="image/*" style="display:none;">
                   <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('stamp-base-file-input').click()" style="margin: 0 auto; display:inline-flex;">
-                    📁 Subir Foto para Estampar
+                    Subir foto para estampar
                   </button>
                 </div>
 
@@ -2931,7 +2931,7 @@
                 <div>
                   <input type="file" id="stamp-quick-logo-input" aria-label="Subir nuevo logo PNG para estampar" accept="image/png,image/webp,image/svg+xml" style="display:none;">
                   <button type="button" class="btn btn-ghost btn-xs" id="btn-stamp-upload-new-logo" style="width:100%; font-size:0.73rem; justify-content:center; gap:5px;">
-                    <span>📁</span> Subir otro logo (PNG)
+                    Subir otro logo (PNG)
                   </button>
                 </div>
               </div>
@@ -2942,7 +2942,7 @@
         <div class="modal-footer" style="padding: 14px 20px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
           <button type="button" class="btn btn-secondary" id="btn-cancel-stamp-modal" onclick="if (typeof window.closeInteractiveStamp === 'function') window.closeInteractiveStamp();">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-stamp-logo" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); font-weight: 700; padding:8px 18px;">
-            ✨ Estampar y Generar Nueva Imagen
+            Estampar y generar nueva imagen
           </button>
         </div>
       </div>
@@ -3125,7 +3125,7 @@
           <button type="button" class="btn btn-secondary" id="btn-cancel-batch">Cerrar</button>
           <div style="display: flex; gap: 10px;">
             <button type="button" class="btn btn-primary" id="btn-confirm-batch-schedule" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); border: none; font-weight: 700; display: none;">
-              🚀 Aprobar y Programar Todo en el Calendario
+              Confirmar y programar
             </button>
           </div>
         </div>
@@ -3200,13 +3200,13 @@
             <!-- Source Tabs -->
             <div class="music-source-tabs" style="margin:0;">
               <button type="button" class="music-tab-btn active batch-music-tab-btn" data-tab="curated">
-                <span>🎧 Sin Copyright</span>
+                <span>Sin copyright</span>
               </button>
               <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="upload">
-                <span>📁 Subir MP3</span>
+                <span>Subir MP3</span>
               </button>
               <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="jamendo">
-                <span>🌸 K-Pop & Audius</span>
+                <span>K-Pop y Audius</span>
               </button>
             </div>
 
@@ -3252,7 +3252,7 @@
                   </div>
                 </div>
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-batch-active-music-play" style="font-size:0.75rem; padding:4px 10px;">
-                  ▶ Escuchar
+                  Escuchar
                 </button>
               </div>
 
@@ -3274,7 +3274,7 @@
         <div class="modal-footer" style="padding:12px 20px; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
           <button type="button" class="btn btn-secondary" id="btn-cancel-batch-music">Cancelar</button>
           <button type="button" class="btn btn-primary" id="btn-confirm-batch-generate-video" style="background:linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); border:none; font-weight:700; padding:8px 18px; display:inline-flex; align-items:center; gap:6px;">
-            <span>⚡ Renderizar Video con Música</span>
+            <span>Renderizar video con música</span>
           </button>
         </div>
 
@@ -3329,7 +3329,7 @@
           <button type="button" class="btn btn-secondary" onclick="window.closeReassignModal()">Cancelar</button>
           <div style="display:flex; gap:8px;">
             <button type="button" class="btn btn-primary" id="btn-confirm-reassign">
-              ✅ Confirmar Reasignación
+              Confirmar reasignación
             </button>
           </div>
         </div>

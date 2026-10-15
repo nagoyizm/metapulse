@@ -168,11 +168,11 @@ async function loadAdvancedInsights() {
 
       if (titleEl) titleEl.textContent = topPost.title || 'Publicación sin título';
       if (captionEl) captionEl.textContent = topPost.caption || 'Sin texto descriptivo';
-      if (likesBadge) likesBadge.textContent = `❤️ ${topPost.likes} Likes`;
+      if (likesBadge) likesBadge.textContent = `❤️ ${topPost.likes} me gusta`;
       if (commentsBadge) commentsBadge.textContent = `💬 ${topPost.comments} Comentarios`;
       if (typeBadge) {
         const isVideo = topPost.mediaType === 'VIDEO';
-        typeBadge.textContent = isVideo ? '🎥 Reel / Video' : '📸 Foto / Feed';
+        typeBadge.textContent = isVideo ? '🎥 Reel / video' : '📸 Foto / Feed';
         typeBadge.style.color = isVideo ? '#a855f7' : '#ea580c';
         typeBadge.style.background = isVideo ? 'rgba(168,85,247,0.12)' : 'rgba(234,88,12,0.12)';
       }
