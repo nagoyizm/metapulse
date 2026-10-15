@@ -222,21 +222,101 @@ class SchedulerService {
         throw new Error(errorMessage.trim());
       }
 
-      // Éxito (total o en al menos una plataforma)
-      db.prepare(`
-        UPDATE posts
-        SET status = 'published',
-            published_at = CURRENT_TIMESTAMP,
-            meta_result = ?,
-            error_message = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(JSON.stringify(results), hasError ? errorMessage.trim() : null, post.id);
+      // Éxito total o parcial
+      const outcome = this.resolvePublishOutcome(post, results);
 
-      console.log(`✅ Post ID ${post.id} procesado exitosamente en Meta:`, results);
+      if (outcome.status === 'published') {
+        db.prepare(`
+          UPDATE posts
+          SET status = ?,
+              partial_failure = ?,
+              retry_count = ?,
+              published_at = CURRENT_TIMESTAMP,
+              meta_result = ?,
+              error_message = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(
+          outcome.status,
+          outcome.partial_failure,
+          outcome.retry_count,
+          JSON.stringify(results),
+          hasError ? errorMessage.trim() : null,
+          post.id
+        );
+      } else {
+        db.prepare(`
+          UPDATE posts
+          SET status = ?,
+              partial_failure = ?,
+              retry_count = ?,
+              scheduled_at = ?,
+              meta_result = ?,
+              error_message = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(
+          outcome.status,
+          outcome.partial_failure,
+          outcome.retry_count,
+          outcome.scheduled_at,
+          JSON.stringify(results),
+          hasError ? errorMessage.trim() : null,
+          post.id
+        );
+      }
+
+      if (outcome.partial_failure) {
+        const retryInfo = outcome.status === 'scheduled' ? ` (reintento programado a las ${outcome.scheduled_at})` : '';
+        console.warn(`⚠️ Post ID ${post.id} publicado parcialmente: ${errorMessage.trim()}${retryInfo}`);
+      } else {
+        console.log(`✅ Post ID ${post.id} procesado exitosamente en Meta:`, results);
+      }
     } catch (err) {
       this.handlePublishFailure(post, err, results);
     }
+  }
+
+  resolvePublishOutcome(post, results) {
+    const ok = [results.facebook, results.instagram].filter(Boolean);
+    const anySuccess = ok.some(r => r.success);
+    const anyFail = ok.some(r => !r.success);
+
+    if (!anyFail) {
+      return {
+        status: 'published',
+        partial_failure: 0,
+        retry_count: post.retry_count || 0,
+        scheduled_at: null
+      };
+    }
+
+    if (anySuccess && anyFail) {
+      const next = (post.retry_count || 0) + 1;
+      const max = post.max_retries || 3;
+      if (next < max) {
+        return {
+          status: 'scheduled',
+          partial_failure: 1,
+          retry_count: next,
+          scheduled_at: new Date(Date.now() + getRetryDelayMs(next)).toISOString()
+        };
+      } else {
+        return {
+          status: 'published',
+          partial_failure: 1,
+          retry_count: next,
+          scheduled_at: null
+        };
+      }
+    }
+
+    return {
+      status: 'failed',
+      partial_failure: 0,
+      retry_count: (post.retry_count || 0) + 1,
+      scheduled_at: null
+    };
   }
 
   handlePublishFailure(post, err, results) {

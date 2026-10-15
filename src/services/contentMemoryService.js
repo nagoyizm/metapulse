@@ -71,6 +71,35 @@ class ContentMemoryService {
     const used = shuffle(bank.filter(t => lastSet.includes(t)));
     return [...core, ...fresh, ...used].slice(0, target);
   }
+
+  // Captions de los posts con mejor rendimiento real (post_metrics), últimos 120 días.
+  getTopExamples({ accountName = '', accountId = '', limit = 3 } = {}) {
+    const name = (accountName || '').trim();
+    if (!name && !accountId) return [];
+    try {
+      const rows = db.prepare(`
+        SELECT caption FROM post_metrics
+        WHERE caption IS NOT NULL AND LENGTH(caption) > 40
+          AND (${name ? "LOWER(account_name) LIKE '%' || LOWER(?) || '%'" : '0'} OR ${accountId ? 'account_id = ?' : '0'})
+          AND (posted_at IS NULL OR posted_at >= datetime('now', '-120 days'))
+        ORDER BY score DESC
+        LIMIT ?
+      `).all(...[name, accountId].filter(Boolean), limit);
+      return rows.map(r => r.caption);
+    } catch (err) {
+      console.warn('[contentMemory] No se pudieron leer ejemplos:', err.message);
+      return [];
+    }
+  }
+
+  buildExamplesBlock(captions = []) {
+    if (!captions.length) return '';
+    return [
+      'EJEMPLOS REALES DE ESTA CUENTA QUE FUNCIONARON BIEN (imita su voz, ritmo y nivel de cercanía; NO los copies ni repitas sus frases):',
+      ...captions.map(c => `---\n${String(c).slice(0, 600)}`),
+      '---'
+    ].join('\n');
+  }
 }
 
 module.exports = new ContentMemoryService();

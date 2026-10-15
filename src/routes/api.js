@@ -196,7 +196,7 @@ router.get('/status', (req, res) => {
     const accountCreds = targetAccountId ? metaService.getAccountCredentials(targetAccountId) : config;
     const nextSlot = schedulerService.getNextAvailableSlot(targetAccountId);
 
-    let counts = { scheduled_count: 0, published_count: 0, failed_count: 0, total_count: 0 };
+    let counts = { scheduled_count: 0, published_count: 0, failed_count: 0, partial_count: 0, total_count: 0 };
     let upcomingPosts = [];
     let recentPublished = [];
 
@@ -207,6 +207,7 @@ router.get('/status', (req, res) => {
           SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as scheduled_count,
           SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) as published_count,
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+          SUM(CASE WHEN partial_failure = 1 AND status = 'published' THEN 1 ELSE 0 END) as partial_count,
           COUNT(*) as total_count
         FROM posts
         WHERE ${clause}
@@ -231,6 +232,7 @@ router.get('/status', (req, res) => {
           SUM(CASE WHEN status = 'scheduled' THEN 1 ELSE 0 END) as scheduled_count,
           SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) as published_count,
           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+          SUM(CASE WHEN partial_failure = 1 AND status = 'published' THEN 1 ELSE 0 END) as partial_count,
           COUNT(*) as total_count
         FROM posts
       `).get() || counts;
@@ -270,6 +272,7 @@ router.get('/status', (req, res) => {
           scheduled: counts.scheduled_count || 0,
           published: counts.published_count || 0,
           failed: counts.failed_count || 0,
+          partial: counts.partial_count || 0,
           total: counts.total_count || 0
         },
         nextSlot,

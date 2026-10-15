@@ -530,11 +530,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function setDirectImageButtonsLoading(loading, hasBase) {
     if (btnTriggerDirectImage) {
       btnTriggerDirectImage.disabled = loading;
-      btnTriggerDirectImage.innerHTML = loading ? '⚡ Creando con Gemini Flash Lite...' : '✨ Generar Imagen Ahora';
+      btnTriggerDirectImage.innerHTML = loading ? 'Creando con Gemini Flash Lite...' : 'Generar imagen ahora';
     }
     if (btnRedesignWithFlux) {
       btnRedesignWithFlux.disabled = loading;
-      btnRedesignWithFlux.textContent = loading ? '⚡ Rediseñando...' : '🎨 Rediseñar Foto';
+      btnRedesignWithFlux.textContent = loading ? 'Rediseñando...' : 'Rediseñar foto';
     }
     if (loading) {
       showToast(hasBase ? 'Diseñando afiche publicitario con Gemini Flash Lite...' : 'Generando imagen con Gemini Flash Lite (Económico)...', 'info');
@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentImage = ComposerState.mediaFiles[0];
 
         btnCreateAdPoster.disabled = true;
-        btnCreateAdPoster.textContent = '⚡ Creando Póster...';
+        btnCreateAdPoster.textContent = 'Creando póster...';
         showToast('Generando diseño publicitario 4:5 con tipografía nítida...', 'info');
 
         try {
@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Error creando póster: ' + err.message, 'error');
         } finally {
           btnCreateAdPoster.disabled = false;
-          btnCreateAdPoster.textContent = '✨ Convertir a Póster Publicitario 4:5';
+          btnCreateAdPoster.textContent = 'Convertir a póster publicitario 4:5';
         }
       });
     }
@@ -728,7 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const style = document.getElementById('campina-flyer-style')?.value || 'editorial';
 
         btnSubmitCampinaFlyer.disabled = true;
-        btnSubmitCampinaFlyer.textContent = '⚡ Maquetando Flyer...';
+        btnSubmitCampinaFlyer.textContent = 'Maquetando flyer...';
 
         try {
           const res = await fetch('/api/media/create-campina-flyer', {
@@ -758,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Error maquetando: ' + err.message, 'error');
         } finally {
           btnSubmitCampinaFlyer.disabled = false;
-          btnSubmitCampinaFlyer.textContent = '🌲 Crear Flyer Editorial 4:5 ($0)';
+          btnSubmitCampinaFlyer.textContent = 'Crear flyer editorial 4:5 ($0)';
         }
       });
     }
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         btnSubmitKmarketDesigner.disabled = true;
-        btnSubmitKmarketDesigner.textContent = '🎨 Diseñando Afiche con Gemini Flash Lite...';
+        btnSubmitKmarketDesigner.textContent = 'Diseñando afiche con Gemini Flash Lite...';
         showToast('Enviando tu foto e instrucción a Gemini Flash Lite...', 'info');
 
         try {
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Error conectando: ' + err.message, 'error');
         } finally {
           btnSubmitKmarketDesigner.disabled = false;
-          btnSubmitKmarketDesigner.textContent = '🎨 Generar con Diseñador Senior (API Gemini)';
+          btnSubmitKmarketDesigner.textContent = 'Generar con Diseñador Senior (API Gemini)';
         }
       });
     }
@@ -980,8 +980,79 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  function handlePostSubmissionSuccess(message) {
-    showToast(message || '¡Publicación procesada con éxito!', 'success');
+  function getPartialPublishFailure(json) {
+    if (!json) return null;
+    const post = json.data || {};
+    const metaResult = (post.meta_result && typeof post.meta_result === 'object')
+      ? post.meta_result
+      : (json.results && typeof json.results === 'object'
+        ? json.results
+        : (json.meta_result && typeof json.meta_result === 'object' ? json.meta_result : null));
+
+    const isPartial = Boolean(
+      json.partial === true ||
+      json.partial_failure === 1 ||
+      post.partial_failure === 1 ||
+      post.status === 'partial_failure'
+    );
+
+    if (metaResult && (metaResult.facebook || metaResult.instagram)) {
+      const fbOk = Boolean(metaResult.facebook && metaResult.facebook.success);
+      const igOk = Boolean(metaResult.instagram && metaResult.instagram.success);
+
+      if (fbOk && !igOk) {
+        let err = metaResult.instagram?.error || post.error_message || json.error_message || 'Error desconocido';
+        err = String(err).replace(/^(FB|IG):\s*/i, '').trim();
+        if (err.length > 120) err = err.slice(0, 117) + '...';
+        return {
+          redOk: 'Facebook',
+          redFail: 'Instagram',
+          error: err
+        };
+      } else if (!fbOk && igOk) {
+        let err = metaResult.facebook?.error || post.error_message || json.error_message || 'Error desconocido';
+        err = String(err).replace(/^(FB|IG):\s*/i, '').trim();
+        if (err.length > 120) err = err.slice(0, 117) + '...';
+        return {
+          redOk: 'Instagram',
+          redFail: 'Facebook',
+          error: err
+        };
+      }
+    }
+
+    if (isPartial) {
+      let rawErr = post.error_message || json.error_message || json.error || '';
+      let redOk = 'Facebook';
+      let redFail = 'Instagram';
+      if (/Instagram/i.test(rawErr) && !/Facebook/i.test(rawErr)) {
+        redOk = 'Facebook';
+        redFail = 'Instagram';
+      } else if (/Facebook/i.test(rawErr) && !/Instagram/i.test(rawErr)) {
+        redOk = 'Instagram';
+        redFail = 'Facebook';
+      }
+      let cleanErr = String(rawErr).replace(/^(FB|IG):\s*/i, '').trim();
+      if (cleanErr.length > 120) cleanErr = cleanErr.slice(0, 117) + '...';
+      return {
+        redOk,
+        redFail,
+        error: cleanErr || 'Error desconocido'
+      };
+    }
+
+    return null;
+  }
+
+  function handlePostSubmissionSuccess(resOrMessage) {
+    const json = typeof resOrMessage === 'object' ? resOrMessage : { message: resOrMessage };
+    const partial = getPartialPublishFailure(json);
+
+    if (partial) {
+      showToast(`Publicado solo en ${partial.redOk}. Falló ${partial.redFail}: ${partial.error}`, 'error');
+    } else {
+      showToast(json.message || '¡Publicación procesada con éxito!', 'success');
+    }
     resetComposerFormState();
     const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     loadDashboardStatus(active?.pageId);
@@ -1011,9 +1082,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const json = await res.json();
       if (json.success) {
-        handlePostSubmissionSuccess(json.message);
+        handlePostSubmissionSuccess(json);
       } else {
-        showToast('Error: ' + (json.error || 'No se pudo guardar la publicación'), 'error');
+        const partial = getPartialPublishFailure(json);
+        if (partial) {
+          handlePostSubmissionSuccess(json);
+        } else {
+          showToast('Error: ' + (json.error || 'No se pudo guardar la publicación'), 'error');
+        }
       }
     } catch (err) {
       showToast('Error de conexión: ' + err.message, 'error');
@@ -1328,7 +1404,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnGenerateAiCopy.disabled = true;
-    btnGenerateAiCopy.innerHTML = '<span>⚡ Generando con Gemini...</span>';
+    btnGenerateAiCopy.innerHTML = '<span>Generando con Gemini...</span>';
 
     try {
       const res = await fetch('/api/ai/generate', {
@@ -1368,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error de conexión con IA: ' + err.message, 'error');
     } finally {
       btnGenerateAiCopy.disabled = false;
-      btnGenerateAiCopy.innerHTML = '<span>✨ Generar Copy y Hashtags con Gemini</span>';
+      btnGenerateAiCopy.innerHTML = '<span>Generar copy y hashtags con Gemini</span>';
     }
   }
 
@@ -1382,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnGenerateKmarketAi.disabled = true;
-    btnGenerateKmarketAi.innerHTML = '<span>⚡ Generando Prompt 4:5 y Copy con Gemini...</span>';
+    btnGenerateKmarketAi.innerHTML = '<span>Generando prompt 4:5 y copy con Gemini...</span>';
 
     try {
       const res = await fetch('/api/ai/kmarket-product', {
@@ -1408,7 +1484,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + e.message, 'error');
     } finally {
       btnGenerateKmarketAi.disabled = false;
-      btnGenerateKmarketAi.innerHTML = '<span>🛒 Generar Prompt 4:5 + Copy Kmarket</span>';
+      btnGenerateKmarketAi.innerHTML = '<span>Generar prompt 4:5 y copy Kmarket</span>';
     }
   }
 
@@ -1583,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnScanProductAuto.disabled = true;
-    btnScanProductAuto.textContent = '🔍 Investigando producto...';
+    btnScanProductAuto.textContent = 'Investigando producto...';
     if (kmarketScanStatus) kmarketScanStatus.textContent = 'Gemini está analizando el empaque e investigando ingredientes y notas de sabor...';
     showToast('Investigando producto en internet con Gemini...', 'info');
 
@@ -1615,7 +1691,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (kmarketScanStatus) kmarketScanStatus.textContent = 'Error: ' + err.message;
     } finally {
       btnScanProductAuto.disabled = false;
-      btnScanProductAuto.textContent = '🔍 Escanear e Investigar Producto';
+      btnScanProductAuto.textContent = 'Escanear e investigar producto';
     }
   }
 
@@ -1630,7 +1706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnGenerateKmarketDirectPoster.disabled = true;
-    btnGenerateKmarketDirectPoster.innerHTML = '<span>⚡ Diseñando Afiche 4:5...</span>';
+    btnGenerateKmarketDirectPoster.innerHTML = '<span>Diseñando afiche 4:5...</span>';
     showToast('Diseñando afiche publicitario 4:5 con Gemini Flash Lite...', 'info');
 
     try {
@@ -1661,7 +1737,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + err.message, 'error');
     } finally {
       btnGenerateKmarketDirectPoster.disabled = false;
-      btnGenerateKmarketDirectPoster.innerHTML = '<span>🎨 Generar Afiche 4:5 Ahora</span>';
+      btnGenerateKmarketDirectPoster.innerHTML = '<span>Generar afiche 4:5</span>';
     }
   }
 
@@ -2101,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + e.message, 'error');
     } finally {
       btnGenerateCampinaAi.disabled = false;
-      btnGenerateCampinaAi.innerHTML = '<span>🏡 Generar Guión, Copy + Prompt 4:5</span>';
+      btnGenerateCampinaAi.innerHTML = '<span>Generar guión, copy y prompt 4:5</span>';
     }
   }
 
@@ -2174,7 +2250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnGenerateCampinaDirectPoster) {
       btnGenerateCampinaDirectPoster.disabled = true;
-      btnGenerateCampinaDirectPoster.innerHTML = '<span>⚡ Diseñando Afiche 4:5 con Gemini...</span>';
+      btnGenerateCampinaDirectPoster.innerHTML = '<span>Diseñando afiche 4:5 con Gemini...</span>';
     }
     showToast('Diseñando afiche publicitario 4:5 con Gemini sobre la foto de fondo...', 'info');
 
@@ -2197,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       if (btnGenerateCampinaDirectPoster) {
         btnGenerateCampinaDirectPoster.disabled = false;
-        btnGenerateCampinaDirectPoster.innerHTML = '<span>🎨 Generar con Gemini</span>';
+        btnGenerateCampinaDirectPoster.innerHTML = '<span>Generar con Gemini</span>';
       }
     }
   }
@@ -2234,7 +2310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnGenerateCampinaEditorialFlyer) {
       btnGenerateCampinaEditorialFlyer.disabled = true;
-      btnGenerateCampinaEditorialFlyer.innerHTML = '<span>⚡ Componiendo Afiche Editorial...</span>';
+      btnGenerateCampinaEditorialFlyer.innerHTML = '<span>Componiendo afiche editorial...</span>';
     }
     showToast('Componiendo afiche editorial 4:5 sobre tu foto 100% real...', 'info');
 
@@ -2257,7 +2333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       if (btnGenerateCampinaEditorialFlyer) {
         btnGenerateCampinaEditorialFlyer.disabled = false;
-        btnGenerateCampinaEditorialFlyer.innerHTML = '<span>📐 Afiche Editorial (Foto 100% Real)</span>';
+        btnGenerateCampinaEditorialFlyer.innerHTML = '<span>Afiche editorial (Foto 100% real)</span>';
       }
     }
   }
@@ -2266,7 +2342,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSync = document.getElementById('btn-sync-campina-web');
     if (!btnSync) return;
     btnSync.disabled = true;
-    btnSync.textContent = '🔄 Escaneando...';
+    btnSync.textContent = 'Escaneando...';
     try {
       const res = await fetch('/api/ai/scrape-campina', { method: 'POST' });
       const json = await res.json();
@@ -2280,7 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + e.message, 'error');
     } finally {
       btnSync.disabled = false;
-      btnSync.textContent = '🔄 Sincronizar Web';
+      btnSync.textContent = 'Sincronizar web';
     }
   }
 
@@ -2548,7 +2624,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       if (btnGenerateAgendioAi) {
         btnGenerateAgendioAi.disabled = false;
-        btnGenerateAgendioAi.innerHTML = '<span>🚀 Generar Contenido Agendio (Copy + Prompt Gemini)</span>';
+        btnGenerateAgendioAi.innerHTML = '<span>Generar contenido Agendio (Copy + Prompt Gemini)</span>';
       }
     }
   }
@@ -2615,7 +2691,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnModalGenerateAgendioImage) {
       btnModalGenerateAgendioImage.disabled = true;
-      btnModalGenerateAgendioImage.textContent = '✨ Generando imagen con Gemini...';
+      btnModalGenerateAgendioImage.textContent = 'Generando imagen con Gemini...';
     }
 
     try {
@@ -2660,7 +2736,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       if (btnModalGenerateAgendioImage) {
         btnModalGenerateAgendioImage.disabled = false;
-        btnModalGenerateAgendioImage.textContent = '✨ Generar con Gemini';
+        btnModalGenerateAgendioImage.textContent = 'Generar con Gemini';
       }
     }
   }
@@ -2746,7 +2822,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnHumanizeComposer.disabled = true;
-    btnHumanizeComposer.textContent = '🔍 Auditando...';
+    btnHumanizeComposer.textContent = 'Auditando...';
 
     try {
       const res = await fetch('/api/ai/humanize', {
@@ -2776,7 +2852,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error auditando: ' + err.message, 'error');
     } finally {
       btnHumanizeComposer.disabled = false;
-      btnHumanizeComposer.textContent = '🔍 Auditar / Humanizar (Anti-IA)';
+      btnHumanizeComposer.textContent = 'Auditar y humanizar';
     }
   }
 
@@ -2814,7 +2890,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnGenerateCarousel.disabled = true;
-    btnGenerateCarousel.innerHTML = '<span>⚡ Planificando Diapositivas...</span>';
+    btnGenerateCarousel.innerHTML = '<span>Planificando diapositivas...</span>';
 
     try {
       const res = await fetch('/api/ai/plan-carousel', {
@@ -2834,7 +2910,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error: ' + err.message, 'error');
     } finally {
       btnGenerateCarousel.disabled = false;
-      btnGenerateCarousel.innerHTML = '<span>📑 Planificar Carrusel con Metodología 2026</span>';
+      btnGenerateCarousel.innerHTML = '<span>Planificar carrusel</span>';
     }
   }
 
@@ -2870,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnRunHumanize.disabled = true;
-    btnRunHumanize.innerHTML = '<span>⚡ Auditando con Reglas 2026...</span>';
+    btnRunHumanize.innerHTML = '<span>Auditando...</span>';
 
     try {
       const res = await fetch('/api/ai/humanize', {
@@ -2888,7 +2964,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Error auditando: ' + err.message, 'error');
     } finally {
       btnRunHumanize.disabled = false;
-      btnRunHumanize.innerHTML = '<span>🔍 Auditar y Humanizar Texto</span>';
+      btnRunHumanize.innerHTML = '<span>Auditar y humanizar texto</span>';
     }
   }
 
@@ -2984,13 +3060,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (val === 'custom') {
           if (customContainer) customContainer.style.display = 'block';
-          if (btnSubmitText) btnSubmitText.textContent = 'Agendar Fecha Específica';
+          if (btnSubmitText) btnSubmitText.textContent = 'Agendar fecha específica';
         } else if (val === 'now') {
           if (customContainer) customContainer.style.display = 'none';
-          if (btnSubmitText) btnSubmitText.textContent = 'Publicar Inmediatamente en Meta';
+          if (btnSubmitText) btnSubmitText.textContent = 'Publicar ahora';
         } else {
           if (customContainer) customContainer.style.display = 'none';
-          if (btnSubmitText) btnSubmitText.textContent = 'Agendar en Próximo Slot Libre';
+          if (btnSubmitText) btnSubmitText.textContent = 'Agendar en próximo slot';
         }
       });
     });

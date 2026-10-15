@@ -168,10 +168,28 @@ function initializeDatabase() {
       profile TEXT NOT NULL,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS post_metrics (
+      meta_media_id TEXT PRIMARY KEY,
+      account_id TEXT,
+      account_name TEXT,
+      caption TEXT,
+      media_type TEXT,
+      permalink TEXT,
+      posted_at TEXT,
+      likes INTEGER DEFAULT 0,
+      comments INTEGER DEFAULT 0,
+      score INTEGER DEFAULT 0,
+      fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_post_metrics_account ON post_metrics (account_name, score);
   `);
 
   try {
     db.prepare('ALTER TABLE posts ADD COLUMN meta_post_id TEXT').run();
+  } catch (_) {}
+  try {
+    db.prepare('ALTER TABLE posts ADD COLUMN partial_failure INTEGER DEFAULT 0').run();
   } catch (_) {}
   try {
     db.prepare('ALTER TABLE posts ADD COLUMN account_id TEXT').run();

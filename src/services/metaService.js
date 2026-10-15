@@ -819,6 +819,120 @@ class MetaService {
   }
 
   /**
+   * Guarda o actualiza las métricas reales de publicaciones en la tabla post_metrics
+   */
+  upsertPostMetrics(posts, { accountId, accountName } = {}) {
+    if (!Array.isArray(posts) || posts.length === 0) return 0;
+    try {
+      const { db } = require('../database/db');
+      const stmt = db.prepare(`
+        INSERT INTO post_metrics (
+          meta_media_id, account_id, account_name, caption, media_type, permalink, posted_at, likes, comments, score
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+        ON CONFLICT(meta_media_id) DO UPDATE SET
+          likes = excluded.likes,
+          comments = excluded.comments,
+          score = excluded.score,
+          caption = excluded.caption,
+          account_id = excluded.account_id,
+          account_name = excluded.account_name,
+          fetched_at = CURRENT_TIMESTAMP
+      `);
+
+      let saved = 0;
+      for (const p of posts) {
+        if (!p || !p.id) continue;
+        const likes = p.like_count || 0;
+        const comments = p.comments_count || 0;
+        const score = likes + comments * 3;
+        const postedAt = p.timestamp || null;
+
+        stmt.run(
+          p.id,
+          accountId || null,
+          accountName || null,
+          p.caption || null,
+          p.media_type || null,
+          p.permalink || null,
+          postedAt,
+          likes,
+          comments,
+          score
+        );
+        saved++;
+      }
+      return saved;
+    } catch (err) {
+      console.warn('[MetaService] Advertencia al guardar métricas de publicaciones:', err.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Calcula las mejores ventanas horarias basadas en métricas reales de publicaciones
+   */
+  computeBestWindows(scoredPosts) {
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const validPosts = (scoredPosts || []).filter(p => p && p.timestamp && !isNaN(new Date(p.timestamp).getTime()));
+
+    if (validPosts.length < 6) {
+      return { source: 'general', windows: [] };
+    }
+
+    const blocks = {};
+    for (const p of validPosts) {
+      const d = new Date(p.timestamp);
+      const day = dayNames[d.getDay()];
+      const hour = d.getHours();
+      const blockStart = Math.floor(hour / 2) * 2;
+      const key = `${day}_${blockStart}`;
+
+      if (!blocks[key]) {
+        blocks[key] = {
+          day,
+          blockStart,
+          scores: []
+        };
+      }
+      blocks[key].scores.push(Number(p.score) || 0);
+    }
+
+    const eligible = [];
+    for (const b of Object.values(blocks)) {
+      if (b.scores.length >= 2) {
+        const n = b.scores.length;
+        const sum = b.scores.reduce((acc, s) => acc + s, 0);
+        const avg = Math.round(sum / n);
+        const startStr = String(b.blockStart).padStart(2, '0');
+        const endStr = String(b.blockStart + 2).padStart(2, '0');
+        const timeWindow = `${startStr}:00 - ${endStr}:00 hrs`;
+        eligible.push({
+          day: b.day,
+          timeWindow,
+          avg,
+          n,
+          reason: `Promedio de ${avg} interacciones en ${n} publicaciones tuyas.`
+        });
+      }
+    }
+
+    if (eligible.length === 0) {
+      return { source: 'general', windows: [] };
+    }
+
+    eligible.sort((a, b) => b.avg - a.avg);
+    const topWindows = eligible.slice(0, 3).map(({ day, timeWindow, reason }) => ({
+      day,
+      timeWindow,
+      reason
+    }));
+
+    return { source: 'datos', windows: topWindows };
+  }
+
+  /**
    * Calcula analíticas avanzadas: Top Post, rendimiento por formatos, mejores horas y resumen
    */
   async calculateAccountAnalytics() {
@@ -826,9 +940,11 @@ class MetaService {
     const isCampina = (config.pageName || '').toLowerCase().includes('campiña') || (config.pageName || '').toLowerCase().includes('cabaña');
 
     let posts = await this.getLiveInstagramPosts(25);
+    let metricsSource = 'live';
 
     // Fallback a base de datos si no hay posts en vivo
     if (!posts || posts.length === 0) {
+      metricsSource = 'local_sin_metricas';
       const { db } = require('../database/db');
       const dbPosts = db.prepare(`
         SELECT id, title, content as caption, post_type, media_urls, scheduled_at as timestamp,
@@ -843,10 +959,12 @@ class MetaService {
         caption: p.caption,
         media_type: p.post_type === 'reel' ? 'VIDEO' : 'IMAGE',
         media_url: JSON.parse(p.media_urls || '[]')[0] || '',
-        like_count: Math.max(1, 10 - idx * 2),
-        comments_count: idx % 2 === 0 ? 1 : 0,
+        like_count: 0,
+        comments_count: 0,
         timestamp: p.timestamp
       }));
+    } else {
+      this.upsertPostMetrics(posts, { accountId: config.pageId, accountName: config.pageName });
     }
 
     const totalPostsAnalyzed = posts.length;
@@ -889,9 +1007,9 @@ class MetaService {
         const d = new Date(p.timestamp);
         const hour = d.getHours();
         const day = dayNames[d.getDay()];
-        hourlyActivity[hour] += score + 1;
+        hourlyActivity[hour] += score;
         if (dailyActivity[day] !== undefined) {
-          dailyActivity[day] += score + 1;
+          dailyActivity[day] += score;
         }
       }
 
@@ -937,83 +1055,96 @@ class MetaService {
     const lowerPageName = (config.pageName || '').toLowerCase();
     const isKmarket = lowerPageName.includes('kmarket');
 
+    const computed = metricsSource === 'live' ? this.computeBestWindows(scoredPosts) : { source: 'general', windows: [] };
     let bestWindows;
-    if (isCampina) {
-      bestWindows = [
-        {
-          day: 'Miércoles',
-          timeWindow: '19:30 - 21:00 hrs',
-          score: '98%',
-          tag: '🔥 Momento Dorado',
-          reason: 'Pico de búsqueda de desconexión y planificación de fin de semana.'
-        },
-        {
-          day: 'Sábado',
-          timeWindow: '11:00 - 13:00 hrs',
-          score: '92%',
-          tag: '🌿 Alto Alcance',
-          reason: 'Tiempo libre matutino y visualización relajada en el hogar.'
-        },
-        {
-          day: 'Domingo',
-          timeWindow: '18:00 - 20:30 hrs',
-          score: '88%',
-          tag: '📅 Planificación',
-          reason: 'Anticipación de feriados, vacaciones y cotizaciones por WhatsApp.'
-        }
-      ];
-    } else if (isKmarket) {
-      bestWindows = [
-        {
-          day: 'Miércoles',
-          timeWindow: '18:30 - 20:30 hrs',
-          score: '96%',
-          tag: '🍜 Pico de Antojo',
-          reason: 'Búsqueda de snacks reconfortantes, golosinas y ramen a media semana.'
-        },
-        {
-          day: 'Sábado',
-          timeWindow: '11:30 - 14:00 hrs',
-          score: '95%',
-          tag: '🧃 Fin de Semana & Playa',
-          reason: 'Paseo en Espacio Algarrobo: helados Samanco, bebidas frías y snacks coreanos.'
-        },
-        {
-          day: 'Sábado',
-          timeWindow: '19:00 - 21:30 hrs',
-          score: '90%',
-          tag: '🍦 Antojo Nocturno',
-          reason: 'Piqueo de helados coreanos, postres y snacks para ver series.'
-        }
-      ];
+    if (computed.source === 'datos') {
+      bestWindows = computed.windows;
     } else {
-      bestWindows = [
-        {
-          day: 'Miércoles',
-          timeWindow: '19:00 - 20:30 hrs',
-          score: '95%',
-          tag: '⚡ Mayor Actividad',
-          reason: 'Franja vespertina óptima para interacción y visualización de historias y feed.'
-        },
-        {
-          day: 'Sábado',
-          timeWindow: '11:00 - 13:30 hrs',
-          score: '93%',
-          tag: '📱 Alcance Fin de Semana',
-          reason: 'Pico de navegación móvil relajada durante la mañana del fin de semana.'
-        },
-        {
-          day: 'Domingo',
-          timeWindow: '19:30 - 21:30 hrs',
-          score: '89%',
-          tag: '🌙 Conexión Nocturna',
-          reason: 'Pico de revisión de redes antes de comenzar la semana.'
-        }
-      ];
+      let heuristicWindows;
+      if (isCampina) {
+        heuristicWindows = [
+          {
+            day: 'Miércoles',
+            timeWindow: '19:30 - 21:00 hrs',
+            score: '98%',
+            tag: '🔥 Momento Dorado',
+            reason: 'Pico de búsqueda de desconexión y planificación de fin de semana.'
+          },
+          {
+            day: 'Sábado',
+            timeWindow: '11:00 - 13:00 hrs',
+            score: '92%',
+            tag: '🌿 Alto Alcance',
+            reason: 'Tiempo libre matutino y visualización relajada en el hogar.'
+          },
+          {
+            day: 'Domingo',
+            timeWindow: '18:00 - 20:30 hrs',
+            score: '88%',
+            tag: '📅 Planificación',
+            reason: 'Anticipación de feriados, vacaciones y cotizaciones por WhatsApp.'
+          }
+        ];
+      } else if (isKmarket) {
+        heuristicWindows = [
+          {
+            day: 'Miércoles',
+            timeWindow: '18:30 - 20:30 hrs',
+            score: '96%',
+            tag: '🍜 Pico de Antojo',
+            reason: 'Búsqueda de snacks reconfortantes, golosinas y ramen a media semana.'
+          },
+          {
+            day: 'Sábado',
+            timeWindow: '11:30 - 14:00 hrs',
+            score: '95%',
+            tag: '🧃 Fin de Semana & Playa',
+            reason: 'Paseo en Espacio Algarrobo: helados Samanco, bebidas frías y snacks coreanos.'
+          },
+          {
+            day: 'Sábado',
+            timeWindow: '19:00 - 21:30 hrs',
+            score: '90%',
+            tag: '🍦 Antojo Nocturno',
+            reason: 'Piqueo de helados coreanos, postres y snacks para ver series.'
+          }
+        ];
+      } else {
+        heuristicWindows = [
+          {
+            day: 'Miércoles',
+            timeWindow: '19:00 - 20:30 hrs',
+            score: '95%',
+            tag: '⚡ Mayor Actividad',
+            reason: 'Franja vespertina óptima para interacción y visualización de historias y feed.'
+          },
+          {
+            day: 'Sábado',
+            timeWindow: '11:00 - 13:30 hrs',
+            score: '93%',
+            tag: '📱 Alcance Fin de Semana',
+            reason: 'Pico de navegación móvil relajada durante la mañana del fin de semana.'
+          },
+          {
+            day: 'Domingo',
+            timeWindow: '19:30 - 21:30 hrs',
+            score: '89%',
+            tag: '🌙 Conexión Nocturna',
+            reason: 'Pico de revisión de redes antes de comenzar la semana.'
+          }
+        ];
+      }
+      bestWindows = heuristicWindows.map(w => ({
+        ...w,
+        score: null,
+        reason: `${w.reason} (Sugerencia general: aún no hay suficientes datos de tu cuenta.)`
+      }));
     }
 
     return {
       accountName: config.pageName || 'Cuenta Activa',
+      metricsSource,
+      bestWindowsSource: computed.source === 'datos' ? 'datos' : 'general',
       totalPostsAnalyzed,
       totalLikes,
       totalComments,
