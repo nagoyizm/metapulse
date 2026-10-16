@@ -2141,6 +2141,77 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
   }
 });
 
+router.post('/ai/campina-headlines', async (req, res) => {
+  try {
+    let { theme, targetDate = '', caption = '', planContext = null } = req.body || {};
+    if (!theme || typeof theme !== 'string' || !theme.trim()) {
+      return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
+    }
+
+    theme = String(theme).trim().slice(0, 2000);
+    if (targetDate) targetDate = String(targetDate).slice(0, 2000);
+    if (caption) caption = String(caption).slice(0, 2000);
+
+    const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
+
+    const data = await aiService.generateCampinaHeadlines({
+      theme,
+      targetDate,
+      caption,
+      planContext: safePlanContext
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err.message && (err.message.includes('requerido') || err.message.includes('inválid') || err.message.includes('No hay clave'))) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/campina-scene-directive', async (req, res) => {
+  try {
+    let { theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '' } = req.body || {};
+    if (!theme || typeof theme !== 'string' || !theme.trim()) {
+      return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
+    }
+
+    theme = String(theme).trim().slice(0, 2000);
+    if (targetDate) targetDate = String(targetDate).slice(0, 2000);
+    if (sceneHint) sceneHint = String(sceneHint).slice(0, 2000);
+    if (caption) caption = String(caption).slice(0, 2000);
+
+    const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
+
+    const data = await aiService.buildCampinaSceneDirective({
+      theme,
+      targetDate,
+      sceneHint,
+      imageUrl,
+      planContext: safePlanContext,
+      caption
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    const isClientError = err.message && (
+      err.message.includes('requerido') ||
+      err.message.includes('inválid') ||
+      err.message.includes('invalida') ||
+      err.message.includes('inválida') ||
+      err.message.includes('no existe') ||
+      err.message.includes('excede el tamaño') ||
+      err.message.includes('no soportado') ||
+      err.message.includes('No hay clave')
+    );
+    if (isClientError) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/campina-content', async (req, res) => {
   try {
     const {
@@ -2155,11 +2226,13 @@ router.post('/ai/campina-content', async (req, res) => {
       typographyStyle = 'auto',
       brandTreatment = 'auto',
       colorPalette = 'auto',
-      posterReference = 'auto'
+      posterReference = 'auto',
+      planContext = null
     } = req.body;
     if (!theme) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
+    const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
     const bypassCache = Boolean(req.body.bypass_cache || req.query.bypass_cache);
     const result = await aiService.generateCampinaContent({
       theme,
@@ -2174,7 +2247,8 @@ router.post('/ai/campina-content', async (req, res) => {
       brandTreatment,
       colorPalette,
       posterReference,
-      bypassCache
+      bypassCache,
+      planContext: safePlanContext
     });
     res.json({ success: true, data: result });
   } catch (err) {

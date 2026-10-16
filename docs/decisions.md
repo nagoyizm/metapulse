@@ -23,6 +23,12 @@ Formato: fecha · decisión · por qué.
 - **2026-10-15 · Métricas propias.** `metricsSyncService` guarda métricas diarias para que la IA imite los posts que mejor funcionaron.
 - **2026-10-14 · Detección de páginas con token de usuario de larga duración.**
 
+## Imagen y prompts
+- **2026-10-16 · Indicaciones de escena aparte del Prompt Maestro.** El maestro conserva las directrices de marca (foto intacta); un recuadro propio suma lo específico del post (personas, ambiente) deducido por IA con 5 pasos desde foto + enfoque + campaña. Tiene prioridad solo en lo que declara.
+- **2026-10-16 · Borradores del plan guardan `plan_context`** (enfoque, gancho, ocasión, campaña) para prellenar "Tema" y "Ocasión" en el Creador.
+- **2026-10-16 · Titulares generativos con memoria.** 5 opciones por IA (temp 1.0, sin caché) y lista de los últimos 30 heroes usados como prohibidos; el catálogo fijo queda solo como último respaldo.
+- **2026-10-16 · Texto del Prompt Maestro congelado** hasta que el dueño apruebe las mejoras de `docs/auditoria-prompt-maestro.md`.
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.

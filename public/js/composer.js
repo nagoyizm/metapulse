@@ -44,6 +44,16 @@ function setCheckboxState(id, checked = false) {
   if (el) el.checked = checked;
 }
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function renderCarouselSlideItem(s) {
   return `
     <div style="background:var(--bg-surface); padding:8px 10px; border-radius:4px; border-left:3px solid var(--primary); font-size:0.78rem;">
@@ -1188,6 +1198,18 @@ document.addEventListener('DOMContentLoaded', () => {
     setElementHtml('campina-slogan-pills', '');
     setInputValue('campina-hero-headline', '');
     setInputValue('campina-subline-headline', '');
+    setInputValue('campina-scene-hint', '');
+    setInputValue('campina-scene-prompt', '');
+    setElementHtml('campina-scene-reasoning-list', '');
+    const sceneMetaEl = document.getElementById('campina-scene-meta');
+    if (sceneMetaEl) {
+      sceneMetaEl.innerHTML = '';
+      sceneMetaEl.style.display = 'none';
+    }
+    const sceneReasoningEl = document.getElementById('campina-scene-reasoning');
+    if (sceneReasoningEl) sceneReasoningEl.open = false;
+    campinaSceneEdited = false;
+    window._draftPlanContext = null;
     setElementDisplay('campina-image-prompt-box', 'none');
     setInputValue('campina-image-prompt-text', '');
     setElementDisplay('campina-ai-img-preview', 'none');
@@ -1333,6 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window._editingScheduledPostId = null;
     window._editingPostOriginalStatus = null;
+    window._draftPlanContext = null;
 
     const draftBanner = document.getElementById('composer-editing-draft-banner');
     if (draftBanner) {
@@ -1904,6 +1927,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // FOTO DE FONDO & GENERADOR DE AFICHES CABAÑAS LA CAMPIÑA
   // =======================================================
   let campinaBackgroundImagePath = '';
+  let campinaSceneEdited = false;
   const campinaBgFileInput = document.getElementById('campina-bg-file-input');
   const btnSelectCampinaBg = document.getElementById('btn-select-campina-bg');
   const btnUseComposerBg = document.getElementById('btn-use-composer-bg');
@@ -1968,6 +1992,30 @@ document.addEventListener('DOMContentLoaded', () => {
       desc: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.',
       badgeColor: 'rgba(239, 68, 68, 0.15)',
       textColor: '#ef4444'
+    },
+    handcraft_script: {
+      name: '✍️ Caligrafía Artesanal',
+      desc: 'Tipografía script fluida y hecha a mano con ligaduras cálidas. Sensación acogedora, cercana y artesanal.',
+      badgeColor: 'rgba(236, 72, 153, 0.15)',
+      textColor: '#ec4899'
+    },
+    retro_travel_70s: {
+      name: '📻 Retro Viajero 70s',
+      desc: 'Tipografía display con curvas setenteras, peso contundente y aire nostálgico de afiche turístico clásico.',
+      badgeColor: 'rgba(245, 158, 11, 0.15)',
+      textColor: '#f59e0b'
+    },
+    art_deco_geometric: {
+      name: '🏛️ Art Déco Geométrico',
+      desc: 'Tipografía display geométrica de los años 20 y 30. Líneas limpias, simetría noble y distinción arquitectónica.',
+      badgeColor: 'rgba(99, 102, 241, 0.15)',
+      textColor: '#6366f1'
+    },
+    celebration_modern: {
+      name: '🎉 Celebración Moderna',
+      desc: 'Tipografía de impacto festivo contemporáneo. Letras audaces con ritmo vibrante para conmemoraciones y fechas especiales.',
+      badgeColor: 'rgba(20, 184, 166, 0.15)',
+      textColor: '#14b8a6'
     }
   };
 
@@ -1977,7 +2025,11 @@ document.addEventListener('DOMContentLoaded', () => {
     gold_foil: '⚜️ Pan de oro: Letras con textura de foil dorado en relieve, bisel pulido y brillo cálido Kinfolk.',
     timber_burn: '🪵 Madera tallada 3D: Rótulo con volumen de pirograbado o bajo relieve rústico y textura de veta de madera.',
     editorial_lockup: '📐 Lockup editorial: Composición con filetes geométricos finos, micro-divisores y equilibrio de revista de diseño.',
-    solar_rim: '☀️ Golden rim: Retroiluminación solar en las aristas superiores del texto, fusionándolo con la luz del bosque.'
+    solar_rim: '☀️ Golden rim: Retroiluminación solar en las aristas superiores del texto, fusionándolo con la luz del bosque.',
+    letterpress_emboss: '🖨️ Letterpress en relieve: Textura de bajo relieve de imprenta artesanal con sombras suaves e impresión táctil profunda.',
+    paper_cutout: '✂️ Papel calado: Siluetas y letras recortadas en capas de papel artesanal con sombras paralelas tridimensionales.',
+    warm_neon: '💡 Neón cálido: Trazo luminoso sutil con resplandor cálido nocturno, evocando veladas de fogón y calma.',
+    chalk_hand: '🖍️ Tiza a mano: Trazo poroso de tiza blanca sobre textura rústica oscura, con estética de pizarra de campo.'
   };
 
   function updateCampinaTypoInfo(styleKey) {
@@ -2008,7 +2060,8 @@ document.addEventListener('DOMContentLoaded', () => {
       typographyStyle: campinaTypographyStyle?.value || 'auto',
       brandTreatment: campinaBrandTreatment?.value || 'auto',
       colorPalette: campinaColorPalette?.value || 'auto',
-      posterReference: campinaPosterReference?.value || 'auto'
+      posterReference: campinaPosterReference?.value || 'auto',
+      planContext: window._draftPlanContext || null
     };
   }
 
@@ -2054,10 +2107,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 450);
   }
 
+  function updateCampinaSloganWrapVisibility() {
+    const hasTheme = Boolean(document.getElementById('campina-theme')?.value?.trim());
+    if (hasTheme && campinaSloganAlternativesWrap) {
+      campinaSloganAlternativesWrap.style.display = 'block';
+    }
+  }
+
   function renderCampinaSloganAlternatives(alternatives = []) {
     if (!campinaSloganAlternativesWrap || !campinaSloganPills) return;
     if (!alternatives || alternatives.length === 0) {
-      campinaSloganAlternativesWrap.style.display = 'none';
+      campinaSloganPills.innerHTML = '';
+      const hasTheme = Boolean(document.getElementById('campina-theme')?.value?.trim());
+      if (!hasTheme) {
+        campinaSloganAlternativesWrap.style.display = 'none';
+      }
       return;
     }
 
@@ -2066,14 +2130,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('div');
       item.style.cssText = 'padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--border-subtle); border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:all 0.15s ease;';
 
-      const styleInfo = campinaTypoDescriptions[alt.style] || { name: alt.style, badgeColor: 'rgba(255,255,255,0.08)', textColor: '#E2E8F0' };
+      const styleKey = alt.style || 'auto';
+      const styleInfo = campinaTypoDescriptions[styleKey] || (alt.style ? { name: alt.style, badgeColor: 'rgba(255,255,255,0.08)', textColor: '#E2E8F0' } : { name: 'Editorial', badgeColor: 'rgba(255,255,255,0.08)', textColor: '#E2E8F0' });
+
+      const heroEsc = escapeHtml(alt.hero || '');
+      const sublineEsc = escapeHtml(alt.subline || '');
+      const badgeEsc = escapeHtml(styleInfo.name || '');
 
       item.innerHTML = `
         <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:1px;">${alt.hero}</strong>
-          <div style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${alt.subline}</div>
+          <strong style="font-size:0.78rem; color:var(--text-primary); display:block; margin-bottom:1px;">${heroEsc}</strong>
+          <div style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${sublineEsc}</div>
         </div>
-        <span class="badge" style="font-size:0.65rem; background:${styleInfo.badgeColor}; color:${styleInfo.textColor}; flex-shrink:0;">${styleInfo.name}</span>
+        <span class="badge" style="font-size:0.65rem; background:${styleInfo.badgeColor}; color:${styleInfo.textColor}; flex-shrink:0;">${badgeEsc}</span>
       `;
 
       item.addEventListener('mouseenter', () => {
@@ -2086,20 +2155,74 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       item.addEventListener('click', async () => {
-        if (campinaHeroHeadline) campinaHeroHeadline.value = alt.hero;
-        if (campinaSublineHeadline) campinaSublineHeadline.value = alt.subline;
-        if (campinaTypographyStyle && alt.style) {
+        if (campinaHeroHeadline) campinaHeroHeadline.value = alt.hero || '';
+        if (campinaSublineHeadline) campinaSublineHeadline.value = alt.subline || '';
+        if (campinaTypographyStyle && alt.style && campinaTypoDescriptions[alt.style]) {
           campinaTypographyStyle.value = alt.style;
           updateCampinaTypoInfo(alt.style);
         }
         await syncCampinaMasterPromptLive();
-        showToast(`✨ Eslogan "${alt.hero}" transferido al Prompt Maestro de Gemini`, 'success');
+        showToast(`✨ Eslogan "${alt.hero || ''}" transferido al Prompt Maestro de Gemini`, 'success');
       });
 
       campinaSloganPills.appendChild(item);
     });
 
     campinaSloganAlternativesWrap.style.display = 'block';
+  }
+
+  async function handleRegenCampinaHeadlines() {
+    const theme = document.getElementById('campina-theme')?.value?.trim() || '';
+    if (!theme) {
+      showToast('Ingresa el tema o enfoque para generar ideas de titular', 'warning');
+      return;
+    }
+    if (campinaSloganAlternativesWrap) {
+      campinaSloganAlternativesWrap.style.display = 'block';
+    }
+
+    const btnRegen = document.getElementById('btn-campina-regen-headlines');
+    const origText = btnRegen ? btnRegen.textContent : 'Otras ideas de titular';
+    if (btnRegen) {
+      btnRegen.disabled = true;
+      btnRegen.textContent = 'Generando...';
+    }
+
+    try {
+      const targetDate = document.getElementById('campina-date')?.value?.trim() || '';
+      const caption = postContent ? postContent.value : '';
+      const planContext = window._draftPlanContext || undefined;
+
+      const res = await fetch('/api/ai/campina-headlines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate,
+          ...(caption ? { caption } : {}),
+          ...(planContext ? { planContext } : {})
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data?.options) {
+        const pills = json.data.options.map(o => ({
+          hero: o.hero,
+          subline: o.subline,
+          style: o.angle
+        }));
+        renderCampinaSloganAlternatives(pills);
+        showToast('Nuevas ideas de titular generadas', 'success');
+      } else {
+        showToast('Error generando titulares: ' + (json.error || 'Desconocido'), 'error');
+      }
+    } catch (err) {
+      showToast('Error de conexión con IA: ' + err.message, 'error');
+    } finally {
+      if (btnRegen) {
+        btnRegen.disabled = false;
+        btnRegen.textContent = origText;
+      }
+    }
   }
 
   function syncCampinaModalThumb() {
@@ -2233,6 +2356,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  async function deduceCampinaScene(isAuto = false) {
+    if (isAuto && campinaSceneEdited) {
+      return;
+    }
+
+    const theme = document.getElementById('campina-theme')?.value?.trim() || '';
+    if (!theme) {
+      if (!isAuto) {
+        showToast('Ingresa el tema o enfoque para deducir la escena', 'error');
+      }
+      return;
+    }
+
+    const btnDeduce = document.getElementById('btn-campina-scene-deduce');
+    const origBtnText = btnDeduce ? btnDeduce.textContent : 'Deducir escena con IA';
+    if (btnDeduce) {
+      btnDeduce.disabled = true;
+      btnDeduce.textContent = 'Razonando...';
+    }
+
+    try {
+      const targetDate = document.getElementById('campina-date')?.value?.trim() || '';
+      const sceneHint = document.getElementById('campina-scene-hint')?.value?.trim() || '';
+      const rawImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]) || '';
+      const imageUrl = (typeof rawImg === 'string' && rawImg.startsWith('/uploads/')) ? rawImg : undefined;
+      const planContext = window._draftPlanContext || undefined;
+      const caption = postContent ? postContent.value : '';
+
+      const res = await fetch('/api/ai/campina-scene-directive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate,
+          ...(sceneHint ? { sceneHint } : {}),
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(planContext ? { planContext } : {}),
+          ...(caption ? { caption } : {})
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        if (!isAuto || !campinaSceneEdited) {
+          const promptEl = document.getElementById('campina-scene-prompt');
+          if (promptEl) promptEl.value = d.sceneDirective || '';
+        }
+        const reasoningListEl = document.getElementById('campina-scene-reasoning-list');
+        if (reasoningListEl && Array.isArray(d.reasoning)) {
+          const listItems = d.reasoning.map(r => `<li>${escapeHtml(r)}</li>`).join('');
+          reasoningListEl.innerHTML = `<ol style="margin:0 0 0 18px; padding:0;">${listItems}</ol>`;
+        }
+        const metaEl = document.getElementById('campina-scene-meta');
+        if (metaEl) {
+          metaEl.innerHTML = `Espacio: ${escapeHtml(d.spaceType || '')} · Enfoque: ${escapeHtml(d.audienceFocus || '')}`;
+          metaEl.style.display = 'inline-block';
+        }
+        if (!isAuto) {
+          showToast('Escena deducida exitosamente con IA', 'success');
+        }
+      } else {
+        if (!isAuto) {
+          showToast('Error deduciendo escena: ' + (json.error || 'Desconocido'), 'error');
+        }
+      }
+    } catch (err) {
+      if (!isAuto) {
+        showToast('Error al deducir escena: ' + err.message, 'error');
+      }
+    } finally {
+      if (btnDeduce) {
+        btnDeduce.disabled = false;
+        btnDeduce.textContent = origBtnText;
+      }
+    }
+  }
+
+  function getCampinaFullPrompt() {
+    const master = campinaImagePromptText?.value?.trim() || '';
+    const scenePrompt = document.getElementById('campina-scene-prompt')?.value?.trim() || '';
+    if (scenePrompt) {
+      return master ? `${master}\n\n${scenePrompt}` : scenePrompt;
+    }
+    return master;
+  }
+
+  async function handleCopyCampinaScene() {
+    const scenePromptVal = document.getElementById('campina-scene-prompt')?.value?.trim() || '';
+    if (!scenePromptVal) {
+      showToast('No hay indicaciones de escena para copiar', 'info');
+      return;
+    }
+    const btn = document.getElementById('btn-copy-campina-scene');
+    try {
+      await navigator.clipboard.writeText(scenePromptVal);
+      showToast('Indicaciones de escena copiadas al portapapeles', 'success');
+      if (btn) {
+        btn.textContent = 'Copiado';
+        setTimeout(() => { btn.textContent = 'Copiar solo indicaciones'; }, 2000);
+      }
+    } catch (err) {
+      const scenePromptEl = document.getElementById('campina-scene-prompt');
+      if (scenePromptEl) {
+        scenePromptEl.select();
+        document.execCommand('copy');
+        showToast('Indicaciones de escena copiadas al portapapeles', 'success');
+      }
+    }
+  }
+
   async function handleGenerateCampinaContent() {
     const params = collectCampinaContentParams();
     if (!params.theme) {
@@ -2254,6 +2487,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (json.success && json.data) {
         applyCampinaGeneratedContent(json.data);
         showToast('¡Guión, Copy, Prompt 4:5 y Eslogans generados con éxito!', 'success');
+
+        const hasPhoto = Boolean(campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]));
+        const hint = document.getElementById('campina-scene-hint')?.value?.trim();
+        if ((hasPhoto || hint) && !campinaSceneEdited) {
+          deduceCampinaScene(true).catch(err => console.warn('[Campina] Error auto deduciendo escena:', err));
+        }
       } else {
         showToast('Error: ' + json.error, 'error');
       }
@@ -2266,24 +2505,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleCopyCampinaPrompt() {
-    if (!campinaImagePromptText?.value) return;
+    const fullPrompt = getCampinaFullPrompt();
+    if (!fullPrompt) return;
+    const hasScene = Boolean(document.getElementById('campina-scene-prompt')?.value?.trim());
+    const toastMsg = hasScene
+      ? 'Prompt maestro + indicaciones del post copiados'
+      : '📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney';
     try {
-      await navigator.clipboard.writeText(campinaImagePromptText.value);
-      showToast('📋 ¡Prompt copiado al portapapeles! Pégalo en Gemini / Midjourney', 'success');
-      btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
-      setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
+      await navigator.clipboard.writeText(fullPrompt);
+      showToast(toastMsg, 'success');
+      if (btnCopyCampinaImagePrompt) {
+        btnCopyCampinaImagePrompt.textContent = '✅ ¡Copiado!';
+        setTimeout(() => { btnCopyCampinaImagePrompt.textContent = '📋 Copiar Prompt'; }, 2500);
+      }
     } catch (error_) {
       console.warn('[Campina] Fallback copia manual prompt:', error_);
-      campinaImagePromptText.select();
+      campinaImagePromptText?.select();
       showToast('Texto seleccionado. Presiona Ctrl+C para copiar', 'info');
     }
   }
 
   async function handleOpenGeminiWebCampina() {
-    const promptToCopy = campinaImagePromptText?.value || document.getElementById('campina-theme')?.value || 'Afiche publicitario 4:5 para Cabañas La Campiña';
+    const fullPrompt = getCampinaFullPrompt();
+    const promptToCopy = fullPrompt || document.getElementById('campina-theme')?.value || 'Afiche publicitario 4:5 para Cabañas La Campiña';
+    const hasScene = Boolean(document.getElementById('campina-scene-prompt')?.value?.trim());
+    const toastMsg = hasScene
+      ? 'Prompt maestro + indicaciones del post copiados'
+      : '📋 ¡Prompt copiado! Abre Gemini Web, adjunta tu foto de fondo y pega (Ctrl+V)';
     try {
       await navigator.clipboard.writeText(promptToCopy);
-      showToast('📋 ¡Prompt copiado! Abre Gemini Web, adjunta tu foto de fondo y pega (Ctrl+V)', 'success');
+      showToast(toastMsg, 'success');
     } catch (_clipErr) {
       // Ignorar si el navegador bloquea acceso asíncrono al portapapeles
     }
@@ -2306,7 +2557,7 @@ document.addEventListener('DOMContentLoaded', () => {
       brandTreatment: campinaBrandTreatment?.value || 'auto',
       colorPalette: campinaColorPalette?.value || 'auto',
       posterReference: campinaPosterReference?.value || 'auto',
-      customPrompt: campinaImagePromptText?.value || '',
+      customPrompt: getCampinaFullPrompt() || '',
       account_id: activeAcc?.pageId || accountSelect?.value || ''
     };
   }
@@ -2469,7 +2720,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const campinaThemeInput = document.getElementById('campina-theme');
     const campinaDateInput = document.getElementById('campina-date');
-    if (campinaThemeInput) campinaThemeInput.addEventListener('input', triggerCampinaPromptDebounced);
+    if (campinaThemeInput) {
+      campinaThemeInput.addEventListener('input', () => {
+        updateCampinaSloganWrapVisibility();
+        triggerCampinaPromptDebounced();
+      });
+    }
     if (campinaDateInput) campinaDateInput.addEventListener('input', triggerCampinaPromptDebounced);
     if (campinaHeroHeadline) campinaHeroHeadline.addEventListener('input', triggerCampinaPromptDebounced);
     if (campinaSublineHeadline) campinaSublineHeadline.addEventListener('input', triggerCampinaPromptDebounced);
@@ -2516,6 +2772,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnGenerateCampinaDirectPoster) btnGenerateCampinaDirectPoster.addEventListener('click', handleGenerateCampinaDirectPoster);
     if (btnModalGenerateCampinaImage) btnModalGenerateCampinaImage.addEventListener('click', handleGenerateCampinaDirectPoster);
     if (btnGenerateCampinaEditorialFlyer) btnGenerateCampinaEditorialFlyer.addEventListener('click', handleGenerateCampinaEditorialFlyer);
+
+    const btnDeduceScene = document.getElementById('btn-campina-scene-deduce');
+    if (btnDeduceScene) {
+      btnDeduceScene.addEventListener('click', () => {
+        campinaSceneEdited = false;
+        deduceCampinaScene(false);
+      });
+    }
+
+    const scenePromptEl = document.getElementById('campina-scene-prompt');
+    if (scenePromptEl) {
+      scenePromptEl.addEventListener('input', () => {
+        campinaSceneEdited = true;
+      });
+    }
+
+    const btnCopyScene = document.getElementById('btn-copy-campina-scene');
+    if (btnCopyScene) {
+      btnCopyScene.addEventListener('click', handleCopyCampinaScene);
+    }
+
+    const btnRegenHeadlines = document.getElementById('btn-campina-regen-headlines');
+    if (btnRegenHeadlines) {
+      btnRegenHeadlines.addEventListener('click', handleRegenCampinaHeadlines);
+    }
   }
 
   function bindCampinaControls() {
@@ -3550,6 +3831,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (postTitle) postTitle.value = post.title || '';
     if (postContent) postContent.value = post.content || '';
+
+    let planCtx = null;
+    if (post.plan_context) {
+      if (typeof post.plan_context === 'object') {
+        planCtx = post.plan_context;
+      } else if (typeof post.plan_context === 'string') {
+        try {
+          planCtx = JSON.parse(post.plan_context);
+        } catch (_) {
+          planCtx = null;
+        }
+      }
+    }
+
+    if (planCtx) {
+      const campinaThemeEl = document.getElementById('campina-theme');
+      if (campinaThemeEl) {
+        const themeVal = planCtx.hook ? `${planCtx.angle || ''}. ${planCtx.hook}`.trim() : (planCtx.angle || '');
+        campinaThemeEl.value = themeVal;
+      }
+      const campinaDateEl = document.getElementById('campina-date');
+      if (campinaDateEl) {
+        campinaDateEl.value = planCtx.occasion || '';
+      }
+      window._draftPlanContext = planCtx;
+      if (campinaSloganAlternativesWrap) {
+        campinaSloganAlternativesWrap.style.display = 'block';
+      }
+    } else {
+      window._draftPlanContext = null;
+    }
+
+    const heroHeadEl = document.getElementById('campina-hero-headline');
+    if (heroHeadEl) heroHeadEl.value = '';
+    const sublineHeadEl = document.getElementById('campina-subline-headline');
+    if (sublineHeadEl) sublineHeadEl.value = '';
 
     applyLoadedPostFormat(post.post_type || 'feed');
     applyLoadedPostPlatforms(post.platforms);

@@ -12,12 +12,17 @@ Actualizado: 2026-10-16 · `main` desplegado en Contabo (commit `2a9f15a` + docs
 - Tarjeta **"Imagen sugerida para Gemini"** (prompt sin texto, foto a adjuntar, titular, variantes).
 - Limpieza de captions (sin markdown ni líneas basura).
 
+- **Prompt de imagen contextual (Campiña):** borrador del plan abre con Tema/Ocasión llenos; recuadro "Indicaciones extra del post" (IA deduce escena); titulares generativos sin repetición; catálogos ampliados (Año Nuevo, Navidad, etc.).
+
 ## Pendiente de prueba por el dueño (UI)
 1. Datos de contacto en Marca; corregir WhatsApp de Agendio (quedó igual al de La Campiña).
 2. Borrador → Editar → abre en el Creador con la cuenta correcta.
 3. Tarjeta de prompt de imagen: autollenado, copiar, abrir Gemini, variantes.
 4. Guardar borrador → queda una sola publicación.
 5. Copy nuevo de La Campiña cierra con web/WhatsApp y sin asteriscos.
+
+6. Borrador del plan → Editar: Tema/Ocasión prellenados; "Deducir escena con IA" con foto de áreas verdes y enfoque familiar; "Otras ideas de titular" varía; copiar incluye las indicaciones. (Sin probar con Gemini real: no hay clave en local.)
+7. Decidir mejoras A–G de `docs/auditoria-prompt-maestro.md` (el texto del maestro no se tocó).
 
 ## Problemas conocidos
 - `parseBrief` pone el inicio de la ficha de Año Nuevo en "hoy" en vez de ~6 semanas antes (se corrige a mano).

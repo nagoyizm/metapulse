@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('node:fs');
 const path = require('node:path');
-const { getSetting } = require('../database/db');
+const { getSetting, setSetting } = require('../database/db');
 const { getCampinaKnowledgePrompt, CAMPINA_VERIFIED_DATA, scrapeCampinaWebsite } = require('../data/campinaKnowledge');
 const aiCacheService = require('./aiCacheService');
 const editorialPlannerService = require('./editorialPlannerService');
@@ -9,6 +9,12 @@ const COPY_RULES = require('../config/copyRules');
 const brandProfileService = require('./brandProfileService');
 const contentMemoryService = require('./contentMemoryService');
 const campaignService = require('./campaignService');
+
+// Helper para detectar límites de palabra exactos con caracteres en español
+function hasWord(text, word) {
+  if (!text || !word) return false;
+  return new RegExp('(^|[^a-záéíóúñ0-9])' + word + '($|[^a-záéíóúñ0-9])', 'i').test(text);
+}
 
 // Modelos de texto gratis verificados (oct 2026). Google retiró 1.x, 2.0 y 2.5 para claves nuevas.
 // Orden: mejor primero; si uno está saturado (503) se pasa al siguiente.
@@ -1024,13 +1030,57 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         badgeColor: 'rgba(239, 68, 68, 0.15)',
         textColorCss: '#ef4444',
         description: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.'
+      },
+      {
+        id: 'handcraft_script',
+        name: '✍️ Rotulado a Mano & Sans de Apoyo (Handcraft Script)',
+        shortName: 'Handcraft Script',
+        vibe: 'Cálido, artesanal, toques humanos y espontáneos',
+        icon: '✍️',
+        badgeColor: 'rgba(245, 158, 11, 0.15)',
+        textColorCss: '#f59e0b',
+        description: 'Rotulado a mano cálido con sans de apoyo. Trazos caligráficos fluidos combinados con una tipografía sans-serif limpia para un equilibrio orgánico.'
+      },
+      {
+        id: 'retro_travel_70s',
+        name: '🏕️ Cartel de Viaje Años 70 & Curvas Vintage (Retro Travel)',
+        shortName: 'Retro Travel 70s',
+        vibe: 'Nostalgia de vacaciones, viajes por carretera, aventura vintage',
+        icon: '🏕️',
+        badgeColor: 'rgba(234, 88, 12, 0.15)',
+        textColorCss: '#ea580c',
+        description: 'Tipografía redondeada retro inspirada en carteles de viaje de los años 70. Curvas generosas, peso rotundo y personalidad relajada.'
+      },
+      {
+        id: 'art_deco_geometric',
+        name: '🍸 Art Déco Geométrico de Resort (Boutique Heritage)',
+        shortName: 'Art Déco Resort',
+        vibe: 'Hotelería boutique clásica, geometría refinada, glamour sereno',
+        icon: '🍸',
+        badgeColor: 'rgba(99, 102, 241, 0.15)',
+        textColorCss: '#6366f1',
+        description: 'Art Déco geométrico de resort. Líneas estilizadas, proporciones elegantes y detalles arquitectónicos de cartelería clásica de descanso.'
+      },
+      {
+        id: 'celebration_modern',
+        name: '🥂 Sans Geométrica Gruesa & Serif Cursiva (Celebration Modern)',
+        shortName: 'Celebration Modern',
+        vibe: 'Año Nuevo, Navidad, celebraciones familiares y fechas festivas',
+        icon: '🥂',
+        badgeColor: 'rgba(217, 70, 239, 0.15)',
+        textColorCss: '#d946ef',
+        description: 'Sans geométrica gruesa combinada con serif cursiva de autor, pensada para Año Nuevo y Navidad con impacto visual y sofisticación festiva.'
       }
     ];
   }
 
   detectCampinaTypographyStyle(theme = '', targetDate = '') {
     const text = `${theme} ${targetDate}`.toLowerCase();
-    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+    if (/(año nuevo|ano nuevo|fin de año|navidad|nochebuena|navideñ)/i.test(text)) {
+      return 'celebration_modern';
+    }
+    const has18Patria = (hasWord(text, '18') && (text.includes('septiembre') || text.includes('patria') || text.includes('dieciocho'))) || /(^|[^a-záéíóúñ0-9])el 18($|[^a-záéíóúñ0-9])/i.test(text);
+    if (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta')) {
       return 'patria_heritage';
     }
     if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('carne') || text.includes('fuego') || text.includes('leña')) {
@@ -1061,7 +1111,9 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     let primarySubline = 'Cabañas, quinchos privados y bosque en Algarrobo';
     let alternatives = [];
 
-    const isPatria = text.includes('septiembre') || text.includes('fiesta') || text.includes('patria') || text.includes('18');
+    const isFestive = /(año nuevo|ano nuevo|fin de año|navidad|nochebuena|navideñ)/i.test(text);
+    const has18Patria = (hasWord(text, '18') && (text.includes('septiembre') || text.includes('patria') || text.includes('dieciocho'))) || /(^|[^a-záéíóúñ0-9])el 18($|[^a-záéíóúñ0-9])/i.test(text);
+    const isPatria = !isFestive && (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta'));
     const isPareja = text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos');
 
     if (isPatria && isPareja) {
@@ -1185,6 +1237,30 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         name: '☀️ Retroiluminación Solar (Luz Cinematográfica)',
         shortName: 'Luz Solar Rim',
         artDirection: 'Integra las letras en la atmósfera de la foto con un halo de luz solar volumétrica ("backlit golden rim lighting") que baña los bordes del texto, como si el sol filtrado entre los árboles iluminara físicamente el rótulo.'
+      },
+      {
+        id: 'letterpress_emboss',
+        name: '📜 Imprenta Letterpress & Bajorrelieve (Papel Artesanal)',
+        shortName: 'Letterpress',
+        artDirection: 'Aplica a las letras un efecto de tipografía de imprenta tradicional con bajorrelieve táctil sobre papel de alto gramaje ("debossed letterpress effect"), con micro-sombras internas y textura de fibra natural.'
+      },
+      {
+        id: 'paper_cutout',
+        name: '✂️ Letras de Papel Recortado en Capas (Paper Cutout)',
+        shortName: 'Papel Recortado',
+        artDirection: 'Compón los caracteres como siluetas de papel grueso recortado a mano dispuestas en capas superpuestas con sombra suave y profundidad tridimensional orgánica ("layered papercut craft").'
+      },
+      {
+        id: 'warm_neon',
+        name: '✨ Letrero Luminoso Cálido Tenue (Warm Neon)',
+        shortName: 'Neón Cálido',
+        artDirection: 'Trata el rótulo con la estética de un letrero luminoso cálido tenue ("soft warm ambient neon glow") en filamentos ámbar o blanco cálido, ideal para escenas crepusculares o nocturnas en el bosque.'
+      },
+      {
+        id: 'chalk_hand',
+        name: '✏️ Tiza sobre Pizarra con Trazo Vivo (Chalk Hand)',
+        shortName: 'Tiza Viva',
+        artDirection: 'Integra el titular con textura de tiza blanca y pigmentada sobre pizarra o madera oscura ("hand-drawn chalkboard lettering"), con polvo de tiza sutil y trazos espontáneos de autor.'
       }
     ];
   }
@@ -1250,14 +1326,67 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         accentColor: 'Azul Índigo Profundo (#0369A1) y Arena Costera (#FDE68A)',
         forbiddenColors: 'Evitar tonos oscuros fúnebres.',
         artDirection: 'Inspirado en cartelería náutica clásica de balnearios chilenos de los años 60: frescura marina, tipografía limpia en blanco salitre con acentos en azul océano y arena.'
+      },
+      {
+        id: 'ano_nuevo',
+        name: '🎆 Año Nuevo: Azul Medianoche, Blanco Champán & Ámbar Cobre',
+        shortName: 'Año Nuevo',
+        vibe: 'Año Nuevo, bienvenida al nuevo año, celebraciones nocturnas sobrias',
+        primaryColor: 'Blanco Champán Cálido (#FBF8F1) y Azul Medianoche Profundo (#0F172A)',
+        accentColor: 'Cobre Cálido y Ámbar Suave (#D97706 / #B45309)',
+        forbiddenColors: 'PROHIBIDO TERMINANTEMENTE glitter, dorado estridente tipo cotillón o amarillo reflectante. Mantener elegancia nocturna sobria.',
+        artDirection: 'Inspirado en la celebración sobria de fin de año en la costa: contraste majestuoso de azul medianoche con blanco champán perlado y acentos en cobre o ámbar cálido.'
+      },
+      {
+        id: 'navidad_bosque',
+        name: '🎄 Navidad en el Bosque: Verde Abeto, Rojo Bayas & Crema Lana',
+        shortName: 'Navidad Bosque',
+        vibe: 'Navidad, Nochebuena, celebraciones familiares de fin de año',
+        primaryColor: 'Crema Lana Natural (#FDFBF7) y Verde Abeto (#14532D)',
+        accentColor: 'Rojo Bayas Silvestres (#991B1B) y Canela Cálida (#78350F)',
+        forbiddenColors: 'Evitar dorados de cotillón plástico, verdes flúor o escarcha artificial.',
+        artDirection: 'Inspirado en la Navidad botánica en medio de los pinos: verde abeto profundo, rojo bayas de invierno y blanco crema de lana pura con calidez hogareña.'
+      },
+      {
+        id: 'primavera_floral',
+        name: '🌸 Primavera Floral: Verde Fresco, Blanco Flor & Acento Durazno',
+        shortName: 'Primavera Floral',
+        vibe: 'Primavera, floración, jardines temáticos de Algarrobo, brisa de octubre y noviembre',
+        primaryColor: 'Blanco Flor Silvestre (#FFFFFF) y Verde Brote Fresco (#15803D)',
+        accentColor: 'Durazno Cálido (#FB923C) y Amarillo Polen Suave (#FDE047)',
+        forbiddenColors: 'Evitar colores oscuros fúnebres o tonos neón sintéticos.',
+        artDirection: 'Inspirado en el despertar de los jardines de La Campiña en primavera: verdes luminosos de hojas tiernas, blanco flor y toques frutales de durazno suave.'
+      },
+      {
+        id: 'invierno_chimenea',
+        name: '🔥 Invierno & Chimenea: Gris Humo, Rojo Ladrillo & Crema Lana',
+        shortName: 'Invierno Chimenea',
+        vibe: 'Invierno, lluvia, chimenea encendida, tardes frías y refugio cálido',
+        primaryColor: 'Crema Lana Acogedora (#F8FAFC) y Gris Humo de Leña (#334155)',
+        accentColor: 'Rojo Ladrillo Refractario (#9A3412) y Madera Tostada (#451A03)',
+        forbiddenColors: 'Evitar colores pasteles veraniegos, tonos flúor o dorados.',
+        artDirection: 'Inspirado en el refugio invernal de las cabañas con estufa o chimenea encendida: tonos ahumados, rojo ladrillo reconfortante y crema de abrigo.'
       }
     ];
   }
 
   detectCampinaColorPalette(theme = '', targetDate = '') {
     const text = `${theme} ${targetDate}`.toLowerCase();
-    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+    if (/(navidad|nochebuena|navideñ)/i.test(text)) {
+      return 'navidad_bosque';
+    }
+    if (/(año nuevo|ano nuevo|fin de año)/i.test(text)) {
+      return 'ano_nuevo';
+    }
+    const has18Patria = (hasWord(text, '18') && (text.includes('septiembre') || text.includes('patria') || text.includes('dieciocho'))) || /(^|[^a-záéíóúñ0-9])el 18($|[^a-záéíóúñ0-9])/i.test(text);
+    if (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta')) {
       return 'patria_chilena';
+    }
+    if (text.includes('primavera') || text.includes('flor') || text.includes('flores')) {
+      return 'primavera_floral';
+    }
+    if (text.includes('invierno') || text.includes('lluvia') || text.includes('chimenea') || text.includes('frío') || text.includes('frio')) {
+      return 'invierno_chimenea';
     }
     if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('fuego') || text.includes('brasa')) {
       return 'fuego_quincho';
@@ -1265,7 +1394,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     if (text.includes('pareja') || text.includes('suite') || text.includes('romántic')) {
       return 'kinfolk_ivory';
     }
-    if (text.includes('playa') || text.includes('verano') || text.includes('mar') || text.includes('costa') || text.includes('sol')) {
+    if (text.includes('playa') || text.includes('verano') || text.includes('costa') || hasWord(text, 'mar') || hasWord(text, 'sol')) {
       return 'costa_marina';
     }
     return 'tierra_bosque';
@@ -1312,13 +1441,41 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         movement: 'Branding artesanal de lodges de montaña y asadores patagónicos / de campo',
         details: 'Letras talladas con textura de veta de madera, bordes ligeramente orgánicos, acentos de carbón y brasa ardiente.',
         mood: 'Encuentro alrededor del asado, calidez del fuego y quincho rústico.'
+      },
+      {
+        id: 'swiss_modern',
+        name: '🇨🇭 Grilla Suiza & Tipografía Grotesk Limpia (Swiss Modernism)',
+        shortName: 'Grilla Suiza',
+        movement: 'Estilo Tipográfico Internacional / Escuela Suiza (Josef Müller-Brockmann, Armin Hofmann)',
+        details: 'Grilla rigurosa asimétrica, tipografía grotesk bold con legibilidad cristalina, fuerte contraste de escala tipográfica y amplios blancos de diseño.',
+        mood: 'Modernidad limpia, orden arquitectónico y claridad comunicativa.'
+      },
+      {
+        id: 'retro_travel_poster',
+        name: '🧳 Cartel de Viaje Años 70 & Ilustración Gráfica Vintage',
+        shortName: 'Viaje Años 70',
+        movement: 'Cartelería de aerolíneas y turismo costero de los años 70',
+        details: 'Tipografía display de líneas redondeadas y generosas, sombras en bloque de color cálido, composición panorámica y sensación nostálgica de escapada por carretera.',
+        mood: 'Aventura nostálgica, calidez de viaje y espíritu libre de vacaciones.'
+      },
+      {
+        id: 'celebration_editorial',
+        name: '✨ Editorial Festivo Contemporáneo (Holiday Boutique)',
+        shortName: 'Editorial Festivo',
+        movement: 'Diseño editorial contemporáneo para ediciones especiales de fin de año y festividades boutique',
+        details: 'Composición tipográfica dual (grotesk arquitectónica con serif cursiva de autor), detalles de espaciado refinado, acentos gráficos sobrios y balance visual de alta gama.',
+        mood: 'Celebración sofisticada, calidez familiar de fin de año y distinción serena.'
       }
     ];
   }
 
   detectCampinaPosterReference(theme = '', targetDate = '') {
     const text = `${theme} ${targetDate}`.toLowerCase();
-    if (text.includes('18') || text.includes('fiesta') || text.includes('patria') || text.includes('septiembre') || text.includes('chilenidad') || text.includes('fonda')) {
+    if (/(año nuevo|ano nuevo|fin de año|navidad|nochebuena|navideñ)/i.test(text)) {
+      return 'celebration_editorial';
+    }
+    const has18Patria = (hasWord(text, '18') && (text.includes('septiembre') || text.includes('patria') || text.includes('dieciocho'))) || /(^|[^a-záéíóúñ0-9])el 18($|[^a-záéíóúñ0-9])/i.test(text);
+    if (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta')) {
       return 'chilean_heritage_print';
     }
     if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('fuego') || text.includes('brasa')) {
@@ -1452,21 +1609,25 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
       : typographyStyle;
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
-    const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
-      ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
-    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
-      : brandTreatment;
-    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
-
     // Paleta de Color Autónoma (Cero dorados forzados)
     const palettesCatalog = this.getCampinaColorPalettes();
     const activePaletteKey = (!colorPalette || colorPalette === 'auto')
       ? this.detectCampinaColorPalette(theme, targetDate)
       : colorPalette;
     const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury'
+          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
+          : 'editorial_lockup');
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
 
     // Referencia Gráfica de Afiche Comercial
     const posterRefsCatalog = this.getCampinaPosterReferences();
@@ -1552,6 +1713,170 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
   }
 
   /**
+   * Registra el titular Hero en el historial de los últimos 30 usados para evitar repeticiones
+   */
+  recordCampinaRecentHero(hero) {
+    if (!hero || typeof hero !== 'string') return;
+    const normalized = hero.trim().toUpperCase();
+    if (!normalized) return;
+    let recent = [];
+    try {
+      const raw = getSetting('campina_recent_heroes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) recent = parsed;
+      }
+    } catch (_) {
+      recent = [];
+    }
+    const updated = [normalized, ...recent.filter(h => String(h).toUpperCase().trim() !== normalized)].slice(0, 30);
+    try {
+      setSetting('campina_recent_heroes', JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[recordCampinaRecentHero] Error guardando recent heroes:', err.message);
+    }
+  }
+
+  /**
+   * Generador generativo de titulares de alto impacto para Cabañas La Campiña
+   * Entrega 5 opciones con ángulos distintos (emocional, beneficio, imperativo, pregunta, lugar)
+   */
+  async generateCampinaHeadlines({ theme, targetDate = '', caption = '', planContext = null }) {
+    if (!theme || typeof theme !== 'string' || !theme.trim()) {
+      throw new Error('El campo theme es requerido');
+    }
+
+    // 1. Memoria anti-repetición: leer últimos 30 heroes de settings
+    let recentHeroes = [];
+    try {
+      const raw = getSetting('campina_recent_heroes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) recentHeroes = parsed;
+      }
+    } catch (_) {
+      recentHeroes = [];
+    }
+
+    // 2. Extraer fallbacks en código de extractCampinaVisualHierarchy
+    const catalogHeroes = new Set(['TU REFUGIO NATURAL']);
+    const sampleThemes = [
+      '', 'pareja suite', 'asado quincho', 'desconexion descanso',
+      'familia niños', '18 septiembre', '18 pareja', 'verano playa'
+    ];
+    for (const st of sampleThemes) {
+      try {
+        const vh = this.extractCampinaVisualHierarchy(st, '');
+        if (vh?.hero) catalogHeroes.add(vh.hero.toUpperCase().trim());
+        if (Array.isArray(vh?.alternatives)) {
+          for (const a of vh.alternatives) {
+            if (a?.hero) catalogHeroes.add(a.hero.toUpperCase().trim());
+          }
+        }
+      } catch (_) {}
+    }
+
+    const forbiddenList = [...new Set([
+      ...recentHeroes.map(h => String(h).toUpperCase().trim()),
+      ...Array.from(catalogHeroes)
+    ])].filter(Boolean);
+
+    let planInfo = '';
+    if (planContext && typeof planContext === 'object') {
+      const parts = [];
+      if (planContext.angle) parts.push(`Ángulo: "${planContext.angle}"`);
+      if (planContext.hook) parts.push(`Gancho: "${planContext.hook}"`);
+      if (planContext.why) parts.push(`Por qué / Razón estratégica: "${planContext.why}"`);
+      if (planContext.campaign_title) parts.push(`Campaña: "${planContext.campaign_title}"`);
+      if (parts.length > 0) planInfo = `\nCONTEXTO EDITORIAL DEL PLAN:\n- ${parts.join('\n- ')}`;
+    }
+
+    const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
+
+    const prompt = `Eres un redactor publicitario senior especializado en campañas de hospitalidad y turismo boutique para "Cabañas La Campiña" (Algarrobo, Chile).
+Tu misión es redactar titulares publicitarios generativos de alto impacto para la cartelería comercial de redes sociales.
+
+DATOS DEL POST:
+- Tema o enfoque: "${theme}"
+- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${planInfo}${captionInfo}
+
+INSTRUCCIONES CLAVE DE REDACCIÓN:
+1. Entrega EXACTAMENTE 5 opciones con ángulos distintos:
+   - "emocional" (afecto, memoria familiar o de pareja, nostalgia, calidez)
+   - "beneficio" (descanso genuino, desconexión sin pantallas, aire puro)
+   - "imperativo" (invitación contundente a escapar o desconectar)
+   - "pregunta" (interrogante que detiene el scroll y despierta el deseo)
+   - "lugar" (evocación de las cabañas, senderos entre pinos, terraza o Algarrobo)
+2. Para cada opción entrega:
+   - "hero": Titular en MAYÚSCULAS, de 2 a 3 palabras (máximo 4 palabras).
+   - "keyword": La palabra o cifra principal a destacar visualmente (DEBE estar contenida dentro de hero).
+   - "subline": Subtítulo editorial de MÁXIMO 6 PALABRAS, complementario y sin repetir palabras del hero.
+   - "angle": Uno de los 5 ángulos indicados ("emocional", "beneficio", "imperativo", "pregunta", "lugar").
+3. RESTRICCIONES ESTRICTAS:
+   - PROHIBIDO usar "TU REFUGIO NATURAL".
+   - PROHIBIDO usar cualquier hero de la siguiente lista de PROHIBIDOS (usados recientemente o fijos del catálogo):
+     ${forbiddenList.join(', ')}
+   - PROHIBIDO terminantemente mencionar tinajas, jacuzzis o hot tubs (NO existen en el recinto).
+   - PROHIBIDO falsas urgencias ("últimos cupos", "quedan pocas", "apúrate").
+
+Devuelve ESTRICTAMENTE un JSON con este formato:
+{
+  "options": [
+    {
+      "hero": "DOS O TRES PALABRAS",
+      "keyword": "PALABRA",
+      "subline": "Subtítulo de máximo seis palabras",
+      "angle": "emocional"
+    }
+  ]
+}`;
+
+    const result = await this.generateJSON({ prompt, temperature: 1.0 });
+    const rawOptions = Array.isArray(result?.data?.options) ? result.data.options : [];
+    const recentSet = new Set(recentHeroes.map(h => String(h).toUpperCase().trim()));
+    const seenHeroes = new Set();
+    const validOptions = [];
+
+    for (const opt of rawOptions) {
+      if (!opt || typeof opt.hero !== 'string') continue;
+      let hero = opt.hero.trim().toUpperCase();
+      if (!hero) continue;
+
+      // Recortar a 4 palabras
+      const words = hero.split(/\s+/).filter(Boolean);
+      if (words.length > 4) {
+        hero = words.slice(0, 4).join(' ');
+      }
+
+      const lowerHero = hero.toLowerCase();
+      // Descartar opciones repetidas (case-insensitive) o presentes en recientes
+      if (seenHeroes.has(lowerHero) || recentSet.has(hero)) {
+        continue;
+      }
+      seenHeroes.add(lowerHero);
+
+      // Si keyword no está contenida en hero, usar la palabra más larga
+      let keyword = typeof opt.keyword === 'string' ? opt.keyword.trim().toUpperCase() : '';
+      if (!keyword || !hero.includes(keyword)) {
+        const sortedWords = [...words].sort((a, b) => b.length - a.length);
+        keyword = sortedWords[0] || hero;
+      }
+
+      const subline = typeof opt.subline === 'string' ? opt.subline.trim() : '';
+      const angle = typeof opt.angle === 'string' ? opt.angle.trim() : 'general';
+
+      validOptions.push({
+        hero,
+        keyword,
+        subline,
+        angle
+      });
+    }
+
+    return { options: validOptions };
+  }
+
+  /**
    * Generador Especializado para Cabañas La Campiña: Guión Reel / Video + Copy de Fechas + Prompt Maestro 4:5
    * Fundamentado 100% en la información oficial de www.cabanaslacampina.cl
    */
@@ -1568,7 +1893,8 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
     brandTreatment = 'auto',
     colorPalette = 'auto',
     posterReference = 'auto',
-    bypassCache = false
+    bypassCache = false,
+    planContext = null
   }) {
     const isReel = format === 'reel';
     const apiKey = getSetting('ai_api_key') || process.env.GEMINI_API_KEY;
@@ -1640,7 +1966,7 @@ Estructura a entregar:
 `}
 `;
 
-    // PIPELINE CONCURRENTE: Lanzar análisis de arte y redactor de copy en paralelo
+    // PIPELINE CONCURRENTE: Lanzar análisis de arte, redactor de copy y titulares generativos en paralelo
     const artPromise = apiKey
       ? this.analyzeCampinaArtDirection({ theme, targetDate, apiKey, bypassCache })
       : Promise.resolve(null);
@@ -1658,9 +1984,18 @@ Estructura a entregar:
         })
       : Promise.resolve(null);
 
-    const [artResult, copyResult] = await Promise.allSettled([artPromise, copyPromise]);
+    const headlinesPromise = apiKey
+      ? this.generateCampinaHeadlines({ theme, targetDate, caption: '', planContext }).catch(err => {
+          console.warn('[generateCampinaContent] Falló generateCampinaHeadlines:', err.message);
+          return { options: [] };
+        })
+      : Promise.resolve({ options: [] });
+
+    const [artResult, copyResult, headlinesResult] = await Promise.allSettled([artPromise, copyPromise, headlinesPromise]);
 
     const aiAnalysis = artResult.status === 'fulfilled' ? artResult.value : null;
+    const headlinesData = headlinesResult.status === 'fulfilled' ? headlinesResult.value : null;
+    const headlineOptions = Array.isArray(headlinesData?.options) ? headlinesData.options : [];
 
     let generatedText = '';
     if (copyResult.status === 'fulfilled' && copyResult.value?.fullPost) {
@@ -1678,8 +2013,44 @@ Estructura a entregar:
     generatedText = this.cleanCaptionAI(generatedText);
 
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
-    const finalHero = heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero;
-    const finalSubline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
+
+    let chosenOption = null;
+    let adoptedFromHeadlines = false;
+
+    let finalHero = '';
+    let finalSubline = '';
+    let finalKeyword = '';
+
+    if (heroHeadline && heroHeadline.trim()) {
+      finalHero = heroHeadline.trim().toUpperCase();
+      finalSubline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
+      const cleanWords = finalHero.replace(/[^\w\s\dáéíóúÁÉÍÓÚñÑ]/g, '').split(/\s+/).filter(Boolean);
+      const numWord = cleanWords.find(w => /\d+/.test(w));
+      if (numWord) {
+        finalKeyword = numWord;
+      } else {
+        const sorted = [...cleanWords].sort((a, b) => b.length - a.length);
+        finalKeyword = sorted[0] || finalHero;
+      }
+    } else if (headlineOptions.length > 0 && headlineOptions[0]?.hero) {
+      chosenOption = headlineOptions[0];
+      finalHero = chosenOption.hero.trim().toUpperCase();
+      finalSubline = sublineHeadline || chosenOption.subline || aiAnalysis?.sublineHeadline || hierarchy.subline;
+      finalKeyword = chosenOption.keyword || finalHero;
+      adoptedFromHeadlines = true;
+    } else if (aiAnalysis?.heroHeadline) {
+      finalHero = aiAnalysis.heroHeadline.trim().toUpperCase();
+      finalSubline = sublineHeadline || aiAnalysis.sublineHeadline || hierarchy.subline;
+      finalKeyword = aiAnalysis.keyword || hierarchy.keyword;
+    } else {
+      finalHero = hierarchy.hero.toUpperCase();
+      finalSubline = sublineHeadline || hierarchy.subline;
+      finalKeyword = hierarchy.keyword;
+    }
+
+    if (adoptedFromHeadlines && chosenOption?.hero) {
+      this.recordCampinaRecentHero(chosenOption.hero);
+    }
 
     const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
       ? hierarchy.detectedStyle
@@ -1688,26 +2059,37 @@ Estructura a entregar:
     const stylesCatalog = this.getCampinaTypographyStyles();
     const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
 
-    const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
-      ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury' ? 'gold_foil' : 'editorial_lockup');
-    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
-      : brandTreatment;
-    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
-
     const palettesCatalog = this.getCampinaColorPalettes();
     const activePaletteKey = (!colorPalette || colorPalette === 'auto')
       ? this.detectCampinaColorPalette(theme, targetDate)
       : colorPalette;
     const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
 
+    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury'
+          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
+          : 'editorial_lockup');
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
     const posterRefsCatalog = this.getCampinaPosterReferences();
     const activePosterRefKey = (!posterReference || posterReference === 'auto')
       ? this.detectCampinaPosterReference(theme, targetDate)
       : posterReference;
     const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+
+    const effectiveAiAnalysis = {
+      ...(aiAnalysis || {}),
+      heroHeadline: finalHero,
+      sublineHeadline: finalSubline,
+      keyword: finalKeyword
+    };
 
     const masterImagePrompt = this.buildCampinaImagePrompt({
       theme,
@@ -1721,8 +2103,16 @@ Estructura a entregar:
       brandTreatment: activeTreatmentKey,
       colorPalette: activePaletteKey,
       posterReference: activePosterRefKey,
-      aiAnalysis
+      aiAnalysis: effectiveAiAnalysis
     });
+
+    const sloganAlternatives = headlineOptions.length > 0
+      ? headlineOptions.map(opt => ({
+          hero: opt.hero,
+          subline: opt.subline,
+          style: activeStyleKey
+        }))
+      : hierarchy.alternatives;
 
     return {
       theme,
@@ -1740,8 +2130,8 @@ Estructura a entregar:
       colorPaletteName: aiAnalysis?.colorPaletteName || matchedPalette.name,
       posterReference: activePosterRefKey,
       posterReferenceName: aiAnalysis?.posterReference || matchedPosterRef.name,
-      artDirectionAnalysis: aiAnalysis,
-      sloganAlternatives: hierarchy.alternatives,
+      artDirectionAnalysis: effectiveAiAnalysis,
+      sloganAlternatives,
       allTypographyStyles: stylesCatalog,
       allBrandTreatments: treatmentsCatalog,
       allColorPalettes: palettesCatalog,
@@ -1789,6 +2179,176 @@ Estructura a entregar:
       accountName: 'Cabañas La Campiña',
       baseImageUrl
     });
+  }
+
+  /**
+   * Genera indicaciones de escena deducidas con razonamiento por pasos para Cabañas La Campiña
+   * Admite imagen base local (/uploads/...) o deducción contextual solo con texto
+   */
+  async buildCampinaSceneDirective({ theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '' }) {
+    if (!theme || typeof theme !== 'string' || !theme.trim()) {
+      throw new Error('El campo theme es requerido');
+    }
+
+    let inlineData = null;
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim()) {
+      const trimmedUrl = imageUrl.trim();
+      if (!trimmedUrl.startsWith('/uploads/')) {
+        throw new Error('Ruta de imagen inválida: debe comenzar por /uploads/');
+      }
+
+      const uploadsRoot = path.resolve(__dirname, '../../uploads');
+      const resolvedPath = path.resolve(path.join(__dirname, '../../', trimmedUrl));
+
+      if (!resolvedPath.startsWith(uploadsRoot + path.sep) && resolvedPath !== uploadsRoot) {
+        throw new Error('Ruta de imagen inválida: no permitida fuera de /uploads/');
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error('La imagen especificada no existe en disco');
+      }
+
+      const stats = fs.statSync(resolvedPath);
+      if (stats.size > 6 * 1024 * 1024) {
+        throw new Error('La imagen excede el tamaño máximo permitido de 6 MB');
+      }
+
+      const ext = path.extname(resolvedPath).toLowerCase();
+      let mimeType = '';
+      if (ext === '.jpg' || ext === '.jpeg') {
+        mimeType = 'image/jpeg';
+      } else if (ext === '.png') {
+        mimeType = 'image/png';
+      } else if (ext === '.webp') {
+        mimeType = 'image/webp';
+      } else {
+        throw new Error(`Formato de imagen no soportado (${ext}). Permitidos: jpg, jpeg, png, webp`);
+      }
+
+      const fileBuf = fs.readFileSync(resolvedPath);
+      inlineData = {
+        mime_type: mimeType,
+        data: fileBuf.toString('base64')
+      };
+    }
+
+    let planInfo = '';
+    if (planContext && typeof planContext === 'object') {
+      const parts = [];
+      if (planContext.angle) parts.push(`Ángulo: "${planContext.angle}"`);
+      if (planContext.hook) parts.push(`Gancho: "${planContext.hook}"`);
+      if (planContext.why) parts.push(`Razón estratégica: "${planContext.why}"`);
+      if (planContext.campaign_title) parts.push(`Campaña: "${planContext.campaign_title}"`);
+      if (parts.length > 0) planInfo = `\nCONTEXTO EDITORIAL DEL PLAN:\n- ${parts.join('\n- ')}`;
+    }
+
+    const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
+    const userHintInfo = sceneHint ? `\nPISTA DE ESCENA INDICADA POR EL USUARIO (MANDA SOBRE EL ESPACIO):\n"${sceneHint}"` : '';
+
+    const prompt = `Actúa como un Director de Arte y Fotógrafo Publicitario Senior para "Cabañas La Campiña" (Algarrobo, Chile).
+Tu misión es deducir las indicaciones de escena precisas para la imagen de un post publicitario, mediante razonamiento por pasos.
+
+DATOS DEL POST:
+- Tema o enfoque: "${theme}"
+- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${userHintInfo}${planInfo}${captionInfo}
+
+RAZONAMIENTO POR PASOS OBLIGATORIO:
+Debes resolver y reportar en el array "reasoning" (un string explicativo por cada paso del 1 al 5):
+(1) IDENTIFICAR el espacio: La pista del usuario (${sceneHint ? `"${sceneHint}"` : 'ninguna'}) manda; si no hay, dedúcelo de la foto o contexto (pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina, otro) -> spaceType.
+(2) DEDUCIR el enfoque/público de la publicación desde tema, ocasión, planContext (angle, hook, why, campaña) y caption (familia, pareja, amigos, descanso solo, celebración) -> audienceFocus.
+(3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2) usando solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción o mueble que no esté en la foto.
+(4) FIJAR RESTRICCIONES: Personas pequeñas y en segundo plano o de espaldas/perfil, poses naturales y relajadas, sin primeros planos de rostros, número reducido de personas, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
+(5) REDACTAR "sceneDirective": Bloque en español, listo para pegar en Gemini, que empieza con:
+INDICACIONES DE ESCENA DE ESTE POST (tienen prioridad sobre "conservar la foto" solo en lo que se declara aquí):
+seguido de 3 a 6 viñetas concretas (qué personas/acciones/objetos añadir, exactamente en qué zona de la escena, con qué luz, qué NO añadir).
+Debe terminar exactamente con la línea:
+Todo lo demás de la foto permanece idéntico.
+
+Devuelve ESTRICTAMENTE un JSON con esta estructura:
+{
+  "spaceType": "espacio identificado (ej: quincho, suite, cabaña, sendero de pinos, terraza, pastizal/áreas verdes)",
+  "audienceFocus": "enfoque de público (ej: familia, pareja, amigos, descanso solo, celebración)",
+  "reasoning": [
+    "Paso 1: ...",
+    "Paso 2: ...",
+    "Paso 3: ...",
+    "Paso 4: ...",
+    "Paso 5: ..."
+  ],
+  "sceneDirective": "INDICACIONES DE ESCENA DE ESTE POST (tienen prioridad sobre \"conservar la foto\" solo en lo que se declara aquí):\\n- ...\\n- ...\\n- ...\\nTodo lo demás de la foto permanece idéntico."
+}`;
+
+    let parsed = null;
+
+    if (inlineData) {
+      const apiKey = this.getApiKey();
+      if (!apiKey) {
+        throw new Error('No hay clave de Gemini configurada');
+      }
+
+      const models = sanitizeGeminiModels(getSetting('ai_model'));
+      let lastErr = null;
+
+      for (const m of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+          const res = await axios.post(
+            url,
+            {
+              contents: [{
+                parts: [
+                  {
+                    inline_data: {
+                      mime_type: inlineData.mime_type,
+                      data: inlineData.data
+                    }
+                  },
+                  { text: prompt }
+                ]
+              }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.7
+              }
+            },
+            { timeout: 30000 }
+          );
+
+          const parts = res.data?.candidates?.[0]?.content?.parts || [];
+          const textPart = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+          if (textPart) {
+            let clean = textPart.trim();
+            if (clean.startsWith('```json')) clean = clean.slice(7);
+            if (clean.startsWith('```')) clean = clean.slice(3);
+            if (clean.endsWith('```')) clean = clean.slice(0, -3);
+            clean = clean.trim();
+            parsed = JSON.parse(clean);
+            break;
+          }
+        } catch (err) {
+          lastErr = err;
+          console.warn(`[buildCampinaSceneDirective] Falló con modelo ${m}:`, err.response?.data?.error?.message || err.message);
+        }
+      }
+
+      if (!parsed) {
+        throw lastErr || new Error('No se pudo generar la directiva de escena');
+      }
+    } else {
+      const result = await this.generateJSON({ prompt, temperature: 0.7 });
+      parsed = result.data;
+    }
+
+    if (!parsed || typeof parsed.sceneDirective !== 'string' || !parsed.sceneDirective.trim()) {
+      throw new Error('La IA no devolvió una directiva de escena válida');
+    }
+
+    return {
+      spaceType: parsed.spaceType || 'otro',
+      audienceFocus: parsed.audienceFocus || 'familia',
+      reasoning: Array.isArray(parsed.reasoning) ? parsed.reasoning : [],
+      sceneDirective: parsed.sceneDirective.trim()
+    };
   }
 
   /**

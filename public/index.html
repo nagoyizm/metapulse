@@ -2486,6 +2486,10 @@
                     <option value="natgeo_adventure">🏔️ Display Bold Naturaleza (NatGeo, Senderos)</option>
                     <option value="botanical_minimal">🌿 Botánica Zen & Minimal (Jardines, Calma)</option>
                     <option value="patria_heritage">🇨🇱 Tradición Folclórica (Fiestas Patrias, Campo)</option>
+                    <option value="handcraft_script">✍️ Caligrafía Artesanal & Script (Hecho a Mano, Calidez)</option>
+                    <option value="retro_travel_70s">📻 Retro Viajero Años 70 (Aventura Vintage, Nostalgia)</option>
+                    <option value="art_deco_geometric">🏛️ Art Déco Geométrico (Elegancia Clásica, Líneas)</option>
+                    <option value="celebration_modern">🎉 Celebración Moderna (Festividades, Brindis)</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:6px;">
@@ -2499,6 +2503,10 @@
                     <option value="timber_burn">🪵 Pirograbado & Madera Tallada 3D</option>
                     <option value="editorial_lockup">📐 Lockup Editorial con Filetes Finos</option>
                     <option value="solar_rim">☀️ Retroiluminación Solar (Golden Rim)</option>
+                    <option value="letterpress_emboss">🖨️ Letterpress en Relieve (Bajo Relieve Texturado)</option>
+                    <option value="paper_cutout">✂️ Papel Calado & Capas (Paper Cutout Artesanal)</option>
+                    <option value="warm_neon">💡 Neón Cálido Nocturno (Resplandor de Fogón)</option>
+                    <option value="chalk_hand">🖍️ Tiza a Mano Pizarra (Estilo Rústico Campo)</option>
                   </select>
                 </div>
               </div>
@@ -2515,6 +2523,10 @@
                     <option value="fuego_quincho">🔥 Quincho & Brasa (Carbón Ahumado, Brasa & Hierro)</option>
                     <option value="kinfolk_ivory">✨ Kinfolk Lujo (Blanco Marfil, Lino & Carbón)</option>
                     <option value="costa_marina">🌊 Costa & Brisa (Índigo Marino, Arena & Blanco Salitre)</option>
+                    <option value="ano_nuevo">🥂 Año Nuevo (Dorado Festivo, Champaña & Negro Noche)</option>
+                    <option value="navidad_bosque">🎄 Navidad Bosque (Verde Pino, Rojo Baya & Nieve)</option>
+                    <option value="primavera_floral">🌸 Primavera Floral (Tonos Silvestres, Damasco & Salvia)</option>
+                    <option value="invierno_chimenea">🔥 Invierno Chimenea (Castaña Tostada, Ámbar & Humo)</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin-bottom:6px;">
@@ -2527,6 +2539,9 @@
                     <option value="kinfolk_editorial">📖 Editorial Kinfolk & Hospitalidad Boutique</option>
                     <option value="national_park_vintage">🏔️ Afiches WPA Parques Naturales & Senderos</option>
                     <option value="rustic_smokehouse">🪵 Rótulos de Madera Rústica & Maestros del Fuego</option>
+                    <option value="swiss_modern">📐 Diseño Suizo Moderno (Grilla Limpia, Tipografía Asimétrica)</option>
+                    <option value="retro_travel_poster">✈️ Cartel Retro de Viaje (Ilustración Turística Clásica)</option>
+                    <option value="celebration_editorial">🍾 Editorial de Celebración (Tipografía Festiva de Revista)</option>
                   </select>
                 </div>
               </div>
@@ -2546,9 +2561,12 @@
 
               <!-- Alternativas de Eslogan Generadas por IA -->
               <div id="campina-slogan-alternatives-wrap" style="display:none; margin-bottom:10px; padding:8px 10px; background:rgba(0,0,0,0.18); border-radius:6px; border:1px solid var(--border-subtle);">
-                <div style="font-size:0.75rem; font-weight:600; color:var(--text-primary); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:0.75rem; font-weight:600; color:var(--text-primary); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                   <span>💡 Ideas de Eslogan Publicitario (Haz clic para usar):</span>
-                  <span class="text-muted" style="font-size:0.68rem;">Clic para aplicar</span>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-campina-regen-headlines">Otras ideas de titular</button>
+                    <span class="text-muted" style="font-size:0.68rem;">Clic para aplicar</span>
+                  </div>
                 </div>
                 <div id="campina-slogan-pills" style="display:flex; flex-direction:column; gap:5px;"></div>
               </div>
@@ -2582,6 +2600,32 @@
               <button type="button" class="btn btn-ghost" id="btn-open-gemini-web-campina" title="Abrir Gemini Web con el prompt maestro copiado">
                 <span>Gemini Web</span>
               </button>
+            </div>
+
+            <!-- Recuadro Indicaciones extra del post -->
+            <div class="card" id="campina-scene-card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.85rem;">Indicaciones extra del post:</span>
+                <span id="campina-scene-meta" class="badge" style="display:none; font-size:0.72rem; background:rgba(16, 185, 129, 0.15); color:var(--success);"></span>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label class="form-label" for="campina-scene-hint" style="font-size:0.75rem; margin-bottom:3px;">Pista de la escena (opcional):</label>
+                <div style="display:flex; gap:8px;">
+                  <input type="text" id="campina-scene-hint" class="form-control form-control-sm" placeholder="Ej: pastizal frente a la cabaña, suite jardín, quincho... (opcional, la IA lo deduce de la foto)">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-campina-scene-deduce" style="white-space:nowrap;">Deducir escena con IA</button>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <textarea id="campina-scene-prompt" aria-label="Indicaciones extra del post" class="form-control" rows="5" style="font-size:0.8rem; font-family:var(--font-mono); line-height:1.4;" placeholder="Indicaciones de escena, personas y ambiente deducidas por la IA o escritas a mano..."></textarea>
+              </div>
+              <details id="campina-scene-reasoning" style="margin-bottom:8px; font-size:0.75rem;">
+                <summary style="cursor:pointer; color:var(--text-secondary); font-weight:600; margin-bottom:4px;">Ver razonamiento</summary>
+                <div id="campina-scene-reasoning-list" style="margin-top:6px; color:var(--text-secondary);"></div>
+              </details>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-xs" id="btn-copy-campina-scene">Copiar solo indicaciones</button>
+                <div class="text-muted" style="font-size:0.73rem;">Se suma automáticamente al Prompt Maestro al copiar o generar.</div>
+              </div>
             </div>
 
             <!-- Box Prompt Maestro de Imagen para La Campiña -->

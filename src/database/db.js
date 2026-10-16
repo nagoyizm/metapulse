@@ -218,6 +218,9 @@ function initializeDatabase() {
     db.prepare('ALTER TABLE posts ADD COLUMN schedule_preset_name TEXT').run();
   } catch (_) {}
   try {
+    db.prepare('ALTER TABLE posts ADD COLUMN plan_context TEXT').run();
+  } catch (_) {}
+  try {
     db.prepare('ALTER TABLE media_items ADD COLUMN account_id TEXT').run();
   } catch (_) {}
   try {

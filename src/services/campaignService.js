@@ -498,7 +498,8 @@ Entrega ESTRICTAMENTE un JSON con este formato:
       "campaign_id": 1,
       "angle": "Ángulo o enfoque temático claro de la publicación",
       "hook": "Gancho inicial de menos de 120 caracteres para atrapar al lector",
-      "why": "Razón estratégica de este post en esta fecha"
+      "why": "Razón estratégica de este post en esta fecha",
+      "occasion": "Ocasión o fecha próxima en texto corto (ej. 'Año Nuevo', 'Fin de semana largo de octubre', 'Fin de semana normal'); nunca vacío"
     }
   ],
   "notes": "Resumen explicativo del criterio de distribución aplicado"
@@ -525,6 +526,12 @@ Entrega ESTRICTAMENTE un JSON con este formato:
         item.campaign_id = numId;
       } else {
         item.campaign_id = null;
+      }
+
+      if (typeof item.occasion !== 'string' || !item.occasion.trim()) {
+        item.occasion = '';
+      } else {
+        item.occasion = item.occasion.trim();
       }
 
       if (!item.time || !/^\d{1,2}:\d{2}$/.test(item.time)) {
@@ -600,12 +607,23 @@ Entrega ESTRICTAMENTE un JSON con este formato:
     for (const item of items) {
       try {
         let campaignBlock = '';
+        let campaignTitle = '';
         if (item.campaign_id) {
           const camp = this.get(item.campaign_id);
           if (camp) {
             campaignBlock = this.buildCampaignBlock([camp]);
+            campaignTitle = camp.title || '';
           }
         }
+
+        const planContext = JSON.stringify({
+          angle: item.angle,
+          hook: item.hook,
+          why: item.why,
+          occasion: item.occasion,
+          campaign_id: item.campaign_id,
+          campaign_title: campaignTitle
+        });
 
         const topicText = `${item.angle || 'Publicación'}${item.hook ? '. Gancho: ' + item.hook : ''}`;
         let content = topicText;
@@ -634,8 +652,8 @@ Entrega ESTRICTAMENTE un JSON con este formato:
         const scheduledAt = new Date(dtStr).toISOString();
 
         const insertStmt = db.prepare(`
-          INSERT INTO posts (title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name)
-          VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+          INSERT INTO posts (title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name, plan_context)
+          VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)
         `);
 
         const info = insertStmt.run(
@@ -646,7 +664,8 @@ Entrega ESTRICTAMENTE un JSON con este formato:
           '[]',
           scheduledAt,
           resolvedAccountId,
-          resolvedAccountName
+          resolvedAccountName,
+          planContext
         );
 
         createdIds.push(info.lastInsertRowid);
