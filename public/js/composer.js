@@ -3861,6 +3861,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else {
       window._draftPlanContext = null;
+      // Borradores antiguos sin plan_context: el título del borrador es el enfoque del plan
+      if (post.status === 'draft' && (post.title || '').trim()) {
+        const themeFallbackEl = document.getElementById('campina-theme');
+        if (themeFallbackEl) themeFallbackEl.value = post.title.trim();
+        const dateFallbackEl = document.getElementById('campina-date');
+        if (dateFallbackEl) dateFallbackEl.value = '';
+      }
     }
 
     const heroHeadEl = document.getElementById('campina-hero-headline');
