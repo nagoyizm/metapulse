@@ -1146,6 +1146,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // LIMPIEZA DEL PANEL "IMAGEN DEL POST" (LA CAMPIÑA)
   // =========================================================================
   function clearPipPanel() {
+    window._pipRefImage = null;
+    window._pipFinalImage = null;
+    setElementDisplay('pip-ref-thumb', 'none');
+    setElementDisplay('btn-pip-ref-clear', 'none');
+    setElementText('pip-ref-status', 'Sin foto de referencia.');
+    setElementDisplay('pip-final-thumb', 'none');
+    setElementText('pip-final-status', 'Aún no subes la imagen final.');
     setInputValue('pip-tema', '');
     setInputValue('pip-ocasion', '');
     setInputValue('pip-publico', '');
@@ -4041,8 +4048,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loading = document.getElementById('pip-loading');
     const errorEl = document.getElementById('pip-error');
 
-    const firstMedia = (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) ? ComposerState.mediaFiles[0] : '';
-    const imageUrl = (typeof firstMedia === 'string' && firstMedia.startsWith('/uploads/')) ? firstMedia : undefined;
+    const imageUrl = getPipReferenceImage();
 
     const origText = btn ? btn.textContent : 'Preparar post';
     if (btn) {
@@ -4466,8 +4472,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const targetDate = document.getElementById('pip-ocasion')?.value.trim() || document.getElementById('campina-date')?.value.trim() || '';
     const brief = window._postBrief || null;
 
-    const firstMedia = (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) ? ComposerState.mediaFiles[0] : '';
-    const imageUrl = (typeof firstMedia === 'string' && firstMedia.startsWith('/uploads/')) ? firstMedia : undefined;
+    const imageUrl = getPipReferenceImage();
 
     const origText = btn ? btn.textContent : 'Otra dirección de arte';
     if (btn) {
@@ -4679,7 +4684,86 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Imagen de referencia (solo para la IA) vs imagen final de Gemini (la que se publica)
+  function getPipReferenceImage() {
+    if (typeof window._pipRefImage === 'string' && window._pipRefImage.startsWith('/uploads/')) return window._pipRefImage;
+    // Compatibilidad: si aún no hay imagen final propia, la foto del editor sirve de referencia
+    const first = ComposerState.mediaFiles && ComposerState.mediaFiles[0];
+    if (!window._pipFinalImage && typeof first === 'string' && first.startsWith('/uploads/')) return first;
+    return undefined;
+  }
+
+  async function uploadPipImage(file) {
+    const formData = new FormData();
+    formData.append('files', file);
+    const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+    const json = await res.json();
+    if (!json.success || !json.data?.length) throw new Error(json.error || 'No se pudo subir la imagen');
+    return json.data[0].url || json.data[0].filepath;
+  }
+
+  async function handlePipRefSelected(file) {
+    if (!file) return;
+    setElementText('pip-ref-status', 'Subiendo referencia...');
+    try {
+      const url = await uploadPipImage(file);
+      window._pipRefImage = url;
+      const thumb = document.getElementById('pip-ref-thumb');
+      if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+      setElementDisplay('btn-pip-ref-clear', 'inline-flex');
+      setElementText('pip-ref-status', 'Referencia lista: la IA la usará al preparar. No se publica.');
+    } catch (err) {
+      setElementText('pip-ref-status', 'Error al subir la referencia.');
+      showToast('Error subiendo la referencia: ' + err.message, 'error');
+    }
+  }
+
+  async function handlePipFinalSelected(file) {
+    if (!file) return;
+    setElementText('pip-final-status', 'Subiendo imagen final...');
+    try {
+      const url = await uploadPipImage(file);
+      // La imagen final reemplaza lo que haya en el editor; el estampado parte de cero
+      window._pipOriginalImage = null;
+      setElementDisplay('btn-pip-unstamp-contact', 'none');
+      window._pipFinalImage = url;
+      ComposerState.mediaFiles = [url];
+      renderMediaPreviews();
+      updateLivePreviews();
+      if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
+      const thumb = document.getElementById('pip-final-thumb');
+      if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
+      setElementText('pip-final-status', 'Imagen final lista: es la que se publicará.');
+      showToast('Imagen final cargada en el editor', 'success');
+    } catch (err) {
+      setElementText('pip-final-status', 'Error al subir la imagen final.');
+      showToast('Error subiendo la imagen final: ' + err.message, 'error');
+    }
+  }
+
+  function bindPipImageInputs() {
+    const refFile = document.getElementById('pip-ref-file');
+    const finalFile = document.getElementById('pip-final-file');
+    document.getElementById('btn-pip-ref-upload')?.addEventListener('click', () => refFile?.click());
+    document.getElementById('btn-pip-final-upload')?.addEventListener('click', () => finalFile?.click());
+    refFile?.addEventListener('change', async () => {
+      await handlePipRefSelected(refFile.files?.[0]);
+      refFile.value = '';
+    });
+    finalFile?.addEventListener('change', async () => {
+      await handlePipFinalSelected(finalFile.files?.[0]);
+      finalFile.value = '';
+    });
+    document.getElementById('btn-pip-ref-clear')?.addEventListener('click', () => {
+      window._pipRefImage = null;
+      setElementDisplay('pip-ref-thumb', 'none');
+      setElementDisplay('btn-pip-ref-clear', 'none');
+      setElementText('pip-ref-status', 'Sin foto de referencia.');
+    });
+  }
+
   function bindPipPanelControls() {
+    bindPipImageInputs();
     const btnPrepare = document.getElementById('btn-pip-prepare');
     if (btnPrepare) btnPrepare.addEventListener('click', handlePipPreparePost);
 

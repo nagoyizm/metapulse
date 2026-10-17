@@ -615,6 +615,29 @@
                           <input type="text" id="pip-publico" class="form-control form-control-sm" style="font-size: 0.8rem;" readonly placeholder="Público objetivo">
                         </div>
                         <p id="pip-foto-hint" style="margin: 0; font-size: 0.78rem; font-weight: 600; color: var(--primary); background: rgba(99, 102, 241, 0.08); padding: 6px 10px; border-radius: 4px; border-left: 3px solid var(--primary);">Foto a subir: --</p>
+                        <div id="pip-images-block" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 10px;">
+                          <div style="border: 1px dashed var(--border-subtle); border-radius: 6px; padding: 8px 10px; background: var(--bg-surface-subtle);">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">1. Foto de referencia</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px;">Solo la usa la IA para elegir estética y escena. No se publica.</div>
+                            <input type="file" id="pip-ref-file" accept="image/*" style="display: none;" aria-label="Subir foto de referencia">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                              <img id="pip-ref-thumb" alt="Referencia" style="display: none; width: 44px; height: 44px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-subtle);">
+                              <button type="button" class="btn btn-secondary btn-xs" id="btn-pip-ref-upload">Subir referencia</button>
+                              <button type="button" class="btn btn-ghost btn-xs" id="btn-pip-ref-clear" style="display: none;">Quitar</button>
+                            </div>
+                            <div id="pip-ref-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Sin foto de referencia.</div>
+                          </div>
+                          <div style="border: 1px dashed var(--border-subtle); border-radius: 6px; padding: 8px 10px; background: var(--bg-surface-subtle);">
+                            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);">2. Imagen final de Gemini</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px;">Es la imagen que se publica (reemplaza la que haya en el editor).</div>
+                            <input type="file" id="pip-final-file" accept="image/*" style="display: none;" aria-label="Subir imagen final de Gemini">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                              <img id="pip-final-thumb" alt="Imagen final" style="display: none; width: 44px; height: 44px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-subtle);">
+                              <button type="button" class="btn btn-primary btn-xs" id="btn-pip-final-upload">Subir imagen final</button>
+                            </div>
+                            <div id="pip-final-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Aún no subes la imagen final.</div>
+                          </div>
+                        </div>
                       </div>
 
                       <!-- Titulares -->
@@ -3796,7 +3819,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.6"></script>
-  <script src="js/composer.js?v=2.9"></script>
+  <script src="js/composer.js?v=3.0"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
   <script src="js/analytics.js?v=2.5"></script>
