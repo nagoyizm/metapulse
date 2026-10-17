@@ -33,6 +33,9 @@ Formato: fecha · decisión · por qué.
 
 - **2026-10-16 · Prompt maestro v2:** aplicadas mejoras A-G de la auditoría (escena en vez de madera, precedencia del bloque del post, zonas seguras 1:1, control de calidad, posición libre del titular, oro solo si la paleta lo permite, selección visual unificada). Respaldo: etiqueta `prompt-maestro-v1`.
 
+- **2026-10-16 · Dirección de arte elegida por IA desde paletas curadas** (60/30/10, sin verdes saturados sobre cafés); muestras y selectores editables en el panel. Respaldos: etiquetas `prompt-maestro-v1` y `prompt-maestro-v2`.
+- **2026-10-16 · Datos de contacto los estampa MetaPulse** (Lato, `assets/fonts`, sharp con `fontfile`; el servidor Linux no tiene fuentes del sistema). Casilla opcional, reversible, omite lo vacío en Marca.
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.
