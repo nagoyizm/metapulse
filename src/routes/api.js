@@ -34,6 +34,7 @@ const aiService = require('../services/aiService');
 const aiCacheService = require('../services/aiCacheService');
 const aiJobQueueService = require('../services/aiJobQueueService');
 const slotService = require('../services/slotService');
+const storySlotGuard = require('../services/storySlotGuard');
 const whatsappService = require('../services/whatsappService');
 const inboxSyncService = require('../services/inboxSyncService');
 const musicService = require('../services/musicService');
@@ -558,13 +559,13 @@ async function createCrossStoryPost(opts) {
     }
   }
 
-  const schedules = buildDripSchedules(
+  const schedules = storySlotGuard.separateSchedules(buildDripSchedules(
     targetSchedule,
     story_strategy,
     story_timing_rule,
     story_custom_datetime,
     Boolean(story_monthly_extension)
-  );
+  ), accountId);
   console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}" (extensión mensual 30d: ${Boolean(story_monthly_extension)})...`);
   const createdStories = [];
 
@@ -3530,13 +3531,13 @@ async function insertSingleBatchPost(p, ctx) {
       }
 
       // Generar fechas y horarios bajo la estrategia elegida y extensión mensual (Campiña)
-      const schedules = buildDripSchedules(
+      const schedules = storySlotGuard.separateSchedules(buildDripSchedules(
         scheduledAt,
         story_strategy,
         story_timing_rule,
         null,
         Boolean(story_monthly_extension)
-      );
+      ), activeAccountId);
 
       for (const item of schedules) {
         const storyTitle = item.titleSuffix ? `${item.titleSuffix}: ${title}` : `Story: ${title}`;
