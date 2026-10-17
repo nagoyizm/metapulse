@@ -29,6 +29,8 @@ Formato: fecha · decisión · por qué.
 - **2026-10-16 · Titulares generativos con memoria.** 5 opciones por IA (temp 1.0, sin caché) y lista de los últimos 30 heroes usados como prohibidos; el catálogo fijo queda solo como último respaldo.
 - **2026-10-16 · Texto del Prompt Maestro congelado** hasta que el dueño apruebe las mejoras de `docs/auditoria-prompt-maestro.md`.
 
+- **2026-10-16 · Flujo borrador→post:** panel en el Creador, botón "Preparar post", Gemini dibuja el titular, foto subida cada vez. Detalle en `docs/informe-flujo-borrador-a-post.md`.
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.
