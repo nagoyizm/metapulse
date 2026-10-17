@@ -1286,7 +1286,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         primaryColor: 'Blanco Hueso de Imprenta Serigráfica (#F8FAFC) o Rojo Carmesí Chileno Profundo (#B91C1C)',
         accentColor: 'Azul Prusia / Marino Mate (#1E293B) y Rojo Lacre (#991B1B)',
         forbiddenColors: 'PROHIBIDO TERMINANTEMENTE usar dorado, amarillo brillante o texturas tipo glitter/oro plástico. La cartelería del 18 chileno es noble, serigráfica y de imprenta artesanal.',
-        artDirection: 'Colores inspirados en la cartelería patrimonial chilena y ferias costeras de mediados del siglo XX: tipografía en blanco hueso serigráfico o rojo carmesí profundo sobre la madera, con trazo o cinta en azul prusia mate. Cero dorado artificial.'
+        artDirection: 'Colores inspirados en la cartelería patrimonial chilena y ferias costeras de mediados del siglo XX: tipografía en blanco hueso serigráfico o rojo carmesí profundo sobre la escena fotográfica, con trazo o cinta en azul prusia mate. Cero dorado artificial.'
       },
       {
         id: 'tierra_bosque',
@@ -1416,7 +1416,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         name: '🇨🇱 Cartelería Patrimonial Chilena & Serigrafía Tradicional',
         shortName: 'Cartelería Chilena',
         movement: 'Cartelería de imprenta tipográfica y serigrafía campesina chilena (mediados de siglo XX, ferias de campo tradicionales y vendimias nobles del valle central)',
-        details: 'Tipografía display con remates contundentes, composición central simétrica inspirada en etiquetas de empaque y boletos de fonda patrimonial, trazos de pincelada seca en rojo lacre y azul prusia mate sobre fondo de madera rústica.',
+        details: 'Tipografía display con remates contundentes, composición central simétrica inspirada en etiquetas de empaque y boletos de fonda patrimonial, trazos de pincelada seca en rojo lacre y azul prusia mate sobre la escena fotográfica.',
         mood: 'Celebración auténtica, orgullo campestre y festividad familiar dieciochera.'
       },
       {
@@ -1570,6 +1570,52 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   }
 
   /**
+   * Resuelve estilo, paleta, acabado y referencia de afiche (única fuente de verdad)
+   */
+  resolveCampinaVisualSelection({ theme, targetDate = '', hierarchy, typographyStyle = 'auto', brandTreatment = 'auto', colorPalette = 'auto', posterReference = 'auto', aiAnalysis = null }) {
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
+      ? hierarchy.detectedStyle
+      : typographyStyle;
+    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
+
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
+      ? this.detectCampinaColorPalette(theme, targetDate)
+      : colorPalette;
+    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury'
+          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
+          : 'editorial_lockup');
+    let activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
+      : brandTreatment;
+    if (activeTreatmentKey === 'gold_foil' && paletteForbidsGold && (!brandTreatment || brandTreatment === 'auto')) {
+      activeTreatmentKey = 'editorial_lockup';
+    }
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+    const activePosterRefKey = (!posterReference || posterReference === 'auto')
+      ? this.detectCampinaPosterReference(theme, targetDate)
+      : posterReference;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+
+    return {
+      activeStyleKey, matchedStyle,
+      activePaletteKey, matchedPalette,
+      activeTreatmentKey, matchedTreatment,
+      activePosterRefKey, matchedPosterRef
+    };
+  }
+
+  /**
    * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
    * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte tipográfica de autor
    */
@@ -1604,38 +1650,12 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
       }
     }
 
-    const stylesCatalog = this.getCampinaTypographyStyles();
-    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
-      ? hierarchy.detectedStyle
-      : typographyStyle;
-    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
-
-    // Paleta de Color Autónoma (Cero dorados forzados)
-    const palettesCatalog = this.getCampinaColorPalettes();
-    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
-      ? this.detectCampinaColorPalette(theme, targetDate)
-      : colorPalette;
-    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
-
-    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
-
-    const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
-      ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury'
-          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
-          : 'editorial_lockup');
-    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
-      : brandTreatment;
-    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
-
-    // Referencia Gráfica de Afiche Comercial
-    const posterRefsCatalog = this.getCampinaPosterReferences();
-    const activePosterRefKey = (!posterReference || posterReference === 'auto')
-      ? this.detectCampinaPosterReference(theme, targetDate)
-      : posterReference;
-    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+    const {
+      activeStyleKey, matchedStyle,
+      activePaletteKey, matchedPalette,
+      activeTreatmentKey, matchedTreatment,
+      activePosterRefKey, matchedPosterRef
+    } = this.resolveCampinaVisualSelection({ theme, targetDate, hierarchy, typographyStyle, brandTreatment, colorPalette, posterReference, aiAnalysis });
 
     const backgroundDirective = respectBackground
       ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
@@ -1669,6 +1689,7 @@ OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) par
 
 ${backgroundDirective}
 - PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
+- PRECEDENCIA DE LAS INDICACIONES DEL POST: si al final de este prompt aparece el bloque "INDICACIONES DE ESCENA DE ESTE POST", puedes sumar SOLO lo que ese bloque declara (personas pequeñas, ambiente, luz). La arquitectura, la vegetación y la distribución del recinto siguen intactas.
 
 2. REFERENCIA GRÁFICA DE AFICHE COMERCIAL (INSPIRACIÓN DE MARCA):
 ${posterRefSection}
@@ -1691,7 +1712,7 @@ ${colorPaletteSection}
      - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) utilizando los tonos de acento seleccionados para darle movimiento y factura artística.
 
   c) TEXTURA, VOLUMEN Y PROFUNDIDAD INTEGRADA:
-     El texto debe tener textura material auténtica (microrrelieve con bisel cálido, tacto de imprenta serigráfica artesanal o tinte orgánico). Debe sentirse material y tridimensional, con sombra de contacto suave ("ambient occlusion shadow") sobre la madera y el fondo.
+     El texto debe tener textura material auténtica (microrrelieve con bisel cálido, tacto de imprenta serigráfica artesanal o tinte orgánico). Debe sentirse material y tridimensional, con sombra de contacto suave ("ambient occlusion shadow") sobre la superficie y el fondo de la escena fotográfica, sea cual sea (césped, cielo, madera, piedra o interior).
 
   d) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
      ${matchedStyle.description}
@@ -1709,6 +1730,17 @@ ${colorPaletteSection}
   En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
 
 - CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
+
+6. ZONAS SEGURAS Y POSICIÓN DEL TITULAR:
+- Elige tú la posición del titular según el espacio libre REAL de la foto (tercio superior, tercio inferior o franja lateral). Nunca lo pongas sobre el elemento principal (cabaña, quincho, personas) ni fuerces siempre el centro.
+- Deja un margen de seguridad de al menos 8% en todos los bordes: ninguna letra pegada al borde ni cortada.
+- Todo el texto debe seguir legible si el afiche se recorta a cuadrado (1:1) para la grilla de Instagram; evita la franja inferior y superior extrema donde la interfaz de Instagram tapa contenido.
+- Contraste suficiente entre el texto y el fondo; si la zona es muy clara o muy recargada, añade una sombra suave o un velo sutil detrás del titular, sin cajas ni paneles pesados.
+
+7. CONTROL DE CALIDAD ANTES DE ENTREGAR:
+- Entrega UNA sola imagen 4:5 (1080x1350 px).
+- Revisa que cada palabra del titular y del subtítulo esté escrita exactamente como se indica, con tildes y ñ correctas; si una letra queda deforme, corrígela.
+- PROHIBIDO: manos o rostros deformados, dedos de más, personas duplicadas, logos o marcas de agua inventados, texto adicional, números sueltos, bordes o marcos falsos, y elementos que no existan en el recinto.
 
 Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
   }
@@ -2249,37 +2281,12 @@ Estructura a entregar:
       this.recordCampinaRecentHero(chosenOption.hero);
     }
 
-    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
-      ? hierarchy.detectedStyle
-      : typographyStyle;
-    
-    const stylesCatalog = this.getCampinaTypographyStyles();
-    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
-
-    const palettesCatalog = this.getCampinaColorPalettes();
-    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
-      ? this.detectCampinaColorPalette(theme, targetDate)
-      : colorPalette;
-    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
-
-    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
-
-    const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
-      ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury'
-          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
-          : 'editorial_lockup');
-    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
-      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
-      : brandTreatment;
-    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
-
-    const posterRefsCatalog = this.getCampinaPosterReferences();
-    const activePosterRefKey = (!posterReference || posterReference === 'auto')
-      ? this.detectCampinaPosterReference(theme, targetDate)
-      : posterReference;
-    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+    const {
+      activeStyleKey, matchedStyle,
+      activePaletteKey, matchedPalette,
+      activeTreatmentKey, matchedTreatment,
+      activePosterRefKey, matchedPosterRef
+    } = this.resolveCampinaVisualSelection({ theme, targetDate, hierarchy, typographyStyle, brandTreatment, colorPalette, posterReference, aiAnalysis });
 
     const effectiveAiAnalysis = {
       ...(aiAnalysis || {}),

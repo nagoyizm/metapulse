@@ -31,6 +31,9 @@ Estado: **solo diagnóstico. El texto del prompt maestro NO se ha modificado.** 
 - F. Que `gold_foil` solo aplique si la paleta lo permite.
 - G. Unificar la selección de estilo/paleta en un único helper.
 
+## Estado 2026-10-16: mejoras A-G APLICADAS
+A, B, C, D, E, F y G aplicadas en `aiService.js` (nuevo helper `resolveCampinaVisualSelection`). Versión previa respaldada en la etiqueta git `prompt-maestro-v1` y `docs/backups/prompt-maestro-v1.txt`.
+
 ## Lo que SÍ se aplica ahora (catálogos y lógica, no el texto del prompt)
 - Titulares generativos con memoria anti-repetición.
 - Detectores corregidos (límites de palabra; Año Nuevo/Navidad antes que Patrias).

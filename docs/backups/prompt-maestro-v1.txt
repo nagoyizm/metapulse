@@ -141,3 +141,6 @@ ${colorPaletteSection}
 
 Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
   }
+
+# RESTAURAR: git checkout prompt-maestro-v1 -- src/services/aiService.js
+# (la etiqueta prompt-maestro-v1 apunta al commit anterior a las mejoras A-G)

@@ -31,6 +31,8 @@ Formato: fecha · decisión · por qué.
 
 - **2026-10-16 · Flujo borrador→post:** panel en el Creador, botón "Preparar post", Gemini dibuja el titular, foto subida cada vez. Detalle en `docs/informe-flujo-borrador-a-post.md`.
 
+- **2026-10-16 · Prompt maestro v2:** aplicadas mejoras A-G de la auditoría (escena en vez de madera, precedencia del bloque del post, zonas seguras 1:1, control de calidad, posición libre del titular, oro solo si la paleta lo permite, selección visual unificada). Respaldo: etiqueta `prompt-maestro-v1`.
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.
