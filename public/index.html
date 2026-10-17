@@ -541,6 +541,10 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                               <img id="pip-final-thumb" alt="Imagen final" style="display: none; width: 44px; height: 44px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-subtle);">
                               <button type="button" class="btn btn-primary btn-xs" id="btn-pip-final-upload">Subir imagen final</button>
+                              <button type="button" class="btn btn-secondary btn-xs" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+                              Estampar Logo
+                              </button>
                             </div>
                             <div id="pip-final-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">Aún no subes la imagen final.</div>
                           </div>
@@ -680,10 +684,6 @@
                       </button>
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
                         Póster 4:5
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
-                        Estampar Logo
                       </button>
                     </div>
                   </div>
@@ -3870,7 +3870,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.6"></script>
-  <script src="js/composer.js?v=3.1"></script>
+  <script src="js/composer.js?v=3.2"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
   <script src="js/analytics.js?v=2.5"></script>
