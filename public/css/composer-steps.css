@@ -1,0 +1,168 @@
+/* Creador: flujo por pasos, menú de herramientas IA, progreso y resumen antes de agendar */
+
+.composer-step {
+  margin: 0 0 18px 0;
+  padding: 0 0 4px 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+.composer-step:first-of-type { border-top: none; padding-top: 0; }
+
+.composer-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.composer-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.composer-step-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.composer-step-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-surface-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+.composer-step-badge[data-state="ok"] {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.composer-step-badge[data-state="optional"] {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+/* Subida manual plegable */
+.composer-manual-media {
+  margin-top: 12px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-xs, 6px);
+  padding: 8px 10px;
+}
+.composer-manual-media > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.composer-manual-media[open] > summary { margin-bottom: 10px; }
+
+/* Botón principal del panel */
+.composer-prepare-btn {
+  font-weight: 700;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Progreso de "Preparar post" */
+.composer-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px 0;
+}
+.composer-progress-item {
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-subtle);
+  color: var(--text-muted);
+}
+.composer-progress-item[data-state="running"] {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.composer-progress-item[data-state="ok"] {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.composer-progress-item[data-state="ok"]::before { content: "\2713  "; }
+.composer-progress-item[data-state="warn"] {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.composer-progress-item[data-state="warn"]::before { content: "!  "; font-weight: 700; }
+
+/* Menú "Más herramientas IA" */
+.more-ai-menu { position: relative; }
+.more-ai-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  min-width: 260px;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs, 6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.more-ai-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.more-ai-item:hover { background: var(--bg-surface-subtle); }
+
+/* Resumen antes de agendar */
+.publish-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 10px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs, 6px);
+  background: var(--bg-surface-subtle);
+}
+.publish-chip {
+  font-size: 0.74rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  background: transparent;
+}
+.publish-chip[data-state="ok"] {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.publish-chip[data-state="ok"]::before { content: "\2713  "; }
+.publish-chip[data-state="pending"] {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.publish-chip[data-state="off"] { opacity: 0.7; }

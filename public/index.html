@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
+  <link rel="stylesheet" href="css/composer-steps.css?v=1">
 </head>
 <body class="light-theme">
   <!-- PANTALLA DE ACCESO Y SEGURIDAD METAPULSE -->
@@ -316,10 +317,15 @@
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
                       <span>Reiniciar proceso</span>
                     </button>
-                    <button class="btn btn-ai btn-sm" id="btn-open-ai-modal">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
-                      <span>Asistente IA (Copy)</span>
-                    </button>
+                    <div class="more-ai-menu" id="more-ai-menu">
+                      <button type="button" class="btn btn-ai btn-sm" id="btn-more-ai-tools" aria-haspopup="true" aria-expanded="false">
+                        <span>Más herramientas IA</span>
+                      </button>
+                      <div class="more-ai-dropdown" id="more-ai-dropdown" style="display: none;">
+                        <button type="button" class="more-ai-item" id="btn-open-ai-modal">Redactor, carrusel y humanizador</button>
+                        <button type="button" class="more-ai-item" id="btn-open-ai-campina-tab">Guion de reel y fechas (La Campiña)</button>
+                      </div>
+                    </div>
                     <button type="button" class="btn btn-sm" id="btn-open-batch-autopilot" onclick="openBatchModal()" style="background: linear-gradient(135deg, #047857 0%, #065f46 100%); color:#fff; border:none; display:flex; align-items:center; gap:6px; font-weight:600; cursor:pointer;">
                       <span>Carga en lote</span>
                     </button>
@@ -339,6 +345,12 @@
                 </div>
 
                 <!-- Target Platforms -->
+                <section class="composer-step" id="composer-step-1">
+                  <div class="composer-step-head">
+                    <span class="composer-step-num">1</span>
+                    <span class="composer-step-title">Destino y formato</span>
+                    <span class="composer-step-badge" id="step-badge-1" data-state="pending">pendiente</span>
+                  </div>
                 <div class="form-group">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
                     <span class="form-label" style="margin:0;">Destinos de Publicación:</span>
@@ -384,7 +396,14 @@
                     </label>
                   </div>
                 </div>
+                </section>
 
+                <section class="composer-step" id="composer-step-2">
+                  <div class="composer-step-head">
+                    <span class="composer-step-num">2</span>
+                    <span class="composer-step-title">Texto del post</span>
+                    <span class="composer-step-badge" id="step-badge-2" data-state="pending">pendiente</span>
+                  </div>
                 <!-- Post Title (Optional / Internal Note) -->
                 <div class="form-group">
                   <label class="form-label" for="post-title">Título / Referencia Interna <span class="text-muted">(opcional)</span></label>
@@ -447,134 +466,15 @@
                     </div>
                   </div>
                 </div>
+                </section>
 
-                <!-- Media Upload & Management -->
-                <div class="form-group">
-                  <div class="media-upload-header">
-                    <span class="form-label">Archivos Multimedia (Imágenes / Videos)</span>
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                      <!-- Botón especializado Agendio -->
-                      <button type="button" class="btn btn-primary btn-sm" id="btn-agendio-scene-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #065f46; border-color: #065f46;">
-                        Maquetar escena B2B 4:5
-                      </button>
-                      <!-- Botón especializado Cabañas La Campiña -->
-                      <button type="button" class="btn btn-primary btn-sm" id="btn-campina-flyer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #059669; border-color: #059669;">
-                        Maquetar flyer editorial
-                      </button>
-                      <!-- Botón especializado Kmarket -->
-                      <button type="button" class="btn btn-primary btn-sm" id="btn-kmarket-designer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #ea580c; border-color: #ea580c;">
-                        Diseñador gráfico senior
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
-                        Póster 4:5
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
-                        Estampar Logo
-                      </button>
-                    </div>
+                <section class="composer-step" id="composer-step-3">
+                  <div class="composer-step-head">
+                    <span class="composer-step-num">3</span>
+                    <span class="composer-step-title">Imagen del post</span>
+                    <span class="composer-step-badge" id="step-badge-3" data-state="pending">pendiente</span>
                   </div>
-
-                  <!-- Generador Directo de Imágenes con IA (Gemini Flash Lite / La opción más económica) -->
-                  <div class="ai-image-generator-bar" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-                    <label class="form-check-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; color:var(--text-primary); user-select:none; margin:0;">
-                      <input type="checkbox" id="chk-use-ai-image" style="cursor:pointer; width:16px; height:16px; accent-color:var(--primary);">
-                      <span>🎨 Generador de Imágenes IA: Gemini Flash Lite (Económico)</span>
-                    </label>
-
-                    <div id="ai-image-controls" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
-                      <select id="ai-image-format-select" aria-label="Formato de imagen para IA" class="form-control form-control-sm" style="font-size:0.75rem; padding:4px 8px; width:auto;">
-                        <option value="feed">Formato 4:5 (Feed vertical)</option>
-                        <option value="story">Formato 9:16 (Story / Reel)</option>
-                        <option value="square">Formato 1:1 (Cuadrado)</option>
-                      </select>
-                      <label id="lbl-use-base-image" style="display:none; align-items:center; gap:5px; cursor:pointer; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin:0;">
-                        <input type="checkbox" id="chk-use-base-image" style="cursor:pointer; accent-color:var(--primary);">
-                        <span>🖼️ Usar foto actual de base</span>
-                      </label>
-                      <button type="button" class="btn btn-primary btn-sm" id="btn-trigger-direct-image" style="font-size:0.75rem; padding:5px 12px; gap:6px;">
-                        Generar imagen
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="dropzone" id="media-dropzone">
-                    <input type="file" id="media-file-input" aria-label="Subir archivos multimedia" multiple accept="image/*,video/*" style="display: none;">
-                    <div class="dropzone-content">
-                      <div class="dropzone-icon">📁</div>
-                      <p><strong>Haz clic aquí</strong> o arrastra tus fotos / videos</p>
-                      <span class="dropzone-sub">JPG, PNG, WebP o MP4 (soporta múltiples imágenes para carruseles)</span>
-                    </div>
-                  </div>
-
-                  <!-- Media Previews Grid -->
-                  <div class="media-preview-grid" id="media-preview-grid"></div>
-
-                  <!-- Tarjeta Sugerencia de imagen para Gemini -->
-                  <div class="card composer-gemini-prompt-card" id="composer-gemini-prompt-card" style="margin-top: 14px; border: 1px solid rgba(99, 102, 241, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);">
-                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);">
-                      <div>
-                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                          Imagen sugerida para Gemini
-                        </h4>
-                        <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">
-                          Copia este prompt y pégalo en gemini.google.com con tu foto base
-                        </p>
-                      </div>
-                      <button type="button" class="btn btn-secondary btn-xs" id="composer-request-gemini-prompt-btn" style="font-weight: 600;">
-                        Sugerir prompt de imagen
-                      </button>
-                    </div>
-                    <div class="card-body" style="padding: 12px 14px;">
-                      <div id="composer-gemini-prompt-loading" class="d-none" style="display: none; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--primary); padding: 8px 0;">
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
-                        <span>Analizando copy y diseñando prompt para Gemini...</span>
-                      </div>
-                      <div id="composer-gemini-prompt-error" class="d-none" style="display: none; font-size: 0.8rem; color: var(--accent-rose); background: rgba(239, 68, 68, 0.08); padding: 6px 10px; border-radius: var(--radius-xs); margin-bottom: 8px;">
-                      </div>
-                      <div id="composer-gemini-prompt-content" class="d-none" style="display: none;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                          <span id="composer-gemini-prompt-concept" class="badge badge-accent" style="font-size: 0.75rem;">Concepto</span>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 8px;">
-                          <textarea id="composer-gemini-prompt-text" class="form-control" rows="4" readonly style="font-family: monospace; font-size: 0.78rem; background: var(--bg-surface-subtle); resize: vertical;"></textarea>
-                        </div>
-                        <p id="composer-gemini-attach-hint" style="margin: 0 0 10px 0; font-size: 0.75rem; color: var(--text-muted); display: none;"></p>
-
-                        <!-- Titulares sugeridos para sobreponer -->
-                        <div id="composer-gemini-overlay-block" style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); padding: 8px 12px; margin-bottom: 10px; font-size: 0.8rem;">
-                          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; font-size: 0.75rem;">Titulares sugeridos para sobreponer:</div>
-                          <div style="margin-bottom: 2px;">
-                            <span style="color: var(--text-muted); font-size: 0.73rem;">Titular principal:</span>
-                            <strong id="composer-gemini-overlay-headline" style="color: var(--text-primary); margin-left: 4px;">--</strong>
-                          </div>
-                          <div>
-                            <span style="color: var(--text-muted); font-size: 0.73rem;">Bajada / Subtítulo:</span>
-                            <span id="composer-gemini-overlay-subline" style="color: var(--text-secondary); margin-left: 4px;">--</span>
-                          </div>
-                        </div>
-
-                        <!-- Variantes de ángulo/estilo -->
-                        <div style="margin-bottom: 12px;">
-                          <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Variantes de ángulo / estilo:</span>
-                          <div id="composer-gemini-prompt-variants" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;"></div>
-                        </div>
-
-                        <!-- Botones de acción -->
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                          <button type="button" class="btn btn-secondary btn-sm" id="composer-copy-gemini-prompt-btn" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            <span>Copiar prompt</span>
-                          </button>
-                          <a id="composer-open-gemini-link" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; text-decoration: none;">
-                            <span>Abrir Gemini</span>
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
+                <div class="form-group" id="composer-media-group">
                   <!-- Tarjeta Imagen del post (La Campiña - Preparado por IA) -->
                   <div class="card composer-post-image-panel" id="composer-post-image-panel" style="display: none; margin-top: 14px; border: 1px solid rgba(16, 185, 129, 0.28); background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(99, 102, 241, 0.03) 100%);">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);">
@@ -588,13 +488,20 @@
                       </div>
                       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         <button type="button" class="btn btn-secondary btn-xs" id="btn-pip-regen-brief">Rehacer análisis</button>
-                        <button type="button" class="btn btn-primary btn-xs" id="btn-pip-prepare">Preparar post</button>
+                        <button type="button" class="btn btn-primary btn-sm composer-prepare-btn" id="btn-pip-prepare">Preparar post</button>
                       </div>
                     </div>
                     <div class="card-body" style="padding: 12px 14px;">
                       <div id="pip-loading" class="d-none" style="display: none; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--primary); padding: 8px 0;">
                         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
                         <span>Preparando post con IA...</span>
+                      </div>
+                      <div id="pip-progress" class="composer-progress" style="display: none;" aria-live="polite">
+                        <span class="composer-progress-item" id="pip-prog-brief" data-state="pending">Brief</span>
+                        <span class="composer-progress-item" id="pip-prog-headlines" data-state="pending">Titulares</span>
+                        <span class="composer-progress-item" id="pip-prog-scene" data-state="pending">Escena</span>
+                        <span class="composer-progress-item" id="pip-prog-art" data-state="pending">Dirección de arte</span>
+                        <span class="composer-progress-item" id="pip-prog-prompt" data-state="pending">Prompt</span>
                       </div>
                       <div id="pip-error" class="d-none" style="display: none; font-size: 0.8rem; color: var(--accent-rose); background: rgba(239, 68, 68, 0.08); padding: 6px 10px; border-radius: var(--radius-xs); margin-bottom: 8px;"></div>
 
@@ -754,121 +661,142 @@
                     </div>
                   </div>
 
-                  <!-- Cross-Share to Story Option (Directly under Media Upload) -->
-                  <div class="form-group story-cross-share-section" id="story-cross-share-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(168,85,247,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.35); border-radius: var(--radius-xs); padding: 14px; margin-top: 14px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
-                        <input type="checkbox" id="chk-also-share-story" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
-                        <span>📲 Compartir también como Historia (Story 9:16)</span>
-                      </label>
-                      <span class="badge" style="background:linear-gradient(135deg, #be185d, #6d28d9); color:white; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:700;">Story 9:16 Auto</span>
-                    </div>
-                    <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary);">
-                      Genera automáticamente una Historia vertical 9:16 con fondo artístico envolvente difuminado a partir de esta imagen para Instagram y Facebook Stories.
-                    </p>
-
-                    <!-- Story Timing Options (Hidden by default) -->
-                    <div id="story-timing-box" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed rgba(236,72,153,0.3); margin-left:29px;">
-                      <!-- 1. Selector de Estrategia de Difusión de Historia -->
-                      <span class="form-label" style="display:block; font-size:0.82rem; margin-bottom:6px; font-weight:700; color:var(--text-primary);">
-                        🎯 Estrategia de Difusión de Historia:
-                      </span>
-                      <div class="story-strategy-selector" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin-bottom:12px;">
-                        <label class="radio-pill active" id="pill-story-strat-single" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
-                          <input type="radio" name="story_strategy" value="single" checked>
-                          <span>⚡ 1 Historia Única</span>
-                        </label>
-                        <label class="radio-pill" id="pill-story-strat-drip3" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
-                          <input type="radio" name="story_strategy" value="drip3">
-                          <span>🔁 Goteo 3 Días (Test Horarios)</span>
-                        </label>
-                        <label class="radio-pill" id="pill-story-strat-evergreen" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
-                          <input type="radio" name="story_strategy" value="evergreen">
-                          <span>🔥 Cuenta Siempre Viva (5 Días)</span>
-                        </label>
-                      </div>
-
-                      <!-- Subpanel 1: Horarios para 1 Historia Única -->
-                      <div id="story-single-timing-wrap">
-                        <span class="form-label" style="display:block; font-size:0.78rem; margin-bottom:6px; color:var(--text-secondary);">¿En qué horario publicar la Historia?</span>
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
-                          <label class="radio-pill active" style="font-size:0.8rem;">
-                            <input type="radio" name="story_schedule_timing" value="same_time" checked>
-                            <span>⚡ Mismo momento</span>
-                          </label>
-                          <label class="radio-pill" style="font-size:0.8rem;">
-                            <input type="radio" name="story_schedule_timing" value="plus_3h">
-                            <span>⏰ 3h después (+3h)</span>
-                          </label>
-                          <label class="radio-pill" style="font-size:0.8rem;">
-                            <input type="radio" name="story_schedule_timing" value="night_slot">
-                            <span>🌙 En la noche (20:30)</span>
-                          </label>
-                          <label class="radio-pill" style="font-size:0.8rem;">
-                            <input type="radio" name="story_schedule_timing" value="custom">
-                            <span>📅 Horario propio</span>
-                          </label>
-                        </div>
-                        <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
-                          <input type="datetime-local" id="story-custom-datetime" aria-label="Fecha y hora personalizada para la Historia" class="form-control" style="font-size:0.85rem;">
-                        </div>
-                      </div>
-
-                      <!-- Subpanel 2: Información de Campaña Goteo 3 Días -->
-                      <div id="story-drip3-info-wrap" style="display:none; background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
-                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-                          <span>📊 Plan de Goteo 3 Días (Test A/B de Horarios):</span>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
-                          <div>🚀 <strong>Día 1:</strong> Mismo horario del post (Lanzamiento inicial)</div>
-                          <div>🌙 <strong>Día 2 (+24h):</strong> Slot Noche (21:00 hrs) • Mayor tiempo en pantalla y volumen</div>
-                          <div>☀️ <strong>Día 4 (+72h):</strong> Slot Almuerzo (13:30 hrs) • Pausa activa y recordatorio final</div>
-                        </div>
-                        <div style="font-size:0.72rem; color:#be185d; margin-top:6px; font-weight:600;">
-                          💡 Se agendarán 3 historias automáticas para testear qué horario rinde mejor en tus estadísticas.
-                        </div>
-                      </div>
-
-                      <!-- Subpanel 3: Información de Cuenta Siempre Viva (5 Días) -->
-                      <div id="story-evergreen-info-wrap" style="display:none; background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
-                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-                          <span>🔥 Modo Cuenta Siempre Viva (5 Días Rotativos):</span>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
-                          <div>📅 <strong>5 Historias espaciadas</strong> cada 24h a 36h rotando los 4 cuadrantes del día:</div>
-                          <div>🌅 Mañana (09:15) ➔ ☀️ Almuerzo (13:30) ➔ 🌆 Tarde (19:30) ➔ 🌙 Noche (21:00).</div>
-                        </div>
-                        <div style="font-size:0.72rem; color:#7e22ce; margin-top:6px; font-weight:600;">
-                          ✨ Garantiza que el aro de historias de tu cuenta nunca se apague en toda la semana sin saturar.
-                        </div>
-                      </div>
-
-                      <!-- 4. Extensión de Presencia Mensual (30 Días) -->
-                      <div id="story-monthly-extension-wrap" style="margin-top:10px; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:10px 12px;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; font-weight:700; font-size:0.82rem; color:var(--text-primary);">
-                          <input type="checkbox" id="chk-story-monthly-extension" checked style="width:17px; height:17px; accent-color:#6366f1; cursor:pointer;">
-                          <span>🗓️ Extender al resto del mes: 1 Historia semanal durante 30 días</span>
-                        </label>
-                        <div style="margin-top:6px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4; padding-left:25px;">
-                          <div>Además de los horarios iniciales, programará <strong>1 historia semanal de recuerdo</strong> en las semanas restantes del mes:</div>
-                          <div style="display:flex; flex-direction:column; gap:2px; margin-top:4px; font-size:0.73rem; color:var(--text-primary);">
-                            <div>• <strong>Semana 2 (Día 12):</strong> Slot Noche (20:30 hrs)</div>
-                            <div>• <strong>Semana 3 (Día 19):</strong> Slot Almuerzo (13:30 hrs)</div>
-                            <div>• <strong>Semana 4 (Día 26):</strong> Slot Noche (21:00 hrs)</div>
-                          </div>
-                          <div style="margin-top:5px; font-size:0.72rem; color:#4f46e5; font-weight:600;">
-                            ✨ Mantén la publicación circulando y atrayendo interacción a lo largo de todo el mes sin esfuerzo.
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style="margin-top:10px; padding:6px 10px; background:rgba(236,72,153,0.1); border:1px dashed rgba(236,72,153,0.35); border-radius:6px; font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
-                        <span>💡</span>
-                        <span>Si activas <strong>Añadir Música</strong> abajo, todas las Historias de la estrategia se generarán automáticamente con audio real.</span>
-                      </div>
+                  <details id="media-manual-details" class="composer-manual-media" open>
+                    <summary>Subir archivos a mano (otra foto, video o carrusel)</summary>
+                  <div class="media-upload-header">
+                    <span class="form-label">Archivos Multimedia (Imágenes / Videos)</span>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                      <!-- Botón especializado Agendio -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-agendio-scene-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #065f46; border-color: #065f46;">
+                        Maquetar escena B2B 4:5
+                      </button>
+                      <!-- Botón especializado Cabañas La Campiña -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-campina-flyer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #059669; border-color: #059669;">
+                        Maquetar flyer editorial
+                      </button>
+                      <!-- Botón especializado Kmarket -->
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-kmarket-designer-trigger" style="display: none; gap:5px; font-size:0.75rem; background: #ea580c; border-color: #ea580c;">
+                        Diseñador gráfico senior
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-create-ad-poster" style="display: none; gap:5px; font-size:0.75rem;">
+                        Póster 4:5
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-watermark-overlay" style="display: inline-flex; gap:6px; font-weight: 600;" onclick="if (typeof window.openInteractiveStampModal === 'function') { window.openInteractiveStampModal(); } else { const m = document.getElementById('modal-interactive-stamp'); if (m) m.style.display = 'flex'; }">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+                        Estampar Logo
+                      </button>
                     </div>
                   </div>
 
+                  <!-- Generador Directo de Imágenes con IA (Gemini Flash Lite / La opción más económica) -->
+                  <div class="ai-image-generator-bar" style="background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <label class="form-check-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem; font-weight:700; color:var(--text-primary); user-select:none; margin:0;">
+                      <input type="checkbox" id="chk-use-ai-image" style="cursor:pointer; width:16px; height:16px; accent-color:var(--primary);">
+                      <span>🎨 Generador de Imágenes IA: Gemini Flash Lite (Económico)</span>
+                    </label>
+
+                    <div id="ai-image-controls" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <select id="ai-image-format-select" aria-label="Formato de imagen para IA" class="form-control form-control-sm" style="font-size:0.75rem; padding:4px 8px; width:auto;">
+                        <option value="feed">Formato 4:5 (Feed vertical)</option>
+                        <option value="story">Formato 9:16 (Story / Reel)</option>
+                        <option value="square">Formato 1:1 (Cuadrado)</option>
+                      </select>
+                      <label id="lbl-use-base-image" style="display:none; align-items:center; gap:5px; cursor:pointer; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin:0;">
+                        <input type="checkbox" id="chk-use-base-image" style="cursor:pointer; accent-color:var(--primary);">
+                        <span>🖼️ Usar foto actual de base</span>
+                      </label>
+                      <button type="button" class="btn btn-primary btn-sm" id="btn-trigger-direct-image" style="font-size:0.75rem; padding:5px 12px; gap:6px;">
+                        Generar imagen
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="dropzone" id="media-dropzone">
+                    <input type="file" id="media-file-input" aria-label="Subir archivos multimedia" multiple accept="image/*,video/*" style="display: none;">
+                    <div class="dropzone-content">
+                      <div class="dropzone-icon">📁</div>
+                      <p><strong>Haz clic aquí</strong> o arrastra tus fotos / videos</p>
+                      <span class="dropzone-sub">JPG, PNG, WebP o MP4 (soporta múltiples imágenes para carruseles)</span>
+                    </div>
+                  </div>
+                  </details>
+
+                  <!-- Media Previews Grid -->
+                  <div class="media-preview-grid" id="media-preview-grid"></div>
+
+                  <!-- Tarjeta Sugerencia de imagen para Gemini -->
+                  <div class="card composer-gemini-prompt-card" id="composer-gemini-prompt-card" style="margin-top: 14px; border: 1px solid rgba(99, 102, 241, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(168, 85, 247, 0.03) 100%);">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);">
+                      <div>
+                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                          Imagen sugerida para Gemini
+                        </h4>
+                        <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">
+                          Copia este prompt y pégalo en gemini.google.com con tu foto base
+                        </p>
+                      </div>
+                      <button type="button" class="btn btn-secondary btn-xs" id="composer-request-gemini-prompt-btn" style="font-weight: 600;">
+                        Sugerir prompt de imagen
+                      </button>
+                    </div>
+                    <div class="card-body" style="padding: 12px 14px;">
+                      <div id="composer-gemini-prompt-loading" class="d-none" style="display: none; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--primary); padding: 8px 0;">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                        <span>Analizando copy y diseñando prompt para Gemini...</span>
+                      </div>
+                      <div id="composer-gemini-prompt-error" class="d-none" style="display: none; font-size: 0.8rem; color: var(--accent-rose); background: rgba(239, 68, 68, 0.08); padding: 6px 10px; border-radius: var(--radius-xs); margin-bottom: 8px;">
+                      </div>
+                      <div id="composer-gemini-prompt-content" class="d-none" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                          <span id="composer-gemini-prompt-concept" class="badge badge-accent" style="font-size: 0.75rem;">Concepto</span>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                          <textarea id="composer-gemini-prompt-text" class="form-control" rows="4" readonly style="font-family: monospace; font-size: 0.78rem; background: var(--bg-surface-subtle); resize: vertical;"></textarea>
+                        </div>
+                        <p id="composer-gemini-attach-hint" style="margin: 0 0 10px 0; font-size: 0.75rem; color: var(--text-muted); display: none;"></p>
+
+                        <!-- Titulares sugeridos para sobreponer -->
+                        <div id="composer-gemini-overlay-block" style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); padding: 8px 12px; margin-bottom: 10px; font-size: 0.8rem;">
+                          <div style="font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; font-size: 0.75rem;">Titulares sugeridos para sobreponer:</div>
+                          <div style="margin-bottom: 2px;">
+                            <span style="color: var(--text-muted); font-size: 0.73rem;">Titular principal:</span>
+                            <strong id="composer-gemini-overlay-headline" style="color: var(--text-primary); margin-left: 4px;">--</strong>
+                          </div>
+                          <div>
+                            <span style="color: var(--text-muted); font-size: 0.73rem;">Bajada / Subtítulo:</span>
+                            <span id="composer-gemini-overlay-subline" style="color: var(--text-secondary); margin-left: 4px;">--</span>
+                          </div>
+                        </div>
+
+                        <!-- Variantes de ángulo/estilo -->
+                        <div style="margin-bottom: 12px;">
+                          <span style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Variantes de ángulo / estilo:</span>
+                          <div id="composer-gemini-prompt-variants" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;"></div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <button type="button" class="btn btn-secondary btn-sm" id="composer-copy-gemini-prompt-btn" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copiar prompt</span>
+                          </button>
+                          <a id="composer-open-gemini-link" href="https://gemini.google.com/app" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; text-decoration: none;">
+                            <span>Abrir Gemini</span>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </section>
+
+                <section class="composer-step" id="composer-step-4">
+                  <div class="composer-step-head">
+                    <span class="composer-step-num">4</span>
+                    <span class="composer-step-title">Música</span>
+                    <span class="composer-step-badge" id="step-badge-4" data-state="pending">pendiente</span>
+                  </div>
                   <!-- Story Music & FFmpeg Audio Integration (Simulator for Instagram Music) -->
                   <div class="form-group story-music-section" id="story-music-section">
                     <div class="story-music-header">
@@ -1004,7 +932,128 @@
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
+
+                <section class="composer-step" id="composer-step-5">
+                  <div class="composer-step-head">
+                    <span class="composer-step-num">5</span>
+                    <span class="composer-step-title">Programación y agenda</span>
+                    <span class="composer-step-badge" id="step-badge-5" data-state="pending">pendiente</span>
+                  </div>
+                  <!-- Cross-Share to Story Option (Directly under Media Upload) -->
+                  <div class="form-group story-cross-share-section" id="story-cross-share-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(168,85,247,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.35); border-radius: var(--radius-xs); padding: 14px; margin-top: 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:700; margin:0; font-size:0.92rem; color:var(--text-primary);">
+                        <input type="checkbox" id="chk-also-share-story" style="width:19px; height:19px; accent-color:#ec4899; cursor:pointer;">
+                        <span>📲 Compartir también como Historia (Story 9:16)</span>
+                      </label>
+                      <span class="badge" style="background:linear-gradient(135deg, #be185d, #6d28d9); color:white; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:700;">Story 9:16 Auto</span>
+                    </div>
+                    <p style="margin:6px 0 0 29px; font-size:0.8rem; color:var(--text-secondary);">
+                      Genera automáticamente una Historia vertical 9:16 con fondo artístico envolvente difuminado a partir de esta imagen para Instagram y Facebook Stories.
+                    </p>
+
+                    <!-- Story Timing Options (Hidden by default) -->
+                    <div id="story-timing-box" style="display:none; margin-top:12px; padding-top:10px; border-top:1px dashed rgba(236,72,153,0.3); margin-left:29px;">
+                      <!-- 1. Selector de Estrategia de Difusión de Historia -->
+                      <span class="form-label" style="display:block; font-size:0.82rem; margin-bottom:6px; font-weight:700; color:var(--text-primary);">
+                        🎯 Estrategia de Difusión de Historia:
+                      </span>
+                      <div class="story-strategy-selector" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; margin-bottom:12px;">
+                        <label class="radio-pill active" id="pill-story-strat-single" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="single" checked>
+                          <span>⚡ 1 Historia Única</span>
+                        </label>
+                        <label class="radio-pill" id="pill-story-strat-drip3" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="drip3">
+                          <span>🔁 Goteo 3 Días (Test Horarios)</span>
+                        </label>
+                        <label class="radio-pill" id="pill-story-strat-evergreen" style="font-size:0.8rem; padding:8px 10px; display:flex; align-items:center; gap:6px;">
+                          <input type="radio" name="story_strategy" value="evergreen">
+                          <span>🔥 Cuenta Siempre Viva (5 Días)</span>
+                        </label>
+                      </div>
+
+                      <!-- Subpanel 1: Horarios para 1 Historia Única -->
+                      <div id="story-single-timing-wrap">
+                        <span class="form-label" style="display:block; font-size:0.78rem; margin-bottom:6px; color:var(--text-secondary);">¿En qué horario publicar la Historia?</span>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
+                          <label class="radio-pill active" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="same_time" checked>
+                            <span>⚡ Mismo momento</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="plus_3h">
+                            <span>⏰ 3h después (+3h)</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="night_slot">
+                            <span>🌙 En la noche (20:30)</span>
+                          </label>
+                          <label class="radio-pill" style="font-size:0.8rem;">
+                            <input type="radio" name="story_schedule_timing" value="custom">
+                            <span>📅 Horario propio</span>
+                          </label>
+                        </div>
+                        <div id="story-custom-datetime-wrap" style="display:none; margin-top:8px;">
+                          <input type="datetime-local" id="story-custom-datetime" aria-label="Fecha y hora personalizada para la Historia" class="form-control" style="font-size:0.85rem;">
+                        </div>
+                      </div>
+
+                      <!-- Subpanel 2: Información de Campaña Goteo 3 Días -->
+                      <div id="story-drip3-info-wrap" style="display:none; background:rgba(236,72,153,0.06); border:1px solid rgba(236,72,153,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                          <span>📊 Plan de Goteo 3 Días (Test A/B de Horarios):</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                          <div>🚀 <strong>Día 1:</strong> Mismo horario del post (Lanzamiento inicial)</div>
+                          <div>🌙 <strong>Día 2 (+24h):</strong> Slot Noche (21:00 hrs) • Mayor tiempo en pantalla y volumen</div>
+                          <div>☀️ <strong>Día 4 (+72h):</strong> Slot Almuerzo (13:30 hrs) • Pausa activa y recordatorio final</div>
+                        </div>
+                        <div style="font-size:0.72rem; color:#be185d; margin-top:6px; font-weight:600;">
+                          💡 Se agendarán 3 historias automáticas para testear qué horario rinde mejor en tus estadísticas.
+                        </div>
+                      </div>
+
+                      <!-- Subpanel 3: Información de Cuenta Siempre Viva (5 Días) -->
+                      <div id="story-evergreen-info-wrap" style="display:none; background:rgba(168,85,247,0.06); border:1px solid rgba(168,85,247,0.25); border-radius:8px; padding:10px 12px; margin-bottom:8px;">
+                        <div style="font-size:0.8rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                          <span>🔥 Modo Cuenta Siempre Viva (5 Días Rotativos):</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">
+                          <div>📅 <strong>5 Historias espaciadas</strong> cada 24h a 36h rotando los 4 cuadrantes del día:</div>
+                          <div>🌅 Mañana (09:15) ➔ ☀️ Almuerzo (13:30) ➔ 🌆 Tarde (19:30) ➔ 🌙 Noche (21:00).</div>
+                        </div>
+                        <div style="font-size:0.72rem; color:#7e22ce; margin-top:6px; font-weight:600;">
+                          ✨ Garantiza que el aro de historias de tu cuenta nunca se apague en toda la semana sin saturar.
+                        </div>
+                      </div>
+
+                      <!-- 4. Extensión de Presencia Mensual (30 Días) -->
+                      <div id="story-monthly-extension-wrap" style="margin-top:10px; background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:10px 12px;">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; font-weight:700; font-size:0.82rem; color:var(--text-primary);">
+                          <input type="checkbox" id="chk-story-monthly-extension" checked style="width:17px; height:17px; accent-color:#6366f1; cursor:pointer;">
+                          <span>🗓️ Extender al resto del mes: 1 Historia semanal durante 30 días</span>
+                        </label>
+                        <div style="margin-top:6px; font-size:0.75rem; color:var(--text-secondary); line-height:1.4; padding-left:25px;">
+                          <div>Además de los horarios iniciales, programará <strong>1 historia semanal de recuerdo</strong> en las semanas restantes del mes:</div>
+                          <div style="display:flex; flex-direction:column; gap:2px; margin-top:4px; font-size:0.73rem; color:var(--text-primary);">
+                            <div>• <strong>Semana 2 (Día 12):</strong> Slot Noche (20:30 hrs)</div>
+                            <div>• <strong>Semana 3 (Día 19):</strong> Slot Almuerzo (13:30 hrs)</div>
+                            <div>• <strong>Semana 4 (Día 26):</strong> Slot Noche (21:00 hrs)</div>
+                          </div>
+                          <div style="margin-top:5px; font-size:0.72rem; color:#4f46e5; font-weight:600;">
+                            ✨ Mantén la publicación circulando y atrayendo interacción a lo largo de todo el mes sin esfuerzo.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style="margin-top:10px; padding:6px 10px; background:rgba(236,72,153,0.1); border:1px dashed rgba(236,72,153,0.35); border-radius:6px; font-size:0.75rem; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                        <span>💡</span>
+                        <span>Si activas <strong>Añadir Música</strong> abajo, todas las Historias de la estrategia se generarán automáticamente con audio real.</span>
+                      </div>
+                    </div>
+                  </div>
 
                 <!-- Scheduling Options -->
                 <div class="form-group scheduling-section">
@@ -1042,17 +1091,23 @@
                   </div>
                 </div>
 
-                <!-- Submit Button -->
+                  <!-- Resumen antes de agendar -->
+                  <div class="publish-checklist" id="publish-checklist" aria-live="polite">
+                    <span class="publish-chip" id="chk-chip-platforms" data-state="pending">Plataformas</span>
+                    <span class="publish-chip" id="chk-chip-image" data-state="pending">Imagen final</span>
+                    <span class="publish-chip" id="chk-chip-contact" data-state="off">Contacto</span>
+                    <span class="publish-chip" id="chk-chip-music" data-state="off">Música</span>
+                    <span class="publish-chip" id="chk-chip-date" data-state="pending">Fecha</span>
+                  </div>
+
                 <div class="composer-actions">
-                  <button type="button" class="btn btn-secondary" id="btn-clear-composer" title="Reiniciar proceso, borrar Asistente IA y todos los campos" style="display:inline-flex; align-items:center; gap:6px;">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
-                    <span>Reiniciar Proceso</span>
-                  </button>
                   <button class="btn btn-primary btn-lg" id="btn-submit-post">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     <span id="btn-submit-post-text">Agendar en Próximo Slot</span>
                   </button>
                 </div>
+                </section>
+
               </div>
             </div>
           </div>
@@ -2587,7 +2642,7 @@
             </div>
 
             <!-- Box Foto de Fondo para el Afiche Publicitario 4:5 -->
-            <div class="card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
+            <div class="card" id="campina-bg-card" style="margin-bottom:14px; background:var(--bg-surface-subtle); border:1px solid var(--border-subtle); padding:12px; border-radius:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span class="form-label" style="margin-bottom:0; font-weight:600; font-size:0.85rem;">🏡 Foto de Fondo Real (Quincho, Cabaña o Jardín):</span>
                 <span class="badge" style="background:rgba(16, 185, 129, 0.15); color:var(--success); font-size:0.75rem;">Escenografía Base</span>
@@ -3031,10 +3086,6 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="btn-reset-ai-modal" style="margin-right:auto; display:inline-flex; align-items:center; gap:6px;" title="Limpiar todos los campos del asistente de IA">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path><path d="M2 3v5h5"></path></svg>
-            <span>Borrar / Reiniciar IA</span>
-          </button>
           <button class="btn btn-secondary" id="btn-cancel-ai">Cancelar</button>
           <button class="btn btn-primary" id="btn-apply-ai-copy" style="display: none;">
             Insertar en el Composer →
@@ -3819,7 +3870,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.6"></script>
-  <script src="js/composer.js?v=3.0"></script>
+  <script src="js/composer.js?v=3.1"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
   <script src="js/analytics.js?v=2.5"></script>

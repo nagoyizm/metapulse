@@ -36,6 +36,8 @@ Formato: fecha · decisión · por qué.
 - **2026-10-16 · Dirección de arte elegida por IA desde paletas curadas** (60/30/10, sin verdes saturados sobre cafés); muestras y selectores editables en el panel. Respaldos: etiquetas `prompt-maestro-v1` y `prompt-maestro-v2`.
 - **2026-10-16 · Datos de contacto los estampa MetaPulse** (Lato, `assets/fonts`, sharp con `fontfile`; el servidor Linux no tiene fuentes del sistema). Casilla opcional, reversible, omite lo vacío en Marca.
 
+- **2026-10-16 · Creador por pasos:** 1 Destino y formato, 2 Texto, 3 Imagen del post, 4 Música, 5 Programación y agenda, con insignias de estado y resumen antes de agendar. El Asistente IA pasa al menú "Más herramientas IA"; un solo "Reiniciar"; el panel es el único origen de tema/ocasión y de la foto de referencia. Respaldo: etiqueta `creador-v1`. Pendiente de decidir: C8, C11, C13, C14.
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.

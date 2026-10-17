@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2026 Skills: Barómetro de Gancho (<125 car) y Guardarraíles de Marca
     updateHookBarometer(text);
     updateBrandGuardrails(text);
+    if (typeof updateComposerProgress === 'function') updateComposerProgress();
   }
 
   // Barómetro de Gancho Instagram (Regla 125 caracteres antes del corte "...más")
@@ -470,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (typeof updateBaseImageVisibility === 'function') updateBaseImageVisibility();
     updateGeminiCardVisibility();
+    if (typeof updateComposerProgress === 'function') updateComposerProgress();
   }
 
   function updateGeminiCardVisibility() {
@@ -917,6 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const postType = document.querySelector('input[name="post_type"]:checked')?.value;
       switchPreviewTab(postType === 'story' ? 'story' : 'ig');
     }
+    if (typeof updateComposerProgress === 'function') updateComposerProgress();
   }
 
   function setPlatformSelection(allowFb, allowIg) {
@@ -936,6 +939,156 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('platform-ig')?.checked) platforms.push('instagram');
     return platforms;
   }
+
+  // Actualización de insignias de pasos y chips de resumen (C2, C12)
+  function updateComposerProgress() {
+    try {
+      const platforms = typeof getSelectedPlatforms === 'function' ? getSelectedPlatforms() : [];
+
+      // Paso 1: Destino y formato
+      const badge1 = document.getElementById('step-badge-1');
+      if (badge1) {
+        if (platforms.length > 0) {
+          badge1.setAttribute('data-state', 'ok');
+          badge1.textContent = 'listo';
+        } else {
+          badge1.setAttribute('data-state', 'pending');
+          badge1.textContent = 'pendiente';
+        }
+      }
+      const chipPlatforms = document.getElementById('chk-chip-platforms');
+      if (chipPlatforms) {
+        if (platforms.length > 0) {
+          chipPlatforms.setAttribute('data-state', 'ok');
+          const hasFb = platforms.includes('facebook');
+          const hasIg = platforms.includes('instagram');
+          if (hasFb && hasIg) {
+            chipPlatforms.textContent = 'Plataformas: FB + IG';
+          } else if (hasFb) {
+            chipPlatforms.textContent = 'FB';
+          } else if (hasIg) {
+            chipPlatforms.textContent = 'IG';
+          } else {
+            chipPlatforms.textContent = 'Plataformas';
+          }
+        } else {
+          chipPlatforms.setAttribute('data-state', 'pending');
+          chipPlatforms.textContent = 'Plataformas';
+        }
+      }
+
+      // Paso 2: Texto del post
+      const badge2 = document.getElementById('step-badge-2');
+      const postContentEl = document.getElementById('post-content');
+      const content = (postContentEl?.value || '').trim();
+      if (badge2) {
+        if (content.length > 0) {
+          badge2.setAttribute('data-state', 'ok');
+          badge2.textContent = 'listo';
+        } else {
+          badge2.setAttribute('data-state', 'pending');
+          badge2.textContent = 'pendiente';
+        }
+      }
+
+      // Paso 3: Imagen del post
+      const badge3 = document.getElementById('step-badge-3');
+      const hasMedia = Boolean(ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0);
+      if (badge3) {
+        if (hasMedia) {
+          badge3.setAttribute('data-state', 'ok');
+          badge3.textContent = 'imagen lista';
+        } else {
+          badge3.setAttribute('data-state', 'pending');
+          badge3.textContent = 'pendiente';
+        }
+      }
+      const chipImage = document.getElementById('chk-chip-image');
+      if (chipImage) {
+        if (hasMedia) {
+          chipImage.setAttribute('data-state', 'ok');
+          chipImage.textContent = 'Imagen final';
+        } else {
+          chipImage.setAttribute('data-state', 'pending');
+          chipImage.textContent = 'Falta imagen final';
+        }
+      }
+
+      // Chip contacto
+      const chipContact = document.getElementById('chk-chip-contact');
+      if (chipContact) {
+        if (window._pipOriginalImage) {
+          chipContact.setAttribute('data-state', 'ok');
+          chipContact.textContent = 'Contacto estampado';
+        } else {
+          chipContact.setAttribute('data-state', 'off');
+          chipContact.textContent = 'Sin contacto';
+        }
+      }
+
+      // Paso 4: Música
+      const badge4 = document.getElementById('step-badge-4');
+      const musicState = window.StoryMusicState;
+      const hasMusic = Boolean(musicState?.enabled && musicState?.selectedTrack);
+      if (badge4) {
+        if (hasMusic) {
+          badge4.setAttribute('data-state', 'ok');
+          badge4.textContent = 'con música';
+        } else {
+          badge4.setAttribute('data-state', 'optional');
+          badge4.textContent = 'opcional';
+        }
+      }
+      const chipMusic = document.getElementById('chk-chip-music');
+      if (chipMusic) {
+        if (hasMusic) {
+          chipMusic.setAttribute('data-state', 'ok');
+          const trackTitle = musicState.selectedTrack.title || 'Pista';
+          chipMusic.textContent = `Música: ${trackTitle}`;
+        } else {
+          chipMusic.setAttribute('data-state', 'off');
+          chipMusic.textContent = 'Sin música';
+        }
+      }
+
+      // Paso 5: Programación y agenda
+      const badge5 = document.getElementById('step-badge-5');
+      const chipDate = document.getElementById('chk-chip-date');
+      const scheduleOpt = document.querySelector('input[name="schedule_option"]:checked')?.value || 'next_slot';
+      const customScheduleEl = document.getElementById('custom-schedule-datetime');
+      const customDt = (customScheduleEl?.value || '').trim();
+      const isScheduleOk = (scheduleOpt === 'now' || scheduleOpt === 'next_slot' || (scheduleOpt === 'custom' && customDt.length > 0));
+
+      if (badge5) {
+        if (isScheduleOk) {
+          badge5.setAttribute('data-state', 'ok');
+          badge5.textContent = 'listo';
+        } else {
+          badge5.setAttribute('data-state', 'pending');
+          badge5.textContent = 'pendiente';
+        }
+      }
+      if (chipDate) {
+        if (isScheduleOk) {
+          chipDate.setAttribute('data-state', 'ok');
+          if (scheduleOpt === 'now') {
+            chipDate.textContent = 'Ahora';
+          } else if (scheduleOpt === 'next_slot') {
+            chipDate.textContent = 'Próximo slot';
+          } else if (scheduleOpt === 'custom') {
+            chipDate.textContent = customDt;
+          }
+        } else {
+          chipDate.setAttribute('data-state', 'pending');
+          chipDate.textContent = 'Falta fecha';
+        }
+      }
+    } catch (err) {
+      console.warn('[Composer] Error actualizando progreso de pasos:', err);
+    }
+  }
+
+  window.updateComposerProgress = updateComposerProgress;
 
   function getStoryMusicPayload(postType) {
     if (!window.StoryMusicState?.enabled || !window.StoryMusicState?.selectedTrack) return null;
@@ -1183,6 +1336,11 @@ document.addEventListener('DOMContentLoaded', () => {
       errEl.classList.add('d-none');
       errEl.style.display = 'none';
     }
+    setElementDisplay('pip-progress', 'none');
+    ['pip-prog-brief', 'pip-prog-headlines', 'pip-prog-scene', 'pip-prog-art', 'pip-prog-prompt'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('data-state', 'pending');
+    });
     window._postBrief = null;
     window._pipFullPromptEditedManually = false;
 
@@ -1456,6 +1614,8 @@ document.addEventListener('DOMContentLoaded', () => {
     resetComposerScheduleState();
     resetComposerFlyerModals();
     hidePipPanel();
+    const manualDetails = document.getElementById('media-manual-details');
+    if (manualDetails) manualDetails.open = true;
 
     window._editingScheduledPostId = null;
     window._editingPostOriginalStatus = null;
@@ -1713,6 +1873,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function syncPipToCampinaIfPanelVisible() {
+    const pipPanel = document.getElementById('composer-post-image-panel');
+    const isPanelVisible = pipPanel && pipPanel.style.display !== 'none';
+    const campinaTheme = document.getElementById('campina-theme');
+    const campinaDate = document.getElementById('campina-date');
+    const campinaBgCard = document.getElementById('campina-bg-card');
+
+    if (isPanelVisible) {
+      const pipTema = document.getElementById('pip-tema');
+      const pipOcasion = document.getElementById('pip-ocasion');
+      if (campinaTheme && pipTema) campinaTheme.value = pipTema.value;
+      if (campinaDate && pipOcasion) campinaDate.value = pipOcasion.value;
+      if (campinaTheme) {
+        campinaTheme.disabled = true;
+        campinaTheme.title = 'Se edita en el paso 3 (Imagen del post)';
+      }
+      if (campinaDate) {
+        campinaDate.disabled = true;
+        campinaDate.title = 'Se edita en el paso 3 (Imagen del post)';
+      }
+      if (campinaBgCard) {
+        campinaBgCard.style.display = 'none';
+      }
+    } else {
+      if (campinaTheme) {
+        campinaTheme.disabled = false;
+        campinaTheme.removeAttribute('title');
+      }
+      if (campinaDate) {
+        campinaDate.disabled = false;
+        campinaDate.removeAttribute('title');
+      }
+      if (campinaBgCard) {
+        campinaBgCard.style.display = 'block';
+      }
+    }
+  }
+
+  function bindMoreAiToolsMenu() {
+    const btnMoreAiTools = document.getElementById('btn-more-ai-tools');
+    const moreAiDropdown = document.getElementById('more-ai-dropdown');
+    const moreAiMenu = document.getElementById('more-ai-menu');
+    const btnOpenCampina = document.getElementById('btn-open-ai-campina-tab');
+
+    if (!btnMoreAiTools || !moreAiDropdown) return;
+
+    function closeMoreAiMenu() {
+      moreAiDropdown.style.display = 'none';
+      btnMoreAiTools.setAttribute('aria-expanded', 'false');
+    }
+
+    function openMoreAiMenu() {
+      const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+      const isCampina = brand.includes('campiña') || brand.includes('campina') || brand.includes('cabaña') || brand.includes('cabana');
+      if (btnOpenCampina) {
+        btnOpenCampina.style.display = isCampina ? 'block' : 'none';
+      }
+      moreAiDropdown.style.display = 'flex';
+      btnMoreAiTools.setAttribute('aria-expanded', 'true');
+    }
+
+    btnMoreAiTools.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = moreAiDropdown.style.display === 'flex';
+      if (isOpen) {
+        closeMoreAiMenu();
+      } else {
+        openMoreAiMenu();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (moreAiMenu && !moreAiMenu.contains(e.target)) {
+        closeMoreAiMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMoreAiMenu();
+      }
+    });
+
+    moreAiDropdown.querySelectorAll('.more-ai-item').forEach(item => {
+      item.addEventListener('click', () => {
+        closeMoreAiMenu();
+      });
+    });
+
+    if (btnOpenCampina) {
+      btnOpenCampina.addEventListener('click', () => {
+        syncPipToCampinaIfPanelVisible();
+        if (aiModal) aiModal.style.display = 'flex';
+        const tabCampina = document.getElementById('btn-ai-tab-campina');
+        if (tabCampina) tabCampina.style.display = 'inline-block';
+        switchAiModalTab('campina');
+      });
+    }
+  }
+
   function bindAiModalGeneralControls() {
     document.querySelectorAll('.preview-tab[data-ai-mode]').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -1722,6 +1982,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (btnOpenAiModal) {
       btnOpenAiModal.addEventListener('click', () => {
+        syncPipToCampinaIfPanelVisible();
         if (aiModal) aiModal.style.display = 'flex';
         const brand = (AppState.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
         const igUser = (AppState.config?.instagramUsername || '').toLowerCase();
@@ -2330,8 +2591,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function syncCampinaModalThumb() {
-    if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
-      campinaBackgroundImagePath = ComposerState.mediaFiles[0];
+    const baseImg = (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null) || campinaBackgroundImagePath;
+    if (baseImg) {
+      campinaBackgroundImagePath = baseImg;
       if (campinaBgImg) {
         campinaBgImg.src = campinaBackgroundImagePath;
         campinaBgImg.style.display = 'block';
@@ -2483,7 +2745,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const targetDate = document.getElementById('campina-date')?.value?.trim() || '';
       const sceneHint = document.getElementById('campina-scene-hint')?.value?.trim() || '';
-      const rawImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]) || '';
+      const rawImg = campinaBackgroundImagePath || (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]) || '';
       const imageUrl = (typeof rawImg === 'string' && rawImg.startsWith('/uploads/')) ? rawImg : undefined;
       const planContext = window._draftPlanContext || undefined;
       const caption = postContent ? postContent.value : '';
@@ -2592,7 +2854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyCampinaGeneratedContent(json.data);
         showToast('¡Guión, Copy, Prompt 4:5 y Eslogans generados con éxito!', 'success');
 
-        const hasPhoto = Boolean(campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]));
+        const hasPhoto = Boolean(campinaBackgroundImagePath || (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]));
         const hint = document.getElementById('campina-scene-hint')?.value?.trim();
         if ((hasPhoto || hint) && !campinaSceneEdited) {
           deduceCampinaScene(true).catch(err => console.warn('[Campina] Error auto deduciendo escena:', err));
@@ -2680,7 +2942,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleGenerateCampinaDirectPoster() {
-    const targetImg = campinaBackgroundImagePath || (ComposerState.mediaFiles?.length > 0 ? ComposerState.mediaFiles[0] : null);
+    const targetImg = campinaBackgroundImagePath || (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || (ComposerState.mediaFiles?.length > 0 ? ComposerState.mediaFiles[0] : null);
 
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para que Gemini la use como escenografía', 'warning');
@@ -2741,7 +3003,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleGenerateCampinaEditorialFlyer() {
-    const targetImg = campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null);
+    const targetImg = campinaBackgroundImagePath || (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0 ? ComposerState.mediaFiles[0] : null);
     if (!targetImg) {
       showToast('Sube una foto de fondo real (quincho, cabaña, jardín) para crear el afiche editorial', 'warning');
       return;
@@ -3615,6 +3877,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Abrir Modal IA pre-llenado desde el Radar Proactivo
   window.openAiModalWithPreset = function(accountType, topic, format) {
+    if (typeof syncPipToCampinaIfPanelVisible === 'function') syncPipToCampinaIfPanelVisible();
     if (aiModal) aiModal.style.display = 'flex';
     if (accountType === 'kmarket') {
       switchAiModalTab('kmarket');
@@ -4047,6 +4310,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btn-pip-prepare');
     const loading = document.getElementById('pip-loading');
     const errorEl = document.getElementById('pip-error');
+    const pipProgress = document.getElementById('pip-progress');
+    if (pipProgress) pipProgress.style.display = 'flex';
+
+    const setPipProgState = (id, state) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('data-state', state);
+    };
+
+    ['pip-prog-brief', 'pip-prog-headlines', 'pip-prog-scene', 'pip-prog-art', 'pip-prog-prompt'].forEach(id => {
+      setPipProgState(id, 'running');
+    });
 
     const imageUrl = getPipReferenceImage();
 
@@ -4087,6 +4361,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (json.success && json.data) {
         const d = json.data;
+
+        setPipProgState('pip-prog-brief', d.brief ? 'ok' : 'warn');
+        setPipProgState('pip-prog-headlines', (Array.isArray(d.headlines) && d.headlines.length > 0) ? 'ok' : 'warn');
+        setPipProgState('pip-prog-scene', d.scene != null ? 'ok' : 'warn');
+        setPipProgState('pip-prog-art', d.artDirection ? 'ok' : 'warn');
+        setPipProgState('pip-prog-prompt', d.fullPrompt ? 'ok' : 'warn');
+
         if (d.brief) {
           window._postBrief = d.brief;
           renderPipBrief(d.brief);
@@ -4149,6 +4430,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.warn('[Composer] Error preparando post Campiña:', err);
+      ['pip-prog-brief', 'pip-prog-headlines', 'pip-prog-scene', 'pip-prog-art', 'pip-prog-prompt'].forEach(id => {
+        setPipProgState(id, 'warn');
+      });
       if (errorEl) {
         errorEl.textContent = err.message || 'Error al preparar el post';
         errorEl.classList.remove('d-none');
@@ -4176,6 +4460,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btn-pip-regen-brief');
     const loading = document.getElementById('pip-loading');
     const errorEl = document.getElementById('pip-error');
+    const pipProgress = document.getElementById('pip-progress');
+    if (pipProgress) pipProgress.style.display = 'flex';
+    const progBrief = document.getElementById('pip-prog-brief');
+    if (progBrief) progBrief.setAttribute('data-state', 'running');
 
     const origText = btn ? btn.textContent : 'Rehacer análisis';
     if (btn) {
@@ -4204,6 +4492,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const json = await res.json();
 
       if (json.success && json.data?.brief) {
+        if (progBrief) progBrief.setAttribute('data-state', 'ok');
         window._postBrief = json.data.brief;
         renderPipBrief(json.data.brief);
         const campinaThemeEl = document.getElementById('campina-theme');
@@ -4216,9 +4505,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         showToast('Análisis de brief rehecho exitosamente', 'success');
       } else {
+        if (progBrief) progBrief.setAttribute('data-state', 'warn');
         throw new Error(json.error || 'Error al rehacer análisis');
       }
     } catch (err) {
+      if (progBrief) progBrief.setAttribute('data-state', 'warn');
       if (errorEl) {
         errorEl.textContent = err.message || 'Error al rehacer análisis';
         errorEl.classList.remove('d-none');
@@ -4789,10 +5080,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sceneInput) sceneInput.addEventListener('input', triggerPipComposeDebounced);
 
     const temaInput = document.getElementById('pip-tema');
-    if (temaInput) temaInput.addEventListener('input', triggerPipComposeDebounced);
+    if (temaInput) {
+      temaInput.addEventListener('input', () => {
+        const pipPanel = document.getElementById('composer-post-image-panel');
+        if (pipPanel && pipPanel.style.display !== 'none') {
+          const campinaTheme = document.getElementById('campina-theme');
+          if (campinaTheme) campinaTheme.value = temaInput.value;
+        }
+      });
+      temaInput.addEventListener('input', triggerPipComposeDebounced);
+    }
 
     const ocasionInput = document.getElementById('pip-ocasion');
-    if (ocasionInput) ocasionInput.addEventListener('input', triggerPipComposeDebounced);
+    if (ocasionInput) {
+      ocasionInput.addEventListener('input', () => {
+        const pipPanel = document.getElementById('composer-post-image-panel');
+        if (pipPanel && pipPanel.style.display !== 'none') {
+          const campinaDate = document.getElementById('campina-date');
+          if (campinaDate) campinaDate.value = ocasionInput.value;
+        }
+      });
+      ocasionInput.addEventListener('input', triggerPipComposeDebounced);
+    }
 
     const fullPromptInput = document.getElementById('pip-full-prompt');
     if (fullPromptInput) {
@@ -4966,6 +5275,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const isPostCampina = /campi/i.test(postAccountName) || (Boolean(post.plan_context) && /campi/i.test(postAccountName));
     const isCampinaDraft = (postAccountName ? isPostCampina : isBrandCampina) && (post.status === 'draft' || Boolean(post.plan_context));
 
+    const manualDetails = document.getElementById('media-manual-details');
+    if (manualDetails) {
+      manualDetails.open = !isCampinaDraft;
+    }
+
     const pipPanel = document.getElementById('composer-post-image-panel');
     const geminiCard = document.getElementById('composer-gemini-prompt-card');
 
@@ -5007,6 +5321,14 @@ document.addEventListener('DOMContentLoaded', () => {
           pipLoading.classList.remove('d-none');
           pipLoading.style.display = 'flex';
         }
+        const pipProgress = document.getElementById('pip-progress');
+        if (pipProgress) {
+          pipProgress.style.display = 'flex';
+        }
+        const pipProgBrief = document.getElementById('pip-prog-brief');
+        if (pipProgBrief) {
+          pipProgBrief.setAttribute('data-state', 'running');
+        }
         fetch('/api/ai/post-brief', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -5014,6 +5336,9 @@ document.addEventListener('DOMContentLoaded', () => {
         })
           .then(res => res.json())
           .then(json => {
+            if (pipProgBrief) {
+              pipProgBrief.setAttribute('data-state', (json && json.success && json.data?.brief) ? 'ok' : 'warn');
+            }
             if (json.success && json.data?.brief) {
               window._postBrief = json.data.brief;
               renderPipBrief(json.data.brief);
@@ -5034,6 +5359,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           })
           .catch(err => {
+            if (pipProgBrief) {
+              pipProgBrief.setAttribute('data-state', 'warn');
+            }
             console.warn('[Composer] Error cargando post-brief automáticamente:', err);
           })
           .finally(() => {
@@ -5076,6 +5404,26 @@ document.addEventListener('DOMContentLoaded', () => {
   bindHumanizerAndCarouselControls();
   bindGeminiCardControls();
   bindPipPanelControls();
+  bindMoreAiToolsMenu();
   updateGeminiCardVisibility();
   adaptComposerToActiveBrand();
+
+  const tabComposer = document.getElementById('tab-composer');
+  if (tabComposer) {
+    tabComposer.addEventListener('input', () => {
+      updateComposerProgress();
+    });
+    tabComposer.addEventListener('change', () => {
+      updateComposerProgress();
+    });
+  }
+
+  setInterval(() => {
+    const tab = document.getElementById('tab-composer');
+    if (tab && tab.offsetParent !== null) {
+      updateComposerProgress();
+    }
+  }, 1500);
+
+  updateComposerProgress();
 });
