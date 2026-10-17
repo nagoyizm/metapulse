@@ -13,6 +13,8 @@ Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
   - Música: mood y palabras clave que abren el buscador existente.
 - Otras marcas (Kmarket, Agendio) conservan su flujo anterior y la tarjeta "Imagen sugerida".
 
+- **Historias:** `storySlotGuard` separa >=90 min las historias de una misma cuenta (goteo y lote); `node scripts/repair-story-slots.js [--apply]` reordena las ya agendadas.
+
 ## Pendiente de prueba por el dueño (UI, con Gemini real)
 1. Borrador de La Campiña → Editar → panel, "Preparar post" y barra de progreso; paleta elegida y "Otra dirección de arte".
 2. Subir referencia + imagen final; estampar contacto y logo; quitar contacto.
