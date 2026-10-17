@@ -14,17 +14,18 @@ function conflicts(t, taken) {
   return taken.some(o => Math.abs(o - t) < MIN_GAP_MS);
 }
 
-// Mueve t hacia adelante en pasos de 1 h hasta no chocar; fuera de 08:00-23:00 salta al día siguiente a las 09.
+const HOUR_FMT = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Santiago', hour: 'numeric', hour12: false });
+function chileHour(ms) {
+  return Number(HOUR_FMT.format(new Date(ms))) % 24;
+}
+
+// Mueve t hacia adelante en pasos de 1 h hasta no chocar, sin salir de 08:00-23:00 hora de Chile.
 function nextFree(t, taken) {
   let cur = t;
   for (let i = 0; i < 200 && conflicts(cur, taken); i++) {
-    cur += SHIFT_MS;
-    const d = new Date(cur);
-    if (d.getHours() >= DAY_END_H || d.getHours() < DAY_START_H) {
-      d.setDate(d.getDate() + (d.getHours() >= DAY_END_H ? 1 : 0));
-      d.setHours(DAY_START_H + 1, d.getMinutes(), d.getSeconds(), 0);
-      cur = d.getTime();
-    }
+    do {
+      cur += SHIFT_MS;
+    } while (chileHour(cur) >= DAY_END_H || chileHour(cur) < DAY_START_H);
   }
   return cur;
 }
