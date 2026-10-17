@@ -2,7 +2,7 @@ const { db } = require('../database/db');
 
 // Separación mínima entre dos historias de la misma cuenta.
 const MIN_GAP_MS = 90 * 60 * 1000;
-const SHIFT_MS = 60 * 60 * 1000;
+const SHIFT_MS = 30 * 60 * 1000;
 const DAY_START_H = 8;
 const DAY_END_H = 23;
 
@@ -19,7 +19,7 @@ function chileHour(ms) {
   return Number(HOUR_FMT.format(new Date(ms))) % 24;
 }
 
-// Mueve t hacia adelante en pasos de 1 h hasta no chocar, sin salir de 08:00-23:00 hora de Chile.
+// Mueve t hacia adelante en pasos de 30 min hasta no chocar, sin salir de 08:00-23:00 hora de Chile.
 function nextFree(t, taken) {
   let cur = t;
   for (let i = 0; i < 200 && conflicts(cur, taken); i++) {
