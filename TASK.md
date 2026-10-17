@@ -1,56 +1,83 @@
-# TASK — Panel "Imagen del post" en el Creador (La Campiña) + brief por IA + sugerencia de música
+# TASK — Dirección de arte con IA (paletas curadas) + datos de contacto estampados por MetaPulse
 
 ## Objetivo
-Al editar un borrador del plan de La Campiña, el Creador muestra un panel "Imagen del post" ya preparado por IA: tema trabajado, ocasión real, público, tipo de foto a subir, titulares, indicaciones de escena (con personas chilenas no estereotipadas, habitando el espacio), UN prompt final para Gemini (maestro + bloque del post) y palabras clave para buscar música. El dueño revisa, ajusta, pone música y agenda. Ver `docs/informe-flujo-borrador-a-post.md` y `docs/decisions.md` (2026-10-16).
+1. El dueño rechazó la combinación "texto verde brillante sobre trazo café" (paleta `tierra_bosque` + acabado `brush_stroke`). La IA debe ELEGIR con razonamiento la paleta, tipografía y acabado (mirando la foto subida cuando exista) desde una biblioteca curada de combinaciones armónicas para publicidad de alojamientos, mostrarlas en el panel y permitir cambiarlas.
+2. Casilla opcional "Incluir datos de contacto": MetaPulse (no Gemini) estampa una línea sutil y elegante abajo de la imagen ya generada, con tipografía limpia y ligera de amplio espaciado (como el "CABAÑAS LA CAMPIÑA • ALGARROBO" que dibuja Gemini). Usa los datos de la pestaña Marca (`profile.contact.whatsapp`, `web`, `direccion`); lo que esté vacío se omite.
 
-Reglas del dueño (obligatorias):
-- **Promociones**: solo si la ficha de campaña tiene `details.oferta` con texto. Si está vacío, el brief NO menciona descuentos ni cifras (`promo: null`). Nunca inventar porcentajes, precios ni condiciones.
-- **Personas en la escena** (La Campiña): gente chilena de rasgos comunes en Chile, sin estereotipos (ni bastón/caricatura en adultos mayores, ni poses de stock), nunca en primer plano: pequeñas, de espaldas o de perfil, habitando el espacio (caminando, conversando, jugando, comiendo), pocas personas.
-- **Titular lo dibuja Gemini**: el bloque del post añade el texto exacto a escribir (titular y subtítulo) con guardas de ortografía.
-- **El texto del Prompt Maestro (`buildCampinaImagePrompt`) NO se modifica.**
-- La IA propone, el dueño decide: nada se agenda ni publica solo.
+Reglas del dueño: la IA propone, el dueño decide. El estampado es reversible (se conserva la imagen original). El texto base del Prompt Maestro se conserva; solo se permiten los añadidos indicados en A3. Versiones de respaldo ya etiquetadas: `prompt-maestro-v1`, `prompt-maestro-v2`.
 
 Dos partes con archivos disjuntos. Cada ejecutor hace SOLO su parte.
 
 ## Contrato de API
-- `posts.plan_context` (JSON, ya existe) pasa a poder contener `brief` (objeto) además de `angle, hook, why, occasion, campaign_id, campaign_title`.
-- **Brief** = `{ temaTrabajado, ocasion, publico, beneficio, tono, espacioRecomendado, fotoSugerida, musicMood, musicKeywords: [string], promo: null | { oferta, condiciones, dias }, notasPersonas }`.
-- `POST /api/ai/post-brief` body `{ postId, force? }` → `{ success, data: { brief } }`. Lee el post (title, content, scheduled_at, account_name, plan_context), la campaña (`campaign_id`) y devuelve el brief; si ya existe `plan_context.brief` y no hay `force`, lo devuelve sin llamar a IA. Persiste el brief en `posts.plan_context` (merge, conservando las demás claves). 404 si el post no existe, 400 si falta `postId`.
-- `POST /api/ai/campina-prepare-post` body `{ postId, imageUrl?, sceneHint?, force? }` → `{ success, data: { brief, headlines: [{hero,keyword,subline,angle}], hero, subline, keyword, scene: { spaceType, audienceFocus, reasoning:[..], sceneDirective }, masterImagePrompt, postBlock, fullPrompt } }`. Orden: brief (reusa/crea) → en paralelo `generateCampinaHeadlines` y `buildCampinaSceneDirective` → arma maestro y bloque. Si falla escena o titulares, devolver igual lo que sí salió (`scene: null`/`headlines: []`) con `warnings: [string]`; solo 500 si falla el brief y no hay nada que devolver.
-- `POST /api/ai/campina-compose-prompt` body `{ theme, targetDate, hero, subline, scene, typographyStyle?, brandTreatment?, colorPalette?, posterReference?, respectBackground? }` → `{ success, data: { masterImagePrompt, postBlock, fullPrompt } }`. SIN llamadas a IA (determinista) para recalcular al editar titular/escena.
-- `GET /api/music/search?q=&provider=openverse` devuelve `{ source:'openverse_api', results:[...] }` con el mismo formato de pista que Audius/Jamendo.
-- `fullPrompt` = `masterImagePrompt` + `\n\n` + `postBlock`. `postBlock` = `sceneDirective` (si hay) + `\n\n` + bloque de texto exacto (ver Parte A punto 5).
+- `POST /api/ai/post-brief` y `POST /api/ai/campina-prepare-post` (existentes) añaden `contactAvailable: { whatsapp: boolean, web: boolean, direccion: boolean }` en `data` (a partir de `brandProfileService.getProfile(post.account_name)?.contact`).
+- `campina-prepare-post` añade `artDirection: { typographyStyle, brandTreatment, colorPalette, posterReference, paletteName, swatches: [hex,...], styleName, treatmentName, fontFamilies: [string], reason }`.
+- `POST /api/ai/campina-art-direction` body `{ theme, targetDate, brief?, imageUrl? }` → `{ success, data: { ...artDirection } }` (rehacer solo la dirección de arte).
+- `GET /api/ai/campina-art-options` → `{ success, data: { styles:[{id,name}], treatments:[{id,name}], palettes:[{id,name,swatches:[hex]}], posterRefs:[{id,name}] } }` (sin IA; para poblar los selectores del panel).
+- `POST /api/media/stamp-contact` body `{ imageUrl, accountName, fields?: { whatsapp?: boolean, web?: boolean, direccion?: boolean } }` → `{ success, data: { url, filename, lines: [string] } }`. 400 si `imageUrl` no empieza por `/uploads/`, si se sale de `uploads` (path traversal), si no existe, o si la marca no tiene ningún dato de contacto (`"La marca no tiene datos de contacto cargados en la pestaña Marca."`). `fields` ausente = usar todos los disponibles.
+- `campina-compose-prompt` (existente) ya acepta `typographyStyle, brandTreatment, colorPalette, posterReference`; el panel los enviará desde sus selectores.
 
 ---
 # PARTE A — Backend
 ## Archivos permitidos
-- `src/services/chileCalendar.js` (NUEVO), `src/services/aiService.js`, `src/services/musicService.js`, `src/routes/api.js`
+- `src/services/aiService.js`, `src/services/imageService.js`, `src/routes/api.js`
+- Ya existen, NO tocar: `assets/fonts/Lato-Regular.ttf`, `assets/fonts/Lato-Bold.ttf` (OFL).
 
 ## Cambios exactos
-1. **`chileCalendar.js`** (singleton `module.exports = new ChileCalendar()`), método `describe(dateInput)` que recibe ISO/Date, usa zona `America/Santiago` y devuelve `{ dateLabel, season, nearHolidays: [{ name, date, daysAway }], longWeekend: boolean, note }` con feriados de Chile: 1 ene, Viernes y Sábado Santo (calcular Pascua con el algoritmo gregoriano anónimo), 1 may, 21 may, 20 jun (Día de los Pueblos Indígenas, aprox.), 29 jun, 16 jul, 15 ago, 18 y 19 sep, 12 oct, 31 oct, 1 nov, 8 dic, 25 dic; además fechas "de ocasión": 24 dic Nochebuena, 31 dic Año Nuevo, Día de la Madre (2º domingo de mayo), Día del Padre (3er domingo de junio), Día del Niño (2º domingo de agosto), Día del Abuelo/Adulto Mayor: 26 de julio (Día de los Abuelos) y 1 de octubre (Día Internacional de las Personas Mayores). `nearHolidays` = los que caen entre -2 y +21 días de la fecha. `season`: hemisferio sur (verano dic-feb, otoño mar-may, invierno jun-ago, primavera sep-nov). `longWeekend` true si la fecha es viernes/lunes junto a un feriado o fin de semana con feriado adyacente (lógica simple, no exhaustiva). Sin dependencias nuevas.
-2. **`aiService.buildPostBrief({ post, campaign })`** (método de la clase): arma el prompt con: título, copy actual del post (`content`), fecha (`chileCalendar.describe(post.scheduled_at)` como hechos), `plan_context` (angle, hook, why), la campaña completa (title, directive, details: oferta, publico, dias, condiciones, cta), y el conocimiento del recinto (`getCampinaKnowledgePrompt()`). Usa `this.generateJSON({ prompt, temperature: 0.6 })`. Instrucciones: razonar por pasos y devolver el brief del contrato; `temaTrabajado` = 1 o 2 frases (qué se comunica y a quién, NO repetir el título); `ocasion` = texto corto y concreto basado SOLO en los hechos del calendario (nunca "fin de semana normal" vacío: si no hay feriado cercano, usar estación + contexto del post); `publico` y `beneficio` deducidos; `espacioRecomendado` ∈ pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina (piscina solo si la fecha cae entre dic y Semana Santa), otro; `fotoSugerida` = frase en segunda persona ("Sube una foto de ... con encuadre ..."); `musicMood` y `musicKeywords` (3 a 5 palabras clave EN INGLÉS más 1 o 2 en español, para buscar música libre: ej. "acoustic","warm","family","gentle"); `notasPersonas` = cómo mostrar personas respetando las reglas del dueño del encabezado de este TASK. `promo`: construirlo en CÓDIGO, no con IA: si `campaign?.details?.oferta` es string no vacío → `{ oferta, condiciones: details.condiciones||'', dias: details.dias||'' }`, si no `null`; pasarle al modelo solo esos datos y la instrucción de no inventar nada más. Validar en código: strings recortados, `musicKeywords` array de ≤6 strings, defaults seguros si falta algo (nunca lanzar por un campo opcional).
-3. **`aiService.buildCampinaSceneDirective`**: añadir al prompt (sin cambiar su estructura de 5 pasos) las reglas de personas del dueño (ver encabezado: rasgos comunes chilenos, sin estereotipos, no primer plano, habitando el espacio) y aceptar un parámetro nuevo opcional `brief` (objeto): si viene, inyectar `notasPersonas`, `publico`, `espacioRecomendado`, `temaTrabajado` como contexto. Mantener compatibilidad con llamadas actuales.
-4. **`aiService.generateCampinaHeadlines`**: aceptar parámetro opcional `brief` y, si viene, inyectar `temaTrabajado`, `publico`, `beneficio`, `ocasion`, y `promo` solo si no es null (con la regla "no inventes cifras que no estén en promo"). Compatibilidad con llamadas actuales.
-5. **`aiService.buildCampinaPostBlock({ scene, hero, subline })`** (determinista): devuelve `[scene?.sceneDirective || '', bloqueTexto].filter(Boolean).join('\n\n')` donde `bloqueTexto` es:
-```
-TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):
-- Titular: "<hero>"
-- Subtítulo: "<subline>"
-- Identidad discreta: "CABAÑAS LA CAMPIÑA • ALGARROBO"
-No escribas ningún otro texto, número, logo ni marca de agua. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).
-```
-   y `buildCampinaFullPrompt({ masterImagePrompt, postBlock })` = `master + '\n\n' + postBlock`.
-6. **`api.js`**: rutas `/ai/post-brief`, `/ai/campina-prepare-post`, `/ai/campina-compose-prompt` junto a las de `campina-*`, patrón `try/catch` con `{ success, data|error }`, 400/404 según contrato. `campina-prepare-post` obtiene la campaña con `campaignService.get(id)` (puede ser null) y llama `buildCampinaImagePrompt` con `heroHeadline/sublineHeadline` elegidos (opción 0 de titulares, registrando con `recordCampinaRecentHero` solo ese), `theme` = `brief.temaTrabajado`, `targetDate` = `brief.ocasion`. `compose-prompt` llama `buildCampinaImagePrompt` + `buildCampinaPostBlock` + `buildCampinaFullPrompt`. Validar tamaños (strings ≤ 4000 caracteres) y que `imageUrl` empiece por `/uploads/` (si no, ignorarlo).
-7. **`musicService.searchOpenverse({ query, limit })`** y soporte `provider === 'openverse'` en `searchAllSources`: `GET https://api.openverse.org/v1/audio/` con `params: { q, license: 'cc0,pdm', page_size: limit }`, timeout 8000, sin clave. Mapear cada resultado al formato de pista existente: `id: 'ov_' + id`, `title`, `artist: creator || 'Dominio público'`, `streamUrl: url`, `durationSec: Math.round((duration||0)/1000)`, `artworkUrl: thumbnail||''`, `license: 'CC0 / Dominio público'`, `badge: 'Openverse'`, `categoryLabel: 'Openverse (dominio público)'`, `mood: (genres||[]).join(', ')||'Libre'`. Si `url` falta, descartar. Error de red → `{ source:'openverse_api', error, results: [] }`. NO activarlo por defecto (solo con `provider=openverse`); no cambiar el orden actual de fuentes.
-8. Mantener intactos: texto de la plantilla de `buildCampinaImagePrompt`, rutas existentes, `suggestImagePrompt`.
+### A1. Biblioteca curada de paletas (`getCampinaColorPalettes`)
+Añadir al final del arreglo (no borrar las existentes) estas paletas, con los campos de las existentes (`id, name, shortName, vibe, primaryColor, accentColor, forbiddenColors, artDirection`) más `swatches` (array de hex: texto, acento, profundo/sombra) y `harmony` (frase):
+- `pino_crema_terracota` — texto crema `#F6EEDF`, acento terracota `#B5522E`, profundo pino `#1F3D2B`. Para bosque, quinchos, otoño, descanso general.
+- `lino_carbon_ocre` — texto lino `#F2EBDD`, acento ocre mineral `#B88A44`, profundo carbón `#2A2724`. Boutique, suites, parejas.
+- `atardecer_ambar` — texto crema `#FFF4E0`, acento ámbar quemado `#D9822B`, profundo chocolate `#4A2C1D`. Asado, tardes, fuego.
+- `salvia_durazno` — texto blanco `#FFFFFF`, acento durazno `#F2A58E`, profundo salvia `#3F5A48`. Primavera, familia, jardines.
+- `azul_profundo_arena` — texto blanco espuma `#F8FAFC`, acento arena `#E3C9A0`, profundo azul `#1D3B53`. Verano, costa, piscina.
+- `bosque_niebla_laton` — texto niebla `#F3F5F2`, acento latón apagado `#A98B5A`, profundo verde `#24402F`. Naturaleza, senderos, calma.
+- `vino_crema_rosa` — texto crema `#FBF3E8`, acento rosa viejo `#C98E8A`, profundo burdeos `#6B2737`. Aniversarios, parejas, San Valentín.
+En todas: `forbiddenColors` debe prohibir verdes brillantes/neón (incluido `#22C55E`), amarillo limón, y cualquier color fuera de los tres de `swatches` más sus tintes/sombras. `harmony` = "Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota".
+Además, **corregir `tierra_bosque`**: cambiar `accentColor` a `'Terracota apagado (#B5522E) y Verde pino profundo (#1F3D2B)'` (quitar `#22C55E`) y añadir a su `forbiddenColors`: "PROHIBIDO verde brillante o saturado en el texto o sobre trazos café/terracota".
+Actualizar `detectCampinaColorPalette` para que su valor por defecto (cuando no hay coincidencia) sea `pino_crema_terracota` en vez de `tierra_bosque`, y que pareja/suite → `lino_carbon_ocre`, primavera → `salvia_durazno`, verano/costa/piscina → `azul_profundo_arena`, asado/fuego → `atardecer_ambar`. Mantener las reglas de Año Nuevo, Navidad, Patrias e invierno ya existentes.
+
+### A2. Tipografías con familias reales
+Añadir a cada estilo de `getCampinaTypographyStyles()` el campo `fontFamilies` (2 a 3 nombres reales de Google Fonts, el primero es el principal). Sugerido: `rustic_timber` ['Bebas Neue','Oswald','Barlow Condensed']; `kinfolk_luxury` ['Cormorant Garamond','Playfair Display','Lora']; `natgeo_adventure` ['Anton','Oswald','League Gothic']; `botanical_minimal` ['Montserrat','Josefin Sans','Lato']; `patria_heritage` ['Alfa Slab One','Rye','Bevan']; `handcraft_script` ['Caveat Brush','Kaushan Script','Montserrat']; `retro_travel_70s` ['Chewy','Fredoka','Righteous']; `art_deco_geometric` ['Poiret One','Josefin Sans','Limelight']; `celebration_modern` ['Poppins','Playfair Display Italic','Montserrat']; `auto` ['']. 
+Para los acabados (`getCampinaBrandTreatments`), en el `artDirection` de `brush_stroke` añadir al final: " El trazo debe ser del mismo tono del acento de la paleta o de su color profundo, jamás un verde saturado sobre un trazo café/terracota; el texto principal mantiene alto contraste con el trazo."
+
+### A3. Añadidos permitidos al texto del Prompt Maestro (`buildCampinaImagePrompt`), solo estos dos
+- En el bloque `d) ESTILO TIPOGRÁFICO BASE` tras `${matchedStyle.description}` añadir una línea: `     Familias tipográficas de referencia: ${(matchedStyle.fontFamilies || []).filter(Boolean).join(' / ') || 'sans-serif editorial'} (o equivalentes muy cercanas).`
+- En la sección 3 (dirección cromática), al final de `${colorPaletteSection}`, añadir una línea: `- REGLA DE ARMONÍA: usa SOLO los colores indicados y sus tintes; máximo 3 colores en el rótulo (60/30/10); el trazo y los ribetes toman el acento o el profundo de la paleta; prohibido un verde saturado sobre un tono café/terracota.`
+No cambiar nada más de la plantilla. El diff de esa función debe mostrar solo esas dos líneas nuevas (más lo que ya cambió antes de esta tarea: nada).
+
+### A4. `aiService.chooseCampinaArtDirection({ theme, targetDate = '', brief = null, imageUrl = '' })`
+- Extraer del método `buildCampinaSceneDirective` la carga y validación de imagen local a un helper `loadUploadImageInline(imageUrl)` (devuelve `{ mime_type, data }` o `null` si no hay imagen; lanza error si la ruta es inválida), y reutilizarlo en ambos métodos SIN cambiar el comportamiento del existente.
+- Prompt a Gemini (con la imagen como `inline_data` si hay; mismo patrón axios + `sanitizeGeminiModels` que `buildCampinaSceneDirective`; sin imagen usar `generateJSON`; `temperature: 0.8`): rol de director de arte de publicidad de alojamientos. Entregar la lista de ids disponibles de cada catálogo con su `vibe`/nombre y, para paletas, sus hex. Instrucciones de razonamiento: (1) evaluar foto (si hay): color dominante, luminosidad y espacio libre donde iría el titular; (2) considerar tema, ocasión/estación, público, campaña; (3) elegir `colorPalette` cuyo color de texto contraste ≥ 4.5:1 con la zona del titular de la foto; (4) elegir `typographyStyle`, `brandTreatment` y `posterReference` coherentes con la paleta; (5) verificar armonía: máx. 3 colores, nada de verdes saturados sobre cafés; (6) variar: evitar repetir las últimas 5 paletas usadas (guardarlas en `settings` con `campina_recent_palettes`, tolerar JSON inválido, igual patrón que `campina_recent_heroes`) salvo que sea claramente la única buena. Salida JSON `{ typographyStyle, brandTreatment, colorPalette, posterReference, reason }` donde `reason` = 1 o 2 frases en español explicando la elección (mencionar la foto si se vio).
+- Validar en código que cada id exista en su catálogo; si no, reemplazarlo por la selección determinista (`resolveCampinaVisualSelection` con los detectores). Si la IA falla, devolver la selección determinista con `reason: 'Selección automática por reglas (la IA no respondió).'`. Nunca lanzar por esto.
+- Devolver además `paletteName`, `swatches` (del catálogo, o extraídos con regex `#[0-9A-Fa-f]{6}` de `primaryColor`+`accentColor` si falta), `styleName`, `treatmentName`, `fontFamilies`.
+- Registrar la paleta elegida en `campina_recent_palettes` (máx. 5).
+
+### A5. Rutas
+- `campina-prepare-post`: lanzar `chooseCampinaArtDirection` en paralelo con titulares y escena (mismo `Promise.allSettled`; si falla, warning y selección por reglas), usar sus ids en la llamada a `buildCampinaImagePrompt`, devolver `artDirection` y `contactAvailable`.
+- `post-brief`: añadir `contactAvailable` a la respuesta (sin persistirlo).
+- Nuevas: `/ai/campina-art-direction` y `/ai/campina-art-options`.
+- `contactAvailable` se calcula con `brandProfileService.getProfile(post.account_name)?.contact` (strings no vacíos tras trim).
+
+### A6. `imageService.stampContactLine({ inputImagePath, lines, fontPath })` y ruta `/media/stamp-contact`
+- Construir `lines` en la ruta: `whatsapp` → `WhatsApp ${valor}`; `web` → valor sin `https?://` ni `www.` ni `/` final; `direccion` → valor tal cual; omitir vacíos. Respetar `fields`. Si queda vacío → 400 (mensaje del contrato). Unir con `  •  `. Todo en MAYÚSCULAS (`toLocaleUpperCase('es-CL')`) para ser consistente con la identidad de Gemini.
+- Resolver la imagen con la misma validación de `/uploads/` y path traversal que `loadUploadImageInline` (resolver con `path.resolve`, dentro de `<repo>/uploads`, existente, ≤ 15 MB). Leer metadatos con `sharp`.
+- Render del texto con `sharp({ text: { text: '<span foreground="#RRGGBB" letter_spacing="2200">...</span>', font: 'Lato', fontfile: <abs>/assets/fonts/Lato-Regular.ttf, rgba: true, dpi: 300 } })`, generado al DOBLE de tamaño y reducido con `resize` (kernel lanczos3) para evitar bordes de color. NO usar texto SVG (el servidor Linux no tiene fuentes del sistema). Escapar `&`, `<`, `>` del texto antes de armar el markup.
+- Tamaño: altura de letra ≈ 1.7% del alto de la imagen; ancho máximo del texto 86% del ancho de la imagen (si no cabe en una línea, reducir hasta un 70% del tamaño y, si aún no cabe, dividir en dos líneas por el separador). Posición: centrado, base del texto a 4.2% del borde inferior (dentro del margen de seguridad).
+- Color: calcular la luminosidad media de la franja inferior (12% del alto) con `sharp.stats()` sobre un `extract`; si luminosidad < 0.55 → texto `#F6EEDF`; si no → `#1F1A17`. Añadir un velo degradado muy sutil sólo en la franja inferior (de transparente a 0.35 de opacidad en el color contrario al texto, p. ej. negro si texto claro) con `composite` de un `Buffer` SVG de `linearGradient` SIN texto, y un filete horizontal de 1 px al 40% de opacidad, del color del texto, 1.6% por encima del texto, de ancho 14% centrado. Todo sutil, sin cajas ni paneles.
+- Guardar como `uploads/contact-<timestamp>.jpg` (calidad 92, `mozjpeg`) con las MISMAS dimensiones de la original; nunca sobrescribir la original. Devolver `{ url: '/uploads/contact-....jpg', filename, lines }`.
 
 ## Fuera de alcance (Parte A)
-- No tocar `public/`, `db.js` (no hacen falta columnas nuevas), ni el texto de plantillas de prompts existentes.
-- No commit ni push. No levantar `server.js`.
+- No tocar `public/`, `db.js`, `package.json`, ni otros textos de la plantilla del Prompt Maestro. No instalar dependencias. No commit ni push. No levantar `server.js`.
 
 ## Verificación (Parte A)
-1. `node --check` en cada JS tocado/nuevo.
-2. Humo con `NODE_PATH="C:/Users/aaaa/proyecto manejo redes sociales/node_modules"`: (a) `chileCalendar.describe('2026-12-28T11:00:00-03:00')` incluye Año Nuevo en `nearHolidays` y `season==='verano'`; `describe('2026-10-02')` incluye Día Internacional de las Personas Mayores (1 oct, `daysAway` negativo) o equivalente coherente. (b) `buildCampinaPostBlock` y `buildCampinaFullPrompt` devuelven strings con `TEXTO EXACTO EN LA IMAGEN` y el hero entre comillas. (c) `git diff` demuestra que el template de `buildCampinaImagePrompt` no cambió. (d) `searchOpenverse({query:'acoustic',limit:3})` con red real: reportar resultados o error (no inventar). (e) Express mínimo con auth simulado: `post-brief` sin `postId` → 400, con `postId` inexistente → 404; `campina-compose-prompt` con datos válidos → `fullPrompt` que contiene el hero; `campina-prepare-post` sin clave Gemini → respuesta controlada, no cuelgue. Insertar y borrar un post de prueba si se necesita.
+1. `node --check` en los 3 archivos.
+2. Humo con `NODE_PATH="C:/Users/aaaa/proyecto manejo redes sociales/node_modules"`:
+   a. `getCampinaColorPalettes()` incluye las 7 nuevas y `tierra_bosque.accentColor` ya no contiene `22C55E`; `detectCampinaColorPalette('algo sin pistas','')` → `pino_crema_terracota`.
+   b. Cada estilo de `getCampinaTypographyStyles()` (menos `auto`) tiene `fontFamilies` no vacío.
+   c. `buildCampinaImagePrompt({theme:'Descanso en noviembre',heroHeadline:'DESCONECTA',sublineHeadline:'x',typographyStyle:'rustic_timber',brandTreatment:'brush_stroke'})` contiene `Familias tipográficas de referencia: Bebas Neue` y `REGLA DE ARMONÍA`; y `git diff -- src/services/aiService.js` muestra que dentro de esa función solo se añadieron esas dos líneas.
+   d. `chooseCampinaArtDirection` sin clave de Gemini (o con `generateJSON` simulado que devuelva ids inválidos) → devuelve ids válidos del catálogo y `reason` no vacío; con simulado válido respeta los ids y registra `campina_recent_palettes`. Limpiar luego esa clave de `settings` local.
+   e. `stampContactLine` sobre una imagen de prueba creada con sharp (1080x1350, gradiente café a verde oscuro) y otra clara: guardar las salidas en el scratchpad `C:/Users/aaaa/AppData/Local/Temp/claude/C--Users-aaaa-orca-workspaces-proyecto-manejo-redes-sociales-eelpout/2e2037ea-409f-4df3-8910-dac1224fedfa/scratchpad/` (copiando antes la imagen de prueba a `uploads/` con nombre `__test_base.jpg` y borrándola al terminar, junto con los `contact-*.jpg` de prueba). Reportar rutas, dimensiones de salida (deben ser 1080x1350) y el color de texto elegido en cada caso.
+   f. Express mínimo con auth simulado: `stamp-contact` con `imageUrl:'/uploads/../.env'` → 400; con marca sin contacto → 400 con el mensaje del contrato; `campina-art-options` → 200 con las 4 listas.
 
 ---
 # PARTE B — Frontend
@@ -58,35 +85,28 @@ No escribas ningún otro texto, número, logo ni marca de agua. Si una palabra q
 - `public/js/composer.js`, `public/index.html`
 
 ## Cambios exactos
-1. **Panel "Imagen del post"** en `index.html`, como tarjeta nueva `composer-post-image-panel` (`display:none` por defecto) justo después de la tarjeta `composer-gemini-prompt-card`. Estructura (ids exactos, textos en español de Chile, sin emojis en botones):
-   - Encabezado "Imagen del post" + subtítulo "Preparado por IA. Revisa y ajusta antes de generar en Gemini." + botón `btn-pip-prepare` "Preparar post" + botón `btn-pip-regen-brief` "Rehacer análisis".
-   - `pip-loading` (texto de progreso) y `pip-error`.
-   - Bloque brief (editable donde se indica): `pip-tema` (input, "Tema o enfoque"), `pip-ocasion` (input), `pip-publico` (input de solo lectura), `pip-foto-hint` (párrafo destacado "Foto a subir: ...").
-   - Titulares: `pip-hero` (input), `pip-subline` (input), `pip-headline-pills` (contenedor de pastillas), botón `btn-pip-more-headlines` "Otras ideas de titular".
-   - Escena: `pip-scene-prompt` (textarea editable, rows 5), `details` `pip-reasoning` "Ver razonamiento" con `pip-reasoning-list`, etiqueta `pip-scene-meta`.
-   - Prompt final: `pip-full-prompt` (textarea editable, rows 8, fuente mono), botones `btn-pip-copy` "Copiar prompt completo", `btn-pip-open-gemini` "Abrir Gemini".
-   - Música: contenedor `pip-music-block` con título "Música sugerida", `pip-music-mood` (texto) y `pip-music-chips` (botones con palabras clave).
-2. **Lógica en composer.js**:
-   - Detección Campiña: reutilizar el mecanismo de marca activa que ya usa `adaptComposerToActiveBrand` (grep); además, si `post.plan_context` existe y la cuenta del borrador coincide con /campi/i, es Campiña. Solo si es Campiña se muestra el panel y se OMITE la llamada automática a `suggestImagePromptForComposer()` en `loadPostIntoComposer` (la tarjeta genérica queda oculta para esos borradores). Para otras marcas todo queda como hoy.
-   - Al abrir un borrador Campiña (`loadPostIntoComposer`): mostrar el panel; si `plan_context.brief` existe, pintarlo; si no, llamar `POST /api/ai/post-brief {postId}` automáticamente (un solo intento, sin bloquear la UI) y pintar. Rellenar también `campina-theme` ← `brief.temaTrabajado` y `campina-date` ← `brief.ocasion` (esto sí sobrescribe lo prellenado antes con el título crudo). Guardar `window._postBrief`.
-   - Botón `btn-pip-prepare`: toma foto = `ComposerState.mediaFiles[0]` si empieza por `/uploads/`; POST `/api/ai/campina-prepare-post {postId, imageUrl?, sceneHint: ''}`; pinta hero, subline, pastillas (clic en pastilla → rellena hero/subline y llama compose), escena, razonamiento y `fullPrompt`. Mientras corre: botón deshabilitado y "Preparando...". Mostrar `warnings` en `pip-error` sin bloquear.
-   - Editar `pip-hero`, `pip-subline` o `pip-scene-prompt` → debounce 500 ms → `POST /api/ai/campina-compose-prompt {theme, targetDate, hero, subline, scene:{sceneDirective: <textarea>}, typographyStyle, brandTreatment, colorPalette, posterReference}` (leer los selects `campina-*` existentes) → actualizar `pip-full-prompt`. Si el usuario editó a mano `pip-full-prompt`, NO sobrescribirlo salvo que pulse "Preparar post" de nuevo (flag).
-   - `btn-pip-more-headlines`: `POST /api/ai/campina-headlines {theme, targetDate, caption, planContext: window._draftPlanContext, brief: window._postBrief}` y repinta pastillas.
-   - `btn-pip-regen-brief`: `post-brief` con `force:true`.
-   - Copiar: copia `pip-full-prompt`; toast "Prompt completo copiado. Pégalo en Gemini con tu foto". Abrir Gemini: copia y `window.open('https://gemini.google.com','_blank','noopener')`.
-   - Música: pinta `musicMood` y una pastilla por `musicKeywords`. Clic en pastilla: si la sección de música existe (`story-music-section`), marcar `chk-story-music-enabled` si no lo está (disparar `change`), poner el texto en `music-search-input` y `jamendo-search-input` (si existen) y disparar el evento `input`/`keydown Enter` que ya usan sus listeners en `storyMusic.js` (leerlo con grep para usar el mismo mecanismo; NO editar `storyMusic.js`), y hacer `scrollIntoView` a la sección. Añadir además, junto al buscador de música, NO nada más (el proveedor Openverse se expone solo por API en esta fase; documentarlo en el reporte).
-   - Todo texto de la IA que se inserte con `innerHTML` pasa por `escapeHtml` (ya existe en el archivo). Preferir `textContent`/`.value`.
-   - Limpiar el panel y `window._postBrief` en `resetComposerFormState` y `resetAiModalState`.
-   - Al cargar un borrador distinto, vaciar `pip-*` antes de pintar.
-3. Subir versión de caché: en `index.html` cambiar `js/composer.js?v=2.6` por `?v=2.7`.
+1. **Bloque "Dirección de arte" en el panel `composer-post-image-panel`** (entre el bloque de titulares y el de escena), ids exactos, sin emojis en botones:
+   - Selectores `pip-palette`, `pip-style`, `pip-treatment` (etiquetas: "Paleta", "Tipografía", "Acabado"), poblados desde `GET /api/ai/campina-art-options` (una vez, al primer uso; con opción inicial "Automático (IA)" `value=""` que significa "usar lo elegido por la IA").
+   - Fila de muestras `pip-swatches` (círculos de 18 px con borde sutil) con los `swatches` de la paleta activa, y etiqueta `pip-palette-name`.
+   - Texto `pip-art-reason` (cursiva, pequeño) con el `reason`, y línea `pip-font-families` ("Fuentes de referencia: ...").
+   - Botón `btn-pip-regen-art` "Otra dirección de arte" → `POST /api/ai/campina-art-direction` con `{theme, targetDate, brief, imageUrl}` (imageUrl solo si `ComposerState.mediaFiles[0]` empieza por `/uploads/`).
+2. **Lógica**: al recibir `artDirection` (de `campina-prepare-post` o `campina-art-direction`) pintar selectores (value = id elegido), muestras, nombre, motivo y familias, y guardar `window._pipArt`. Cuando el usuario cambia un selector, se vuelve a pintar muestras y se llama a `callPipComposePrompt()` (el existente) enviando `typographyStyle/brandTreatment/colorPalette/posterReference` tomados de los selectores `pip-*` (si el selector está en "" usar `window._pipArt`); mantener que `callPipComposePrompt` ya envía los selects `campina-*` actuales: reemplazar esa lectura por la de `pip-*` con fallback a `window._pipArt` y luego a `campina-*`.
+3. **Bloque "Datos de contacto en la imagen"** (debajo del bloque de prompt final, ids exactos):
+   - `pip-contact-enable` checkbox "Incluir datos de contacto, de forma sutil, abajo" (apagado por defecto) y, en una fila, tres checkboxes `pip-contact-whatsapp`, `pip-contact-web`, `pip-contact-direccion` ("WhatsApp", "Web", "Ubicación"), marcados por defecto; los que no estén disponibles según `contactAvailable` quedan deshabilitados con texto "(sin datos en Marca)". Si ninguno está disponible, deshabilitar todo el bloque con ese mensaje.
+   - Botón `btn-pip-stamp-contact` "Estampar en la imagen" (habilitado solo con el checkbox activo) y `btn-pip-unstamp-contact` "Quitar datos de contacto" (oculto hasta estampar).
+   - Texto de ayuda `pip-contact-help`: "Se estampa sobre la imagen final que subas (no sobre el prompt). Es reversible."
+   - Lógica: al estampar, si `ComposerState.mediaFiles[0]` no empieza por `/uploads/` → toast "Sube primero la imagen final de Gemini" y no continuar. Guardar `window._pipOriginalImage = ComposerState.mediaFiles[0]` (solo la primera vez); `POST /api/media/stamp-contact {imageUrl, accountName, fields}` donde `accountName` sale del borrador (`post.account_name`, guardarlo en `window._pipAccountName` en `loadPostIntoComposer`) y `fields` de las casillas; en éxito reemplazar `ComposerState.mediaFiles[0]` por `data.url`, llamar a `renderMediaPreviews()` y `updateLivePreviews()`, mostrar las líneas estampadas en `pip-contact-help` y el botón de quitar. Quitar → restaurar `window._pipOriginalImage`, limpiar la variable, ocultar el botón. Si el usuario desmarca `pip-contact-enable` estando estampado → quitar automáticamente. Errores → toast con el mensaje del servidor.
+   - `contactAvailable` llega en `post-brief` y `campina-prepare-post`; guardarlo en `window._pipContactAvailable` y aplicar el estado de las casillas (también al cargar el borrador, tras `post-brief`).
+4. Limpieza: `window._pipArt`, `window._pipOriginalImage`, `window._pipAccountName`, `window._pipContactAvailable`, selectores y bloque de contacto se restablecen en `resetComposerFormState` y `resetAiModalState`, y al cargar otro borrador.
+5. Subir caché: en `index.html`, `js/composer.js?v=2.8` → `?v=2.9`.
+6. Todo texto de la IA con `innerHTML` pasa por `escapeHtml` (preferir `textContent`).
 
 ## Fuera de alcance (Parte B)
-- No tocar `src/`, `storyMusic.js`, la sección Kmarket/Agendio ni el modal Asistente IA (sigue funcionando como está).
-- No commit ni push.
+- No tocar `src/`, `storyMusic.js`, el modal Asistente IA ni Kmarket/Agendio. No commit ni push.
 
 ## Verificación (Parte B)
 1. `node --check public/js/composer.js`.
-2. Cruce con grep: todo id `pip-*`/`btn-pip-*` usado en JS existe en `index.html` y viceversa.
+2. Cruce con grep de todos los ids `pip-*`/`btn-pip-*` usados en JS contra `index.html` y viceversa (cuenta exacta por id; ojo: `btn-pip-*` incluye el prefijo).
 3. Listar lo no probado en navegador.
 
 ## Criterio de terminado

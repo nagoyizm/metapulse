@@ -1178,6 +1178,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window._postBrief = null;
     window._pipFullPromptEditedManually = false;
+
+    // Dirección de arte
+    window._pipArt = null;
+    setInputValue('pip-palette', '');
+    setInputValue('pip-style', '');
+    setInputValue('pip-treatment', '');
+    setElementHtml('pip-swatches', '');
+    setElementText('pip-palette-name', '');
+    setElementText('pip-art-reason', '');
+    setElementText('pip-font-families', 'Fuentes de referencia: --');
+
+    // Bloque contacto y variables
+    window._pipOriginalImage = null;
+    window._pipAccountName = null;
+    window._pipContactAvailable = null;
+
+    setCheckboxState('pip-contact-enable', false);
+    const chkEnable = document.getElementById('pip-contact-enable');
+    if (chkEnable) chkEnable.disabled = false;
+    const txtEnable = document.getElementById('txt-pip-contact-enable');
+    if (txtEnable) txtEnable.textContent = 'Incluir datos de contacto, de forma sutil, abajo';
+
+    setCheckboxState('pip-contact-whatsapp', true);
+    const chkWa = document.getElementById('pip-contact-whatsapp');
+    if (chkWa) chkWa.disabled = false;
+    const txtWa = document.getElementById('txt-pip-contact-whatsapp');
+    if (txtWa) txtWa.textContent = 'WhatsApp';
+
+    setCheckboxState('pip-contact-web', true);
+    const chkWeb = document.getElementById('pip-contact-web');
+    if (chkWeb) chkWeb.disabled = false;
+    const txtWeb = document.getElementById('txt-pip-contact-web');
+    if (txtWeb) txtWeb.textContent = 'Web';
+
+    setCheckboxState('pip-contact-direccion', true);
+    const chkDir = document.getElementById('pip-contact-direccion');
+    if (chkDir) chkDir.disabled = false;
+    const txtDir = document.getElementById('txt-pip-contact-direccion');
+    if (txtDir) txtDir.textContent = 'Ubicación';
+
+    const btnStamp = document.getElementById('btn-pip-stamp-contact');
+    if (btnStamp) btnStamp.disabled = true;
+
+    const btnUnstamp = document.getElementById('btn-pip-unstamp-contact');
+    if (btnUnstamp) btnUnstamp.style.display = 'none';
+
+    setElementText('pip-contact-help', 'Se estampa sobre la imagen final que subas (no sobre el prompt). Es reversible.');
   }
 
   function hidePipPanel() {
@@ -3930,10 +3977,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const hero = document.getElementById('pip-hero')?.value.trim() || '';
     const subline = document.getElementById('pip-subline')?.value.trim() || '';
     const sceneDirective = document.getElementById('pip-scene-prompt')?.value.trim() || '';
-    const typographyStyle = document.getElementById('campina-typography-style')?.value || 'auto';
-    const brandTreatment = document.getElementById('campina-brand-treatment')?.value || 'auto';
-    const colorPalette = document.getElementById('campina-color-palette')?.value || 'auto';
-    const posterReference = document.getElementById('campina-poster-reference')?.value || 'auto';
+    const pipArt = window._pipArt || {};
+
+    const pipPalEl = document.getElementById('pip-palette');
+    const colorPalette = (pipPalEl && pipPalEl.value !== '')
+      ? pipPalEl.value
+      : (pipArt.colorPalette || document.getElementById('campina-color-palette')?.value || 'auto');
+
+    const pipStyleEl = document.getElementById('pip-style');
+    const typographyStyle = (pipStyleEl && pipStyleEl.value !== '')
+      ? pipStyleEl.value
+      : (pipArt.typographyStyle || document.getElementById('campina-typography-style')?.value || 'auto');
+
+    const pipTreatEl = document.getElementById('pip-treatment');
+    const brandTreatment = (pipTreatEl && pipTreatEl.value !== '')
+      ? pipTreatEl.value
+      : (pipArt.brandTreatment || document.getElementById('campina-brand-treatment')?.value || 'auto');
+
+    const posterReference = pipArt.posterReference || document.getElementById('campina-poster-reference')?.value || 'auto';
 
     try {
       const res = await fetch('/api/ai/campina-compose-prompt', {
@@ -4028,6 +4089,14 @@ document.addEventListener('DOMContentLoaded', () => {
           const campinaDateEl = document.getElementById('campina-date');
           if (campinaDateEl && d.brief.ocasion) campinaDateEl.value = d.brief.ocasion;
           if (window._draftPlanContext) window._draftPlanContext.brief = d.brief;
+        }
+
+        if (d.contactAvailable) {
+          applyPipContactAvailable(d.contactAvailable);
+        }
+
+        if (d.artDirection) {
+          await applyPipArtDirection(d.artDirection, false);
         }
 
         setInputValue('pip-hero', d.hero || '');
@@ -4136,6 +4205,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const campinaDateEl = document.getElementById('campina-date');
         if (campinaDateEl && json.data.brief.ocasion) campinaDateEl.value = json.data.brief.ocasion;
         if (window._draftPlanContext) window._draftPlanContext.brief = json.data.brief;
+        if (json.data.contactAvailable) {
+          applyPipContactAvailable(json.data.contactAvailable);
+        }
         showToast('Análisis de brief rehecho exitosamente', 'success');
       } else {
         throw new Error(json.error || 'Error al rehacer análisis');
@@ -4231,6 +4303,382 @@ document.addEventListener('DOMContentLoaded', () => {
     window.open('https://gemini.google.com', '_blank', 'noopener');
   }
 
+  // =========================================================================
+  // DIRECCIÓN DE ARTE (LA CAMPIÑA) — PALETA, TIPOGRAFÍA Y ACABADO
+  // =========================================================================
+  let pipArtOptionsCache = null;
+  let pipArtOptionsLoadingPromise = null;
+
+  async function loadPipArtOptions() {
+    if (pipArtOptionsCache) return pipArtOptionsCache;
+    if (pipArtOptionsLoadingPromise) return pipArtOptionsLoadingPromise;
+
+    pipArtOptionsLoadingPromise = (async () => {
+      try {
+        const res = await fetch('/api/ai/campina-art-options');
+        const json = await res.json();
+        if (json.success && json.data) {
+          pipArtOptionsCache = json.data;
+          populatePipArtOptions(json.data);
+          return json.data;
+        }
+      } catch (err) {
+        console.warn('[Composer] Error cargando opciones de arte:', err);
+      } finally {
+        pipArtOptionsLoadingPromise = null;
+      }
+      return null;
+    })();
+
+    return pipArtOptionsLoadingPromise;
+  }
+
+  function populatePipArtOptions(data) {
+    if (!data) return;
+    const palSelect = document.getElementById('pip-palette');
+    const styleSelect = document.getElementById('pip-style');
+    const treatSelect = document.getElementById('pip-treatment');
+
+    if (palSelect && Array.isArray(data.palettes)) {
+      const curVal = palSelect.value;
+      palSelect.innerHTML = '<option value="">Automático (IA)</option>';
+      data.palettes.forEach(p => {
+        if (p.id === 'auto') return;
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        palSelect.appendChild(opt);
+      });
+      if (curVal) palSelect.value = curVal;
+    }
+
+    if (styleSelect && Array.isArray(data.styles)) {
+      const curVal = styleSelect.value;
+      styleSelect.innerHTML = '<option value="">Automático (IA)</option>';
+      data.styles.forEach(s => {
+        if (s.id === 'auto') return;
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        styleSelect.appendChild(opt);
+      });
+      if (curVal) styleSelect.value = curVal;
+    }
+
+    if (treatSelect && Array.isArray(data.treatments)) {
+      const curVal = treatSelect.value;
+      treatSelect.innerHTML = '<option value="">Automático (IA)</option>';
+      data.treatments.forEach(t => {
+        if (t.id === 'auto') return;
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name;
+        treatSelect.appendChild(opt);
+      });
+      if (curVal) treatSelect.value = curVal;
+    }
+  }
+
+  function renderPipSwatchesAndPalette(swatches, paletteName) {
+    const swatchesContainer = document.getElementById('pip-swatches');
+    if (swatchesContainer) {
+      swatchesContainer.innerHTML = '';
+      if (Array.isArray(swatches)) {
+        swatches.forEach(hex => {
+          if (!hex) return;
+          const circle = document.createElement('span');
+          circle.style.cssText = `display:inline-block; width:18px; height:18px; border-radius:50%; background-color:${escapeHtml(hex)}; border:1px solid rgba(0,0,0,0.18); box-sizing:border-box; flex-shrink:0;`;
+          circle.title = hex;
+          swatchesContainer.appendChild(circle);
+        });
+      }
+    }
+    const nameEl = document.getElementById('pip-palette-name');
+    if (nameEl) {
+      nameEl.textContent = paletteName || '';
+    }
+  }
+
+  async function applyPipArtDirection(artDirection, triggerCompose = false) {
+    if (!artDirection) return;
+    window._pipArt = artDirection;
+
+    await loadPipArtOptions();
+
+    const palSelect = document.getElementById('pip-palette');
+    if (palSelect && artDirection.colorPalette) {
+      palSelect.value = artDirection.colorPalette;
+    }
+    const styleSelect = document.getElementById('pip-style');
+    if (styleSelect && artDirection.typographyStyle) {
+      styleSelect.value = artDirection.typographyStyle;
+    }
+    const treatSelect = document.getElementById('pip-treatment');
+    if (treatSelect && artDirection.brandTreatment) {
+      treatSelect.value = artDirection.brandTreatment;
+    }
+
+    renderPipSwatchesAndPalette(artDirection.swatches, artDirection.paletteName);
+
+    const reasonEl = document.getElementById('pip-art-reason');
+    if (reasonEl) {
+      reasonEl.textContent = artDirection.reason || '';
+    }
+
+    const fontsEl = document.getElementById('pip-font-families');
+    if (fontsEl) {
+      const fList = Array.isArray(artDirection.fontFamilies)
+        ? artDirection.fontFamilies.join(', ')
+        : (artDirection.fontFamilies || '--');
+      fontsEl.textContent = `Fuentes de referencia: ${fList}`;
+    }
+
+    if (triggerCompose) {
+      callPipComposePrompt();
+    }
+  }
+
+  function handlePipPaletteChange() {
+    const selVal = document.getElementById('pip-palette')?.value;
+    if (selVal && pipArtOptionsCache && Array.isArray(pipArtOptionsCache.palettes)) {
+      const found = pipArtOptionsCache.palettes.find(p => p.id === selVal);
+      if (found) {
+        renderPipSwatchesAndPalette(found.swatches, found.name);
+      }
+    } else if (!selVal && window._pipArt) {
+      renderPipSwatchesAndPalette(window._pipArt.swatches, window._pipArt.paletteName);
+    } else {
+      renderPipSwatchesAndPalette([], '');
+    }
+    callPipComposePrompt();
+  }
+
+  function handlePipStyleOrTreatmentChange() {
+    callPipComposePrompt();
+  }
+
+  async function handlePipRegenArt() {
+    const btn = document.getElementById('btn-pip-regen-art');
+    const loading = document.getElementById('pip-loading');
+    const errorEl = document.getElementById('pip-error');
+
+    const theme = document.getElementById('pip-tema')?.value.trim() || document.getElementById('campina-theme')?.value.trim() || '';
+    const targetDate = document.getElementById('pip-ocasion')?.value.trim() || document.getElementById('campina-date')?.value.trim() || '';
+    const brief = window._postBrief || null;
+
+    const firstMedia = (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) ? ComposerState.mediaFiles[0] : '';
+    const imageUrl = (typeof firstMedia === 'string' && firstMedia.startsWith('/uploads/')) ? firstMedia : undefined;
+
+    const origText = btn ? btn.textContent : 'Otra dirección de arte';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generando...';
+    }
+    if (loading) {
+      loading.classList.remove('d-none');
+      loading.style.display = 'flex';
+    }
+    if (errorEl) {
+      errorEl.classList.add('d-none');
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+
+    try {
+      const payload = { theme, targetDate };
+      if (brief) payload.brief = brief;
+      if (imageUrl) payload.imageUrl = imageUrl;
+
+      const res = await fetch('/api/ai/campina-art-direction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || `Error del servidor (${res.status})`);
+      }
+
+      const artDirection = json.data.artDirection || json.data;
+      await applyPipArtDirection(artDirection, true);
+      showToast('Nueva dirección de arte aplicada', 'success');
+    } catch (err) {
+      console.warn('[Composer] Error regenerando dirección de arte:', err);
+      if (errorEl) {
+        errorEl.textContent = err.message || 'Error al generar dirección de arte';
+        errorEl.classList.remove('d-none');
+        errorEl.style.display = 'block';
+      }
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+      if (loading) {
+        loading.classList.add('d-none');
+        loading.style.display = 'none';
+      }
+    }
+  }
+
+  // =========================================================================
+  // DATOS DE CONTACTO EN LA IMAGEN (LA CAMPIÑA) — ESTAMPADO DIRECTO
+  // =========================================================================
+  function applyPipContactAvailable(contactAvailable) {
+    window._pipContactAvailable = contactAvailable;
+    if (!contactAvailable || typeof contactAvailable !== 'object') return;
+
+    const hasWa = Boolean(contactAvailable.whatsapp);
+    const hasWeb = Boolean(contactAvailable.web);
+    const hasDir = Boolean(contactAvailable.direccion);
+    const hasAny = hasWa || hasWeb || hasDir;
+
+    const chkEnable = document.getElementById('pip-contact-enable');
+    const txtEnable = document.getElementById('txt-pip-contact-enable');
+    const chkWa = document.getElementById('pip-contact-whatsapp');
+    const txtWa = document.getElementById('txt-pip-contact-whatsapp');
+    const chkWeb = document.getElementById('pip-contact-web');
+    const txtWeb = document.getElementById('txt-pip-contact-web');
+    const chkDir = document.getElementById('pip-contact-direccion');
+    const txtDir = document.getElementById('txt-pip-contact-direccion');
+    const btnStamp = document.getElementById('btn-pip-stamp-contact');
+
+    if (!hasAny) {
+      if (chkEnable) {
+        chkEnable.checked = false;
+        chkEnable.disabled = true;
+      }
+      if (txtEnable) {
+        txtEnable.textContent = 'Incluir datos de contacto (sin datos en Marca)';
+      }
+      if (btnStamp) btnStamp.disabled = true;
+    } else {
+      if (chkEnable) {
+        chkEnable.disabled = false;
+      }
+      if (txtEnable) {
+        txtEnable.textContent = 'Incluir datos de contacto, de forma sutil, abajo';
+      }
+      if (btnStamp) {
+        btnStamp.disabled = !chkEnable?.checked;
+      }
+    }
+
+    if (chkWa) {
+      chkWa.disabled = !hasWa;
+      if (!hasWa) chkWa.checked = false;
+    }
+    if (txtWa) {
+      txtWa.textContent = hasWa ? 'WhatsApp' : 'WhatsApp (sin datos en Marca)';
+    }
+
+    if (chkWeb) {
+      chkWeb.disabled = !hasWeb;
+      if (!hasWeb) chkWeb.checked = false;
+    }
+    if (txtWeb) {
+      txtWeb.textContent = hasWeb ? 'Web' : 'Web (sin datos en Marca)';
+    }
+
+    if (chkDir) {
+      chkDir.disabled = !hasDir;
+      if (!hasDir) chkDir.checked = false;
+    }
+    if (txtDir) {
+      txtDir.textContent = hasDir ? 'Ubicación' : 'Ubicación (sin datos en Marca)';
+    }
+  }
+
+  async function handlePipStampContact() {
+    const currentImg = ComposerState.mediaFiles && ComposerState.mediaFiles[0];
+    if (!currentImg || typeof currentImg !== 'string' || !currentImg.startsWith('/uploads/')) {
+      showToast('Sube primero la imagen final de Gemini', 'warning');
+      return;
+    }
+
+    if (!window._pipOriginalImage) {
+      window._pipOriginalImage = currentImg;
+    }
+
+    const accountName = window._pipAccountName || window.AppState?.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '';
+    const fields = {
+      whatsapp: Boolean(document.getElementById('pip-contact-whatsapp')?.checked),
+      web: Boolean(document.getElementById('pip-contact-web')?.checked),
+      direccion: Boolean(document.getElementById('pip-contact-direccion')?.checked)
+    };
+
+    const btnStamp = document.getElementById('btn-pip-stamp-contact');
+    const origText = btnStamp ? btnStamp.textContent : 'Estampar en la imagen';
+    if (btnStamp) {
+      btnStamp.disabled = true;
+      btnStamp.textContent = 'Estampando...';
+    }
+
+    try {
+      const res = await fetch('/api/media/stamp-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: window._pipOriginalImage || currentImg,
+          accountName,
+          fields
+        })
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `Error del servidor (${res.status})`);
+      }
+
+      if (json.data && json.data.url) {
+        ComposerState.mediaFiles[0] = json.data.url;
+        renderMediaPreviews();
+        updateLivePreviews();
+      }
+
+      const helpEl = document.getElementById('pip-contact-help');
+      if (helpEl) {
+        const linesStr = Array.isArray(json.data?.lines) && json.data.lines.length > 0
+          ? `Estampado: ${json.data.lines.join(' · ')}`
+          : 'Datos de contacto estampados en la imagen.';
+        helpEl.textContent = linesStr;
+      }
+
+      const btnUnstamp = document.getElementById('btn-pip-unstamp-contact');
+      if (btnUnstamp) {
+        btnUnstamp.style.display = 'inline-block';
+      }
+
+      showToast('Datos de contacto estampados con éxito', 'success');
+    } catch (err) {
+      showToast(err.message || 'Error al estampar datos de contacto', 'error');
+    } finally {
+      if (btnStamp) {
+        btnStamp.disabled = false;
+        btnStamp.textContent = origText;
+      }
+    }
+  }
+
+  function handlePipUnstampContact() {
+    if (window._pipOriginalImage) {
+      ComposerState.mediaFiles[0] = window._pipOriginalImage;
+      renderMediaPreviews();
+      updateLivePreviews();
+      window._pipOriginalImage = null;
+    }
+    const btnUnstamp = document.getElementById('btn-pip-unstamp-contact');
+    if (btnUnstamp) {
+      btnUnstamp.style.display = 'none';
+    }
+    const helpEl = document.getElementById('pip-contact-help');
+    if (helpEl) {
+      helpEl.textContent = 'Se estampa sobre la imagen final que subas (no sobre el prompt). Es reversible.';
+    }
+  }
+
   function bindPipPanelControls() {
     const btnPrepare = document.getElementById('btn-pip-prepare');
     if (btnPrepare) btnPrepare.addEventListener('click', handlePipPreparePost);
@@ -4268,6 +4716,49 @@ document.addEventListener('DOMContentLoaded', () => {
         window._pipFullPromptEditedManually = true;
       });
     }
+
+    // Dirección de arte
+    const btnRegenArt = document.getElementById('btn-pip-regen-art');
+    if (btnRegenArt) btnRegenArt.addEventListener('click', handlePipRegenArt);
+
+    const palSelect = document.getElementById('pip-palette');
+    if (palSelect) {
+      palSelect.addEventListener('focus', () => loadPipArtOptions(), { once: true });
+      palSelect.addEventListener('change', handlePipPaletteChange);
+    }
+
+    const styleSelect = document.getElementById('pip-style');
+    if (styleSelect) {
+      styleSelect.addEventListener('focus', () => loadPipArtOptions(), { once: true });
+      styleSelect.addEventListener('change', handlePipStyleOrTreatmentChange);
+    }
+
+    const treatSelect = document.getElementById('pip-treatment');
+    if (treatSelect) {
+      treatSelect.addEventListener('focus', () => loadPipArtOptions(), { once: true });
+      treatSelect.addEventListener('change', handlePipStyleOrTreatmentChange);
+    }
+
+    // Datos de contacto
+    const chkContactEnable = document.getElementById('pip-contact-enable');
+    if (chkContactEnable) {
+      chkContactEnable.addEventListener('change', () => {
+        const isChecked = chkContactEnable.checked;
+        const btnStamp = document.getElementById('btn-pip-stamp-contact');
+        if (btnStamp) {
+          btnStamp.disabled = !isChecked;
+        }
+        if (!isChecked && window._pipOriginalImage) {
+          handlePipUnstampContact();
+        }
+      });
+    }
+
+    const btnStamp = document.getElementById('btn-pip-stamp-contact');
+    if (btnStamp) btnStamp.addEventListener('click', handlePipStampContact);
+
+    const btnUnstamp = document.getElementById('btn-pip-unstamp-contact');
+    if (btnUnstamp) btnUnstamp.addEventListener('click', handlePipUnstampContact);
   }
 
   // Cargar una publicación existente directamente en el Redactor
@@ -4278,6 +4769,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window._editingScheduledPostId = post.id;
     window._editingPostOriginalStatus = post.status;
+    window._pipAccountName = post.account_name || null;
 
     const draftBanner = document.getElementById('composer-editing-draft-banner');
     const draftTitleEl = document.getElementById('composer-editing-draft-title');
@@ -4396,6 +4888,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isCampinaDraft) {
       if (pipPanel) pipPanel.style.display = 'block';
       if (geminiCard) geminiCard.style.display = 'none';
+      loadPipArtOptions();
 
       if (planCtx && planCtx.brief) {
         window._postBrief = planCtx.brief;
@@ -4407,6 +4900,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const campinaDateEl = document.getElementById('campina-date');
         if (campinaDateEl && planCtx.brief.ocasion) {
           campinaDateEl.value = planCtx.brief.ocasion;
+        }
+        if (planCtx.contactAvailable) {
+          applyPipContactAvailable(planCtx.contactAvailable);
+        } else if (post.id) {
+          fetch('/api/ai/post-brief', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postId: post.id })
+          })
+            .then(res => res.json())
+            .then(json => {
+              if (json.success && json.data?.contactAvailable) {
+                applyPipContactAvailable(json.data.contactAvailable);
+              }
+            })
+            .catch(() => {});
         }
       } else if (post.id) {
         const pipLoading = document.getElementById('pip-loading');
@@ -4434,6 +4943,9 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               if (window._draftPlanContext) {
                 window._draftPlanContext.brief = json.data.brief;
+              }
+              if (json.data.contactAvailable) {
+                applyPipContactAvailable(json.data.contactAvailable);
               }
             }
           })

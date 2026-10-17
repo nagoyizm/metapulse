@@ -980,7 +980,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '✨',
         badgeColor: 'rgba(59, 130, 246, 0.15)',
         textColorCss: '#3b82f6',
-        description: 'Analiza si el tema es quincho, escapada de pareja, naturaleza o festivo y selecciona la fuente ideal.'
+        description: 'Analiza si el tema es quincho, escapada de pareja, naturaleza o festivo y selecciona la fuente ideal.',
+        fontFamilies: ['']
       },
       {
         id: 'rustic_timber',
@@ -990,7 +991,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🪵',
         badgeColor: 'rgba(217, 119, 6, 0.15)',
         textColorCss: '#d97706',
-        description: 'Tipografía display robusta inspirada en rótulos tallados en madera noble o forja rústica. Bisel cálido y sombra natural proyectada.'
+        description: 'Tipografía display robusta inspirada en rótulos tallados en madera noble o forja rústica. Bisel cálido y sombra natural proyectada.',
+        fontFamilies: ['Bebas Neue', 'Oswald', 'Barlow Condensed']
       },
       {
         id: 'kinfolk_luxury',
@@ -1000,7 +1002,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '✨',
         badgeColor: 'rgba(168, 85, 247, 0.15)',
         textColorCss: '#a855f7',
-        description: 'Serif de altísimo contraste con ligaduras refinadas y elegancia editorial contemporánea. Tono blanco marfil y resplandor sutil.'
+        description: 'Serif de altísimo contraste con ligaduras refinadas y elegancia editorial contemporánea. Tono blanco marfil y resplandor sutil.',
+        fontFamilies: ['Cormorant Garamond', 'Playfair Display', 'Lora']
       },
       {
         id: 'natgeo_adventure',
@@ -1010,7 +1013,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🏔️',
         badgeColor: 'rgba(16, 185, 129, 0.15)',
         textColorCss: '#10b981',
-        description: 'Sans-serif condensada monumental, mayúsculas geométricas de gran peso visual, trazo limpio y sombra arquitectónica sólida.'
+        description: 'Sans-serif condensada monumental, mayúsculas geométricas de gran peso visual, trazo limpio y sombra arquitectónica sólida.',
+        fontFamilies: ['Anton', 'Oswald', 'League Gothic']
       },
       {
         id: 'botanical_minimal',
@@ -1020,7 +1024,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🌿',
         badgeColor: 'rgba(14, 165, 233, 0.15)',
         textColorCss: '#0ea5e9',
-        description: 'Sans-serif geométrica refinada, ligera y sumamente espaciada (letter-spacing amplio). Elegancia zen y máximo respiro visual.'
+        description: 'Sans-serif geométrica refinada, ligera y sumamente espaciada (letter-spacing amplio). Elegancia zen y máximo respiro visual.',
+        fontFamilies: ['Montserrat', 'Josefin Sans', 'Lato']
       },
       {
         id: 'patria_heritage',
@@ -1030,7 +1035,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🇨🇱',
         badgeColor: 'rgba(239, 68, 68, 0.15)',
         textColorCss: '#ef4444',
-        description: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.'
+        description: 'Tipografía display con carácter de imprenta tradicional chilena estilizada. Remates firmes, calidez campestre y celebración auténtica.',
+        fontFamilies: ['Alfa Slab One', 'Rye', 'Bevan']
       },
       {
         id: 'handcraft_script',
@@ -1040,7 +1046,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '✍️',
         badgeColor: 'rgba(245, 158, 11, 0.15)',
         textColorCss: '#f59e0b',
-        description: 'Rotulado a mano cálido con sans de apoyo. Trazos caligráficos fluidos combinados con una tipografía sans-serif limpia para un equilibrio orgánico.'
+        description: 'Rotulado a mano cálido con sans de apoyo. Trazos caligráficos fluidos combinados con una tipografía sans-serif limpia para un equilibrio orgánico.',
+        fontFamilies: ['Caveat Brush', 'Kaushan Script', 'Montserrat']
       },
       {
         id: 'retro_travel_70s',
@@ -1050,7 +1057,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🏕️',
         badgeColor: 'rgba(234, 88, 12, 0.15)',
         textColorCss: '#ea580c',
-        description: 'Tipografía redondeada retro inspirada en carteles de viaje de los años 70. Curvas generosas, peso rotundo y personalidad relajada.'
+        description: 'Tipografía redondeada retro inspirada en carteles de viaje de los años 70. Curvas generosas, peso rotundo y personalidad relajada.',
+        fontFamilies: ['Chewy', 'Fredoka', 'Righteous']
       },
       {
         id: 'art_deco_geometric',
@@ -1060,7 +1068,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🍸',
         badgeColor: 'rgba(99, 102, 241, 0.15)',
         textColorCss: '#6366f1',
-        description: 'Art Déco geométrico de resort. Líneas estilizadas, proporciones elegantes y detalles arquitectónicos de cartelería clásica de descanso.'
+        description: 'Art Déco geométrico de resort. Líneas estilizadas, proporciones elegantes y detalles arquitectónicos de cartelería clásica de descanso.',
+        fontFamilies: ['Poiret One', 'Josefin Sans', 'Limelight']
       },
       {
         id: 'celebration_modern',
@@ -1070,7 +1079,8 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         icon: '🥂',
         badgeColor: 'rgba(217, 70, 239, 0.15)',
         textColorCss: '#d946ef',
-        description: 'Sans geométrica gruesa combinada con serif cursiva de autor, pensada para Año Nuevo y Navidad con impacto visual y sofisticación festiva.'
+        description: 'Sans geométrica gruesa combinada con serif cursiva de autor, pensada para Año Nuevo y Navidad con impacto visual y sofisticación festiva.',
+        fontFamilies: ['Poppins', 'Playfair Display Italic', 'Montserrat']
       }
     ];
   }
@@ -1213,7 +1223,7 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         id: 'brush_stroke',
         name: '🖌️ Trazo Gestual & Pincelada Orgánica (Marca Artesanal)',
         shortName: 'Trazo de Pincel',
-        artDirection: 'Incorpora un trazo gestual orgánico de pincel seco ("dry brushstroke") en tono tierra cálido, terracota o carbón sutil que subraya o enmarca la palabra clave. Aporta dinamismo de marca artesanal contemporánea y textura viva.'
+        artDirection: 'Incorpora un trazo gestual orgánico de pincel seco ("dry brushstroke") en tono tierra cálido, terracota o carbón sutil que subraya o enmarca la palabra clave. Aporta dinamismo de marca artesanal contemporánea y textura viva. El trazo debe ser del mismo tono del acento de la paleta o de su color profundo, jamás un verde saturado sobre un trazo café/terracota; el texto principal mantiene alto contraste con el trazo.'
       },
       {
         id: 'gold_foil',
@@ -1294,9 +1304,10 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         shortName: 'Bosque & Lodge',
         vibe: 'Senderos naturales, bosque de pinos, desconexión y silencio',
         primaryColor: 'Blanco Tiza Natural (#F1F5F9) con sombras verde musgo (#14532D)',
-        accentColor: 'Tierra Arcillosa Tostada (#78350F) y Verde Salvia (#22C55E)',
-        forbiddenColors: 'Evitar dorados chillones o rojos estridentes.',
-        artDirection: 'Inspirado en la cartelería vintage de Parques Nacionales y botánica alpina: tonos terrosos orgánicos, blanco tiza desgastado y verde bosque profundo que se camuflan elegantemente con la vegetación.'
+        accentColor: 'Terracota apagado (#B5522E) y Verde pino profundo (#1F3D2B)',
+        forbiddenColors: 'Evitar dorados chillones o rojos estridentes. PROHIBIDO verde brillante o saturado en el texto o sobre trazos café/terracota.',
+        artDirection: 'Inspirado en la cartelería vintage de Parques Nacionales y botánica alpina: tonos terrosos orgánicos, blanco tiza desgastado y verde bosque profundo que se camuflan elegantemente con la vegetación.',
+        swatches: ['#F1F5F9', '#B5522E', '#1F3D2B']
       },
       {
         id: 'fuego_quincho',
@@ -1367,6 +1378,90 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         accentColor: 'Rojo Ladrillo Refractario (#9A3412) y Madera Tostada (#451A03)',
         forbiddenColors: 'Evitar colores pasteles veraniegos, tonos flúor o dorados.',
         artDirection: 'Inspirado en el refugio invernal de las cabañas con estufa o chimenea encendida: tonos ahumados, rojo ladrillo reconfortante y crema de abrigo.'
+      },
+      {
+        id: 'pino_crema_terracota',
+        name: '🌲 Pino, Crema & Terracota: Bosque, Quinchos y Otoño',
+        shortName: 'Pino, Crema & Terracota',
+        vibe: 'Bosque, quinchos, otoño, descanso general',
+        primaryColor: 'Crema (#F6EEDF)',
+        accentColor: 'Terracota (#B5522E) y Verde pino profundo (#1F3D2B)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Armonía orgánica para bosque, quinchos y descanso: texto crema luminoso sobre fondo natural con acento terracota o verde pino profundo en trazos y ribetes.',
+        swatches: ['#F6EEDF', '#B5522E', '#1F3D2B'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'lino_carbon_ocre',
+        name: '🕯️ Lino, Carbón & Ocre Mineral: Boutique y Suites de Parejas',
+        shortName: 'Lino, Carbón & Ocre',
+        vibe: 'Boutique, suites, parejas',
+        primaryColor: 'Lino (#F2EBDD)',
+        accentColor: 'Ocre mineral (#B88A44) y Carbón profundo (#2A2724)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Atmósfera boutique y serena para suites y parejas: texto lino cálido con acento ocre mineral y fondo carbón profundo en ribetes.',
+        swatches: ['#F2EBDD', '#B88A44', '#2A2724'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'atardecer_ambar',
+        name: '🔥 Atardecer & Ámbar: Asado, Tardes y Fuego',
+        shortName: 'Atardecer Ámbar',
+        vibe: 'Asado, tardes, fuego',
+        primaryColor: 'Crema (#FFF4E0)',
+        accentColor: 'Ámbar quemado (#D9822B) y Chocolate profundo (#4A2C1D)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Calidez de atardecer y fuego de quincho: texto crema cálido, acentos en ámbar quemado y trazos en chocolate profundo.',
+        swatches: ['#FFF4E0', '#D9822B', '#4A2C1D'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'salvia_durazno',
+        name: '🌸 Salvia & Durazno: Primavera, Familia y Jardines',
+        shortName: 'Salvia & Durazno',
+        vibe: 'Primavera, familia, jardines',
+        primaryColor: 'Blanco (#FFFFFF)',
+        accentColor: 'Durazno (#F2A58E) y Salvia profundo (#3F5A48)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Frescura botánica primaveral y familiar: texto blanco puro con toques en durazno suave y acentos en verde salvia profundo.',
+        swatches: ['#FFFFFF', '#F2A58E', '#3F5A48'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'azul_profundo_arena',
+        name: '🌊 Azul Profundo & Arena: Verano, Costa y Piscina',
+        shortName: 'Azul & Arena',
+        vibe: 'Verano, costa, piscina',
+        primaryColor: 'Blanco espuma (#F8FAFC)',
+        accentColor: 'Arena (#E3C9A0) y Azul profundo (#1D3B53)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Frescura costera y luminosidad estival: texto blanco espuma marina con acentos arena y fondo azul profundo en filetes o ribetes.',
+        swatches: ['#F8FAFC', '#E3C9A0', '#1D3B53'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'bosque_niebla_laton',
+        name: '🌲 Bosque, Niebla & Latón: Naturaleza, Senderos y Calma',
+        shortName: 'Niebla & Latón',
+        vibe: 'Naturaleza, senderos, calma',
+        primaryColor: 'Niebla (#F3F5F2)',
+        accentColor: 'Latón apagado (#A98B5A) y Verde profundo (#24402F)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Serenidad de senderos y bosque matinal: texto tono niebla suave con acento latón apagado y verde profundo.',
+        swatches: ['#F3F5F2', '#A98B5A', '#24402F'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
+      },
+      {
+        id: 'vino_crema_rosa',
+        name: '🍷 Vino, Crema & Rosa Viejo: Aniversarios, Parejas y San Valentín',
+        shortName: 'Vino, Crema & Rosa',
+        vibe: 'Aniversarios, parejas, San Valentín',
+        primaryColor: 'Crema (#FBF3E8)',
+        accentColor: 'Rosa viejo (#C98E8A) y Burdeos profundo (#6B2737)',
+        forbiddenColors: 'PROHIBIDO verdes brillantes/neón (incluido #22C55E), amarillo limón, y cualquier color fuera de los tres de swatches más sus tintes/sombras.',
+        artDirection: 'Elegancia íntima y festiva para aniversarios y parejas: texto crema suave con acentos en rosa viejo y burdeos profundo.',
+        swatches: ['#FBF3E8', '#C98E8A', '#6B2737'],
+        harmony: 'Regla 60/30/10: 60% foto, 30% color de texto, 10% acento; el trazo o ribete usa el acento o el profundo, nunca un verde saturado sobre un tono café/terracota'
       }
     ];
   }
@@ -1383,22 +1478,22 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     if (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta')) {
       return 'patria_chilena';
     }
-    if (text.includes('primavera') || text.includes('flor') || text.includes('flores')) {
-      return 'primavera_floral';
-    }
     if (text.includes('invierno') || text.includes('lluvia') || text.includes('chimenea') || text.includes('frío') || text.includes('frio')) {
       return 'invierno_chimenea';
     }
+    if (text.includes('primavera') || text.includes('flor') || text.includes('flores')) {
+      return 'salvia_durazno';
+    }
+    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('aniversario') || text.includes('dos')) {
+      return 'lino_carbon_ocre';
+    }
     if (text.includes('asado') || text.includes('quincho') || text.includes('parrilla') || text.includes('fuego') || text.includes('brasa')) {
-      return 'fuego_quincho';
+      return 'atardecer_ambar';
     }
-    if (text.includes('pareja') || text.includes('suite') || text.includes('romántic')) {
-      return 'kinfolk_ivory';
+    if (text.includes('playa') || text.includes('verano') || text.includes('costa') || text.includes('piscina') || hasWord(text, 'mar') || hasWord(text, 'sol')) {
+      return 'azul_profundo_arena';
     }
-    if (text.includes('playa') || text.includes('verano') || text.includes('costa') || hasWord(text, 'mar') || hasWord(text, 'sol')) {
-      return 'costa_marina';
-    }
-    return 'tierra_bosque';
+    return 'pino_crema_terracota';
   }
 
   /**
@@ -1696,6 +1791,7 @@ ${posterRefSection}
 
 3. DIRECCIÓN CROMÁTICA PUBLICITARIA OBLIGATORIA (CERO DORADOS O COLORES FUERA DE CONTEXTO):
 ${colorPaletteSection}
+- REGLA DE ARMONÍA: usa SOLO los colores indicados y sus tintes; máximo 3 colores en el rótulo (60/30/10); el trazo y los ribetes toman el acento o el profundo de la paleta; prohibido un verde saturado sobre un tono café/terracota.
 
 4. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
 - REGLA DE ORO DE BRANDING (COMO DISEÑAN LAS GRANDES MARCAS SUS ESLÓGANS):
@@ -1716,6 +1812,7 @@ ${colorPaletteSection}
 
   d) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
      ${matchedStyle.description}
+     Familias tipográficas de referencia: ${(matchedStyle.fontFamilies || []).filter(Boolean).join(' / ') || 'sans-serif editorial'} (o equivalentes muy cercanas).
      CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
 
 5. JERARQUÍA DE CONTENIDO:
@@ -2386,6 +2483,311 @@ Estructura a entregar:
   }
 
   /**
+   * Carga y valida una imagen local en /uploads/ para su envío como inline_data a Gemini
+   * Devuelve { mime_type, data } o null si no hay imagen; lanza error si la ruta es inválida.
+   */
+  loadUploadImageInline(imageUrl) {
+    if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.trim()) {
+      return null;
+    }
+
+    const trimmedUrl = imageUrl.trim();
+    if (!trimmedUrl.startsWith('/uploads/')) {
+      throw new Error('Ruta de imagen inválida: debe comenzar por /uploads/');
+    }
+
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    const resolvedPath = path.resolve(path.join(__dirname, '../../', trimmedUrl));
+
+    if (!resolvedPath.startsWith(uploadsRoot + path.sep) && resolvedPath !== uploadsRoot) {
+      throw new Error('Ruta de imagen inválida: no permitida fuera de /uploads/');
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error('La imagen especificada no existe en disco');
+    }
+
+    const stats = fs.statSync(resolvedPath);
+    if (stats.size > 6 * 1024 * 1024) {
+      throw new Error('La imagen excede el tamaño máximo permitido de 6 MB');
+    }
+
+    const ext = path.extname(resolvedPath).toLowerCase();
+    let mimeType = '';
+    if (ext === '.jpg' || ext === '.jpeg') {
+      mimeType = 'image/jpeg';
+    } else if (ext === '.png') {
+      mimeType = 'image/png';
+    } else if (ext === '.webp') {
+      mimeType = 'image/webp';
+    } else {
+      throw new Error(`Formato de imagen no soportado (${ext}). Permitidos: jpg, jpeg, png, webp`);
+    }
+
+    const fileBuf = fs.readFileSync(resolvedPath);
+    return {
+      mime_type: mimeType,
+      data: fileBuf.toString('base64')
+    };
+  }
+
+  /**
+   * Dirección de Arte con IA para Cabañas La Campiña:
+   * Elige paleta curada, tipografía y acabado con razonamiento (mirando la foto si existe).
+   */
+  async chooseCampinaArtDirection({ theme = '', targetDate = '', brief = null, imageUrl = '' }) {
+    const cleanTheme = (theme || 'Descanso en la naturaleza').trim();
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+
+    // Selección determinista por reglas para fallback
+    const hierarchy = this.extractCampinaVisualHierarchy(cleanTheme, targetDate);
+    const deterministic = this.resolveCampinaVisualSelection({
+      theme: cleanTheme,
+      targetDate,
+      hierarchy,
+      typographyStyle: 'auto',
+      brandTreatment: 'auto',
+      colorPalette: 'auto',
+      posterReference: 'auto'
+    });
+
+    const inlineData = this.loadUploadImageInline(imageUrl);
+
+    // Memoria de paletas recientes (máx 5)
+    let recentPalettes = [];
+    try {
+      const raw = getSetting('campina_recent_palettes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) recentPalettes = parsed;
+      }
+    } catch (_) {
+      recentPalettes = [];
+    }
+
+    const stylesDesc = stylesCatalog
+      .filter(s => s.id !== 'auto')
+      .map(s => `- "${s.id}": ${s.name} (${s.vibe}). Familias: ${(s.fontFamilies || []).filter(Boolean).join(', ')}`)
+      .join('\n');
+
+    const treatmentsDesc = treatmentsCatalog
+      .filter(t => t.id !== 'auto')
+      .map(t => `- "${t.id}": ${t.name}`)
+      .join('\n');
+
+    const palettesDesc = palettesCatalog
+      .filter(p => p.id !== 'auto')
+      .map(p => {
+        let sw = p.swatches;
+        if (!Array.isArray(sw) || sw.length === 0) {
+          const m = `${p.primaryColor || ''} ${p.accentColor || ''}`.match(/#[0-9A-Fa-f]{6}/g);
+          sw = m ? [...new Set(m.map(h => h.toUpperCase()))] : [];
+        }
+        return `- "${p.id}": ${p.name} (${p.vibe}). Swatches: [${sw.join(', ')}]. Principal: ${p.primaryColor}, Acento: ${p.accentColor}. Prohibidos: ${p.forbiddenColors}`;
+      })
+      .join('\n');
+
+    const posterRefsDesc = posterRefsCatalog
+      .filter(r => r.id !== 'auto')
+      .map(r => `- "${r.id}": ${r.name}`)
+      .join('\n');
+
+    let briefInfo = '';
+    if (brief && typeof brief === 'object') {
+      const bParts = [];
+      if (brief.temaTrabajado) bParts.push(`Tema trabajado: "${brief.temaTrabajado}"`);
+      if (brief.publico) bParts.push(`Público objetivo: "${brief.publico}"`);
+      if (brief.espacioRecomendado) bParts.push(`Espacio recomendado: "${brief.espacioRecomendado}"`);
+      if (brief.beneficio) bParts.push(`Beneficio: "${brief.beneficio}"`);
+      if (bParts.length > 0) briefInfo = `\nCONTEXTO DEL BRIEF:\n- ${bParts.join('\n- ')}`;
+    }
+
+    const prompt = `Actúa como un Director de Arte Publicitario Senior especializado en branding y diseño gráfico editorial para turismo y hotelería boutique ("Cabañas La Campiña", Algarrobo, Chile).
+Tu misión es seleccionar con criterio profesional y dirección de arte la mejor combinación de paleta cromática, estilo tipográfico, tratamiento de marca y referencia de afiche para este post publicitario.
+
+DATOS DEL POST:
+- Tema: "${cleanTheme}"
+- Ocasión / Fecha: "${targetDate || 'Fin de semana normal'}"${briefInfo}
+${inlineData ? '- Foto adjunta: Sí (analiza la imagen proporcionada minuciosamente).' : '- Foto adjunta: No hay foto adjunta (básate en el tema, ocasión y público).'}
+
+CATÁLOGO DE OPCIONES DISPONIBLES (debes elegir únicamente IDs de esta lista):
+
+1. PALETAS CROMÁTICAS (colorPalette):
+${palettesDesc}
+
+2. ESTILOS TIPOGRÁFICOS (typographyStyle):
+${stylesDesc}
+
+3. TRATAMIENTOS DE MARCA (brandTreatment):
+${treatmentsDesc}
+
+4. REFERENCIAS DE AFICHE (posterReference):
+${posterRefsDesc}
+
+PALETAS USADAS RECIENTEMENTE (evitar repetir estas últimas 5 paletas salvo que sea claramente la única adecuada):
+${recentPalettes.slice(0, 5).join(', ') || 'Ninguna'}
+
+INSTRUCCIONES DE RAZONAMIENTO OBLIGATORIAS:
+(1) Evaluar foto (si hay): analiza color dominante, luminosidad y espacio libre donde iría el titular.
+(2) Considerar tema, ocasión/estación, público objetivo y campaña.
+(3) Elegir colorPalette cuyo color de texto principal contraste fuertemente (≥ 4.5:1) con la zona del titular de la foto.
+(4) Elegir typographyStyle, brandTreatment y posterReference coherentes conceptual y estéticamente con la paleta.
+(5) Verificar armonía estricta: máximo 3 colores en el rótulo (regla 60/30/10), nada de verdes saturados sobre tonos café o terracota.
+(6) Variar: evitar repetir las últimas 5 paletas usadas (${recentPalettes.slice(0, 5).join(', ') || 'ninguna'}) salvo que sea imprescindible.
+
+Devuelve ESTRICTAMENTE un JSON con este formato exacto:
+{
+  "typographyStyle": "id_del_catalogo",
+  "brandTreatment": "id_del_catalogo",
+  "colorPalette": "id_del_catalogo",
+  "posterReference": "id_del_catalogo",
+  "reason": "1 o 2 frases en español explicando la elección de paleta y tipografía (mencionar la foto si se analizó)."
+}`;
+
+    let parsed = null;
+
+    try {
+      if (inlineData) {
+        const apiKey = this.getApiKey();
+        if (apiKey) {
+          const models = sanitizeGeminiModels(getSetting('ai_model'));
+          for (const m of models) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+              const res = await axios.post(
+                url,
+                {
+                  contents: [{
+                    parts: [
+                      {
+                        inline_data: {
+                          mime_type: inlineData.mime_type,
+                          data: inlineData.data
+                        }
+                      },
+                      { text: prompt }
+                    ]
+                  }],
+                  generationConfig: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.8
+                  }
+                },
+                { timeout: 30000 }
+              );
+
+              const parts = res.data?.candidates?.[0]?.content?.parts || [];
+              const textPart = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+              if (textPart) {
+                let clean = textPart.trim();
+                if (clean.startsWith('```json')) clean = clean.slice(7);
+                if (clean.startsWith('```')) clean = clean.slice(3);
+                if (clean.endsWith('```')) clean = clean.slice(0, -3);
+                clean = clean.trim();
+                parsed = JSON.parse(clean);
+                break;
+              }
+            } catch (err) {
+              console.warn(`[chooseCampinaArtDirection] Falló con modelo ${m}:`, err.response?.data?.error?.message || err.message);
+            }
+          }
+        }
+      } else {
+        const result = await this.generateJSON({ prompt, temperature: 0.8 });
+        parsed = result?.data;
+      }
+    } catch (iaErr) {
+      console.warn('[chooseCampinaArtDirection] Falló la IA:', iaErr.message);
+    }
+
+    let typographyStyle = deterministic.activeStyleKey;
+    let brandTreatment = deterministic.activeTreatmentKey;
+    let colorPalette = deterministic.activePaletteKey;
+    let posterReference = deterministic.activePosterRefKey;
+    let reason = 'Selección automática por reglas (la IA no respondió).';
+
+    if (parsed && typeof parsed === 'object') {
+      let isAiValid = false;
+      if (parsed.typographyStyle && stylesCatalog.some(s => s.id === parsed.typographyStyle)) {
+        typographyStyle = parsed.typographyStyle;
+        isAiValid = true;
+      }
+      if (parsed.brandTreatment && treatmentsCatalog.some(t => t.id === parsed.brandTreatment)) {
+        brandTreatment = parsed.brandTreatment;
+        isAiValid = true;
+      }
+      if (parsed.colorPalette && palettesCatalog.some(p => p.id === parsed.colorPalette)) {
+        colorPalette = parsed.colorPalette;
+        isAiValid = true;
+      }
+      if (parsed.posterReference && posterRefsCatalog.some(r => r.id === parsed.posterReference)) {
+        posterReference = parsed.posterReference;
+        isAiValid = true;
+      }
+      if (isAiValid && typeof parsed.reason === 'string' && parsed.reason.trim()) {
+        reason = parsed.reason.trim();
+      } else if (isAiValid) {
+        reason = 'Dirección de arte curada por la IA según el tema y la armonía visual.';
+      }
+    }
+
+    const matchedStyle = stylesCatalog.find(s => s.id === typographyStyle) || deterministic.matchedStyle;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === brandTreatment) || deterministic.matchedTreatment;
+    const matchedPalette = palettesCatalog.find(p => p.id === colorPalette) || deterministic.matchedPalette;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === posterReference) || deterministic.matchedPosterRef;
+
+    let swatches = matchedPalette.swatches;
+    if (!Array.isArray(swatches) || swatches.length === 0) {
+      const combined = `${matchedPalette.primaryColor || ''} ${matchedPalette.accentColor || ''}`;
+      const matches = combined.match(/#[0-9A-Fa-f]{6}/g);
+      swatches = matches ? [...new Set(matches.map(h => h.toUpperCase()))] : [];
+    }
+
+    this.recordCampinaRecentPalette(colorPalette);
+
+    return {
+      typographyStyle,
+      brandTreatment,
+      colorPalette,
+      posterReference,
+      paletteName: matchedPalette.name,
+      swatches,
+      styleName: matchedStyle.name,
+      treatmentName: matchedTreatment.name,
+      fontFamilies: matchedStyle.fontFamilies || [],
+      reason
+    };
+  }
+
+  /**
+   * Registra la paleta usada en el historial reciente (máximo 5)
+   */
+  recordCampinaRecentPalette(paletteId) {
+    if (!paletteId || typeof paletteId !== 'string') return;
+    const clean = paletteId.trim();
+    if (!clean || clean === 'auto') return;
+    let recent = [];
+    try {
+      const raw = getSetting('campina_recent_palettes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) recent = parsed;
+      }
+    } catch (_) {
+      recent = [];
+    }
+    const updated = [clean, ...recent.filter(p => p !== clean)].slice(0, 5);
+    try {
+      setSetting('campina_recent_palettes', JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[recordCampinaRecentPalette] Error guardando recent palettes:', err.message);
+    }
+  }
+
+  /**
    * Genera indicaciones de escena deducidas con razonamiento por pasos para Cabañas La Campiña
    * Admite imagen base local (/uploads/...) o deducción contextual solo con texto
    */
@@ -2394,47 +2796,7 @@ Estructura a entregar:
       throw new Error('El campo theme es requerido');
     }
 
-    let inlineData = null;
-    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim()) {
-      const trimmedUrl = imageUrl.trim();
-      if (!trimmedUrl.startsWith('/uploads/')) {
-        throw new Error('Ruta de imagen inválida: debe comenzar por /uploads/');
-      }
-
-      const uploadsRoot = path.resolve(__dirname, '../../uploads');
-      const resolvedPath = path.resolve(path.join(__dirname, '../../', trimmedUrl));
-
-      if (!resolvedPath.startsWith(uploadsRoot + path.sep) && resolvedPath !== uploadsRoot) {
-        throw new Error('Ruta de imagen inválida: no permitida fuera de /uploads/');
-      }
-
-      if (!fs.existsSync(resolvedPath)) {
-        throw new Error('La imagen especificada no existe en disco');
-      }
-
-      const stats = fs.statSync(resolvedPath);
-      if (stats.size > 6 * 1024 * 1024) {
-        throw new Error('La imagen excede el tamaño máximo permitido de 6 MB');
-      }
-
-      const ext = path.extname(resolvedPath).toLowerCase();
-      let mimeType = '';
-      if (ext === '.jpg' || ext === '.jpeg') {
-        mimeType = 'image/jpeg';
-      } else if (ext === '.png') {
-        mimeType = 'image/png';
-      } else if (ext === '.webp') {
-        mimeType = 'image/webp';
-      } else {
-        throw new Error(`Formato de imagen no soportado (${ext}). Permitidos: jpg, jpeg, png, webp`);
-      }
-
-      const fileBuf = fs.readFileSync(resolvedPath);
-      inlineData = {
-        mime_type: mimeType,
-        data: fileBuf.toString('base64')
-      };
-    }
+    const inlineData = this.loadUploadImageInline(imageUrl);
 
     let planInfo = '';
     if (planContext && typeof planContext === 'object') {

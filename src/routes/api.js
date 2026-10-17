@@ -2141,6 +2141,16 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
   }
 });
 
+function getContactAvailable(accountName) {
+  const profile = brandProfileService.getProfile(accountName || '');
+  const contact = profile?.contact || {};
+  return {
+    whatsapp: Boolean(typeof contact.whatsapp === 'string' && contact.whatsapp.trim()),
+    web: Boolean(typeof contact.web === 'string' && contact.web.trim()),
+    direccion: Boolean(typeof contact.direccion === 'string' && contact.direccion.trim())
+  };
+}
+
 router.post('/ai/post-brief', async (req, res) => {
   try {
     const { postId, force = false } = req.body || {};
@@ -2162,8 +2172,10 @@ router.post('/ai/post-brief', async (req, res) => {
       }
     }
 
+    const contactAvailable = getContactAvailable(post.account_name);
+
     if (!force && planContext.brief && typeof planContext.brief === 'object') {
-      return res.json({ success: true, data: { brief: planContext.brief } });
+      return res.json({ success: true, data: { brief: planContext.brief, contactAvailable } });
     }
 
     const campaign = planContext.campaign_id ? campaignService.get(planContext.campaign_id) : null;
@@ -2175,7 +2187,7 @@ router.post('/ai/post-brief', async (req, res) => {
     planContext.brief = brief;
     db.prepare('UPDATE posts SET plan_context = ? WHERE id = ?').run(JSON.stringify(planContext), postId);
 
-    res.json({ success: true, data: { brief } });
+    res.json({ success: true, data: { brief, contactAvailable } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2252,7 +2264,18 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       brief
     });
 
-    const [headlinesRes, sceneRes] = await Promise.allSettled([headlinesPromise, scenePromise]);
+    const artDirectionPromise = aiService.chooseCampinaArtDirection({
+      theme,
+      targetDate,
+      brief,
+      imageUrl: cleanImageUrl
+    });
+
+    const [headlinesRes, sceneRes, artDirectionRes] = await Promise.allSettled([
+      headlinesPromise,
+      scenePromise,
+      artDirectionPromise
+    ]);
     const warnings = [];
 
     let headlines = [];
@@ -2267,6 +2290,26 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       scene = sceneRes.value;
     } else {
       warnings.push(sceneRes.reason?.message || 'Error al generar directiva de escena');
+    }
+
+    let artDirection = null;
+    if (artDirectionRes.status === 'fulfilled' && artDirectionRes.value) {
+      artDirection = artDirectionRes.value;
+    } else {
+      warnings.push(artDirectionRes.reason?.message || 'Error al seleccionar dirección de arte');
+      const visualFallback = aiService.resolveCampinaVisualSelection({ theme, targetDate });
+      artDirection = {
+        typographyStyle: visualFallback.typographyStyle,
+        brandTreatment: visualFallback.brandTreatment,
+        colorPalette: visualFallback.colorPalette,
+        posterReference: visualFallback.posterReference,
+        paletteName: visualFallback.paletteName || '',
+        swatches: visualFallback.swatches || [],
+        styleName: visualFallback.styleName || '',
+        treatmentName: visualFallback.treatmentName || '',
+        fontFamilies: visualFallback.fontFamilies || [],
+        reason: 'Selección automática por reglas (la IA no respondió).'
+      };
     }
 
     let hero = '';
@@ -2289,11 +2332,16 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       theme,
       targetDate,
       heroHeadline: hero,
-      sublineHeadline: subline
+      sublineHeadline: subline,
+      typographyStyle: artDirection?.typographyStyle || 'auto',
+      brandTreatment: artDirection?.brandTreatment || 'auto',
+      colorPalette: artDirection?.colorPalette || 'auto',
+      posterReference: artDirection?.posterReference || 'auto'
     });
 
     const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline });
     const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
+    const contactAvailable = getContactAvailable(post.account_name);
 
     const payload = {
       success: true,
@@ -2304,6 +2352,8 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
         subline,
         keyword,
         scene,
+        artDirection,
+        contactAvailable,
         masterImagePrompt,
         postBlock,
         fullPrompt
@@ -2452,6 +2502,67 @@ router.post('/ai/campina-scene-directive', async (req, res) => {
     if (isClientError) {
       return res.status(400).json({ success: false, error: err.message });
     }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/campina-art-direction', async (req, res) => {
+  try {
+    let { theme = '', targetDate = '', brief = null, imageUrl = '' } = req.body || {};
+    if (typeof theme === 'string' && theme.length > 4000) {
+      return res.status(400).json({ success: false, error: 'theme excede el límite de 4000 caracteres' });
+    }
+    if (typeof targetDate === 'string' && targetDate.length > 4000) {
+      return res.status(400).json({ success: false, error: 'targetDate excede el límite de 4000 caracteres' });
+    }
+    let cleanImageUrl = '';
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim().startsWith('/uploads/')) {
+      cleanImageUrl = imageUrl.trim().slice(0, 4000);
+    }
+    const safeBrief = (brief && typeof brief === 'object' && !Array.isArray(brief)) ? brief : null;
+
+    const data = await aiService.chooseCampinaArtDirection({
+      theme: String(theme || ''),
+      targetDate: String(targetDate || ''),
+      brief: safeBrief,
+      imageUrl: cleanImageUrl
+    });
+
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/ai/campina-art-options', (req, res) => {
+  try {
+    const rawStyles = aiService.getCampinaTypographyStyles();
+    const rawTreatments = aiService.getCampinaBrandTreatments();
+    const rawPalettes = aiService.getCampinaColorPalettes();
+    const rawPosterRefs = aiService.getCampinaPosterReferences();
+
+    const styles = rawStyles.map(s => ({ id: s.id, name: s.name }));
+    const treatments = rawTreatments.map(t => ({ id: t.id, name: t.name }));
+    const palettes = rawPalettes.map(p => {
+      let swatches = p.swatches;
+      if (!Array.isArray(swatches) || swatches.length === 0) {
+        const hexMatches = `${p.primaryColor || ''} ${p.accentColor || ''}`.match(/#[0-9A-Fa-f]{6}/g);
+        swatches = hexMatches || [];
+      }
+      return { id: p.id, name: p.name, swatches };
+    });
+    const posterRefs = rawPosterRefs.map(r => ({ id: r.id, name: r.name }));
+
+    res.json({
+      success: true,
+      data: {
+        styles,
+        treatments,
+        palettes,
+        posterRefs
+      }
+    });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -2999,6 +3110,99 @@ router.post('/media/create-campina-flyer', async (req, res) => {
     }
 
     res.json({ success: true, data: flyerData });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/media/stamp-contact', async (req, res) => {
+  try {
+    const { imageUrl, accountName, fields } = req.body || {};
+
+    if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.trim().startsWith('/uploads/')) {
+      return res.status(400).json({ success: false, error: 'Ruta de imagen inválida: debe comenzar por /uploads/' });
+    }
+
+    const trimmedUrl = imageUrl.trim();
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    const resolvedPath = path.resolve(path.join(__dirname, '../../', trimmedUrl));
+
+    if (!resolvedPath.startsWith(uploadsRoot + path.sep) && resolvedPath !== uploadsRoot) {
+      return res.status(400).json({ success: false, error: 'Ruta no permitida fuera de /uploads/' });
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(400).json({ success: false, error: 'La imagen especificada no existe en disco' });
+    }
+
+    const fileStats = fs.statSync(resolvedPath);
+    if (fileStats.size > 15 * 1024 * 1024) {
+      return res.status(400).json({ success: false, error: 'La imagen excede el tamaño máximo permitido de 15 MB' });
+    }
+
+    const profile = brandProfileService.getProfile(accountName || '');
+    const contact = profile?.contact || {};
+
+    const hasAnyContactData = Boolean(
+      (contact.whatsapp && String(contact.whatsapp).trim()) ||
+      (contact.web && String(contact.web).trim()) ||
+      (contact.direccion && String(contact.direccion).trim())
+    );
+
+    if (!hasAnyContactData) {
+      return res.status(400).json({
+        success: false,
+        error: 'La marca no tiene datos de contacto cargados en la pestaña Marca.'
+      });
+    }
+
+    const includeWhatsapp = fields?.whatsapp !== undefined ? Boolean(fields.whatsapp) : true;
+    const includeWeb = fields?.web !== undefined ? Boolean(fields.web) : true;
+    const includeDireccion = fields?.direccion !== undefined ? Boolean(fields.direccion) : true;
+
+    const contactItems = [];
+
+    if (includeWhatsapp && contact.whatsapp && String(contact.whatsapp).trim()) {
+      contactItems.push(`WhatsApp ${String(contact.whatsapp).trim()}`);
+    }
+
+    if (includeWeb && contact.web && String(contact.web).trim()) {
+      const cleanWeb = String(contact.web).trim()
+        .replace(/^https?:\/\//i, '')
+        .replace(/^www\./i, '')
+        .replace(/\/+$/, '');
+      if (cleanWeb) {
+        contactItems.push(cleanWeb);
+      }
+    }
+
+    if (includeDireccion && contact.direccion && String(contact.direccion).trim()) {
+      contactItems.push(String(contact.direccion).trim());
+    }
+
+    if (contactItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'La marca no tiene datos de contacto cargados en la pestaña Marca.'
+      });
+    }
+
+    const uppercaseItems = contactItems.map(item => item.toLocaleUpperCase('es-CL'));
+    const joinedLine = uppercaseItems.join('  •  ');
+
+    const result = await imageService.stampContactLine({
+      inputImagePath: resolvedPath,
+      lines: [joinedLine]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        url: result.url,
+        filename: result.filename,
+        lines: result.lines
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

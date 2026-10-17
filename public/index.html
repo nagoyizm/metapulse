@@ -636,6 +636,40 @@
                         </div>
                       </div>
 
+                      <!-- Dirección de arte -->
+                      <div class="pip-art-block" style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                          <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);">Dirección de arte</span>
+                          <button type="button" class="btn btn-ghost btn-xs" id="btn-pip-regen-art" style="border: 1px solid var(--border-subtle); font-size: 0.73rem;">Otra dirección de arte</button>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-palette" style="font-size: 0.75rem;">Paleta</label>
+                            <select id="pip-palette" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                              <option value="">Automático (IA)</option>
+                            </select>
+                          </div>
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-style" style="font-size: 0.75rem;">Tipografía</label>
+                            <select id="pip-style" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                              <option value="">Automático (IA)</option>
+                            </select>
+                          </div>
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-treatment" style="font-size: 0.75rem;">Acabado</label>
+                            <select id="pip-treatment" class="form-control form-control-sm" style="font-size: 0.8rem;">
+                              <option value="">Automático (IA)</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                          <div id="pip-swatches" style="display: flex; gap: 4px; align-items: center;"></div>
+                          <span id="pip-palette-name" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);"></span>
+                        </div>
+                        <div id="pip-art-reason" style="font-size: 0.75rem; font-style: italic; color: var(--text-secondary); margin-bottom: 4px;"></div>
+                        <div id="pip-font-families" style="font-size: 0.75rem; color: var(--text-muted);">Fuentes de referencia: --</div>
+                      </div>
+
                       <!-- Escena -->
                       <div class="pip-scene-block" style="margin-bottom: 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -657,6 +691,35 @@
                           <button type="button" class="btn btn-secondary btn-sm" id="btn-pip-copy" style="font-size: 0.8rem;">Copiar prompt completo</button>
                           <button type="button" class="btn btn-primary btn-sm" id="btn-pip-open-gemini" style="font-size: 0.8rem;">Abrir Gemini</button>
                         </div>
+                      </div>
+
+                      <!-- Datos de contacto en la imagen -->
+                      <div class="pip-contact-block" style="margin-bottom: 12px; padding: 10px; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
+                        <div style="margin-bottom: 8px;">
+                          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; margin: 0; color: var(--text-primary);">
+                            <input type="checkbox" id="pip-contact-enable" style="cursor: pointer;">
+                            <span id="txt-pip-contact-enable">Incluir datos de contacto, de forma sutil, abajo</span>
+                          </label>
+                        </div>
+                        <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; padding-left: 22px;">
+                          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; cursor: pointer; margin: 0; color: var(--text-secondary);">
+                            <input type="checkbox" id="pip-contact-whatsapp" checked style="cursor: pointer;">
+                            <span id="txt-pip-contact-whatsapp">WhatsApp</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; cursor: pointer; margin: 0; color: var(--text-secondary);">
+                            <input type="checkbox" id="pip-contact-web" checked style="cursor: pointer;">
+                            <span id="txt-pip-contact-web">Web</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 5px; font-size: 0.75rem; cursor: pointer; margin: 0; color: var(--text-secondary);">
+                            <input type="checkbox" id="pip-contact-direccion" checked style="cursor: pointer;">
+                            <span id="txt-pip-contact-direccion">Ubicación</span>
+                          </label>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+                          <button type="button" class="btn btn-secondary btn-xs" id="btn-pip-stamp-contact" disabled>Estampar en la imagen</button>
+                          <button type="button" class="btn btn-ghost btn-xs" id="btn-pip-unstamp-contact" style="display: none; border: 1px solid var(--border-subtle); color: var(--accent-rose);">Quitar datos de contacto</button>
+                        </div>
+                        <div id="pip-contact-help" style="font-size: 0.72rem; color: var(--text-muted);">Se estampa sobre la imagen final que subas (no sobre el prompt). Es reversible.</div>
                       </div>
 
                       <!-- Música -->
@@ -3733,7 +3796,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.6"></script>
-  <script src="js/composer.js?v=2.8"></script>
+  <script src="js/composer.js?v=2.9"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
   <script src="js/analytics.js?v=2.5"></script>

@@ -823,6 +823,245 @@ class ImageService {
       height
     };
   }
+
+  /**
+   * Estampa una línea sutil de datos de contacto en la parte inferior de una imagen ya generada.
+   * @param {Object} options
+   * @param {string} options.inputImagePath - Ruta relativa (/uploads/...) o absoluta a la imagen
+   * @param {string[]|string} options.lines - Array de líneas o elementos de contacto, o texto ya unido
+   * @param {string} [options.fontPath] - Ruta al archivo de fuente TTF (default: Lato-Regular.ttf)
+   */
+  async stampContactLine({ inputImagePath, lines, fontPath }) {
+    if (!inputImagePath || typeof inputImagePath !== 'string' || !inputImagePath.trim()) {
+      throw new Error('inputImagePath es requerido');
+    }
+
+    let cleanPath = inputImagePath.trim();
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      try {
+        const parsed = new URL(cleanPath);
+        cleanPath = parsed.pathname;
+      } catch (_) {}
+    }
+
+    const uploadsRoot = path.resolve(__dirname, '../../uploads');
+    let resolvedPath;
+    if (path.isAbsolute(cleanPath)) {
+      resolvedPath = path.resolve(cleanPath);
+    } else {
+      if (!cleanPath.startsWith('/uploads/') && !cleanPath.startsWith('uploads/')) {
+        throw new Error('Ruta de imagen inválida: debe comenzar por /uploads/');
+      }
+      resolvedPath = path.resolve(path.join(__dirname, '../../', cleanPath.replace(/^\/+/, '')));
+    }
+
+    if (!resolvedPath.startsWith(uploadsRoot + path.sep) && resolvedPath !== uploadsRoot) {
+      throw new Error('Ruta no permitida fuera de /uploads/');
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error('La imagen especificada no existe en disco');
+    }
+
+    const fileStats = fs.statSync(resolvedPath);
+    if (fileStats.size > 15 * 1024 * 1024) {
+      throw new Error('La imagen excede el tamaño máximo permitido de 15 MB');
+    }
+
+    const resolvedFontPath = fontPath
+      ? path.resolve(fontPath)
+      : path.resolve(__dirname, '../../assets/fonts/Lato-Regular.ttf');
+
+    if (!fs.existsSync(resolvedFontPath)) {
+      throw new Error(`Archivo de fuente no encontrado: ${resolvedFontPath}`);
+    }
+
+    // Leer metadatos de la imagen base con sharp
+    const baseMeta = await sharp(resolvedPath).metadata();
+    const baseWidth = baseMeta.width;
+    const baseHeight = baseMeta.height;
+
+    // Calcular luminosidad media de la franja inferior (12% del alto) con sharp.stats()
+    const stripHeight = Math.max(1, Math.round(baseHeight * 0.12));
+    const stripTop = baseHeight - stripHeight;
+
+    const stripStats = await sharp(resolvedPath)
+      .extract({ left: 0, top: stripTop, width: baseWidth, height: stripHeight })
+      .stats();
+
+    const rMean = stripStats.channels[0]?.mean || 0;
+    const gMean = stripStats.channels[1]?.mean || 0;
+    const bMean = stripStats.channels[2]?.mean || 0;
+    const luminosity = (0.2126 * rMean + 0.7152 * gMean + 0.0722 * bMean) / 255;
+
+    const isDark = luminosity < 0.55;
+    const textColor = isDark ? '#F6EEDF' : '#1F1A17';
+    const veilColor = isDark ? '#000000' : '#FFFFFF';
+
+    // Normalizar elementos de contacto recibidos
+    let items = [];
+    if (Array.isArray(lines)) {
+      items = lines.map(l => String(l).trim()).filter(Boolean);
+      if (items.length === 1 && items[0].includes('•')) {
+        items = items[0].split(/\s*•\s*/).map(s => s.trim()).filter(Boolean);
+      }
+    } else if (typeof lines === 'string' && lines.trim()) {
+      items = lines.split(/\s*•\s*/).map(s => s.trim()).filter(Boolean);
+    }
+
+    if (items.length === 0) {
+      throw new Error('No se proporcionaron líneas de texto de contacto');
+    }
+
+    const escapeXml = (str) => String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const targetLetterHeight = Math.max(10, Math.round(baseHeight * 0.017));
+    const maxTextWidth = Math.round(baseWidth * 0.86);
+
+    // Intento 1: Una sola línea unida por '  •  '
+    const singleLineText = items.join('  •  ');
+    const singleMarkup = `<span foreground="${textColor}" letter_spacing="2200">${escapeXml(singleLineText)}</span>`;
+
+    const singleRawBuffer = await sharp({
+      text: {
+        text: singleMarkup,
+        font: 'Lato',
+        fontfile: resolvedFontPath,
+        rgba: true,
+        dpi: 300,
+        align: 'centre'
+      }
+    }).png().toBuffer();
+
+    const singleMeta = await sharp(singleRawBuffer).metadata();
+    const initialScale = targetLetterHeight / singleMeta.height;
+    const scaledWidth = Math.round(singleMeta.width * initialScale);
+
+    let finalTextBuffer = null;
+    let finalWidth = 0;
+    let finalHeight = 0;
+    let renderedLines = [singleLineText];
+
+    if (scaledWidth <= maxTextWidth) {
+      // Cabe perfectamente en 1 línea a tamaño normal (1.7%)
+      finalWidth = scaledWidth;
+      finalHeight = targetLetterHeight;
+      finalTextBuffer = await sharp(singleRawBuffer)
+        .resize(finalWidth, finalHeight, { kernel: 'lanczos3' })
+        .png()
+        .toBuffer();
+    } else {
+      // Reducir hasta un 70% del tamaño para ver si cabe
+      const minScale = initialScale * 0.70;
+      const minWidth = Math.round(singleMeta.width * minScale);
+
+      if (minWidth <= maxTextWidth) {
+        // Cabe reduciendo el tamaño (entre 70% y 100%)
+        const fitScale = maxTextWidth / singleMeta.width;
+        finalWidth = maxTextWidth;
+        finalHeight = Math.max(1, Math.round(singleMeta.height * fitScale));
+        finalTextBuffer = await sharp(singleRawBuffer)
+          .resize(finalWidth, finalHeight, { kernel: 'lanczos3' })
+          .png()
+          .toBuffer();
+      } else {
+        // No cabe en una línea ni al 70%: dividir en dos líneas por el separador
+        let line1 = '';
+        let line2 = '';
+
+        if (items.length >= 2) {
+          const mid = Math.ceil(items.length / 2);
+          line1 = items.slice(0, mid).join('  •  ');
+          line2 = items.slice(mid).join('  •  ');
+        } else {
+          const words = singleLineText.split(' ');
+          const midW = Math.ceil(words.length / 2);
+          line1 = words.slice(0, midW).join(' ');
+          line2 = words.slice(midW).join(' ');
+        }
+
+        renderedLines = [line1, line2];
+        const twoLinesText = `${escapeXml(line1)}\n${escapeXml(line2)}`;
+        const twoLinesMarkup = `<span foreground="${textColor}" letter_spacing="2200">${twoLinesText}</span>`;
+
+        const twoLinesRawBuffer = await sharp({
+          text: {
+            text: twoLinesMarkup,
+            font: 'Lato',
+            fontfile: resolvedFontPath,
+            rgba: true,
+            dpi: 300,
+            align: 'centre'
+          }
+        }).png().toBuffer();
+
+        const twoMeta = await sharp(twoLinesRawBuffer).metadata();
+        let twoScale = (targetLetterHeight * 2) / twoMeta.height;
+        let twoW = Math.round(twoMeta.width * twoScale);
+
+        if (twoW > maxTextWidth) {
+          twoScale = Math.max(twoScale * 0.70, maxTextWidth / twoMeta.width);
+          twoW = Math.min(maxTextWidth, Math.round(twoMeta.width * twoScale));
+        }
+
+        finalWidth = twoW;
+        finalHeight = Math.max(1, Math.round(twoMeta.height * twoScale));
+        finalTextBuffer = await sharp(twoLinesRawBuffer)
+          .resize(finalWidth, finalHeight, { kernel: 'lanczos3' })
+          .png()
+          .toBuffer();
+      }
+    }
+
+    // Posición del texto: centrado horizontalmente, base a 4.2% del borde inferior
+    const bottomMargin = Math.round(baseHeight * 0.042);
+    const textTop = Math.max(0, baseHeight - bottomMargin - finalHeight);
+    const textLeft = Math.max(0, Math.round((baseWidth - finalWidth) / 2));
+
+    // Velo degradado sutil en la franja inferior (de transparente a 0.35 de opacidad)
+    const veilSvg = `<svg width="${baseWidth}" height="${stripHeight}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bottomVeil" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="${veilColor}" stop-opacity="0"/>
+      <stop offset="100%" stop-color="${veilColor}" stop-opacity="0.35"/>
+    </linearGradient>
+  </defs>
+  <rect width="${baseWidth}" height="${stripHeight}" fill="url(#bottomVeil)"/>
+</svg>`;
+    const veilBuffer = Buffer.from(veilSvg);
+
+    // Filete horizontal de 1px al 40% de opacidad, ancho 14% centrado, 1.6% por encima del texto
+    const dividerWidth = Math.max(10, Math.round(baseWidth * 0.14));
+    const dividerLeft = Math.max(0, Math.round((baseWidth - dividerWidth) / 2));
+    const dividerTop = Math.max(0, Math.round(textTop - (baseHeight * 0.016) - 1));
+
+    const dividerSvg = `<svg width="${dividerWidth}" height="1" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${dividerWidth}" height="1" fill="${textColor}" fill-opacity="0.4"/>
+</svg>`;
+    const dividerBuffer = Buffer.from(dividerSvg);
+
+    // Componer capas manteniendo dimensiones originales exactas
+    const outputFilename = `contact-${Date.now()}.jpg`;
+    const outputPath = path.join(this.uploadsDir, outputFilename);
+
+    await sharp(resolvedPath)
+      .composite([
+        { input: veilBuffer, top: stripTop, left: 0 },
+        { input: dividerBuffer, top: dividerTop, left: dividerLeft },
+        { input: finalTextBuffer, top: textTop, left: textLeft }
+      ])
+      .jpeg({ quality: 92, mozjpeg: true })
+      .toFile(outputPath);
+
+    return {
+      url: `/uploads/${outputFilename}`,
+      filename: outputFilename,
+      lines: renderedLines
+    };
+  }
 }
 
 module.exports = new ImageService();
