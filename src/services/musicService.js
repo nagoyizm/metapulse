@@ -481,10 +481,62 @@ class MusicService {
   }
 
   /**
+   * Búsqueda en API externa de Openverse (música libre CC0 / Dominio Público)
+   */
+  async searchOpenverse({ query = '', limit = 20 }) {
+    const q = (query || '').trim();
+    try {
+      const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 50);
+      const res = await axios.get('https://api.openverse.org/v1/audio/', {
+        params: {
+          q,
+          license: 'cc0,pdm',
+          category: 'music',
+          page_size: pageSize
+        },
+        timeout: 8000
+      });
+
+      const rawResults = res.data?.results || [];
+      const results = rawResults
+        .filter(t => t && t.url && (Number(t.duration) || 0) >= 30000)
+        .map(t => ({
+          id: 'ov_' + t.id,
+          title: t.title || 'Pista de audio',
+          artist: t.creator || 'Dominio público',
+          streamUrl: t.url,
+          durationSec: Math.round((t.duration || 0) / 1000),
+          artworkUrl: t.thumbnail || '',
+          license: 'CC0 / Dominio público',
+          badge: 'Openverse',
+          categoryLabel: 'Openverse (dominio público)',
+          mood: (t.genres || []).join(', ') || 'Libre'
+        }));
+
+      return {
+        source: 'openverse_api',
+        results
+      };
+    } catch (err) {
+      console.warn('[MusicService] Error consultando Openverse API:', err.message);
+      return {
+        source: 'openverse_api',
+        error: err.message,
+        results: []
+      };
+    }
+  }
+
+  /**
    * Búsqueda inteligente multi-proveedor (Audius prioritario para K-Pop, Jamendo y Catálogo Curado)
    */
   async searchAllSources({ query = '', tag = '', limit = 20, provider = 'all' }) {
     const q = (query || '').trim();
+
+    // 0. Si el usuario solicita explícitamente Openverse (dominio público)
+    if (provider === 'openverse') {
+      return await this.searchOpenverse({ query: q, limit });
+    }
 
     // 1. Si el usuario solicita explícitamente Audius o busca temáticas K-Pop / Asia
     const isKpopQuery = q.toLowerCase().includes('kpop') ||

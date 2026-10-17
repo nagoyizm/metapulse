@@ -2141,9 +2141,249 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
   }
 });
 
+router.post('/ai/post-brief', async (req, res) => {
+  try {
+    const { postId, force = false } = req.body || {};
+    if (!postId) {
+      return res.status(400).json({ success: false, error: 'postId es requerido' });
+    }
+
+    const post = db.prepare('SELECT id, title, content, scheduled_at, account_name, plan_context FROM posts WHERE id = ?').get(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post no encontrado' });
+    }
+
+    let planContext = {};
+    if (post.plan_context) {
+      try {
+        planContext = JSON.parse(post.plan_context);
+      } catch (_) {
+        planContext = {};
+      }
+    }
+
+    if (!force && planContext.brief && typeof planContext.brief === 'object') {
+      return res.json({ success: true, data: { brief: planContext.brief } });
+    }
+
+    const campaign = planContext.campaign_id ? campaignService.get(planContext.campaign_id) : null;
+    const brief = await aiService.buildPostBrief({
+      post: { ...post, plan_context: planContext },
+      campaign
+    });
+
+    planContext.brief = brief;
+    db.prepare('UPDATE posts SET plan_context = ? WHERE id = ?').run(JSON.stringify(planContext), postId);
+
+    res.json({ success: true, data: { brief } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/campina-prepare-post', async (req, res) => {
+  try {
+    const { postId, imageUrl, sceneHint, force = false } = req.body || {};
+    if (!postId) {
+      return res.status(400).json({ success: false, error: 'postId es requerido' });
+    }
+
+    if (sceneHint && typeof sceneHint === 'string' && sceneHint.length > 4000) {
+      return res.status(400).json({ success: false, error: 'sceneHint excede el tamaño máximo permitido' });
+    }
+
+    const post = db.prepare('SELECT id, title, content, scheduled_at, account_name, plan_context FROM posts WHERE id = ?').get(postId);
+    if (!post) {
+      return res.status(404).json({ success: false, error: 'Post no encontrado' });
+    }
+
+    let cleanImageUrl = '';
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim().startsWith('/uploads/')) {
+      cleanImageUrl = imageUrl.trim().slice(0, 4000);
+    }
+
+    let planContext = {};
+    if (post.plan_context) {
+      try {
+        planContext = JSON.parse(post.plan_context);
+      } catch (_) {
+        planContext = {};
+      }
+    }
+
+    const campaign = planContext.campaign_id ? campaignService.get(planContext.campaign_id) : null;
+
+    let brief = null;
+    if (!force && planContext.brief && typeof planContext.brief === 'object') {
+      brief = planContext.brief;
+    } else {
+      try {
+        brief = await aiService.buildPostBrief({
+          post: { ...post, plan_context: planContext },
+          campaign
+        });
+        planContext.brief = brief;
+        db.prepare('UPDATE posts SET plan_context = ? WHERE id = ?').run(JSON.stringify(planContext), postId);
+      } catch (briefErr) {
+        return res.status(500).json({ success: false, error: briefErr.message });
+      }
+    }
+
+    const theme = String(brief.temaTrabajado || post.title || 'Descanso en Cabañas La Campiña').slice(0, 4000);
+    const targetDate = String(brief.ocasion || '').slice(0, 4000);
+    const caption = String(post.content || '').slice(0, 4000);
+    const cleanHint = sceneHint ? String(sceneHint).slice(0, 4000) : '';
+
+    const headlinesPromise = aiService.generateCampinaHeadlines({
+      theme,
+      targetDate,
+      caption,
+      planContext,
+      brief
+    });
+
+    const scenePromise = aiService.buildCampinaSceneDirective({
+      theme,
+      targetDate,
+      sceneHint: cleanHint,
+      imageUrl: cleanImageUrl,
+      planContext,
+      caption,
+      brief
+    });
+
+    const [headlinesRes, sceneRes] = await Promise.allSettled([headlinesPromise, scenePromise]);
+    const warnings = [];
+
+    let headlines = [];
+    if (headlinesRes.status === 'fulfilled' && Array.isArray(headlinesRes.value?.options)) {
+      headlines = headlinesRes.value.options;
+    } else {
+      warnings.push(headlinesRes.reason?.message || 'Error al generar titulares');
+    }
+
+    let scene = null;
+    if (sceneRes.status === 'fulfilled' && sceneRes.value) {
+      scene = sceneRes.value;
+    } else {
+      warnings.push(sceneRes.reason?.message || 'Error al generar directiva de escena');
+    }
+
+    let hero = '';
+    let subline = '';
+    let keyword = '';
+
+    if (headlines.length > 0 && headlines[0]?.hero) {
+      const topHeadline = headlines[0];
+      hero = topHeadline.hero;
+      subline = topHeadline.subline || '';
+      keyword = topHeadline.keyword || hero;
+      aiService.recordCampinaRecentHero(hero);
+    } else {
+      hero = 'TU DESCANSO EN LA CAMPIÑA';
+      subline = 'Desconexión natural en Algarrobo';
+      keyword = 'DESCANSO';
+    }
+
+    const masterImagePrompt = aiService.buildCampinaImagePrompt({
+      theme,
+      targetDate,
+      heroHeadline: hero,
+      sublineHeadline: subline
+    });
+
+    const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline });
+    const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
+
+    const payload = {
+      success: true,
+      data: {
+        brief,
+        headlines,
+        hero,
+        subline,
+        keyword,
+        scene,
+        masterImagePrompt,
+        postBlock,
+        fullPrompt
+      }
+    };
+
+    if (warnings.length > 0) {
+      payload.warnings = warnings;
+    }
+
+    res.json(payload);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/ai/campina-compose-prompt', (req, res) => {
+  try {
+    let {
+      theme = '',
+      targetDate = '',
+      hero = '',
+      subline = '',
+      scene = null,
+      typographyStyle = 'auto',
+      brandTreatment = 'auto',
+      colorPalette = 'auto',
+      posterReference = 'auto',
+      respectBackground = true
+    } = req.body || {};
+
+    if (typeof theme === 'string' && theme.length > 4000) {
+      return res.status(400).json({ success: false, error: 'theme excede el límite de 4000 caracteres' });
+    }
+    if (typeof targetDate === 'string' && targetDate.length > 4000) {
+      return res.status(400).json({ success: false, error: 'targetDate excede el límite de 4000 caracteres' });
+    }
+    if (typeof hero === 'string' && hero.length > 4000) {
+      return res.status(400).json({ success: false, error: 'hero excede el límite de 4000 caracteres' });
+    }
+    if (typeof subline === 'string' && subline.length > 4000) {
+      return res.status(400).json({ success: false, error: 'subline excede el límite de 4000 caracteres' });
+    }
+
+    const cleanTheme = (theme || 'Descanso en la naturaleza').trim();
+    const cleanHero = (hero || '').trim().toUpperCase();
+    const cleanSubline = (subline || '').trim();
+
+    const masterImagePrompt = aiService.buildCampinaImagePrompt({
+      theme: cleanTheme,
+      targetDate: (targetDate || '').trim(),
+      heroHeadline: cleanHero,
+      sublineHeadline: cleanSubline,
+      respectBackground: Boolean(respectBackground),
+      typographyStyle,
+      brandTreatment,
+      colorPalette,
+      posterReference
+    });
+
+    const sceneObj = (scene && typeof scene === 'string') ? { sceneDirective: scene } : (scene || null);
+    const postBlock = aiService.buildCampinaPostBlock({ scene: sceneObj, hero: cleanHero, subline: cleanSubline });
+    const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
+
+    res.json({
+      success: true,
+      data: {
+        masterImagePrompt,
+        postBlock,
+        fullPrompt
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/campina-headlines', async (req, res) => {
   try {
-    let { theme, targetDate = '', caption = '', planContext = null } = req.body || {};
+    let { theme, targetDate = '', caption = '', planContext = null, brief = null } = req.body || {};
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
@@ -2153,12 +2393,14 @@ router.post('/ai/campina-headlines', async (req, res) => {
     if (caption) caption = String(caption).slice(0, 2000);
 
     const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
+    const safeBrief = (brief && typeof brief === 'object' && !Array.isArray(brief)) ? brief : null;
 
     const data = await aiService.generateCampinaHeadlines({
       theme,
       targetDate,
       caption,
-      planContext: safePlanContext
+      planContext: safePlanContext,
+      brief: safeBrief
     });
 
     res.json({ success: true, data });
@@ -2172,7 +2414,7 @@ router.post('/ai/campina-headlines', async (req, res) => {
 
 router.post('/ai/campina-scene-directive', async (req, res) => {
   try {
-    let { theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '' } = req.body || {};
+    let { theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '', brief = null } = req.body || {};
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
@@ -2183,6 +2425,7 @@ router.post('/ai/campina-scene-directive', async (req, res) => {
     if (caption) caption = String(caption).slice(0, 2000);
 
     const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
+    const safeBrief = (brief && typeof brief === 'object' && !Array.isArray(brief)) ? brief : null;
 
     const data = await aiService.buildCampinaSceneDirective({
       theme,
@@ -2190,7 +2433,8 @@ router.post('/ai/campina-scene-directive', async (req, res) => {
       sceneHint,
       imageUrl,
       planContext: safePlanContext,
-      caption
+      caption,
+      brief: safeBrief
     });
 
     res.json({ success: true, data });

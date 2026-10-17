@@ -1,0 +1,143 @@
+  /**
+   * Genera el Prompt Maestro para Gemini: Diseñador Senior Publicitario 4:5 sobre Imagen de Fondo Real
+   * CERO AI-SLOP: Mantiene la foto real intacta, limita el texto gráfico a Hero + Subline y aplica dirección de arte tipográfica de autor
+   */
+  buildCampinaImagePrompt({
+    theme,
+    targetDate = '',
+    extraNotes = '',
+    heroHeadline = '',
+    sublineHeadline = '',
+    respectBackground = true,
+    extraElements = '',
+    typographyStyle = 'auto',
+    brandTreatment = 'auto',
+    colorPalette = 'auto',
+    posterReference = 'auto',
+    aiAnalysis = null
+  }) {
+    const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
+    const hero = (heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero).toUpperCase().trim();
+    const subline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
+
+    // Extraer la palabra clave REAL del titular actual (evita discrepancias con el tema)
+    let keyword = aiAnalysis?.keyword || hierarchy.keyword;
+    if (heroHeadline && heroHeadline.trim()) {
+      const cleanWords = heroHeadline.trim().replace(/[^\w\s\dáéíóúÁÉÍÓÚñÑ]/g, '').split(/\s+/).filter(Boolean);
+      const numWord = cleanWords.find(w => /\d+/.test(w));
+      if (numWord) {
+        keyword = numWord;
+      } else {
+        const sorted = [...cleanWords].sort((a, b) => b.length - a.length);
+        keyword = sorted[0] || hero;
+      }
+    }
+
+    const stylesCatalog = this.getCampinaTypographyStyles();
+    const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
+      ? hierarchy.detectedStyle
+      : typographyStyle;
+    const matchedStyle = stylesCatalog.find(s => s.id === activeStyleKey) || stylesCatalog[1];
+
+    // Paleta de Color Autónoma (Cero dorados forzados)
+    const palettesCatalog = this.getCampinaColorPalettes();
+    const activePaletteKey = (!colorPalette || colorPalette === 'auto')
+      ? this.detectCampinaColorPalette(theme, targetDate)
+      : colorPalette;
+    const matchedPalette = palettesCatalog.find(p => p.id === activePaletteKey) || palettesCatalog[1];
+
+    const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
+
+    const treatmentsCatalog = this.getCampinaBrandTreatments();
+    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+      ? 'brush_stroke'
+      : (activeStyleKey === 'kinfolk_luxury'
+          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
+          : 'editorial_lockup');
+    const activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
+      ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
+      : brandTreatment;
+    const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
+
+    // Referencia Gráfica de Afiche Comercial
+    const posterRefsCatalog = this.getCampinaPosterReferences();
+    const activePosterRefKey = (!posterReference || posterReference === 'auto')
+      ? this.detectCampinaPosterReference(theme, targetDate)
+      : posterReference;
+    const matchedPosterRef = posterRefsCatalog.find(r => r.id === activePosterRefKey) || posterRefsCatalog[1];
+
+    const backgroundDirective = respectBackground
+      ? `1. REGLA ESTRICTA DE CONSERVACIÓN FOTOGRÁFICA (100% FIDELIDAD):
+- CONSERVA LA FOTOGRAFÍA ADJUNTA INTACTA: La imagen adjunta muestra las instalaciones reales del recinto (cabaña de madera rústica, quincho, terraza o vegetación nativa de Algarrobo).
+- PROHIBIDO redibujar la arquitectura, cambiar las maderas, inventar muebles, agregar cabañas ficticias o alterar la vegetación. Mantén el fondo fotográfico 100% real sin alucinaciones de IA.
+- Solo aplica etalonaje cinematográfico cálido y natural ("golden hour" sutil o luz matinal diáfana), mejorando nitidez orgánica y profundidad sin modificar la escena.`
+      : `1. BASE ESCÉNICA REAL CON ELEMENTOS AUTORIZADOS:
+- Toma la fotografía adjunta como base escénica del lugar.
+- Si incorporas elementos adicionales, únicamente agrega: "${extraElements || 'humo suave de asado a las brasas o iluminación cálida de atardecer'}". CERO modificaciones al resto de la arquitectura ni a la vegetación.`;
+
+    const posterRefSection = aiAnalysis?.posterReference
+      ? `- INSPIRACIÓN DE AFICHE: ${aiAnalysis.posterReference} (${aiAnalysis.posterReferenceDetails || ''})`
+      : `- INSPIRACIÓN DE AFICHE: ${matchedPosterRef.name}
+  ${matchedPosterRef.details || matchedPosterRef.movement || ''}
+  Mood: ${matchedPosterRef.mood || ''}`;
+
+    const colorPaletteSection = aiAnalysis?.colorPaletteName
+      ? `- PALETA CROMÁTICA PUBLICITARIA: ${aiAnalysis.colorPaletteName}
+  * Color principal del titular: ${aiAnalysis.primaryTextColor}
+  * Colores de trazos y acentos gráficos: ${aiAnalysis.accentColor}
+  * Restricción estricta de color: ${aiAnalysis.forbiddenColors}`
+      : `- PALETA CROMÁTICA PUBLICITARIA: ${matchedPalette.name}
+  * Color principal del titular: ${matchedPalette.primaryColor}
+  * Colores de trazos y acentos gráficos: ${matchedPalette.accentColor}
+  * Restricción estricta de color: ${matchedPalette.forbiddenColors}
+  ${matchedPalette.artDirection || ''}`;
+
+    return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
+
+OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) para Instagram de "Cabañas La Campiña" (Algarrobo, Chile), utilizando la fotografía adjunta.
+
+${backgroundDirective}
+- PROHIBIDO TERMINANTEMENTE: inventar tinajas de agua caliente, hot tubs o piscinas falsas (no existen en el recinto).
+
+2. REFERENCIA GRÁFICA DE AFICHE COMERCIAL (INSPIRACIÓN DE MARCA):
+${posterRefSection}
+
+3. DIRECCIÓN CROMÁTICA PUBLICITARIA OBLIGATORIA (CERO DORADOS O COLORES FUERA DE CONTEXTO):
+${colorPaletteSection}
+
+4. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
+- REGLA DE ORO DE BRANDING (COMO DISEÑAN LAS GRANDES MARCAS SUS ESLÓGANS):
+  PROHIBIDO poner texto plano, aburrido, monocromático o letras simples pegadas que parezcan de Word.
+  Debes diseñar el titular exactamente como lo hacen las grandes agencias con los eslogans de marcas icónicas: UN LOCKUP / EMBLEMA PUBLICITARIO con personalidad, dinamismo y acabado artesanal de alta gama:
+
+  a) CONTRASTE TIPOGRÁFICO INTERNO (DUAL-WEIGHT & COMPOSICIÓN DE MARCA):
+     Dentro del titular "${hero}", NO uses todas las letras iguales.
+     - La palabra/cifra clave "${keyword.toUpperCase()}" debe ser la estrella visual indiscutible: mayor tamaño, grosor contundente o caligrafía de autor expresiva utilizando los tonos de acento de la paleta.
+     - Las palabras complementarias deben equilibrar la composición con menor peso, estilo sans-serif refinado o serif clásica con amplio espaciado (letter-spacing abierto) en el color principal del titular.
+
+  b) TRATAMIENTO DE MARCA & TRAZOS DINÁMICOS ("${matchedTreatment.name}"):
+     ${matchedTreatment.artDirection}
+     - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) utilizando los tonos de acento seleccionados para darle movimiento y factura artística.
+
+  c) TEXTURA, VOLUMEN Y PROFUNDIDAD INTEGRADA:
+     El texto debe tener textura material auténtica (microrrelieve con bisel cálido, tacto de imprenta serigráfica artesanal o tinte orgánico). Debe sentirse material y tridimensional, con sombra de contacto suave ("ambient occlusion shadow") sobre la madera y el fondo.
+
+  d) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
+     ${matchedStyle.description}
+     CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
+
+5. JERARQUÍA DE CONTENIDO:
+- TITULAR HERO (Rótulo publicitario dominante):
+  "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
+
+- SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
+  "${subline}"
+  Tipografía: Sans-serif limpia, ligera y con amplio espaciado entre letras (letter-spacing elegante).
+
+- IDENTIDAD DISCRETA:
+  En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
+
+- CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
+
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
+  }

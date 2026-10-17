@@ -575,6 +575,99 @@
                     </div>
                   </div>
 
+                  <!-- Tarjeta Imagen del post (La Campiña - Preparado por IA) -->
+                  <div class="card composer-post-image-panel" id="composer-post-image-panel" style="display: none; margin-top: 14px; border: 1px solid rgba(16, 185, 129, 0.28); background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, rgba(99, 102, 241, 0.03) 100%);">
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle);">
+                      <div>
+                        <h4 style="margin: 0; font-size: 0.95rem; color: var(--text-primary); font-weight: 700;">
+                          Imagen del post
+                        </h4>
+                        <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--text-secondary);">
+                          Preparado por IA. Revisa y ajusta antes de generar en Gemini.
+                        </p>
+                      </div>
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary btn-xs" id="btn-pip-regen-brief">Rehacer análisis</button>
+                        <button type="button" class="btn btn-primary btn-xs" id="btn-pip-prepare">Preparar post</button>
+                      </div>
+                    </div>
+                    <div class="card-body" style="padding: 12px 14px;">
+                      <div id="pip-loading" class="d-none" style="display: none; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--primary); padding: 8px 0;">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                        <span>Preparando post con IA...</span>
+                      </div>
+                      <div id="pip-error" class="d-none" style="display: none; font-size: 0.8rem; color: var(--accent-rose); background: rgba(239, 68, 68, 0.08); padding: 6px 10px; border-radius: var(--radius-xs); margin-bottom: 8px;"></div>
+
+                      <!-- Bloque brief -->
+                      <div class="pip-brief-block" style="margin-bottom: 12px; padding: 10px; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-tema" style="font-size: 0.75rem;">Tema o enfoque</label>
+                            <input type="text" id="pip-tema" class="form-control form-control-sm" style="font-size: 0.8rem;" placeholder="Tema o enfoque del post">
+                          </div>
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-ocasion" style="font-size: 0.75rem;">Ocasión</label>
+                            <input type="text" id="pip-ocasion" class="form-control form-control-sm" style="font-size: 0.8rem;" placeholder="Ocasión del post">
+                          </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                          <label class="form-label" for="pip-publico" style="font-size: 0.75rem;">Público</label>
+                          <input type="text" id="pip-publico" class="form-control form-control-sm" style="font-size: 0.8rem;" readonly placeholder="Público objetivo">
+                        </div>
+                        <p id="pip-foto-hint" style="margin: 0; font-size: 0.78rem; font-weight: 600; color: var(--primary); background: rgba(99, 102, 241, 0.08); padding: 6px 10px; border-radius: 4px; border-left: 3px solid var(--primary);">Foto a subir: --</p>
+                      </div>
+
+                      <!-- Titulares -->
+                      <div class="pip-headlines-block" style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                          <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);">Titulares sugeridos para el afiche</span>
+                          <button type="button" class="btn btn-ghost btn-xs" id="btn-pip-more-headlines" style="border: 1px solid var(--border-subtle); font-size: 0.73rem;">Otras ideas de titular</button>
+                        </div>
+                        <div id="pip-headline-pills" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;"></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-hero" style="font-size: 0.75rem;">Titular principal</label>
+                            <input type="text" id="pip-hero" class="form-control form-control-sm" style="font-size: 0.8rem;" placeholder="Titular principal">
+                          </div>
+                          <div class="form-group" style="margin-bottom: 0;">
+                            <label class="form-label" for="pip-subline" style="font-size: 0.75rem;">Subtítulo</label>
+                            <input type="text" id="pip-subline" class="form-control form-control-sm" style="font-size: 0.8rem;" placeholder="Subtítulo o bajada">
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Escena -->
+                      <div class="pip-scene-block" style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <label class="form-label" for="pip-scene-prompt" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin: 0;">Indicaciones de escena (Personas y espacio)</label>
+                          <span id="pip-scene-meta" class="badge badge-accent" style="font-size: 0.72rem; display: none;"></span>
+                        </div>
+                        <textarea id="pip-scene-prompt" class="form-control" rows="5" style="font-size: 0.8rem; resize: vertical; margin-bottom: 6px;" placeholder="Indicaciones de personas habitando el espacio..."></textarea>
+                        <details id="pip-reasoning" style="font-size: 0.76rem; color: var(--text-secondary); background: var(--bg-surface-subtle); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-subtle);">
+                          <summary style="cursor: pointer; font-weight: 600;">Ver razonamiento</summary>
+                          <ul id="pip-reasoning-list" style="margin: 6px 0 0 16px; padding: 0;"></ul>
+                        </details>
+                      </div>
+
+                      <!-- Prompt final -->
+                      <div class="pip-prompt-block" style="margin-bottom: 12px;">
+                        <label class="form-label" for="pip-full-prompt" style="font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Prompt final para Gemini (Maestro + Bloque del post)</label>
+                        <textarea id="pip-full-prompt" class="form-control" rows="8" style="font-family: monospace; font-size: 0.78rem; background: var(--bg-surface-subtle); resize: vertical; margin-bottom: 8px;" placeholder="Prompt completo listo para Gemini..."></textarea>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <button type="button" class="btn btn-secondary btn-sm" id="btn-pip-copy" style="font-size: 0.8rem;">Copiar prompt completo</button>
+                          <button type="button" class="btn btn-primary btn-sm" id="btn-pip-open-gemini" style="font-size: 0.8rem;">Abrir Gemini</button>
+                        </div>
+                      </div>
+
+                      <!-- Música -->
+                      <div id="pip-music-block" style="padding: 10px 12px; background: rgba(236, 72, 153, 0.05); border: 1px solid rgba(236, 72, 153, 0.25); border-radius: var(--radius-xs);">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">Música sugerida</div>
+                        <div id="pip-music-mood" style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 6px;"></div>
+                        <div id="pip-music-chips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Cross-Share to Story Option (Directly under Media Upload) -->
                   <div class="form-group story-cross-share-section" id="story-cross-share-section" style="background: linear-gradient(135deg, rgba(236,72,153,0.08) 0%, rgba(168,85,247,0.08) 100%); border: 1.5px solid rgba(236,72,153,0.35); border-radius: var(--radius-xs); padding: 14px; margin-top: 14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -3640,7 +3733,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.6"></script>
-  <script src="js/composer.js?v=2.6"></script>
+  <script src="js/composer.js?v=2.7"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.7"></script>
   <script src="js/analytics.js?v=2.5"></script>

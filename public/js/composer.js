@@ -475,6 +475,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateGeminiCardVisibility() {
     const card = document.getElementById('composer-gemini-prompt-card');
     if (!card) return;
+    const pipPanel = document.getElementById('composer-post-image-panel');
+    if (pipPanel && pipPanel.style.display !== 'none') {
+      card.style.display = 'none';
+      return;
+    }
     if (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) {
       card.style.display = 'none';
     } else {
@@ -1138,9 +1143,53 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
+  // LIMPIEZA DEL PANEL "IMAGEN DEL POST" (LA CAMPIÑA)
+  // =========================================================================
+  function clearPipPanel() {
+    setInputValue('pip-tema', '');
+    setInputValue('pip-ocasion', '');
+    setInputValue('pip-publico', '');
+    setElementText('pip-foto-hint', 'Foto a subir: --');
+    setInputValue('pip-hero', '');
+    setInputValue('pip-subline', '');
+    setElementHtml('pip-headline-pills', '');
+    setInputValue('pip-scene-prompt', '');
+    setElementHtml('pip-reasoning-list', '');
+    const reasoningDetails = document.getElementById('pip-reasoning');
+    if (reasoningDetails) reasoningDetails.open = false;
+    const metaEl = document.getElementById('pip-scene-meta');
+    if (metaEl) {
+      metaEl.textContent = '';
+      metaEl.style.display = 'none';
+    }
+    setInputValue('pip-full-prompt', '');
+    const musicBlock = document.getElementById('pip-music-block');
+    if (musicBlock) {
+      // Contenedor de música sugerida
+    }
+    setElementText('pip-music-mood', '');
+    setElementHtml('pip-music-chips', '');
+    setElementDisplay('pip-loading', 'none');
+    const errEl = document.getElementById('pip-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('d-none');
+      errEl.style.display = 'none';
+    }
+    window._postBrief = null;
+    window._pipFullPromptEditedManually = false;
+  }
+
+  function hidePipPanel() {
+    setElementDisplay('composer-post-image-panel', 'none');
+    clearPipPanel();
+  }
+
+  // =========================================================================
   // REINICIO INTEGRAL DEL PROCESO: COMPOSER + ASISTENTE IA COPY
   // =========================================================================
   function resetAiModalState() {
+    hidePipPanel();
     setInputValue('ai-topic', '');
     setInputValue('ai-tone', 'engaging');
     setInputValue('ai-goal', 'engagement');
@@ -1352,6 +1401,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetComposerMusicState();
     resetComposerScheduleState();
     resetComposerFlyerModals();
+    hidePipPanel();
 
     window._editingScheduledPostId = null;
     window._editingPostOriginalStatus = null;
@@ -3784,9 +3834,448 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // =========================================================================
+  // PANEL "IMAGEN DEL POST" (LA CAMPIÑA) — BRIEF IA + TITULARES + ESCENA + PROMPT MAESTRO
+  // =========================================================================
+  function renderPipBrief(brief) {
+    if (!brief) return;
+    setInputValue('pip-tema', brief.temaTrabajado || '');
+    setInputValue('pip-ocasion', brief.ocasion || '');
+    setInputValue('pip-publico', brief.publico || '');
+
+    const fotoHintEl = document.getElementById('pip-foto-hint');
+    if (fotoHintEl) {
+      fotoHintEl.textContent = brief.fotoSugerida
+        ? `Foto a subir: ${brief.fotoSugerida}`
+        : 'Foto a subir: Foto real de cabaña, quincho o entorno';
+    }
+
+    const musicBlock = document.getElementById('pip-music-block');
+    if (musicBlock) {
+      // Bloque de música sugerida
+    }
+
+    const musicMoodEl = document.getElementById('pip-music-mood');
+    if (musicMoodEl) {
+      musicMoodEl.textContent = brief.musicMood ? `Mood: ${brief.musicMood}` : '';
+    }
+
+    const musicChipsEl = document.getElementById('pip-music-chips');
+    if (musicChipsEl) {
+      musicChipsEl.innerHTML = '';
+      const keywords = Array.isArray(brief.musicKeywords) ? brief.musicKeywords : [];
+      keywords.forEach(kw => {
+        if (!kw || !kw.trim()) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-ghost btn-xs';
+        btn.style.cssText = 'border:1px solid rgba(236,72,153,0.4); font-size:0.75rem; color:#ec4899; padding:3px 8px; border-radius:12px; cursor:pointer;';
+        btn.textContent = kw.trim();
+        btn.addEventListener('click', () => {
+          const musicSection = document.getElementById('story-music-section');
+          if (musicSection) {
+            const chkMusic = document.getElementById('chk-story-music-enabled');
+            if (chkMusic && !chkMusic.checked) {
+              chkMusic.checked = true;
+              chkMusic.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            const musicSearch = document.getElementById('music-search-input');
+            if (musicSearch) {
+              musicSearch.value = kw.trim();
+              musicSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            const jamendoSearch = document.getElementById('jamendo-search-input');
+            if (jamendoSearch) {
+              jamendoSearch.value = kw.trim();
+              jamendoSearch.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            }
+            musicSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+        musicChipsEl.appendChild(btn);
+      });
+    }
+  }
+
+  function renderPipHeadlinePills(headlines) {
+    const container = document.getElementById('pip-headline-pills');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!Array.isArray(headlines) || headlines.length === 0) return;
+
+    headlines.forEach(hl => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'btn btn-ghost btn-xs';
+      item.style.cssText = 'border:1px solid var(--border-subtle); font-size:0.75rem; padding:4px 8px; text-align:left; white-space:normal; border-radius:4px; display:inline-flex; flex-direction:column; gap:2px; background:var(--bg-surface-subtle); cursor:pointer;';
+
+      const kwText = hl.keyword ? `<span style="font-size:0.68rem; color:var(--primary); font-weight:700;">${escapeHtml(hl.keyword)}</span>` : '';
+      const heroText = `<strong style="color:var(--text-primary); font-size:0.78rem;">${escapeHtml(hl.hero || '')}</strong>`;
+      const subText = hl.subline ? `<span style="color:var(--text-secondary); font-size:0.72rem;">${escapeHtml(hl.subline)}</span>` : '';
+
+      item.innerHTML = `${kwText}${heroText}${subText}`;
+
+      item.addEventListener('click', () => {
+        setInputValue('pip-hero', hl.hero || '');
+        setInputValue('pip-subline', hl.subline || '');
+        callPipComposePrompt();
+      });
+
+      container.appendChild(item);
+    });
+  }
+
+  async function callPipComposePrompt() {
+    const theme = document.getElementById('pip-tema')?.value.trim() || document.getElementById('campina-theme')?.value.trim() || '';
+    const targetDate = document.getElementById('pip-ocasion')?.value.trim() || document.getElementById('campina-date')?.value.trim() || '';
+    const hero = document.getElementById('pip-hero')?.value.trim() || '';
+    const subline = document.getElementById('pip-subline')?.value.trim() || '';
+    const sceneDirective = document.getElementById('pip-scene-prompt')?.value.trim() || '';
+    const typographyStyle = document.getElementById('campina-typography-style')?.value || 'auto';
+    const brandTreatment = document.getElementById('campina-brand-treatment')?.value || 'auto';
+    const colorPalette = document.getElementById('campina-color-palette')?.value || 'auto';
+    const posterReference = document.getElementById('campina-poster-reference')?.value || 'auto';
+
+    try {
+      const res = await fetch('/api/ai/campina-compose-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate,
+          hero,
+          subline,
+          scene: { sceneDirective },
+          typographyStyle,
+          brandTreatment,
+          colorPalette,
+          posterReference
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        if (!window._pipFullPromptEditedManually) {
+          setInputValue('pip-full-prompt', json.data.fullPrompt || '');
+        }
+      }
+    } catch (err) {
+      console.warn('[Composer] Error componiendo prompt Campiña:', err);
+    }
+  }
+
+  let pipComposeDebounceTimer = null;
+  function triggerPipComposeDebounced() {
+    clearTimeout(pipComposeDebounceTimer);
+    pipComposeDebounceTimer = setTimeout(() => {
+      callPipComposePrompt();
+    }, 500);
+  }
+
+  async function handlePipPreparePost() {
+    if (!window._editingScheduledPostId) {
+      showToast('Selecciona o abre un borrador primero para preparar el post', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btn-pip-prepare');
+    const loading = document.getElementById('pip-loading');
+    const errorEl = document.getElementById('pip-error');
+
+    const firstMedia = (ComposerState.mediaFiles && ComposerState.mediaFiles.length > 0) ? ComposerState.mediaFiles[0] : '';
+    const imageUrl = (typeof firstMedia === 'string' && firstMedia.startsWith('/uploads/')) ? firstMedia : undefined;
+
+    const origText = btn ? btn.textContent : 'Preparar post';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Preparando...';
+    }
+    if (loading) {
+      loading.classList.remove('d-none');
+      loading.style.display = 'flex';
+    }
+    if (errorEl) {
+      errorEl.classList.add('d-none');
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+
+    window._pipFullPromptEditedManually = false;
+
+    try {
+      const payload = {
+        postId: window._editingScheduledPostId,
+        sceneHint: ''
+      };
+      if (imageUrl) payload.imageUrl = imageUrl;
+
+      const res = await fetch('/api/ai/campina-prepare-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if (!res.ok && !json.data) {
+        throw new Error(json.error || `Error del servidor (${res.status})`);
+      }
+
+      if (json.success && json.data) {
+        const d = json.data;
+        if (d.brief) {
+          window._postBrief = d.brief;
+          renderPipBrief(d.brief);
+          const campinaThemeEl = document.getElementById('campina-theme');
+          if (campinaThemeEl && d.brief.temaTrabajado) campinaThemeEl.value = d.brief.temaTrabajado;
+          const campinaDateEl = document.getElementById('campina-date');
+          if (campinaDateEl && d.brief.ocasion) campinaDateEl.value = d.brief.ocasion;
+          if (window._draftPlanContext) window._draftPlanContext.brief = d.brief;
+        }
+
+        setInputValue('pip-hero', d.hero || '');
+        setInputValue('pip-subline', d.subline || '');
+        renderPipHeadlinePills(d.headlines || []);
+
+        if (d.scene) {
+          setInputValue('pip-scene-prompt', d.scene.sceneDirective || '');
+          const reasoningList = document.getElementById('pip-reasoning-list');
+          if (reasoningList && Array.isArray(d.scene.reasoning)) {
+            reasoningList.innerHTML = '';
+            d.scene.reasoning.forEach(r => {
+              const li = document.createElement('li');
+              li.textContent = r;
+              reasoningList.appendChild(li);
+            });
+          }
+          const sceneMeta = document.getElementById('pip-scene-meta');
+          if (sceneMeta) {
+            if (d.scene.spaceType || d.scene.audienceFocus) {
+              sceneMeta.textContent = `Espacio: ${d.scene.spaceType || ''} · Enfoque: ${d.scene.audienceFocus || ''}`;
+              sceneMeta.style.display = 'inline-block';
+            } else {
+              sceneMeta.textContent = '';
+              sceneMeta.style.display = 'none';
+            }
+          }
+        }
+
+        setInputValue('pip-full-prompt', d.fullPrompt || '');
+        window._pipFullPromptEditedManually = false;
+
+        const warnings = d.warnings || json.warnings;
+        if (warnings && warnings.length > 0 && errorEl) {
+          const warnText = Array.isArray(warnings) ? warnings.join(' · ') : String(warnings);
+          errorEl.textContent = `Avisos: ${warnText}`;
+          errorEl.classList.remove('d-none');
+          errorEl.style.display = 'block';
+        }
+
+        showToast('Post preparado con éxito por IA', 'success');
+      } else {
+        throw new Error(json.error || 'No se pudieron obtener datos del post');
+      }
+    } catch (err) {
+      console.warn('[Composer] Error preparando post Campiña:', err);
+      if (errorEl) {
+        errorEl.textContent = err.message || 'Error al preparar el post';
+        errorEl.classList.remove('d-none');
+        errorEl.style.display = 'block';
+      }
+      showToast('Error preparando post: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+      if (loading) {
+        loading.classList.add('d-none');
+        loading.style.display = 'none';
+      }
+    }
+  }
+
+  async function handlePipRegenBrief() {
+    if (!window._editingScheduledPostId) {
+      showToast('Selecciona o abre un borrador primero', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btn-pip-regen-brief');
+    const loading = document.getElementById('pip-loading');
+    const errorEl = document.getElementById('pip-error');
+
+    const origText = btn ? btn.textContent : 'Rehacer análisis';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Analizando...';
+    }
+    if (loading) {
+      loading.classList.remove('d-none');
+      loading.style.display = 'flex';
+    }
+    if (errorEl) {
+      errorEl.classList.add('d-none');
+      errorEl.style.display = 'none';
+      errorEl.textContent = '';
+    }
+
+    try {
+      const res = await fetch('/api/ai/post-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: window._editingScheduledPostId,
+          force: true
+        })
+      });
+      const json = await res.json();
+
+      if (json.success && json.data?.brief) {
+        window._postBrief = json.data.brief;
+        renderPipBrief(json.data.brief);
+        const campinaThemeEl = document.getElementById('campina-theme');
+        if (campinaThemeEl && json.data.brief.temaTrabajado) campinaThemeEl.value = json.data.brief.temaTrabajado;
+        const campinaDateEl = document.getElementById('campina-date');
+        if (campinaDateEl && json.data.brief.ocasion) campinaDateEl.value = json.data.brief.ocasion;
+        if (window._draftPlanContext) window._draftPlanContext.brief = json.data.brief;
+        showToast('Análisis de brief rehecho exitosamente', 'success');
+      } else {
+        throw new Error(json.error || 'Error al rehacer análisis');
+      }
+    } catch (err) {
+      if (errorEl) {
+        errorEl.textContent = err.message || 'Error al rehacer análisis';
+        errorEl.classList.remove('d-none');
+        errorEl.style.display = 'block';
+      }
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+      if (loading) {
+        loading.classList.add('d-none');
+        loading.style.display = 'none';
+      }
+    }
+  }
+
+  async function handlePipMoreHeadlines() {
+    const btn = document.getElementById('btn-pip-more-headlines');
+    const theme = document.getElementById('pip-tema')?.value.trim() || document.getElementById('campina-theme')?.value.trim() || '';
+    const targetDate = document.getElementById('pip-ocasion')?.value.trim() || document.getElementById('campina-date')?.value.trim() || '';
+    const caption = document.getElementById('post-content')?.value.trim() || '';
+
+    const origText = btn ? btn.textContent : 'Otras ideas de titular';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Buscando ideas...';
+    }
+
+    try {
+      const res = await fetch('/api/ai/campina-headlines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate,
+          caption,
+          planContext: window._draftPlanContext || null,
+          brief: window._postBrief || null
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const headlines = json.data.headlines || json.data.options || (Array.isArray(json.data) ? json.data : []);
+        renderPipHeadlinePills(headlines);
+        showToast('Nuevas ideas de titular generadas', 'success');
+      } else {
+        showToast('Error generando titulares: ' + (json.error || 'Desconocido'), 'error');
+      }
+    } catch (err) {
+      showToast('Error de conexión: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+  }
+
+  async function handlePipCopyPrompt() {
+    const promptVal = document.getElementById('pip-full-prompt')?.value || '';
+    if (!promptVal.trim()) {
+      showToast('No hay prompt para copiar', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(promptVal);
+      showToast('Prompt completo copiado. Pégalo en Gemini con tu foto', 'success');
+    } catch (err) {
+      const promptEl = document.getElementById('pip-full-prompt');
+      if (promptEl) {
+        promptEl.select();
+        document.execCommand('copy');
+        showToast('Prompt completo copiado. Pégalo en Gemini con tu foto', 'success');
+      }
+    }
+  }
+
+  async function handlePipOpenGemini() {
+    const promptVal = document.getElementById('pip-full-prompt')?.value || '';
+    if (promptVal.trim()) {
+      try {
+        await navigator.clipboard.writeText(promptVal);
+        showToast('Prompt completo copiado. Pégalo en Gemini con tu foto', 'success');
+      } catch (_) {}
+    }
+    window.open('https://gemini.google.com', '_blank', 'noopener');
+  }
+
+  function bindPipPanelControls() {
+    const btnPrepare = document.getElementById('btn-pip-prepare');
+    if (btnPrepare) btnPrepare.addEventListener('click', handlePipPreparePost);
+
+    const btnRegenBrief = document.getElementById('btn-pip-regen-brief');
+    if (btnRegenBrief) btnRegenBrief.addEventListener('click', handlePipRegenBrief);
+
+    const btnMoreHl = document.getElementById('btn-pip-more-headlines');
+    if (btnMoreHl) btnMoreHl.addEventListener('click', handlePipMoreHeadlines);
+
+    const btnCopy = document.getElementById('btn-pip-copy');
+    if (btnCopy) btnCopy.addEventListener('click', handlePipCopyPrompt);
+
+    const btnOpenGemini = document.getElementById('btn-pip-open-gemini');
+    if (btnOpenGemini) btnOpenGemini.addEventListener('click', handlePipOpenGemini);
+
+    const heroInput = document.getElementById('pip-hero');
+    if (heroInput) heroInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const sublineInput = document.getElementById('pip-subline');
+    if (sublineInput) sublineInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const sceneInput = document.getElementById('pip-scene-prompt');
+    if (sceneInput) sceneInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const temaInput = document.getElementById('pip-tema');
+    if (temaInput) temaInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const ocasionInput = document.getElementById('pip-ocasion');
+    if (ocasionInput) ocasionInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const fullPromptInput = document.getElementById('pip-full-prompt');
+    if (fullPromptInput) {
+      fullPromptInput.addEventListener('input', () => {
+        window._pipFullPromptEditedManually = true;
+      });
+    }
+  }
+
   // Cargar una publicación existente directamente en el Redactor
   window.loadPostIntoComposer = function(post) {
     if (!post) return;
+
+    clearPipPanel();
 
     window._editingScheduledPostId = post.id;
     window._editingPostOriginalStatus = post.status;
@@ -3895,6 +4384,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     adaptComposerToActiveBrand();
 
+    // Detección Campiña: marca activa o coincidencia con cuenta del borrador
+    const activeBrandName = (window.AppState?.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '').toLowerCase();
+    const isBrandCampina = activeBrandName.includes('campiña') || activeBrandName.includes('campina') || activeBrandName.includes('cabaña') || activeBrandName.includes('cabana');
+    const postAccountName = String(post.account_name || '').toLowerCase();
+    const isPostCampina = /campi/i.test(postAccountName) || (Boolean(post.plan_context) && /campi/i.test(postAccountName));
+    const isCampinaDraft = (postAccountName ? isPostCampina : isBrandCampina) && (post.status === 'draft' || Boolean(post.plan_context));
+
+    const pipPanel = document.getElementById('composer-post-image-panel');
+    const geminiCard = document.getElementById('composer-gemini-prompt-card');
+
+    if (isCampinaDraft) {
+      if (pipPanel) pipPanel.style.display = 'block';
+      if (geminiCard) geminiCard.style.display = 'none';
+
+      if (planCtx && planCtx.brief) {
+        window._postBrief = planCtx.brief;
+        renderPipBrief(planCtx.brief);
+        const campinaThemeEl = document.getElementById('campina-theme');
+        if (campinaThemeEl && planCtx.brief.temaTrabajado) {
+          campinaThemeEl.value = planCtx.brief.temaTrabajado;
+        }
+        const campinaDateEl = document.getElementById('campina-date');
+        if (campinaDateEl && planCtx.brief.ocasion) {
+          campinaDateEl.value = planCtx.brief.ocasion;
+        }
+      } else if (post.id) {
+        const pipLoading = document.getElementById('pip-loading');
+        if (pipLoading) {
+          pipLoading.classList.remove('d-none');
+          pipLoading.style.display = 'flex';
+        }
+        fetch('/api/ai/post-brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ postId: post.id })
+        })
+          .then(res => res.json())
+          .then(json => {
+            if (json.success && json.data?.brief) {
+              window._postBrief = json.data.brief;
+              renderPipBrief(json.data.brief);
+              const campinaThemeEl = document.getElementById('campina-theme');
+              if (campinaThemeEl && json.data.brief.temaTrabajado) {
+                campinaThemeEl.value = json.data.brief.temaTrabajado;
+              }
+              const campinaDateEl = document.getElementById('campina-date');
+              if (campinaDateEl && json.data.brief.ocasion) {
+                campinaDateEl.value = json.data.brief.ocasion;
+              }
+              if (window._draftPlanContext) {
+                window._draftPlanContext.brief = json.data.brief;
+              }
+            }
+          })
+          .catch(err => {
+            console.warn('[Composer] Error cargando post-brief automáticamente:', err);
+          })
+          .finally(() => {
+            if (pipLoading) {
+              pipLoading.classList.add('d-none');
+              pipLoading.style.display = 'none';
+            }
+          });
+      }
+    } else {
+      if (pipPanel) pipPanel.style.display = 'none';
+    }
+
     if (typeof navigateToTab === 'function') {
       navigateToTab('composer');
     }
@@ -3905,7 +4462,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.syncStorySectionsVisibility();
     }
 
-    if (media.length === 0 && (post.content || '').trim()) {
+    if (!isCampinaDraft && media.length === 0 && (post.content || '').trim()) {
       suggestImagePromptForComposer();
     }
 
@@ -3923,6 +4480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindAgendioControls();
   bindHumanizerAndCarouselControls();
   bindGeminiCardControls();
+  bindPipPanelControls();
   updateGeminiCardVisibility();
   adaptComposerToActiveBrand();
 });

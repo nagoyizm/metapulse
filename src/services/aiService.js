@@ -9,6 +9,7 @@ const COPY_RULES = require('../config/copyRules');
 const brandProfileService = require('./brandProfileService');
 const contentMemoryService = require('./contentMemoryService');
 const campaignService = require('./campaignService');
+const chileCalendar = require('./chileCalendar');
 
 // Helper para detectar límites de palabra exactos con caracteres en español
 function hasWord(text, word) {
@@ -1738,10 +1739,192 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
   }
 
   /**
+   * Construye el Brief estratégico de un post combinando datos del post, campaña y calendario de Chile
+   */
+  async buildPostBrief({ post, campaign = null }) {
+    if (!post) {
+      throw new Error('El parámetro post es requerido para buildPostBrief');
+    }
+
+    const title = (post.title || '').trim();
+    const content = (post.content || '').trim();
+    const scheduledAt = post.scheduled_at || post.scheduledAt || null;
+
+    const calendarInfo = chileCalendar.describe(scheduledAt);
+
+    let planContext = post.plan_context || {};
+    if (typeof planContext === 'string') {
+      try {
+        planContext = JSON.parse(planContext);
+      } catch (_) {
+        planContext = {};
+      }
+    }
+
+    // 1. Construir promo en CÓDIGO (nunca inventado por IA)
+    let promo = null;
+    let promoDetails = campaign?.details || {};
+    if (typeof promoDetails === 'string') {
+      try {
+        promoDetails = JSON.parse(promoDetails);
+      } catch (_) {
+        promoDetails = {};
+      }
+    }
+    if (promoDetails && typeof promoDetails.oferta === 'string' && promoDetails.oferta.trim()) {
+      promo = {
+        oferta: promoDetails.oferta.trim(),
+        condiciones: typeof promoDetails.condiciones === 'string' ? promoDetails.condiciones.trim() : '',
+        dias: typeof promoDetails.dias === 'string' ? promoDetails.dias.trim() : ''
+      };
+    }
+
+    const campinaKnowledge = getCampinaKnowledgePrompt();
+
+    const planParts = [];
+    if (planContext.angle) planParts.push(`Ángulo: "${planContext.angle}"`);
+    if (planContext.hook) planParts.push(`Gancho: "${planContext.hook}"`);
+    if (planContext.why) planParts.push(`Por qué estratégico: "${planContext.why}"`);
+    if (planContext.occasion) planParts.push(`Ocasión del plan: "${planContext.occasion}"`);
+    const planBlock = planParts.length > 0 ? planParts.join('\n- ') : 'Sin datos específicos de planContext';
+
+    let campaignBlock = 'Sin campaña asociada';
+    if (campaign) {
+      const campParts = [
+        `Título: "${campaign.title || ''}"`,
+        `Directriz: "${campaign.directive || ''}"`,
+        `Oferta / Promoción: ${promo ? `"${promo.oferta}" (Días: "${promo.dias}", Condiciones: "${promo.condiciones}")` : 'Ninguna (NO hay descuentos ni promociones autorizadas)'}`,
+        `Público objetivo: "${promoDetails.publico || ''}"`,
+        `Llamado a la acción (CTA): "${promoDetails.cta || ''}"`
+      ];
+      campaignBlock = campParts.join('\n- ');
+    }
+
+    const holidaysText = calendarInfo.nearHolidays && calendarInfo.nearHolidays.length > 0
+      ? calendarInfo.nearHolidays.map(h => `${h.name} (${h.date}, ${h.daysAway === 0 ? 'hoy' : (h.daysAway > 0 ? `en ${h.daysAway} días` : `hace ${Math.abs(h.daysAway)} días`)})`).join('; ')
+      : 'No hay feriados cercanos (-2 a +21 días)';
+
+    const prompt = `Actúa como un Director Estratégico y Creativo de Redes Sociales para "Cabañas La Campiña" (Algarrobo, Chile).
+Tu objetivo es analizar la publicación y formular un BRIEF ESTRATÉGICO Y DE ARTE detallado, razonando por pasos.
+
+DATOS OFICIALES DEL RECINTO (CABAÑAS LA CAMPIÑA):
+${campinaKnowledge}
+
+DATOS DEL POST:
+- Título: "${title}"
+- Copy / Contenido actual:
+"""
+${content || '(Sin copy redactado aún)'}
+"""
+- Fecha programada: ${calendarInfo.dateLabel}
+- Estación del año: ${calendarInfo.season} (hemisferio sur)
+- Feriados cercanos: ${holidaysText}
+- Fin de semana largo: ${calendarInfo.longWeekend ? 'SÍ' : 'No'}
+- Nota de calendario: ${calendarInfo.note}
+
+CONTEXTO DEL PLAN EDITORIAL:
+- ${planBlock}
+
+FICHA DE CAMPAÑA:
+- ${campaignBlock}
+
+REGLAS ESTRICTAS DEL DUEÑO:
+1. PROMOCIONES: Solo existen los datos declarados en "Oferta / Promoción" arriba. Si es "Ninguna", está TERMINANTEMENTE PROHIBIDO inventar promociones, descuentos, cifras, porcentajes o condiciones.
+2. PERSONAS EN LA ESCENA: Gente chilena de rasgos comunes en Chile, sin estereotipos (ni bastón/caricatura en adultos mayores, ni poses de stock), nunca en primer plano: pequeñas, de espaldas o de perfil, habitando el espacio (caminando, conversando, jugando, comiendo), pocas personas.
+3. ESPACIO RECOMENDADO: Debe ser estrictamente uno de los siguientes: "pastizal/áreas verdes", "cabaña", "suite", "quincho", "sendero de pinos", "terraza", "piscina" (piscina SOLO si la fecha cae entre dic y Semana Santa), u "otro". CERO tinajas, jacuzzis ni hot tubs (NO existen).
+4. OCASIÓN: Texto corto y concreto basado SOLO en los hechos del calendario (nunca "fin de semana normal" vacío: si no hay feriado cercano, usar estación + contexto del post).
+5. TEMA TRABAJADO: 1 o 2 frases explicando qué se comunica y a quién. NO repetir el título tal cual.
+6. FOTO SUGERIDA: Frase en segunda persona para el dueño ("Sube una foto de ... con encuadre ...").
+7. MÚSICA: musicMood descriptivo y musicKeywords (3 a 5 palabras clave EN INGLÉS más 1 o 2 en español, para buscar música libre: ej. "acoustic", "warm", "family", "gentle").
+
+Devuelve ESTRICTAMENTE un JSON con esta estructura exacta:
+{
+  "temaTrabajado": "1 o 2 frases explicando qué se comunica y a quién (sin repetir el título)",
+  "ocasion": "texto corto y concreto basado solo en hechos del calendario",
+  "publico": "público objetivo deducido",
+  "beneficio": "beneficio emocional o práctico deducido",
+  "tono": "tono de comunicación (ej: cálido, acogedor, familiar)",
+  "espacioRecomendado": "cabaña | suite | quincho | pastizal/áreas verdes | sendero de pinos | terraza | piscina | otro",
+  "fotoSugerida": "Sube una foto de ... con encuadre ...",
+  "musicMood": "estado de ánimo musical sugerido",
+  "musicKeywords": ["acoustic", "warm", "family", "gentle", "tranquilidad"],
+  "notasPersonas": "cómo mostrar personas respetando las reglas de personas chilenas no estereotipadas habitando el espacio"
+}`;
+
+    const { data } = await this.generateJSON({ prompt, temperature: 0.6 });
+
+    const temaTrabajado = (data?.temaTrabajado && typeof data.temaTrabajado === 'string' && data.temaTrabajado.trim())
+      ? data.temaTrabajado.trim()
+      : (title || 'Descanso en la naturaleza de Algarrobo');
+
+    let ocasion = (data?.ocasion && typeof data.ocasion === 'string' && data.ocasion.trim())
+      ? data.ocasion.trim()
+      : '';
+    if (!ocasion || ocasion.toLowerCase().includes('fin de semana normal')) {
+      ocasion = calendarInfo.longWeekend
+        ? `Fin de semana largo de ${calendarInfo.season}`
+        : (calendarInfo.nearHolidays?.[0] ? calendarInfo.nearHolidays[0].name : `Temporada de ${calendarInfo.season} en Algarrobo`);
+    }
+
+    const publico = (data?.publico && typeof data.publico === 'string' && data.publico.trim())
+      ? data.publico.trim()
+      : 'Familias y parejas que buscan descanso en la naturaleza';
+
+    const beneficio = (data?.beneficio && typeof data.beneficio === 'string' && data.beneficio.trim())
+      ? data.beneficio.trim()
+      : 'Desconexión genuina y descanso en entorno natural';
+
+    const tono = (data?.tono && typeof data.tono === 'string' && data.tono.trim())
+      ? data.tono.trim()
+      : 'Cálido, entrañable y acogedor';
+
+    const espacioRecomendado = (data?.espacioRecomendado && typeof data.espacioRecomendado === 'string' && data.espacioRecomendado.trim())
+      ? data.espacioRecomendado.trim()
+      : 'cabaña';
+
+    const fotoSugerida = (data?.fotoSugerida && typeof data.fotoSugerida === 'string' && data.fotoSugerida.trim())
+      ? data.fotoSugerida.trim()
+      : 'Sube una foto de las cabañas o jardines con encuadre horizontal amplio y luz natural.';
+
+    const musicMood = (data?.musicMood && typeof data.musicMood === 'string' && data.musicMood.trim())
+      ? data.musicMood.trim()
+      : 'Acoustic / Warm';
+
+    let musicKeywords = [];
+    if (Array.isArray(data?.musicKeywords)) {
+      musicKeywords = data.musicKeywords;
+    } else if (typeof data?.musicKeywords === 'string') {
+      musicKeywords = data.musicKeywords.split(',').map(s => s.trim());
+    }
+    musicKeywords = musicKeywords.map(s => String(s).trim()).filter(Boolean).slice(0, 6);
+    if (musicKeywords.length === 0) {
+      musicKeywords = ['acoustic', 'warm', 'nature', 'calm'];
+    }
+
+    const notasPersonas = (data?.notasPersonas && typeof data.notasPersonas === 'string' && data.notasPersonas.trim())
+      ? data.notasPersonas.trim()
+      : 'Personas de rasgos comunes en Chile, sin estereotipos ni poses de stock, en segundo plano o de perfil habitando el espacio con naturalidad.';
+
+    return {
+      temaTrabajado,
+      ocasion,
+      publico,
+      beneficio,
+      tono,
+      espacioRecomendado,
+      fotoSugerida,
+      musicMood,
+      musicKeywords,
+      promo,
+      notasPersonas
+    };
+  }
+
+  /**
    * Generador generativo de titulares de alto impacto para Cabañas La Campiña
    * Entrega 5 opciones con ángulos distintos (emocional, beneficio, imperativo, pregunta, lugar)
    */
-  async generateCampinaHeadlines({ theme, targetDate = '', caption = '', planContext = null }) {
+  async generateCampinaHeadlines({ theme, targetDate = '', caption = '', planContext = null, brief = null }) {
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       throw new Error('El campo theme es requerido');
     }
@@ -1791,6 +1974,19 @@ Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. R
       if (parts.length > 0) planInfo = `\nCONTEXTO EDITORIAL DEL PLAN:\n- ${parts.join('\n- ')}`;
     }
 
+    let briefInfo = '';
+    if (brief && typeof brief === 'object') {
+      const bParts = [];
+      if (brief.temaTrabajado) bParts.push(`Tema trabajado: "${brief.temaTrabajado}"`);
+      if (brief.publico) bParts.push(`Público objetivo: "${brief.publico}"`);
+      if (brief.beneficio) bParts.push(`Beneficio: "${brief.beneficio}"`);
+      if (brief.ocasion) bParts.push(`Ocasión: "${brief.ocasion}"`);
+      if (brief.promo) {
+        bParts.push(`Promoción autorizada: "${brief.promo.oferta || ''}" ${brief.promo.condiciones ? `(Condiciones: ${brief.promo.condiciones})` : ''} ${brief.promo.dias ? `(Días: ${brief.promo.dias})` : ''} -> REGLA ESTRICTA: No inventes cifras, descuentos ni condiciones que no estén en esta promoción.`);
+      }
+      if (bParts.length > 0) briefInfo = `\nCONTEXTO DEL BRIEF:\n- ${bParts.join('\n- ')}`;
+    }
+
     const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
 
     const prompt = `Eres un redactor publicitario senior especializado en campañas de hospitalidad y turismo boutique para "Cabañas La Campiña" (Algarrobo, Chile).
@@ -1798,7 +1994,7 @@ Tu misión es redactar titulares publicitarios generativos de alto impacto para 
 
 DATOS DEL POST:
 - Tema o enfoque: "${theme}"
-- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${planInfo}${captionInfo}
+- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${planInfo}${briefInfo}${captionInfo}
 
 INSTRUCCIONES CLAVE DE REDACCIÓN:
 1. Entrega EXACTAMENTE 5 opciones con ángulos distintos:
@@ -1816,6 +2012,7 @@ INSTRUCCIONES CLAVE DE REDACCIÓN:
    - PROHIBIDO usar "TU REFUGIO NATURAL".
    - PROHIBIDO usar cualquier hero de la siguiente lista de PROHIBIDOS (usados recientemente o fijos del catálogo):
      ${forbiddenList.join(', ')}
+   - PROHIBIDO inventar cifras o descuentos que no estén autorizados explícitamente en el brief de la promoción.
    - PROHIBIDO terminantemente mencionar tinajas, jacuzzis o hot tubs (NO existen en el recinto).
    - PROHIBIDO falsas urgencias ("últimos cupos", "quedan pocas", "apúrate").
 
@@ -2185,7 +2382,7 @@ Estructura a entregar:
    * Genera indicaciones de escena deducidas con razonamiento por pasos para Cabañas La Campiña
    * Admite imagen base local (/uploads/...) o deducción contextual solo con texto
    */
-  async buildCampinaSceneDirective({ theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '' }) {
+  async buildCampinaSceneDirective({ theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '', brief = null }) {
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       throw new Error('El campo theme es requerido');
     }
@@ -2242,6 +2439,16 @@ Estructura a entregar:
       if (parts.length > 0) planInfo = `\nCONTEXTO EDITORIAL DEL PLAN:\n- ${parts.join('\n- ')}`;
     }
 
+    let briefInfo = '';
+    if (brief && typeof brief === 'object') {
+      const bParts = [];
+      if (brief.temaTrabajado) bParts.push(`Tema trabajado: "${brief.temaTrabajado}"`);
+      if (brief.publico) bParts.push(`Público objetivo: "${brief.publico}"`);
+      if (brief.espacioRecomendado) bParts.push(`Espacio recomendado: "${brief.espacioRecomendado}"`);
+      if (brief.notasPersonas) bParts.push(`Indicaciones de personas: "${brief.notasPersonas}"`);
+      if (bParts.length > 0) briefInfo = `\nCONTEXTO DEL BRIEF:\n- ${bParts.join('\n- ')}`;
+    }
+
     const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
     const userHintInfo = sceneHint ? `\nPISTA DE ESCENA INDICADA POR EL USUARIO (MANDA SOBRE EL ESPACIO):\n"${sceneHint}"` : '';
 
@@ -2250,14 +2457,14 @@ Tu misión es deducir las indicaciones de escena precisas para la imagen de un p
 
 DATOS DEL POST:
 - Tema o enfoque: "${theme}"
-- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${userHintInfo}${planInfo}${captionInfo}
+- Ocasión / Fecha próxima: "${targetDate || 'Fin de semana normal'}"${userHintInfo}${planInfo}${briefInfo}${captionInfo}
 
 RAZONAMIENTO POR PASOS OBLIGATORIO:
 Debes resolver y reportar en el array "reasoning" (un string explicativo por cada paso del 1 al 5):
 (1) IDENTIFICAR el espacio: La pista del usuario (${sceneHint ? `"${sceneHint}"` : 'ninguna'}) manda; si no hay, dedúcelo de la foto o contexto (pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina, otro) -> spaceType.
 (2) DEDUCIR el enfoque/público de la publicación desde tema, ocasión, planContext (angle, hook, why, campaña) y caption (familia, pareja, amigos, descanso solo, celebración) -> audienceFocus.
 (3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2) usando solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción o mueble que no esté en la foto.
-(4) FIJAR RESTRICCIONES: Personas pequeñas y en segundo plano o de espaldas/perfil, poses naturales y relajadas, sin primeros planos de rostros, número reducido de personas, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
+(4) FIJAR RESTRICCIONES: Personas chilenas de rasgos comunes en Chile, sin estereotipos (ni bastón/caricatura en adultos mayores, ni poses de stock), nunca en primer plano: pequeñas, de espaldas o de perfil, habitando el espacio (caminando, conversando, jugando, comiendo), pocas personas. Poses naturales y relajadas, sin primeros planos de rostros, número reducido de personas, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
 (5) REDACTAR "sceneDirective": Bloque en español, listo para pegar en Gemini, que empieza con:
 INDICACIONES DE ESCENA DE ESTE POST (tienen prioridad sobre "conservar la foto" solo en lo que se declara aquí):
 seguido de 3 a 6 viñetas concretas (qué personas/acciones/objetos añadir, exactamente en qué zona de la escena, con qué luz, qué NO añadir).
@@ -2349,6 +2556,32 @@ Devuelve ESTRICTAMENTE un JSON con esta estructura:
       reasoning: Array.isArray(parsed.reasoning) ? parsed.reasoning : [],
       sceneDirective: parsed.sceneDirective.trim()
     };
+  }
+
+  /**
+   * Construye el bloque del post determinista para la imagen (escena + texto exacto)
+   */
+  buildCampinaPostBlock({ scene, hero = '', subline = '' }) {
+    const cleanHero = (hero || '').trim().toUpperCase();
+    const cleanSubline = (subline || '').trim();
+    const sceneDirective = (scene && typeof scene.sceneDirective === 'string') ? scene.sceneDirective.trim() : '';
+
+    const bloqueTexto = `TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):
+- Titular: "${cleanHero}"
+- Subtítulo: "${cleanSubline}"
+- Identidad discreta: "CABAÑAS LA CAMPIÑA • ALGARROBO"
+No escribas ningún otro texto, número, logo ni marca de agua. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).`;
+
+    return [sceneDirective, bloqueTexto].filter(Boolean).join('\n\n');
+  }
+
+  /**
+   * Une el prompt maestro con el bloque del post
+   */
+  buildCampinaFullPrompt({ masterImagePrompt, postBlock }) {
+    const master = (masterImagePrompt || '').trim();
+    const block = (postBlock || '').trim();
+    return [master, block].filter(Boolean).join('\n\n');
   }
 
   /**
