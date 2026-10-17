@@ -26,7 +26,9 @@ Node.js + Express, better-sqlite3 (`data/metapulse.sqlite`, WAL), JS vanilla en 
 ## IA y costos
 - Solo herramientas gratis. Antes de agregar algo que cueste dinero, avisar al dueño.
 - Modelos de texto: `gemini-3.8-flash` → `3.7-flash` → `3.5-flash` → `3.1-flash-lite` (si uno da 503 pasa al siguiente). Los 1.x, 2.0 y 2.5 están retirados.
-- Las imágenes editoriales las genera el dueño a mano en la app de Gemini; MetaPulse prepara el prompt. Pollinations no da la calidad necesaria.
+- Las imágenes editoriales las genera el dueño a mano en la app de Gemini; MetaPulse prepara el prompt (panel "Imagen del post", solo La Campiña). Pollinations no da la calidad necesaria.
+- Texto dibujado por MetaPulse sobre imágenes: `sharp` con `fontfile` de `assets/fonts` (el servidor no tiene fuentes del sistema; nunca SVG con fuentes del sistema).
+- Antes de tocar el Prompt Maestro o el Creador, etiquetar un respaldo git (`prompt-maestro-vN`, `creador-vN`).
 
 ## Seguridad
 - Nunca imprimir ni commitear claves (`.env`, tabla `settings`: `ai_api_key`, tokens Meta).

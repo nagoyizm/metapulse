@@ -1,6 +1,6 @@
 # Informe: flujo de borrador del plan a post listo (texto + imagen + agenda)
 
-Fecha: 2026-10-16. Estado: diagnóstico y propuesta. Nada de esto está implementado salvo lo ya desplegado (commit `ac191e5`).
+Fecha: 2026-10-16. Estado (histórico): fases 1 y 2 implementadas el 2026-10-16 (brief, panel, dirección de arte, contacto, pasos). Sin implementar: biblioteca de fotos, titular compuesto, lote del mes, ficha de campaña estructurada, bucle de calidad.
 
 ## 1. Cómo funciona hoy (lo que encontré en el código)
 

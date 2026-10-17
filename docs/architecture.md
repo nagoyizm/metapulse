@@ -23,7 +23,7 @@ SPA en un solo `index.html` con pestañas: Hoy, Crear, Calendario, Bandeja, Resu
 |---|---|
 | `js/app.js` | navegación, estado global (`AppState`), cuenta activa |
 | `js/auth.js` | sesión |
-| `js/composer.js` | Creador de posts: copy IA, flujos por marca (Kmarket/Campiña/Agendio), media, historia, música, carga de borradores (`loadPostIntoComposer`), tarjeta "Imagen sugerida para Gemini" |
+| `js/composer.js` | Creador por pasos: copy IA, flujos por marca (Kmarket/Campiña/Agendio), media, historia, música, `loadPostIntoComposer`, tarjeta "Imagen sugerida" (otras marcas) y **panel "Imagen del post"** (`pip-*`, solo Campiña). Insignias y chips: `updateComposerProgress` |
 | `js/calendar.js` | calendario/lista/horarios; borradores abren en el Creador |
 | `js/batchScheduler.js` | programación masiva |
 | `js/brand.js` | perfiles de marca (voz, reglas, hashtags, contacto); emite `brand:selected` |
@@ -31,6 +31,7 @@ SPA en un solo `index.html` con pestañas: Hoy, Crear, Calendario, Bandeja, Resu
 | `js/analytics.js` | resultados |
 | `js/inbox.js` | bandeja (comentarios) |
 | `js/watermark.js`, `js/storyMusic.js`, `js/settings.js` | marca de agua, música de historias, ajustes |
+| `css/composer-steps.css` | pasos del Creador, menú IA, progreso y resumen antes de agendar |
 
 ## Backend
 `src/routes/api.js` (~3.600 líneas): todas las rutas bajo `/api`, con middleware de sesión al inicio.
@@ -45,7 +46,9 @@ Servicios principales (`src/services/`):
 - `schedulerService` — cron cada minuto; publica `status='scheduled'` vencidos; maneja fallos parciales (`partial_failure`).
 - `metricsSyncService` — cron diario 04:17; guarda métricas en `post_metrics`.
 - `inboxSyncService` — cada 90 s; comentarios + alertas WhatsApp (los DMs fallan por permisos; esperado).
-- `imageService`, `videoService`, `musicService` — sharp/ffmpeg: marca de agua, formatos, afiches, video con audio.
+- `imageService` (`stampContactLine`: contacto sobre la imagen final con Lato), `videoService`, `musicService` — sharp/ffmpeg: marca de agua, formatos, afiches, video con audio.
+- `chileCalendar` — feriados y fechas de ocasión de Chile (ocasión real del brief).
+- `aiService` (Campiña): `buildPostBrief`, `generateCampinaHeadlines`, `buildCampinaSceneDirective`, `chooseCampinaArtDirection`, `resolveCampinaVisualSelection`, `buildCampinaImagePrompt` (Prompt Maestro v2), `buildCampinaPostBlock`/`FullPrompt`, `loadUploadImageInline` (reduce a 1280 px).
 - `aiCacheService`, `aiJobQueueService`, `slotService`, `authService`, `whatsappService`.
 
 Datos fijos: `src/data/brandSeeds.js` (perfiles iniciales), `src/data/campinaKnowledge.js` (fuente de verdad de La Campiña), `src/config/copyRules.js`.
@@ -81,3 +84,5 @@ Migraciones: en `initializeDatabase()` (`src/database/db.js`), idempotentes.
 
 ## Despliegue
 VPS Contabo `37.60.235.111`, `/var/www/social-manager`, PM2 `social-manager`, puerto 3000. Procedimiento en `AGENTS.md`. Desarrollo en git worktrees; `main` es la rama desplegada.
+
+**Imagen del post (Campiña):** borrador con `plan_context` → `POST /ai/post-brief` (brief, cacheado en `plan_context.brief`) → `POST /ai/campina-prepare-post` (titulares + escena + dirección de arte en paralelo; devuelve `fullPrompt`, `artDirection`, `contactAvailable`, `warnings`) → `POST /ai/campina-compose-prompt` (determinista, recalcula al editar) → `POST /media/stamp-contact` (imagen final en `/uploads`, reversible) . Opciones de arte: `GET /ai/campina-art-options`. Memorias en `settings`: `campina_recent_heroes` (30), `campina_recent_palettes` (5).

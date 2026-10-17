@@ -13,7 +13,7 @@ Formato: fecha · decisión · por qué.
 
 ## Imágenes
 - **2026-10-15 · Las imágenes editoriales se hacen a mano en la app de Gemini.** Pollinations no da nivel editorial, y la generación de imágenes por API probablemente no es gratis. MetaPulse prepara el brief: concepto, prompt sin texto, foto real a adjuntar, titular y variantes.
-- **2026-10-15 · La imagen se genera sin texto.** Las IAs de imagen se equivocan con letras y cifras; el titular va aparte (pendiente: plantilla para superponerlo en MetaPulse, fase 2).
+- **2026-10-15 · (Reemplazada el 2026-10-16)** La imagen se generaba sin texto; ahora Gemini dibuja el titular y MetaPulse solo estampa contacto/logo.
 - **Partir de fotos reales de la marca** cuando sea posible: más editorial y no muestra instalaciones que no existen.
 
 ## Técnica
@@ -23,20 +23,16 @@ Formato: fecha · decisión · por qué.
 - **2026-10-15 · Métricas propias.** `metricsSyncService` guarda métricas diarias para que la IA imite los posts que mejor funcionaron.
 - **2026-10-14 · Detección de páginas con token de usuario de larga duración.**
 
-## Imagen y prompts
-- **2026-10-16 · Indicaciones de escena aparte del Prompt Maestro.** El maestro conserva las directrices de marca (foto intacta); un recuadro propio suma lo específico del post (personas, ambiente) deducido por IA con 5 pasos desde foto + enfoque + campaña. Tiene prioridad solo en lo que declara.
-- **2026-10-16 · Borradores del plan guardan `plan_context`** (enfoque, gancho, ocasión, campaña) para prellenar "Tema" y "Ocasión" en el Creador.
-- **2026-10-16 · Titulares generativos con memoria.** 5 opciones por IA (temp 1.0, sin caché) y lista de los últimos 30 heroes usados como prohibidos; el catálogo fijo queda solo como último respaldo.
-- **2026-10-16 · Texto del Prompt Maestro congelado** hasta que el dueño apruebe las mejoras de `docs/auditoria-prompt-maestro.md`.
-
-- **2026-10-16 · Flujo borrador→post:** panel en el Creador, botón "Preparar post", Gemini dibuja el titular, foto subida cada vez. Detalle en `docs/informe-flujo-borrador-a-post.md`.
-
-- **2026-10-16 · Prompt maestro v2:** aplicadas mejoras A-G de la auditoría (escena en vez de madera, precedencia del bloque del post, zonas seguras 1:1, control de calidad, posición libre del titular, oro solo si la paleta lo permite, selección visual unificada). Respaldo: etiqueta `prompt-maestro-v1`.
-
-- **2026-10-16 · Dirección de arte elegida por IA desde paletas curadas** (60/30/10, sin verdes saturados sobre cafés); muestras y selectores editables en el panel. Respaldos: etiquetas `prompt-maestro-v1` y `prompt-maestro-v2`.
-- **2026-10-16 · Datos de contacto los estampa MetaPulse** (Lato, `assets/fonts`, sharp con `fontfile`; el servidor Linux no tiene fuentes del sistema). Casilla opcional, reversible, omite lo vacío en Marca.
-
-- **2026-10-16 · Creador por pasos:** 1 Destino y formato, 2 Texto, 3 Imagen del post, 4 Música, 5 Programación y agenda, con insignias de estado y resumen antes de agendar. El Asistente IA pasa al menú "Más herramientas IA"; un solo "Reiniciar"; el panel es el único origen de tema/ocasión y de la foto de referencia. Respaldo: etiqueta `creador-v1`. Pendiente de decidir: C8, C11, C13, C14.
+## Imagen y prompts (La Campiña)
+- **2026-10-16 · Flujo:** borrador del plan → panel "Imagen del post" en el Creador → "Preparar post" (un botón) → prompt para Gemini web → imagen final subida → contacto/logo → música → fecha → el dueño revisa y agenda. La IA propone, el dueño decide.
+- **Un brief por post** (tema trabajado, ocasión desde calendario de Chile, público, foto a subir, música) guardado en `posts.plan_context`; copy, titulares, escena y prompt lo consumen. Promociones solo si la ficha de campaña tiene `oferta`; nunca inventar cifras.
+- **Gemini dibuja el titular** (el texto exacto va entre comillas, con guardas de ortografía). Titulares: 5 opciones por IA, sin caché, con memoria de los últimos 30 usados.
+- **Personas en la escena (La Campiña):** rasgos comunes en Chile, sin estereotipos, nunca en primer plano, habitando el espacio. Kmarket y Agendio actúan distinto (otros rubros).
+- **Prompt Maestro v2** (mejoras A-G): escena en vez de "madera", precedencia del bloque del post, zonas seguras 1:1, control de calidad, posición libre del titular, oro solo si la paleta lo permite, selección visual unificada (`resolveCampinaVisualSelection`). Respaldo: etiqueta `prompt-maestro-v1`.
+- **Dirección de arte elegida por IA** mirando la foto, desde paletas curadas (regla 60/30/10, sin verdes saturados sobre cafés) y tipografías con familias reales; se evitan las últimas 5 paletas; editable en el panel. La foto se reduce a 1280 px antes de enviarla a Gemini.
+- **Contacto estampado por MetaPulse, no por Gemini:** Lato (`assets/fonts`) con sharp y `fontfile` (Contabo no tiene fuentes), casilla opcional, reversible, omite lo vacío en Marca.
+- **Foto de referencia (IA) separada de la imagen final (publicación).**
+- **Creador por pasos:** 1 Destino · 2 Texto · 3 Imagen · 4 Música · 5 Agenda; Asistente IA en menú "Más herramientas IA"; el panel es el único origen de tema/ocasión y de la foto de referencia. Respaldo: etiqueta `creador-v1`.
 
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.

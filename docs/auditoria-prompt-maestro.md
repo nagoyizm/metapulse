@@ -1,7 +1,7 @@
 # Auditoría del Prompt Maestro (La Campiña)
 
 Fecha: 2026-10-16. Alcance: `buildCampinaImagePrompt`, `extractCampinaVisualHierarchy`, `analyzeCampinaArtDirection`, catálogos y detectores en `src/services/aiService.js`.
-Estado: **solo diagnóstico. El texto del prompt maestro NO se ha modificado.** Cada mejora espera aprobación del dueño.
+Estado (histórico): mejoras A-G ya aplicadas el 2026-10-16 (ver `docs/decisions.md`). Texto original de abajo: **solo diagnóstico. El texto del prompt maestro NO se ha modificado.** Cada mejora espera aprobación del dueño.
 
 ## Qué está bien (se conserva)
 - Regla de fidelidad fotográfica (bloque 1) y prohibición de tinajas/hot tubs.

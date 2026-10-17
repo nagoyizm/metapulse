@@ -1,43 +1,39 @@
 # CURRENT_STATE — MetaPulse
 
-Actualizado: 2026-10-16 · `main` desplegado en Contabo (commit `2a9f15a` + docs).
+Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
 
 ## Funciona (en producción)
-- Publicación programada FB/IG con detección de fallos parciales.
-- IA de texto con Gemini 3.x (cadena gratis con salto ante 503).
-- Métricas diarias (`post_metrics`, 04:17) y mejores ejemplos inyectados en prompts.
-- Pestaña Marca: perfil, hashtags, **datos de contacto**, **campañas e indicaciones** (interpretar mensaje del cliente → fichas con vigencia, preguntas y conflictos).
-- **Planificador del mes** → borradores en el calendario.
-- Borradores se editan en el **Creador** completo; al guardar se reemplazan (sin duplicados).
-- Tarjeta **"Imagen sugerida para Gemini"** (prompt sin texto, foto a adjuntar, titular, variantes).
-- Limpieza de captions (sin markdown ni líneas basura).
+- Publicación programada FB/IG con detección de fallos parciales; IA de texto con Gemini 3.x (cadena gratis, salto ante 503); métricas diarias; limpieza de captions.
+- Pestaña Marca: perfil, hashtags, **datos de contacto**, **campañas e indicaciones** (fichas con vigencia). **Planificador del mes** → borradores con `plan_context` (enfoque, gancho, ocasión, campaña).
+- **Creador por pasos:** 1 Destino y formato · 2 Texto · 3 Imagen del post · 4 Música · 5 Programación y agenda, con insignias de estado y chips de resumen antes de agendar. Asistente IA en el menú "Más herramientas IA". Un solo "Reiniciar".
+- **Panel "Imagen del post" (borradores de La Campiña):**
+  - "Preparar post" arma, con IA: brief (tema trabajado, ocasión real con calendario de Chile, público, foto a subir, música), 5 titulares sin repetir (memoria de 30), escena con personas chilenas no estereotipadas, **dirección de arte** (paleta/tipografía/acabado elegidos mirando la foto, muestras y selectores editables) y **un solo prompt** = Prompt Maestro v2 + bloque del post.
+  - Entradas separadas: **foto de referencia** (solo IA) e **imagen final de Gemini** (la que se publica); "Estampar Logo" junto a la imagen final.
+  - **Contacto estampado por MetaPulse** (casilla opcional, reversible; WhatsApp/web/ubicación desde Marca, vacío se omite).
+  - Música: mood y palabras clave que abren el buscador existente.
+- Otras marcas (Kmarket, Agendio) conservan su flujo anterior y la tarjeta "Imagen sugerida".
 
-- **Prompt de imagen contextual (Campiña):** borrador del plan abre con Tema/Ocasión llenos; recuadro "Indicaciones extra del post" (IA deduce escena); titulares generativos sin repetición; catálogos ampliados (Año Nuevo, Navidad, etc.).
+## Pendiente de prueba por el dueño (UI, con Gemini real)
+1. Borrador de La Campiña → Editar → panel, "Preparar post" y barra de progreso; paleta elegida y "Otra dirección de arte".
+2. Subir referencia + imagen final; estampar contacto y logo; quitar contacto.
+3. Menú "Más herramientas IA", chips de resumen, tema/ocasión sincronizados con el modal.
+4. Prompt v2 en Gemini: titular no cortado en recorte 1:1, sin madera inventada, sin manos/rostros raros, personas no estereotipadas.
+5. Completar **dirección** en Marca (La Campiña) para habilitar "Ubicación"; corregir WhatsApp de Agendio (igual al de La Campiña).
+6. Nada de lo nuevo se probó con Gemini real ni en navegador: solo humo con modelo simulado.
 
-- **Panel "Imagen del post" (Campiña):** brief por IA, titulares, escena, dirección de arte (paletas curadas), prompt único, música sugerida y contacto estampado por MetaPulse.
-
-## Pendiente de prueba por el dueño (UI)
-1. Datos de contacto en Marca; corregir WhatsApp de Agendio (quedó igual al de La Campiña).
-2. Borrador → Editar → abre en el Creador con la cuenta correcta.
-3. Tarjeta de prompt de imagen: autollenado, copiar, abrir Gemini, variantes.
-4. Guardar borrador → queda una sola publicación.
-5. Copy nuevo de La Campiña cierra con web/WhatsApp y sin asteriscos.
-
-6. Borrador del plan → Editar: Tema/Ocasión prellenados; "Deducir escena con IA" con foto de áreas verdes y enfoque familiar; "Otras ideas de titular" varía; copiar incluye las indicaciones. (Sin probar con Gemini real: no hay clave en local.)
-7. Decidir mejoras A–G de `docs/auditoria-prompt-maestro.md` (el texto del maestro no se tocó).
-
-8. Panel "Imagen del post": paleta/tipografía elegidas por la IA, "Otra dirección de arte", estampar y quitar contacto sobre la imagen final de Gemini.
+## Decisiones abiertas
+- Creador: C8 (esconder botones de diseñar imagen), C11 (panel en pestañas/acordeón), C13 (copiar/abrir Gemini fijos), C14 (pre-escucha de música).
+- Botón "Maquetar flyer de La Campiña" quedó dentro de "Subir archivos a mano" (plegado en Campiña).
+- Música: Openverse no sirve (solo efectos con licencia pública); la opción real es Jamendo (`jamendo_client_id` gratis, ya soportado).
 
 ## Problemas conocidos
 - `parseBrief` pone el inicio de la ficha de Año Nuevo en "hoy" en vez de ~6 semanas antes (se corrige a mano).
-- Borradores sin `account_id` no se ven si el calendario filtra por cuenta.
-- `inboxSyncService` intenta leer DMs cada 90 s y llena el log de errores de permisos (decisión: no usar DMs; falta desactivarlo).
-- El servidor de Contabo tiene `package-lock.json` modificado localmente y PNG sin seguimiento (no bloquean el pull).
+- Borradores sin `account_id` no se ven si el calendario filtra por cuenta; borradores anteriores a `plan_context` calculan el brief al abrirlos.
+- `inboxSyncService` intenta leer DMs cada 90 s y llena el log de permisos (falta desactivarlo).
+- Contabo: `package-lock.json` modificado y PNG sin seguimiento (no bloquean el pull). Sin fuentes del sistema: el texto sobre imagen usa `assets/fonts/Lato-*.ttf`.
 
-## Próximo paso: fase 2 — imagen
-1. Ficha visual por marca (paleta, luz, encuadres, qué evitar, fotos de referencia aprobadas).
-2. Plantilla para superponer titular/promo/logo sobre la imagen de Gemini (base: `imageService`).
-3. Marcar imágenes aprobadas para afinar los prompts.
+## Respaldos / reversión
+Etiquetas git: `prompt-maestro-v1`, `prompt-maestro-v2`, `creador-v1`. Texto del maestro v1 en `docs/backups/prompt-maestro-v1.txt`. Restaurar: `git checkout <etiqueta> -- <archivo>`.
 
-## Ideas en cola
-Revisor antes de publicar · ideas proactivas por feriados/huecos · analista semanal · reporte mensual para el cliente.
+## Próximo paso
+Probar lo anterior y decidir C8/C11/C13/C14. Luego fase 2 de imagen: ficha visual por marca, imágenes aprobadas (bucle de calidad) y revisor previo a agendar. Ideas en cola: lote del mes ("preparar todos"), ficha de campaña con campos estructurados (oferta/condiciones/vigencia), analista semanal, reporte mensual para el cliente.
