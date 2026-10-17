@@ -3906,8 +3906,7 @@ document.addEventListener('DOMContentLoaded', () => {
     headlines.forEach(hl => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'btn btn-ghost btn-xs';
-      item.style.cssText = 'border:1px solid var(--border-subtle); font-size:0.75rem; padding:4px 8px; text-align:left; white-space:normal; border-radius:4px; display:inline-flex; flex-direction:column; gap:2px; background:var(--bg-surface-subtle); cursor:pointer;';
+      item.style.cssText = 'border:1px solid var(--border-subtle); font-size:0.75rem; padding:6px 10px; text-align:left; white-space:normal; border-radius:6px; display:flex; flex-direction:column; align-items:flex-start; gap:3px; height:auto; min-height:0; line-height:1.25; background:var(--bg-surface-subtle); color:inherit; font-family:inherit; cursor:pointer; flex:1 1 200px; max-width:100%;';
 
       const kwText = hl.keyword ? `<span style="font-size:0.68rem; color:var(--primary); font-weight:700;">${escapeHtml(hl.keyword)}</span>` : '';
       const heroText = `<strong style="color:var(--text-primary); font-size:0.78rem;">${escapeHtml(hl.hero || '')}</strong>`;
