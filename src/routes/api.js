@@ -2299,15 +2299,15 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       warnings.push(artDirectionRes.reason?.message || 'Error al seleccionar dirección de arte');
       const visualFallback = aiService.resolveCampinaVisualSelection({ theme, targetDate });
       artDirection = {
-        typographyStyle: visualFallback.typographyStyle,
-        brandTreatment: visualFallback.brandTreatment,
-        colorPalette: visualFallback.colorPalette,
-        posterReference: visualFallback.posterReference,
-        paletteName: visualFallback.paletteName || '',
-        swatches: visualFallback.swatches || [],
-        styleName: visualFallback.styleName || '',
-        treatmentName: visualFallback.treatmentName || '',
-        fontFamilies: visualFallback.fontFamilies || [],
+        typographyStyle: visualFallback.activeStyleKey,
+        brandTreatment: visualFallback.activeTreatmentKey,
+        colorPalette: visualFallback.activePaletteKey,
+        posterReference: visualFallback.activePosterRefKey,
+        paletteName: visualFallback.matchedPalette?.name || '',
+        swatches: visualFallback.matchedPalette?.swatches || [],
+        styleName: visualFallback.matchedStyle?.name || '',
+        treatmentName: visualFallback.matchedTreatment?.name || '',
+        fontFamilies: visualFallback.matchedStyle?.fontFamilies || [],
         reason: 'Selección automática por reglas (la IA no respondió).'
       };
     }

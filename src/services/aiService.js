@@ -1668,6 +1668,7 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
    * Resuelve estilo, paleta, acabado y referencia de afiche (única fuente de verdad)
    */
   resolveCampinaVisualSelection({ theme, targetDate = '', hierarchy, typographyStyle = 'auto', brandTreatment = 'auto', colorPalette = 'auto', posterReference = 'auto', aiAnalysis = null }) {
+    if (!hierarchy) hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
     const stylesCatalog = this.getCampinaTypographyStyles();
     const activeStyleKey = (!typographyStyle || typographyStyle === 'auto')
       ? hierarchy.detectedStyle
@@ -2486,7 +2487,7 @@ Estructura a entregar:
    * Carga y valida una imagen local en /uploads/ para su envío como inline_data a Gemini
    * Devuelve { mime_type, data } o null si no hay imagen; lanza error si la ruta es inválida.
    */
-  loadUploadImageInline(imageUrl) {
+  async loadUploadImageInline(imageUrl) {
     if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.trim()) {
       return null;
     }
@@ -2508,26 +2509,25 @@ Estructura a entregar:
     }
 
     const stats = fs.statSync(resolvedPath);
-    if (stats.size > 6 * 1024 * 1024) {
-      throw new Error('La imagen excede el tamaño máximo permitido de 6 MB');
+    if (stats.size > 40 * 1024 * 1024) {
+      throw new Error('La imagen excede el tamaño máximo permitido de 40 MB');
     }
 
     const ext = path.extname(resolvedPath).toLowerCase();
-    let mimeType = '';
-    if (ext === '.jpg' || ext === '.jpeg') {
-      mimeType = 'image/jpeg';
-    } else if (ext === '.png') {
-      mimeType = 'image/png';
-    } else if (ext === '.webp') {
-      mimeType = 'image/webp';
-    } else {
+    if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
       throw new Error(`Formato de imagen no soportado (${ext}). Permitidos: jpg, jpeg, png, webp`);
     }
 
-    const fileBuf = fs.readFileSync(resolvedPath);
+    // Se reduce a 1280 px y JPEG para que el análisis sea rápido y liviano sin importar el peso original
+    const sharp = require('sharp');
+    const buf = await sharp(resolvedPath)
+      .rotate()
+      .resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
     return {
-      mime_type: mimeType,
-      data: fileBuf.toString('base64')
+      mime_type: 'image/jpeg',
+      data: buf.toString('base64')
     };
   }
 
@@ -2554,7 +2554,12 @@ Estructura a entregar:
       posterReference: 'auto'
     });
 
-    const inlineData = this.loadUploadImageInline(imageUrl);
+    let inlineData = null;
+    try {
+      inlineData = await this.loadUploadImageInline(imageUrl);
+    } catch (imgErr) {
+      console.warn('[chooseCampinaArtDirection] Imagen no utilizable, se decide sin foto:', imgErr.message);
+    }
 
     // Memoria de paletas recientes (máx 5)
     let recentPalettes = [];
@@ -2796,7 +2801,7 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
       throw new Error('El campo theme es requerido');
     }
 
-    const inlineData = this.loadUploadImageInline(imageUrl);
+    const inlineData = await this.loadUploadImageInline(imageUrl);
 
     let planInfo = '';
     if (planContext && typeof planContext === 'object') {
