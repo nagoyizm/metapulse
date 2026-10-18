@@ -244,7 +244,7 @@ class ImageService {
    * NOTA CLAVE: La imagen del post ya contiene su logotipo oficial de marca incorporado al crearse;
    * por diseño, esta función NUNCA superpone ningún logo adicional ni ajeno para evitar duplicados.
    */
-  async createStoryCard({ inputImagePath, brandName = '' }) {
+  async createStoryCard({ inputImagePath, brandName = '', caption = '', extraLayers = [] }) {
     let inputBuffer = null;
     let baseName = 'story';
 
@@ -288,13 +288,17 @@ class ImageService {
       .toBuffer();
 
     const postMeta = await sharp(postBuffer).metadata();
+    const captionBox = await this._buildStoryCaptionBox(caption, postMeta.width);
+    const groupHeight = postMeta.height + (captionBox ? captionBox.height : 0);
     const left = Math.round((storyWidth - postMeta.width) / 2);
-    const top = Math.round((storyHeight - postMeta.height) / 2);
+    const top = Math.round((storyHeight - groupHeight) / 2);
 
     // Máscara con esquinas redondeadas estilo Instagram Story Share
     const radius = 24;
     const maskSvg = Buffer.from(
-      `<svg width="${postMeta.width}" height="${postMeta.height}"><rect x="0" y="0" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="white"/></svg>`
+      captionBox
+        ? `<svg width="${postMeta.width}" height="${postMeta.height}"><path d="M0 ${radius}a${radius} ${radius} 0 0 1 ${radius} -${radius}H${postMeta.width - radius}a${radius} ${radius} 0 0 1 ${radius} ${radius}V${postMeta.height}H0Z" fill="white"/></svg>`
+        : `<svg width="${postMeta.width}" height="${postMeta.height}"><rect x="0" y="0" width="${postMeta.width}" height="${postMeta.height}" rx="${radius}" ry="${radius}" fill="white"/></svg>`
     );
 
     const roundedPost = await sharp(postBuffer)
@@ -318,21 +322,16 @@ class ImageService {
     const outputFilename = `story_${Date.now()}_${baseName.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`;
     const outputPath = path.join(this.processedDir, outputFilename);
 
+    const layers = [
+      { input: shadowSvg, top: top - shadowMargin, left: left - shadowMargin, blend: 'over' },
+      { input: roundedPost, top: top, left: left, blend: 'over' }
+    ];
+
+    if (captionBox) layers.push({ input: captionBox.buffer, left, top: top + postMeta.height, blend: 'over' });
+    layers.push(...extraLayers);
+
     await sharp(bgBuffer)
-      .composite([
-        {
-          input: shadowSvg,
-          top: top - shadowMargin,
-          left: left - shadowMargin,
-          blend: 'over'
-        },
-        {
-          input: roundedPost,
-          top: top,
-          left: left,
-          blend: 'over'
-        }
-      ])
+      .composite(layers)
       .jpeg({ quality: 95 })
       .toFile(outputPath);
 
@@ -341,6 +340,43 @@ class ImageService {
       filename: outputFilename,
       relativeUrl: `/uploads/processed/${outputFilename}`
     };
+  }
+
+  /**
+   * Cuadro blanco pegado al borde inferior de la imagen (estilo texto de historia de Instagram).
+   * Devuelve { buffer, width, height } o null si no hay texto.
+   */
+  async _buildStoryCaptionBox(caption, postWidth, radius = 24) {
+    const text = String(caption || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+    const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fontfile = path.resolve(__dirname, '../../assets/fonts/Montserrat-Medium.ttf');
+    const padX = 44;
+    const padY = 34;
+
+    const textBuf = await sharp({
+      text: {
+        text: `<span foreground="#262626" size="31000">${esc(text)}</span>`,
+        font: 'Montserrat Medium',
+        fontfile,
+        rgba: true,
+        width: postWidth - padX * 2,
+        align: 'centre',
+        wrap: 'word'
+      }
+    }).png().toBuffer();
+    const tm = await sharp(textBuf).metadata();
+
+    const boxH = tm.height + padY * 2;
+    // Rectángulo con solo las esquinas inferiores redondeadas
+    const boxSvg = Buffer.from(
+      `<svg width="${postWidth}" height="${boxH}"><path d="M0 0H${postWidth}V${boxH - radius}a${radius} ${radius} 0 0 1 -${radius} ${radius}H${radius}a${radius} ${radius} 0 0 1 -${radius} -${radius}Z" fill="#ffffff"/></svg>`
+    );
+    const buffer = await sharp(boxSvg)
+      .composite([{ input: textBuf, left: Math.round((postWidth - tm.width) / 2), top: padY }])
+      .png()
+      .toBuffer();
+    return { buffer, width: postWidth, height: boxH };
   }
 
   /**

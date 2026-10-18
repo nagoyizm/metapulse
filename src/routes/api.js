@@ -35,6 +35,8 @@ const aiCacheService = require('../services/aiCacheService');
 const aiJobQueueService = require('../services/aiJobQueueService');
 const slotService = require('../services/slotService');
 const storySlotGuard = require('../services/storySlotGuard');
+const storyDesignService = require('../services/storyDesignService');
+const storyStickers = require('../services/storyStickers');
 const whatsappService = require('../services/whatsappService');
 const inboxSyncService = require('../services/inboxSyncService');
 const musicService = require('../services/musicService');
@@ -513,13 +515,14 @@ async function createCrossStoryPost(opts) {
   const {
     media_urls, post_type, story_music_config, accountName,
     targetSchedule, story_strategy = 'single', story_timing_rule, story_custom_datetime,
-    story_monthly_extension = true,
+    story_monthly_extension = true, story_design = null,
     title, content, platforms, accountId, presetName, stmt
   } = opts;
 
   const isReel = post_type === 'reel';
   const videoMedia = media_urls.find(u => isVideoUrl(u));
   let storyMediaUrl = media_urls[0];
+  const useDesign = Boolean(story_design && story_design.enabled && !isReel && !videoMedia);
 
   if (isReel || videoMedia) {
     const rawVideo = videoMedia || media_urls[0];
@@ -530,7 +533,7 @@ async function createCrossStoryPost(opts) {
       console.warn('[CrossStory] Error adaptando video a 9:16:', vErr.message);
       storyMediaUrl = rawVideo;
     }
-  } else {
+  } else if (!useDesign) {
     let absImagePath = media_urls[0];
     if (!absImagePath.startsWith('http')) {
       absImagePath = path.join(__dirname, '../../', absImagePath.replace(/^\//, ''));
@@ -569,13 +572,54 @@ async function createCrossStoryPost(opts) {
   console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}" (extensión mensual 30d: ${Boolean(story_monthly_extension)})...`);
   const createdStories = [];
 
+  const designCache = new Map();
+  const mediaForSchedule = async (item) => {
+    if (!useDesign) return storyMediaUrl;
+    const items = Array.isArray(story_design.items) ? story_design.items : [];
+    const cd = items.find(i => i && i.kind === 'countdown');
+    const key = cd ? storyStickers.daysUntil(cd.targetDate, new Date(item.schedule)) : 'x';
+    if (designCache.has(key)) return designCache.get(key);
+    let url = storyMediaUrl;
+    try {
+      const out = await storyDesignService.renderDesign({
+        imagePath: media_urls[0],
+        caption: story_design.caption || '',
+        items,
+        referenceDate: new Date(item.schedule),
+        brandName: accountName || getSetting('meta_page_name') || ''
+      });
+      url = out.relativeUrl;
+      if (out.type === 'image' && story_music_config?.audio_url) {
+        const vid = await videoService.generateStoryVideo({
+          imageInput: out.path,
+          audioInput: story_music_config.audio_url,
+          duration: story_music_config.duration || 15,
+          startTime: story_music_config.start_time || 0,
+          addMusicSticker: false,
+          songTitle: story_music_config.song_title || '',
+          songArtist: story_music_config.song_artist || ''
+        });
+        url = vid.relativeUrl;
+      }
+    } catch (dErr) {
+      console.warn('[StoryDesign] Error renderizando diseño, se usa tarjeta simple:', dErr.message);
+      try {
+        const abs = media_urls[0].startsWith('http') ? media_urls[0] : path.join(__dirname, '../../', media_urls[0].replace(/^\//, ''));
+        url = (await imageService.createStoryCard({ inputImagePath: abs })).relativeUrl;
+      } catch (_) { /* se deja la imagen original */ }
+    }
+    designCache.set(key, url);
+    return url;
+  };
+
   for (const item of schedules) {
+    const itemMediaUrl = await mediaForSchedule(item);
     const storyStmtRes = stmt.run(
       `${item.titleSuffix}: ${title || 'Nuevo Post'}`,
       content ? `¡Nuevo en nuestro feed! ✨ ${content.slice(0, 100)}...` : '¡Nuevo post disponible! ✨',
       JSON.stringify(platforms),
       'story',
-      JSON.stringify([storyMediaUrl]),
+      JSON.stringify([itemMediaUrl]),
       item.schedule,
       accountId,
       accountName,
@@ -588,6 +632,63 @@ async function createCrossStoryPost(opts) {
 
   return createdStories;
 }
+
+// ── Diseño de historias (texto gancho + stickers colocados por el usuario) ──
+router.get('/story-design/catalog', (req, res) => {
+  res.json({ success: true, data: { emojis: storyStickers.getCatalog() } });
+});
+
+router.post('/story-design/base', async (req, res) => {
+  try {
+    const { image_url, caption = '' } = req.body || {};
+    if (!image_url) return res.status(400).json({ success: false, error: 'image_url requerido' });
+    const out = await storyDesignService.renderDesign({ imagePath: image_url, caption: String(caption).slice(0, 220), items: [] });
+    res.json({ success: true, data: { url: out.relativeUrl } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/story-design/sticker', async (req, res) => {
+  try {
+    const { kind, text = '', code = '', days = 0 } = req.body || {};
+    if (!['location', 'mention', 'countdown', 'emoji'].includes(kind)) {
+      return res.status(400).json({ success: false, error: 'kind inválido' });
+    }
+    const el = await storyStickers.renderElement({ kind, text: String(text).slice(0, 60), code }, { countdownDays: Number(days) || 0 });
+    if (!el) return res.status(400).json({ success: false, error: 'Sticker vacío o inexistente' });
+    res.json({ success: true, data: { dataUrl: 'data:image/png;base64,' + el.buffer.toString('base64'), width: el.width, height: el.height } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/story-design/suggest', async (req, res) => {
+  const { title = '', content = '' } = req.body || {};
+  const text = String(content || title || '').trim();
+  const fallbackHook = () => {
+    const first = text.replace(/\s+/g, ' ').split(/(?<=[.!?])\s/)[0] || '';
+    return first.length > 70 ? first.slice(0, 67).replace(/\s+\S*$/, '') + '…' : first;
+  };
+  try {
+    if (!text) return res.status(400).json({ success: false, error: 'Falta el texto del post' });
+    const catalog = storyStickers.getCatalog();
+    const list = catalog.map(e => e.code + '=' + e.label).join(', ');
+    const { data } = await aiService.generateJSON({
+      temperature: 0.8,
+      maxOutputTokens: 512,
+      prompt: 'Eres community manager en Chile. A partir del texto de un post, escribe el TEXTO GANCHO de la Historia de Instagram que lo acompaña: una frase corta (máx. 12 palabras), cálida y concreta, en español de Chile, que despierte curiosidad y empuje a ir a ver la publicación; puede terminar en "…". Sin hashtags ni comillas. Elige además 2 emojis de esta lista que calcen con el tema: ' + list + '.\n' +
+        'Responde solo JSON: {"hook":"...","emojis":["codigo1","codigo2"]}\n' +
+        'Texto del post: ' + text.slice(0, 1200)
+    });
+    const valid = new Set(catalog.map(e => e.code));
+    const emojis = (Array.isArray(data.emojis) ? data.emojis : []).map(String).filter(c => valid.has(c)).slice(0, 2);
+    const hook = String(data.hook || '').replace(/\s+/g, ' ').trim().slice(0, 140) || fallbackHook();
+    res.json({ success: true, data: { hook, emojis } });
+  } catch (err) {
+    res.json({ success: true, data: { hook: fallbackHook(), emojis: [], fallback: true } });
+  }
+});
 
 router.post('/posts', async (req, res) => {
   try {
@@ -606,6 +707,7 @@ router.post('/posts', async (req, res) => {
       story_timing_rule = 'same_time',
       story_custom_datetime = null,
       story_monthly_extension = true,
+      story_design = null,
       music_config = null,
       story_music_config = null
     } = req.body;
@@ -676,6 +778,7 @@ router.post('/posts', async (req, res) => {
           story_timing_rule,
           story_custom_datetime,
           story_monthly_extension,
+          story_design,
           title,
           content,
           platforms,

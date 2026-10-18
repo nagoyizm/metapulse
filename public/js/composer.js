@@ -2,7 +2,7 @@
 // MetaPulse Composer & Mockup Live Controller
 // =============================================================================
 
-const ComposerState = {
+const ComposerState = window.ComposerState = {
   mediaFiles: [], // Array de URLs locales/públicas
   selectedWatermarkId: null,
   activePreview: 'fb'
@@ -1155,7 +1155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         story_custom_datetime: storyCustomDatetime,
         story_monthly_extension: storyMonthlyExtension,
         music_config: (postType === 'story' || postType === 'feed') ? musicConfigPayload : null,
-        story_music_config: alsoShareStory ? musicConfigPayload : null
+        story_music_config: alsoShareStory ? musicConfigPayload : null,
+        story_design: alsoShareStory && window.StoryDesigner ? window.StoryDesigner.getDesign() : null
       }
     };
   }
@@ -1522,6 +1523,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function resetComposerStoryState() {
     if (chkAlsoShareStory) chkAlsoShareStory.checked = false;
+    if (window.StoryDesigner) window.StoryDesigner.reset();
     if (storyTimingBox) storyTimingBox.style.display = 'none';
     const defaultStrat = document.querySelector('input[name="story_strategy"][value="single"]');
     if (defaultStrat) {

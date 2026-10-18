@@ -34,6 +34,11 @@ Formato: fecha · decisión · por qué.
 - **Foto de referencia (IA) separada de la imagen final (publicación).**
 - **Creador por pasos:** 1 Destino · 2 Texto · 3 Imagen · 4 Música · 5 Agenda; Asistente IA en menú "Más herramientas IA"; el panel es el único origen de tema/ocasión y de la foto de referencia. Respaldo: etiqueta `creador-v1`.
 
+## Historias
+- **2026-10-18 · Stickers "no oficiales" dibujados dentro de la imagen/video.** La API de Instagram no admite stickers nativos (música, encuesta, enlace, mención); terceros como Storrito usan la sesión del usuario (riesgo para la cuenta). Se dibujan en el medio: visuales y no interactivos. Emojis: Noto Emoji de Google (PNG Apache 2.0; GIF animados CC BY 4.0, atribución aquí). Texto del cuadro: Montserrat Medium (OFL), lo más cercano a la fuente de Instagram.
+- **2026-10-18 · Historias derivadas sin sticker de canción**; el cuadro blanco con texto gancho (opcional) lo reemplaza. Posiciones guardadas como fracciones del lienzo 1080x1920 para que servidor y vista previa coincidan.
+- **2026-10-18 · Horarios de historias** separados >=90 min por cuenta (`storySlotGuard`).
+
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.

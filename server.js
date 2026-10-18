@@ -48,6 +48,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Servir archivos multimedia subidos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Miniaturas de stickers para el diseñador de historias
+app.use('/assets-stickers', express.static(path.join(__dirname, 'assets/stickers/noto')));
+
 // Rutas de la API
 app.use('/api', apiRoutes);
 
