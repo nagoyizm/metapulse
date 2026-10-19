@@ -568,7 +568,7 @@ async function createCrossStoryPost(opts) {
     story_timing_rule,
     story_custom_datetime,
     Boolean(story_monthly_extension)
-  ), accountId);
+  ), accountId, title);
   console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}" (extensión mensual 30d: ${Boolean(story_monthly_extension)})...`);
   const createdStories = [];
 
@@ -3640,7 +3640,7 @@ async function insertSingleBatchPost(p, ctx) {
         story_timing_rule,
         null,
         Boolean(story_monthly_extension)
-      ), activeAccountId);
+      ), activeAccountId, title);
 
       for (const item of schedules) {
         const storyTitle = item.titleSuffix ? `${item.titleSuffix}: ${title}` : `Story: ${title}`;
