@@ -112,6 +112,50 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Lista las publicaciones con falla parcial y el motivo por red
+async function openPartialFailuresModal() {
+  const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+  const globalSelect = document.getElementById('global-account-select');
+  const accountId = activeAcc?.pageId || globalSelect?.value || localStorage.getItem('metapulse_active_account_id') || '';
+  let overlay = document.getElementById('partial-failures-modal');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'partial-failures-modal';
+  overlay.className = 'modal-backdrop';
+  overlay.innerHTML = '<div class="modal-dialog" style="max-width:720px;"><div class="modal-content"><div class="modal-header"><h3>Publicados con falla parcial</h3><button class="modal-close" aria-label="Cerrar">&times;</button></div><div class="modal-body" id="partial-failures-body" style="max-height:65vh; overflow:auto;">Cargando…</div></div></div>';
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('.modal-close').onclick = close;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  const body = overlay.querySelector('#partial-failures-body');
+  try {
+    const res = await fetch(accountId ? `/api/status/partial?accountId=${encodeURIComponent(accountId)}` : '/api/status/partial', {
+      headers: accountId ? { 'x-account-id': accountId } : {}
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Error');
+    if (!json.data.length) { body.textContent = 'No hay publicaciones con falla parcial.'; return; }
+    const typeLabel = { story: 'Historia', reel: 'Reel', feed: 'Post', carousel: 'Carrusel' };
+    const netLine = (name, n) => {
+      if (!n) return '';
+      return n.ok
+        ? `<div style="font-size:0.8rem;">✅ ${name}: publicado</div>`
+        : `<div style="font-size:0.8rem; color:var(--color-warning);">❌ ${name}: ${escapeHtml(n.error || 'falló')}</div>`;
+    };
+    body.innerHTML = json.data.map(p => {
+      const when = p.published_at ? new Date(p.published_at).toLocaleString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+      const nets = netLine('Facebook', p.facebook) + netLine('Instagram', p.instagram);
+      return `<div style="padding:10px 0; border-bottom:1px solid rgba(148,163,184,0.2);">
+        <div style="font-weight:600; font-size:0.85rem;">#${p.id} · ${typeLabel[p.post_type] || escapeHtml(p.post_type || '')} · ${escapeHtml(when)}</div>
+        <div class="text-muted" style="font-size:0.78rem; margin:2px 0 6px;">${escapeHtml((p.title || '').slice(0, 90))}</div>
+        ${nets || `<div style="font-size:0.8rem;">${escapeHtml(p.error_message)}</div>`}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    body.textContent = 'No se pudo cargar: ' + err.message;
+  }
+}
+
 function updateDashboardMetrics(counts, nextSlot, config) {
   document.getElementById('dash-stat-scheduled').textContent = counts.scheduled;
   document.getElementById('dash-stat-published').textContent = counts.published;
@@ -126,11 +170,19 @@ function updateDashboardMetrics(counts, nextSlot, config) {
         subtextEl.dataset.defaultText = subtextEl.textContent;
       }
       if ((counts.partial || 0) > 0) {
-        subtextEl.textContent = `${counts.partial} publicados con falla parcial`;
+        subtextEl.textContent = `${counts.partial} publicados con falla parcial (ver)`;
         subtextEl.classList.add('text-warning-strong');
+        subtextEl.style.cursor = 'pointer';
+        subtextEl.style.textDecoration = 'underline';
+        subtextEl.title = 'Ver cuáles y por qué fallaron';
+        subtextEl.onclick = openPartialFailuresModal;
       } else {
         subtextEl.textContent = subtextEl.dataset.defaultText;
         subtextEl.classList.remove('text-warning-strong');
+        subtextEl.style.cursor = '';
+        subtextEl.style.textDecoration = '';
+        subtextEl.title = '';
+        subtextEl.onclick = null;
       }
     }
   }

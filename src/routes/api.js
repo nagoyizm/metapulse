@@ -289,6 +289,44 @@ router.get('/status', (req, res) => {
   }
 });
 
+// Publicaciones con falla parcial (salieron en una red y fallaron en otra), con el motivo
+router.get('/status/partial', (req, res) => {
+  try {
+    const target = req.query.accountId || req.headers['x-account-id'] || '';
+    let where = '';
+    let params = [];
+    if (target && target !== 'all') {
+      const f = metaService.buildAccountFilterSql(target);
+      where = ' AND ' + f.clause;
+      params = f.params;
+    }
+    const rows = db.prepare(`
+      SELECT id, title, post_type, account_id, published_at, scheduled_at, error_message, meta_result
+      FROM posts
+      WHERE partial_failure = 1 AND status = 'published'${where}
+      ORDER BY COALESCE(published_at, scheduled_at, updated_at) DESC
+      LIMIT 100
+    `).all(...params);
+    const data = rows.map(r => {
+      let meta = {};
+      try { meta = JSON.parse(r.meta_result || '{}') || {}; } catch (_) {}
+      const net = (x) => (x ? { ok: Boolean(x.success), error: x.success ? '' : String(x.error || '') } : null);
+      return {
+        id: r.id,
+        title: r.title,
+        post_type: r.post_type,
+        published_at: r.published_at || r.scheduled_at,
+        facebook: net(meta.facebook),
+        instagram: net(meta.instagram),
+        error_message: r.error_message || ''
+      };
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ==========================================
 // 2. PUBLICACIONES (POSTS & SCHEDULING)
 // ==========================================
