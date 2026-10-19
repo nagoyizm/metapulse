@@ -1716,7 +1716,8 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
       activeStyleKey, matchedStyle,
       activePaletteKey, matchedPalette,
       activeTreatmentKey, matchedTreatment,
-      activePosterRefKey, matchedPosterRef
+      activePosterRefKey, matchedPosterRef,
+      stylesCatalog, treatmentsCatalog, palettesCatalog, posterRefsCatalog
     };
   }
 
@@ -2392,7 +2393,8 @@ Estructura a entregar:
       activeStyleKey, matchedStyle,
       activePaletteKey, matchedPalette,
       activeTreatmentKey, matchedTreatment,
-      activePosterRefKey, matchedPosterRef
+      activePosterRefKey, matchedPosterRef,
+      stylesCatalog, treatmentsCatalog, palettesCatalog, posterRefsCatalog
     } = this.resolveCampinaVisualSelection({ theme, targetDate, hierarchy, typographyStyle, brandTreatment, colorPalette, posterReference, aiAnalysis });
 
     const effectiveAiAnalysis = {
