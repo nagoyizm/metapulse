@@ -38,6 +38,8 @@ Formato: fecha · decisión · por qué.
 - **2026-10-18 · Stickers "no oficiales" dibujados dentro de la imagen/video.** La API de Instagram no admite stickers nativos (música, encuesta, enlace, mención); terceros como Storrito usan la sesión del usuario (riesgo para la cuenta). Se dibujan en el medio: visuales y no interactivos. Emojis: Noto Emoji de Google (PNG Apache 2.0; GIF animados CC BY 4.0, atribución aquí). Texto del cuadro: Montserrat Medium (OFL), lo más cercano a la fuente de Instagram.
 - **2026-10-18 · Historias derivadas sin sticker de canción**; el cuadro blanco con texto gancho (opcional) lo reemplaza. Posiciones guardadas como fracciones del lienzo 1080x1920 para que servidor y vista previa coincidan.
 - **2026-10-18 · Horarios de historias** separados >=90 min por cuenta (`storySlotGuard`).
+- **2026-10-19 · La misma historia no se repite antes de 25 h** (dura 24 h; si no, se ven dos a la vez). Las distintas siguen separadas >=90 min.
+- **2026-10-19 · Copy de Gemini: se descarta si llega cortado (MAX_TOKENS) o con razonamiento interno filtrado** ("-> 92 characters. Passes."); cae al texto local del planificador. Causa del borrador #301 de La Campiña roto.
 
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.

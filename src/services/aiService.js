@@ -291,12 +291,17 @@ Debes devolver ÚNICAMENTE un objeto JSON válido con la siguiente estructura ex
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.9,
-            maxOutputTokens: 2048
+            maxOutputTokens: 4096
           }
         }, { timeout: 20000 }), { maxRetries: 1 });
 
         const parts = response.data?.candidates?.[0]?.content?.parts || [];
         const actualPart = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+        const finishReason = response.data?.candidates?.[0]?.finishReason;
+        // Si el modelo se quedó sin tokens o filtró su razonamiento interno, el texto no es un post: se descarta.
+        if (actualPart && (finishReason === 'MAX_TOKENS' || this.looksLikeLeakedReasoning(actualPart))) {
+          throw new Error('Gemini devolvió razonamiento interno o texto cortado (' + (finishReason || 'sin motivo') + '); se descarta');
+        }
         if (actualPart) {
           const parsed = this.parseAIResponse(actualPart, topic);
           circuitBreaker.recordSuccess();
@@ -478,6 +483,10 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
   /**
    * Parsea la respuesta del LLM a un formato estructurado
    */
+  looksLikeLeakedReasoning(text) {
+    return /(->|→)\s*\d+\s+characters?\b|\bPasses\.|\bNo dashes\b|\bNo forbidden\b|\bConstraint check\b|\bDraft\s*\d*:/i.test(String(text || ''));
+  }
+
   parseAIResponse(rawText, topic) {
     const cleanText = this.cleanCaptionAI(rawText);
     const cleanedLines = cleanText.split('\n').map(l => l.trim()).filter(Boolean);

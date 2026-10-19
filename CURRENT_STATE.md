@@ -14,6 +14,8 @@ Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
 - Otras marcas (Kmarket, Agendio) conservan su flujo anterior y la tarjeta "Imagen sugerida".
 
 - **Historias:** `storySlotGuard` separa >=90 min las historias de una misma cuenta (goteo y lote); `node scripts/repair-story-slots.js [--apply]` reordena las ya agendadas.
+- **Regla 25 h:** la misma historia no se repite antes de 25 h por cuenta. **Facebook #200 en historias de Kmarket y La Campiña:** el usuario de Meta solo tiene tareas MODERATE/ANALYZE/CREATE_CONTENT en esas páginas; falta darle control total en Business Suite y regenerar el token (Instagram sí publica).
+- **Copy IA:** `generateWithGemini` rechaza respuestas con `finishReason` MAX_TOKENS o con razonamiento filtrado (`looksLikeLeakedReasoning`); `maxOutputTokens` 4096. El borrador #301 (La Campiña) quedó con texto roto: regenerarlo.
 
 - **Diseñador de historias (Creador → "Compartir como Historia" → 🎨):** texto gancho en cuadro blanco pegado a la imagen (Gemini lo sugiere; checkbox), ubicación, mención, cuenta regresiva (se recalcula por cada historia agendada) y stickers de emoji (Noto) que el dueño arrastra a su posición. Estático = imagen con borde blanco; animado = video de 7 s con GIF. Historias derivadas ya no llevan sticker de canción (si hay música, solo el audio). Solo imágenes; el diseño no se guarda en borradores ni aplica al lote.
 
