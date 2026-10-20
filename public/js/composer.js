@@ -3547,6 +3547,52 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRunHumanize = document.getElementById('btn-run-humanize');
   const btnApplyHumanized = document.getElementById('btn-apply-humanized');
 
+  // Reescribe el texto con una instrucción libre (con deshacer de un nivel)
+  const btnRewrite = document.getElementById('btn-rewrite');
+  const btnRewriteUndo = document.getElementById('btn-rewrite-undo');
+  const rewriteInput = document.getElementById('rewrite-instruction');
+  let textBeforeRewrite = null;
+  if (btnRewrite && rewriteInput) {
+    btnRewrite.addEventListener('click', async () => {
+      const current = postContent.value.trim();
+      const instruction = rewriteInput.value.trim();
+      if (!current) return showToast('Escribe o genera primero un texto', 'error');
+      if (!instruction) return showToast('Escribe la instrucción (qué enfocar o qué evitar)', 'error');
+      btnRewrite.disabled = true;
+      btnRewrite.textContent = 'Reescribiendo…';
+      try {
+        const res = await fetch('/api/ai/rewrite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caption: current, instruction })
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Error');
+        textBeforeRewrite = postContent.value;
+        postContent.value = json.data.text;
+        postContent.dispatchEvent(new Event('input', { bubbles: true }));
+        updateLivePreviews();
+        if (btnRewriteUndo) btnRewriteUndo.style.display = '';
+        showToast('Texto reescrito. Puedes deshacer o pedir otro cambio.', 'success');
+      } catch (err) {
+        showToast('No se pudo reescribir: ' + err.message, 'error');
+      } finally {
+        btnRewrite.disabled = false;
+        btnRewrite.textContent = 'Reescribir';
+      }
+    });
+    if (btnRewriteUndo) {
+      btnRewriteUndo.addEventListener('click', () => {
+        if (textBeforeRewrite === null) return;
+        postContent.value = textBeforeRewrite;
+        textBeforeRewrite = null;
+        postContent.dispatchEvent(new Event('input', { bubbles: true }));
+        updateLivePreviews();
+        btnRewriteUndo.style.display = 'none';
+      });
+    }
+  }
+
   async function handleHumanizeComposer() {
     const currentText = postContent.value.trim();
     if (!currentText) {

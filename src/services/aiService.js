@@ -585,6 +585,51 @@ Entrega ÚNICAMENTE el texto final listo para publicar, sin introducciones ni co
   }
 
   /**
+   * Reescribe un texto siguiendo una instrucción libre del dueño ("enfócalo en X", "evita Y").
+   */
+  async rewriteCaption({ caption, instruction, brandName = '' }) {
+    if (!caption || !instruction) throw new Error('Faltan el texto y la instrucción.');
+    const apiKey = this.getApiKey();
+    if (!apiKey) throw new Error('No hay API key de Gemini configurada.');
+    const prompt = `Eres el community manager de ${brandName || 'la marca'} en Chile. Reescribe esta publicación de Instagram/Facebook aplicando la instrucción del dueño.
+
+TEXTO ACTUAL:
+"""
+${caption}
+"""
+
+INSTRUCCIÓN DEL DUEÑO (prioridad máxima, cúmplela al pie de la letra; si pide evitar algo, no lo menciones ni lo insinúes):
+"${String(instruction).slice(0, 500)}"
+
+REGLAS:
+- Mantén tono cálido y natural de persona real. Sin guiones largos (—, –, --).
+- Primera línea: gancho de máximo 120 caracteres.
+- Conserva EXACTOS los datos de contacto (teléfono, web, dirección) y pon 3 a 5 hashtags al final, coherentes con el nuevo enfoque.
+- No inventes servicios, precios ni datos que no estén en el texto actual.
+- Responde SOLO con el texto final, sin notas, listas de verificación ni explicaciones.`;
+    let lastErr = null;
+    for (const m of sanitizeGeminiModels(getSetting('ai_model'))) {
+      try {
+        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.8, maxOutputTokens: 4096 }
+        }, { timeout: 30000 });
+        const cand = res.data?.candidates?.[0];
+        const parts = cand?.content?.parts || [];
+        const text = parts.find(p => !p.thought)?.text || parts[parts.length - 1]?.text;
+        if (!text || cand?.finishReason === 'MAX_TOKENS' || this.looksLikeLeakedReasoning(text)) {
+          throw new Error('Respuesta cortada o inválida');
+        }
+        return this.cleanCaptionAI(text.trim());
+      } catch (e) {
+        lastErr = e;
+        console.warn(`[rewriteCaption] Falló con ${m}:`, e.response?.data?.error?.message || e.message);
+      }
+    }
+    throw lastErr || new Error('No se pudo reescribir el texto.');
+  }
+
+  /**
    * Auditoría y humanización avanzada con IA (ig-humanizer)
    */
   async humanizeCaption({ caption, brandName = '' }) {

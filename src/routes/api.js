@@ -1938,6 +1938,20 @@ router.post('/ai/generate', async (req, res) => {
   }
 });
 
+router.post('/ai/rewrite', async (req, res) => {
+  try {
+    const { caption, instruction, brandName } = req.body || {};
+    if (!caption || !instruction) {
+      return res.status(400).json({ success: false, error: 'Falta el texto o la instrucción.' });
+    }
+    const brand = brandName || getSetting('meta_page_name') || '';
+    const text = await aiService.rewriteCaption({ caption, instruction, brandName: brand });
+    res.json({ success: true, data: { text } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/ai/humanize', async (req, res) => {
   try {
     const { caption, brandName } = req.body;

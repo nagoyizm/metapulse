@@ -440,6 +440,12 @@
                     </div>
                   </div>
 
+                  <!-- Reescribir el texto con una instrucción libre -->
+                  <div id="rewrite-row" style="display:flex; gap:6px; margin-bottom:6px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="rewrite-instruction" class="form-control" style="flex:1; min-width:200px; font-size:0.8rem;" maxlength="500" placeholder="✍️ Reescribir con instrucción: ej. enfócalo en el quincho, sin hablar de mascotas">
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-rewrite">Reescribir</button>
+                    <button type="button" class="btn btn-secondary btn-xs" id="btn-rewrite-undo" style="display:none;">↩ Deshacer</button>
+                  </div>
                   <textarea id="post-content" class="form-control composer-textarea" rows="6" placeholder="Escribe el copy de tu publicación aquí o usa el botón 'Asistente IA' arriba..."></textarea>
                   
                   <!-- Guardián de Marca en Tiempo Real (Anti-Alucinaciones y Anti-Errores CM) -->
@@ -3873,7 +3879,7 @@
   <!-- JS SCRIPTS -->
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.7"></script>
-  <script src="js/composer.js?v=3.2"></script>
+  <script src="js/composer.js?v=3.3"></script>
   <script src="js/storyMusic.js?v=2.4"></script>
   <script src="js/storyDesigner.js?v=1.0"></script>
   <script src="js/calendar.js?v=2.7"></script>
