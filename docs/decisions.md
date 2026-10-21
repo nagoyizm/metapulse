@@ -44,7 +44,8 @@ Formato: fecha · decisión · por qué.
 ## Seguridad
 - **2026-10-21 · Contraseñas fuera del código.** Había una contraseña fija en `authService` (y en el historial de git) que se reponía en cada arranque. Ahora el usuario inicial sale de `ADMIN_EMAIL`/`ADMIN_PASSWORD` y la clave se cambia con `scripts/set-password.js` (cierra sesiones). Hay que rotar la clave antigua.
 - **2026-10-21 · Capas de la app:** bloqueo de login por IP y por cuenta, IP real vía `trust proxy` loopback (antes se leía X-Forwarded-For falsificable), cookie SameSite=Strict + Secure bajo HTTPS, sesión 14 días, CORS cerrado, cabeceras de seguridad, `HOST` configurable (127.0.0.1 detrás de Caddy).
-- **Pendiente (requiere acciones en el servidor):** HTTPS vía Caddy en un subdominio, `public_url_base` a https (Meta descarga las imágenes desde ahí: no cerrar el 3000 antes), firewall ufw (22/80/443), SSH solo con llave, 2FA TOTP o acceso solo por VPN (Tailscale).
+- **2026-10-21 · HTTPS hecho:** Caddy sirve la app en `https://metapulse.37-60-235-111.sslip.io`; `public_url_base` apunta ahí (Meta descarga las imágenes por esa URL); la app escucha solo en 127.0.0.1 (`HOST` en `.env` del servidor), así el puerto 3000 ya no es accesible desde afuera. Respaldo del Caddyfile en `/root/Caddyfile.bak.*`.
+- **Pendiente:** firewall ufw (22/80/443; cierra también el 8765 de otra app, que ya pasa por Caddy), SSH solo con llave y sin root con clave (hoy `sshd -T` da passwordauthentication yes porque `50-cloud-init.conf` gana a `60-cloudimg-settings.conf`), y 2FA TOTP o VPN Tailscale.
 
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
