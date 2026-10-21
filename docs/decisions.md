@@ -41,6 +41,8 @@ Formato: fecha · decisión · por qué.
 - **2026-10-19 · La misma historia no se repite antes de 25 h** (dura 24 h; si no, se ven dos a la vez). Las distintas siguen separadas >=90 min.
 - **2026-10-19 · Copy de Gemini: se descarta si llega cortado (MAX_TOKENS) o con razonamiento interno filtrado** ("-> 92 characters. Passes."); cae al texto local del planificador. Causa del borrador #301 de La Campiña roto.
 
+- **2026-10-21 · Editar en el Redactor:** borradores y posts programados/fallidos/cancelados se abren en el Redactor (los publicados siguen con el modal simple). Botón "Guardar como borrador" (actualiza el post editado a `draft` o crea uno con `POST /posts/draft`). Al re-agendar un programado, el original se marca cancelado (comportamiento previo).
+
 ## Seguridad
 - **2026-10-21 · Contraseñas fuera del código.** Había una contraseña fija en `authService` (y en el historial de git) que se reponía en cada arranque. Ahora el usuario inicial sale de `ADMIN_EMAIL`/`ADMIN_PASSWORD` y la clave se cambia con `scripts/set-password.js` (cierra sesiones). Hay que rotar la clave antigua.
 - **2026-10-21 · Capas de la app:** bloqueo de login por IP y por cuenta, IP real vía `trust proxy` loopback (antes se leía X-Forwarded-For falsificable), cookie SameSite=Strict + Secure bajo HTTPS, sesión 14 días, CORS cerrado, cabeceras de seguridad, `HOST` configurable (127.0.0.1 detrás de Caddy).

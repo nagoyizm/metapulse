@@ -235,7 +235,7 @@ function setupPlannerDetailModalActions() {
       const post = modalDetail._currentPost;
       if (!post) return;
       closeModal();
-      if (post.status === 'draft') {
+      if (['draft', 'scheduled', 'failed', 'cancelled'].includes(post.status)) {
         if (typeof window.loadPostIntoComposer === 'function') {
           window.loadPostIntoComposer(post);
         } else if (typeof window.switchTab === 'function') {
@@ -1952,7 +1952,8 @@ window.openEditPostModal = async function(postIdOrPost) {
     return;
   }
 
-  if (post.status === 'draft') {
+  // Borradores y posts aún no publicados se editan en el Redactor; los ya publicados siguen con el modal simple
+  if (['draft', 'scheduled', 'failed', 'cancelled'].includes(post.status)) {
     if (typeof window.loadPostIntoComposer === 'function') {
       window.loadPostIntoComposer(post);
     } else if (typeof window.switchTab === 'function') {

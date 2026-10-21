@@ -881,6 +881,24 @@ function normalizeScheduleDate(scheduledAt, fallback) {
   }
 }
 
+// Guarda lo que hay en el Redactor como borrador (sin publicar ni agendar)
+router.post('/posts/draft', (req, res) => {
+  try {
+    const { title = '', content = '', platforms = ['facebook', 'instagram'], post_type = 'feed', media_urls = [], scheduled_at = null, accountId = null, accountName = null, plan_context = null } = req.body || {};
+    const info = db.prepare(`
+      INSERT INTO posts (title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name, plan_context)
+      VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)
+    `).run(
+      String(title), String(content), JSON.stringify(platforms), post_type, JSON.stringify(media_urls),
+      normalizeScheduleDate(scheduled_at || undefined, null) || null,
+      accountId || null, accountName || null, plan_context ? JSON.stringify(plan_context) : null
+    );
+    res.json({ success: true, data: { id: info.lastInsertRowid } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.put('/posts/:id', (req, res) => {
   try {
     const { title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name } = req.body;

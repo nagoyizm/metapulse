@@ -1244,6 +1244,59 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateToTab('queue');
   }
 
+  // Guarda el contenido actual como borrador: actualiza el post que se está editando o crea uno nuevo
+  async function handleSaveAsDraft() {
+    const btn = document.getElementById('btn-save-as-draft');
+    const content = postContent.value.trim();
+    const title = postTitle.value.trim();
+    if (!content && ComposerState.mediaFiles.length === 0) {
+      showToast('Escribe texto o sube una imagen antes de guardar el borrador', 'error');
+      return;
+    }
+    const platforms = getSelectedPlatforms();
+    const postType = document.querySelector('input[name="post_type"]:checked')?.value || 'feed';
+    const scheduleOption = document.querySelector('input[name="schedule_option"]:checked')?.value || 'next_slot';
+    const customSchedule = scheduleOption === 'custom' ? (document.getElementById('custom-schedule-datetime')?.value || null) : null;
+    const activeAcc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    const accountSelect = document.getElementById('global-account-select');
+    const accountId = activeAcc?.pageId || accountSelect?.value || '';
+    const accountName = activeAcc?.pageName || (accountSelect?.options[accountSelect?.selectedIndex]?.dataset?.name) || '';
+    const editingId = window._editingScheduledPostId;
+    const base = { title, content, platforms: platforms.length ? platforms : ['facebook', 'instagram'], post_type: postType, media_urls: ComposerState.mediaFiles };
+
+    if (btn) btn.disabled = true;
+    try {
+      let res;
+      if (editingId) {
+        res = await fetch(`/api/posts/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...base, status: 'draft', ...(customSchedule ? { scheduled_at: customSchedule } : {}) })
+        });
+      } else {
+        res = await fetch('/api/posts/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-account-id': accountId },
+          body: JSON.stringify({ ...base, scheduled_at: customSchedule, accountId, accountName, plan_context: window._draftPlanContext || null })
+        });
+      }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'No se pudo guardar');
+      showToast('Guardado como borrador', 'success');
+      resetComposerFormState();
+      if (typeof window.loadPlannerData === 'function') window.loadPlannerData();
+      const active = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+      loadDashboardStatus(active?.pageId);
+      navigateToTab('queue');
+    } catch (err) {
+      showToast('Error guardando borrador: ' + err.message, 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+  const btnSaveAsDraft = document.getElementById('btn-save-as-draft');
+  if (btnSaveAsDraft) btnSaveAsDraft.addEventListener('click', handleSaveAsDraft);
+
   async function handlePostSubmission() {
     const { payload, error } = buildPostSubmissionPayload();
     if (error) {
@@ -5216,7 +5269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const draftTitleEl = document.getElementById('composer-editing-draft-title');
     const draftMetaEl = document.getElementById('composer-editing-draft-meta');
 
-    if (post.status === 'draft') {
+    if (['draft', 'scheduled', 'failed', 'cancelled'].includes(post.status)) {
       if (draftBanner) {
         draftBanner.classList.remove('d-none');
         draftBanner.style.display = 'flex';
@@ -5232,7 +5285,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       if (draftTitleEl) {
-        draftTitleEl.textContent = `Editando borrador #${post.id} · ${fechaChile}`;
+        const kind = { draft: 'borrador', scheduled: 'publicación programada', failed: 'publicación fallida', cancelled: 'publicación cancelada' }[post.status] || 'publicación';
+        draftTitleEl.textContent = `Editando ${kind} #${post.id} · ${fechaChile}`;
       }
       if (draftMetaEl) {
         if (post.account_name) {
