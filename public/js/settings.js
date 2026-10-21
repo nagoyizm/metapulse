@@ -21,6 +21,8 @@ window.loadSettingsData = async function() {
 
     // Llenar servidor & simulación & música
     if (s.public_url_base) document.getElementById('public-url-base').value = s.public_url_base;
+    const maxStoriesEl = document.getElementById('max-stories-per-24h');
+    if (maxStoriesEl) maxStoriesEl.value = s.max_stories_per_24h || '3';
     if (s.jamendo_client_id && document.getElementById('jamendo-client-id')) {
       document.getElementById('jamendo-client-id').value = s.jamendo_client_id;
     }
@@ -235,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const publicUrlBase = document.getElementById('public-url-base').value.trim();
       const jamendoClientId = document.getElementById('jamendo-client-id')?.value.trim() || '';
       const simulationMode = document.getElementById('toggle-simulation-mode').checked;
+      const maxStories = Math.min(20, Math.max(1, parseInt(document.getElementById('max-stories-per-24h')?.value, 10) || 3));
 
       try {
         const res = await fetch('/api/settings', {
@@ -243,6 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({
             public_url_base: publicUrlBase,
             jamendo_client_id: jamendoClientId,
+            max_stories_per_24h: String(maxStories),
             simulation_mode: simulationMode ? 'true' : 'false'
           })
         });
@@ -253,6 +257,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Reordenar historias ya agendadas según el límite por 24 h
+  const btnRepairStories = document.getElementById('btn-repair-stories');
+  if (btnRepairStories) {
+    btnRepairStories.addEventListener('click', async () => {
+      btnRepairStories.disabled = true;
+      try {
+        const res = await fetch('/api/stories/repair', { method: 'POST' });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Error');
+        showToast(json.moved === 0 ? 'Las historias agendadas ya cumplen el límite' : `${json.moved} historia(s) se movieron para cumplir el límite`, 'success');
+        if (typeof window.loadPlannerData === 'function') window.loadPlannerData();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btnRepairStories.disabled = false;
       }
     });
   }

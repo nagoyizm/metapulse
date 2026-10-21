@@ -2147,6 +2147,15 @@
                   <small class="form-help">Permite buscar millones de pistas Creative Commons directamente para musicalizar tus Stories.</small>
                 </div>
 
+                <div class="form-group">
+                  <label class="form-label" for="max-stories-per-24h">
+                    Máximo de Historias en 24 horas (por cuenta):
+                  </label>
+                  <input type="number" id="max-stories-per-24h" class="form-control" min="1" max="20" step="1" value="3" style="max-width:120px;">
+                  <small class="form-help">Una historia dura 24 h. Nunca habrá más de este número de historias de una misma cuenta dentro de cualquier ventana de 24 h (goteo, extensión mensual y cuenta siempre viva incluidos). Si un horario pasa el límite, se mueve al hueco libre más cercano, entre 08:00 y 23:00. Cambiarlo aplica a lo que agendes desde ahora; para reordenar lo ya agendado usa «Reordenar historias agendadas».</small>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-repair-stories" style="margin-top:6px;">Reordenar historias agendadas</button>
+                </div>
+
                 <div class="form-group toggle-group">
                   <div class="toggle-label">
                     <strong>Modo Simulación / Sandbox</strong>
@@ -3886,7 +3895,7 @@
   <script src="js/calendar.js?v=2.8"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/watermark.js?v=3.2"></script>
-  <script src="js/settings.js?v=2.4"></script>
+  <script src="js/settings.js?v=2.5"></script>
   <script src="js/batchScheduler.js?v=2.4"></script>
   <script src="js/inbox.js?v=2.4"></script>
   <script src="js/brand.js?v=1.0"></script>

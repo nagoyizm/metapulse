@@ -608,7 +608,7 @@ async function createCrossStoryPost(opts) {
     story_timing_rule,
     story_custom_datetime,
     Boolean(story_monthly_extension)
-  ), accountId, title);
+  ), accountId, title, targetSchedule);
   console.log(`[API] Agendando ${schedules.length} historia(s) bajo estrategia "${story_strategy}" (extensión mensual 30d: ${Boolean(story_monthly_extension)})...`);
   const createdStories = [];
 
@@ -785,6 +785,15 @@ router.post('/posts', async (req, res) => {
     const activePreset = db.prepare('SELECT name FROM schedule_presets WHERE is_active = 1 LIMIT 1').get();
     const presetName = activePreset ? activePreset.name : 'Horario Personalizado';
 
+    // Historia agendada directamente: respeta el máximo de historias por 24 h y la separación entre ellas
+    if (post_type === 'story' && schedule_type !== 'now' && targetSchedule) {
+      const [adj] = storySlotGuard.separateSchedules([{ schedule: targetSchedule }], finalAccountId, title);
+      if (adj && adj.schedule !== targetSchedule) {
+        console.log(`[StoryGuard] Historia movida de ${targetSchedule} a ${adj.schedule} (límite por 24 h)`);
+        targetSchedule = adj.schedule;
+      }
+    }
+
     const stmt = db.prepare(`
       INSERT INTO posts (title, content, platforms, post_type, media_urls, scheduled_at, status, account_id, account_name, schedule_preset_name)
       VALUES (?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?)
@@ -881,6 +890,16 @@ function normalizeScheduleDate(scheduledAt, fallback) {
     return val;
   }
 }
+
+// Reordena las historias ya agendadas para cumplir el límite por 24 h y la separación mínima
+router.post('/stories/repair', (req, res) => {
+  try {
+    const moved = storySlotGuard.repairScheduledStories();
+    res.json({ success: true, moved: moved.length, data: moved });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // Guarda lo que hay en el Redactor como borrador (sin publicar ni agendar)
 router.post('/posts/draft', (req, res) => {
@@ -3724,7 +3743,7 @@ async function insertSingleBatchPost(p, ctx) {
         story_timing_rule,
         null,
         Boolean(story_monthly_extension)
-      ), activeAccountId, title);
+      ), activeAccountId, title, scheduledAt);
 
       for (const item of schedules) {
         const storyTitle = item.titleSuffix ? `${item.titleSuffix}: ${title}` : `Story: ${title}`;
