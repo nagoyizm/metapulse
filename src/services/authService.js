@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { db } = require('../database/db');
 
 // Control de intentos fallidos por IP (Rate Limiting contra ataques de fuerza bruta)
+const SESSION_DAYS = 14;
 const failedAttempts = new Map(); // ip -> { count, lockedUntil }
 
 class AuthService {
@@ -44,26 +45,32 @@ class AuthService {
     return crypto.timingSafeEqual(Buffer.from(checkHash, 'hex'), Buffer.from(hash, 'hex'));
   }
 
+  // Crea el usuario inicial solo si no hay ninguno y ADMIN_EMAIL / ADMIN_PASSWORD están en el entorno.
+  // Las contraseñas nunca van en el código; para cambiarla usa: node scripts/set-password.js
   seedAdminUser() {
-    const targetEmail = 'andresvegapozas@gmail.com'.toLowerCase().trim();
-    const targetPassword = 'Rameroli00..';
+    const count = db.prepare('SELECT COUNT(*) c FROM users').get().c;
+    if (count > 0) return;
+    const email = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+    const password = process.env.ADMIN_PASSWORD || '';
+    if (!email || password.length < 12) {
+      console.warn('🔒 [AuthService] No hay usuarios. Define ADMIN_EMAIL y ADMIN_PASSWORD (12+ caracteres) en .env para crear el primero.');
+      return;
+    }
+    this.setPassword(email, password, process.env.ADMIN_NAME || 'Administrador');
+    console.log(`🔒 [AuthService] Usuario inicial creado: ${email}`);
+  }
 
-    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(targetEmail);
-    if (!existingUser) {
-      const { hash, salt } = this.hashPassword(targetPassword);
-      db.prepare(`
-        INSERT INTO users (email, password_hash, salt, name)
-        VALUES (?, ?, ?, 'Andrés Vega')
-      `).run(targetEmail, hash, salt);
-      console.log(`🔒 [AuthService] Usuario maestro creado: ${targetEmail}`);
+  // Crea o actualiza un usuario y cierra todas sus sesiones abiertas.
+  setPassword(email, password, name = '') {
+    const cleanEmail = String(email || '').toLowerCase().trim();
+    if (!cleanEmail || String(password || '').length < 12) throw new Error('Correo y contraseña de 12+ caracteres requeridos.');
+    const { hash, salt } = this.hashPassword(password);
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
+    if (existing) {
+      db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, existing.id);
+      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(existing.id);
     } else {
-      // Si ya existía, asegurar que las credenciales solicitadas estén actualizadas y vigentes
-      const { hash, salt } = this.hashPassword(targetPassword);
-      db.prepare(`
-        UPDATE users
-        SET password_hash = ?, salt = ?
-        WHERE email = ?
-      `).run(hash, salt, targetEmail);
+      db.prepare('INSERT INTO users (email, password_hash, salt, name) VALUES (?, ?, ?, ?)').run(cleanEmail, hash, salt, name || cleanEmail);
     }
   }
 
@@ -88,12 +95,12 @@ class AuthService {
     return { allowed: true };
   }
 
-  recordFailedAttempt(ip) {
+  recordFailedAttempt(ip, maxAttempts = 5) {
     const now = Date.now();
     const record = failedAttempts.get(ip) || { count: 0, lockedUntil: null };
     record.count += 1;
 
-    if (record.count >= 5) {
+    if (record.count >= maxAttempts) {
       record.lockedUntil = now + 15 * 60 * 1000; // Bloqueo de 15 minutos tras 5 fallos
       console.warn(`🚨 [Auth] IP ${ip} bloqueada por 15 minutos por exceso de intentos fallidos.`);
     }
@@ -109,7 +116,10 @@ class AuthService {
     const cleanEmail = (email || '').toLowerCase().trim();
     const cleanPass = (password || '').trim();
 
+    const acctKey = 'acct:' + cleanEmail;
     const rateCheck = this.checkRateLimit(ip);
+    const acctCheck = cleanEmail ? this.checkRateLimit(acctKey) : { allowed: true };
+    if (!acctCheck.allowed) return { success: false, error: acctCheck.error, status: 429 };
     if (!rateCheck.allowed) {
       return { success: false, error: rateCheck.error, status: 429 };
     }
@@ -121,21 +131,24 @@ class AuthService {
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
     if (!user) {
       this.recordFailedAttempt(ip);
+      this.recordFailedAttempt(acctKey, 10);
       return { success: false, error: 'Correo o contraseña incorrectos.', status: 401 };
     }
 
     const isValid = this.verifyPassword(cleanPass, user.password_hash, user.salt);
     if (!isValid) {
       this.recordFailedAttempt(ip);
+      this.recordFailedAttempt(acctKey, 10);
       return { success: false, error: 'Correo o contraseña incorrectos.', status: 401 };
     }
 
     // Login exitoso: limpiar bloqueos de intentos
     this.clearFailedAttempts(ip);
+    this.clearFailedAttempts(acctKey);
 
     // Generar token criptográficamente seguro de 64 caracteres
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 días
+    const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
     db.prepare(`
       INSERT INTO sessions (token, user_id, user_email, ip_address, user_agent, expires_at)
@@ -209,4 +222,6 @@ class AuthService {
   }
 }
 
-module.exports = new AuthService();
+const instance = new AuthService();
+instance.SESSION_DAYS = SESSION_DAYS;
+module.exports = instance;

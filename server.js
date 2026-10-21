@@ -14,6 +14,8 @@ const inboxSyncService = require('./src/services/inboxSyncService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// HOST=127.0.0.1 deja la app accesible solo desde el proxy HTTPS local (Caddy).
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Asegurar existencia de directorios de almacenamiento
 const dirs = [
@@ -38,7 +40,18 @@ dirs.forEach(d => {
 initializeDatabase();
 
 // Middlewares
-app.use(cors());
+// Detrás de Caddy (loopback) se confía en X-Forwarded-For para obtener la IP real y saber si es HTTPS
+app.set('trust proxy', 'loopback');
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
+// La interfaz es del mismo origen: no se permiten otros orígenes
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -60,7 +73,7 @@ app.get('*', (req, res) => {
 });
 
 // Iniciar servidor y scheduler
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log('====================================================');
   console.log(`🚀 MetaPulse Suite corriendo en: http://localhost:${PORT}`);
   console.log(`📊 Base de datos SQLite inicializada`);

@@ -119,7 +119,8 @@ const authService = require('../services/authService');
 // ==========================================
 router.post('/auth/login', (req, res) => {
   try {
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    // req.ip respeta 'trust proxy' (solo confía en X-Forwarded-For si viene del proxy local)
+    const ip = req.ip || req.socket.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
     const { email, password } = req.body;
 
@@ -129,7 +130,7 @@ router.post('/auth/login', (req, res) => {
     }
 
     // Configurar Cookie HttpOnly de sesión segura válida por 30 días
-    res.setHeader('Set-Cookie', `metapulse_session=${result.token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 24 * 60 * 60}`);
+    res.setHeader('Set-Cookie', `metapulse_session=${result.token}; Path=/; HttpOnly; SameSite=Strict${req.secure ? '; Secure' : ''}; Max-Age=${authService.SESSION_DAYS * 24 * 60 * 60}`);
 
     res.json({
       success: true,
