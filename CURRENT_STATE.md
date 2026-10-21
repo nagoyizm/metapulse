@@ -14,7 +14,7 @@ Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
 - Otras marcas (Kmarket, Agendio) conservan su flujo anterior y la tarjeta "Imagen sugerida".
 
 - **Historias:** `storySlotGuard` separa >=90 min las historias de una misma cuenta (goteo y lote); `node scripts/repair-story-slots.js [--apply]` reordena las ya agendadas.
-- **Seguridad:** app en HTTPS (`https://metapulse.37-60-235-111.sslip.io`), puerto 3000 cerrado (bind local). Faltan ufw, SSH solo con llave y 2FA/Tailscale (ver `docs/decisions.md` > Seguridad). Cambiar la clave con `scripts/set-password.js`.
+- **Seguridad:** panel por Tailscale (`http://100.126.81.105`, hay que tener Tailscale encendido); URL pública solo sirve `/uploads/*`. ufw 22/80/443, SSH solo llave, puerto 3000 local. Ver `docs/decisions.md` > Seguridad.
 
 - **Regla 25 h:** la misma historia no se repite antes de 25 h por cuenta. **Facebook #200 en historias de Kmarket y La Campiña:** el usuario de Meta solo tiene tareas MODERATE/ANALYZE/CREATE_CONTENT en esas páginas; falta darle control total en Business Suite y regenerar el token (Instagram sí publica).
 - **Copy IA:** `generateWithGemini` rechaza respuestas con `finishReason` MAX_TOKENS o con razonamiento filtrado (`looksLikeLeakedReasoning`); `maxOutputTokens` 4096. El borrador #301 (La Campiña) quedó con texto roto: regenerarlo.
