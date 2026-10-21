@@ -22,7 +22,7 @@ window.loadSettingsData = async function() {
     // Llenar servidor & simulación & música
     if (s.public_url_base) document.getElementById('public-url-base').value = s.public_url_base;
     const retentionEl = document.getElementById('media-retention-days');
-    if (retentionEl) retentionEl.value = s.media_retention_days || '14';
+    if (retentionEl) retentionEl.value = s.media_retention_days || '60';
     const maxStoriesEl = document.getElementById('max-stories-per-24h');
     if (maxStoriesEl) maxStoriesEl.value = s.max_stories_per_24h || '3';
     if (s.jamendo_client_id && document.getElementById('jamendo-client-id')) {
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const publicUrlBase = document.getElementById('public-url-base').value.trim();
       const jamendoClientId = document.getElementById('jamendo-client-id')?.value.trim() || '';
       const simulationMode = document.getElementById('toggle-simulation-mode').checked;
-      const retentionDays = Math.min(365, Math.max(3, parseInt(document.getElementById('media-retention-days')?.value, 10) || 14));
+      const retentionDays = Math.min(365, Math.max(3, parseInt(document.getElementById('media-retention-days')?.value, 10) || 60));
       const maxStories = Math.min(20, Math.max(1, parseInt(document.getElementById('max-stories-per-24h')?.value, 10) || 3));
 
       try {

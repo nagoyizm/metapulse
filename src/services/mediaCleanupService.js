@@ -6,7 +6,7 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 // Carpetas con archivos que la app genera sola. NO se tocan los archivos sueltos de uploads/ (biblioteca del usuario),
 // ni watermarks/ (sellos), ni el audio subido a mano.
 const GENERATED_DIRS = ['stories', 'processed', 'generated', 'meta_cache', 'audio/cache'];
-const DEFAULT_RETENTION_DAYS = 14;
+const DEFAULT_RETENTION_DAYS = 60;
 const MIN_RETENTION_DAYS = 3;
 const AUDIO_CACHE_MIN_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
