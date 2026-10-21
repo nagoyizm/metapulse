@@ -48,7 +48,8 @@ Formato: fecha · decisión · por qué.
 - **2026-10-21 · ufw activo (22/80/443) y SSH solo con llave** (`/etc/ssh/sshd_config.d/00-hardening.conf`). Para entrar desde otro PC: llave nueva por PC añadida a `/root/.ssh/authorized_keys`; si se pierde todo, consola VNC de Contabo.
 - **2026-10-21 · VPN Tailscale:** el panel y la API solo se abren por `http://100.126.81.105` (red Tailscale, cifrada por WireGuard; Caddy en esa IP). La URL pública `https://metapulse.37-60-235-111.sslip.io` solo sirve `/uploads/*` (Meta descarga ahí las imágenes) y `/api/webhooks/meta`; el resto da 403. Respaldos del Caddyfile: `/root/Caddyfile.bak*`.
 - **2026-10-21 · poleras (Streamlit, docker 8501) privado:** solo por Tailscale en `http://100.126.81.105:8502`; el dominio público da 403. **Freeze Turkey (puerto 8765, Caddy en `37-60-235-111.sslip.io`) sigue público** porque sus equipos sincronizan contra `https://37-60-235-111.sslip.io` (`cloud_sync.py`); cerrarlo exige cambiar esa URL en los clientes.
-- **Pendiente:** 2FA opcional; activar HTTPS de Tailscale en su consola si se quiere https en el panel; el webhook de Meta queda tras el login (401) porque la ruta está declarada después del middleware de auth en `api.js`.
+- **2026-10-21 · HTTPS por Tailscale (`tailscale serve`):** MetaPulse `https://vmi3557669.taile1b8f4.ts.net`, poleras `...:8443`, Freeze Turkey `...:10000` (solo tailnet). Pendiente: cambiar `cloud_server_url` de los clientes de Freeze Turkey a esa URL :10000 y luego cerrar su dominio público en Caddy.
+- **Pendiente:** 2FA opcional
 
 ## Forma de trabajo
 - **2026-10-14 · Claude orquesta, agy ejecuta.** Ahorra tokens de Claude; agy usa Gemini.
