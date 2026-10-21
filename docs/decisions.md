@@ -49,6 +49,7 @@ Formato: fecha · decisión · por qué.
 - **2026-10-21 · VPN Tailscale:** el panel y la API solo se abren por `http://100.126.81.105` (red Tailscale, cifrada por WireGuard; Caddy en esa IP). La URL pública `https://metapulse.37-60-235-111.sslip.io` solo sirve `/uploads/*` (Meta descarga ahí las imágenes) y `/api/webhooks/meta`; el resto da 403. Respaldos del Caddyfile: `/root/Caddyfile.bak*`.
 - **2026-10-21 · poleras (Streamlit, docker 8501) privado:** solo por Tailscale en `http://100.126.81.105:8502`; el dominio público da 403. **Freeze Turkey (puerto 8765, Caddy en `37-60-235-111.sslip.io`) sigue público** porque sus equipos sincronizan contra `https://37-60-235-111.sslip.io` (`cloud_sync.py`); cerrarlo exige cambiar esa URL en los clientes.
 - **2026-10-21 · HTTPS por Tailscale (`tailscale serve`):** MetaPulse `https://vmi3557669.taile1b8f4.ts.net`, poleras `...:8443`, Freeze Turkey `...:10000` (solo tailnet). Pendiente: cambiar `cloud_server_url` de los clientes de Freeze Turkey a esa URL :10000 y luego cerrar su dominio público en Caddy.
+- **2026-10-21 · Freeze Turkey privado:** clientes (PC y celular) migrados a `https://vmi3557669.taile1b8f4.ts.net:10000`; el dominio público `37-60-235-111.sslip.io` da 403. Requiere Tailscale siempre encendido en cada equipo. El API de Freeze Turkey sin token respondía 200 (`strict_token_auth` desactivado): quedó mitigado al ser solo tailnet. Revertir: restaurar `/root/Caddyfile.bak3.*`/`bak4.*`.
 - **Pendiente:** 2FA opcional
 
 ## Forma de trabajo
