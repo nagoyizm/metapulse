@@ -256,10 +256,30 @@
    * Renderiza las tarjetas interactivas de revisión para cada publicación
    * Incluye estampar logo interactivo y poner música / convertir a video
    */
+  // Pasa al modelo lo que el usuario editó a mano en las tarjetas (fecha, texto, nombre, "Programar"),
+  // para que redibujar (estampar logo, poner música, cambiar formato) no lo pierda.
+  function syncCardsToModel() {
+    const container = getEl('batch-items-container');
+    if (!container) return;
+    container.querySelectorAll('.batch-post-card').forEach(card => {
+      const item = currentBatchItems.find(i => String(i.id) === String(card.dataset.itemId));
+      if (!item) return;
+      const dt = card.querySelector('.batch-item-datetime');
+      if (dt && dt.value) item.manualDatetime = dt.value;
+      const title = card.querySelector('.batch-item-title');
+      if (title) item.productName = title.value;
+      const content = card.querySelector('.batch-item-content');
+      if (content) item.content = content.value;
+      const toggle = card.querySelector('.batch-item-toggle');
+      if (toggle) item.enabled = toggle.checked;
+    });
+  }
+
   function renderReviewCards(items) {
     const itemsContainer = getEl('batch-items-container');
     const reviewSummary = getEl('batch-review-summary');
     if (!itemsContainer) return;
+    syncCardsToModel();
     itemsContainer.innerHTML = '';
 
     if (reviewSummary) {
@@ -280,7 +300,9 @@
       card.style.alignItems = 'start';
 
       let formattedDatetime = '';
-      if (item.scheduledAt) {
+      if (item.manualDatetime) {
+        formattedDatetime = item.manualDatetime;
+      } else if (item.scheduledAt) {
         try {
           const d = new Date(item.scheduledAt);
           if (!isNaN(d.getTime())) {
@@ -364,7 +386,7 @@
           </div>
 
           <label style="display:flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; font-weight:600; color:var(--text-primary); margin-top:4px;">
-            <input type="checkbox" class="batch-item-toggle" checked data-id="${item.id}">
+            <input type="checkbox" class="batch-item-toggle" ${item.enabled === false ? '' : 'checked'} data-id="${item.id}">
             <span>Programar</span>
           </label>
         </div>
