@@ -21,6 +21,8 @@ window.loadSettingsData = async function() {
 
     // Llenar servidor & simulación & música
     if (s.public_url_base) document.getElementById('public-url-base').value = s.public_url_base;
+    const retentionEl = document.getElementById('media-retention-days');
+    if (retentionEl) retentionEl.value = s.media_retention_days || '14';
     const maxStoriesEl = document.getElementById('max-stories-per-24h');
     if (maxStoriesEl) maxStoriesEl.value = s.max_stories_per_24h || '3';
     if (s.jamendo_client_id && document.getElementById('jamendo-client-id')) {
@@ -237,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const publicUrlBase = document.getElementById('public-url-base').value.trim();
       const jamendoClientId = document.getElementById('jamendo-client-id')?.value.trim() || '';
       const simulationMode = document.getElementById('toggle-simulation-mode').checked;
+      const retentionDays = Math.min(365, Math.max(3, parseInt(document.getElementById('media-retention-days')?.value, 10) || 14));
       const maxStories = Math.min(20, Math.max(1, parseInt(document.getElementById('max-stories-per-24h')?.value, 10) || 3));
 
       try {
@@ -247,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
             public_url_base: publicUrlBase,
             jamendo_client_id: jamendoClientId,
             max_stories_per_24h: String(maxStories),
+            media_retention_days: String(retentionDays),
             simulation_mode: simulationMode ? 'true' : 'false'
           })
         });
@@ -257,6 +261,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         showToast('Error: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Limpieza de archivos generados: primero muestra cuánto se liberaría y pide confirmación
+  const btnCleanupMedia = document.getElementById('btn-cleanup-media');
+  if (btnCleanupMedia) {
+    btnCleanupMedia.addEventListener('click', async () => {
+      btnCleanupMedia.disabled = true;
+      try {
+        const post = async (dryRun) => {
+          const res = await fetch('/api/media/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dryRun }) });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'Error');
+          return json;
+        };
+        const sim = await post(true);
+        if (sim.deleted === 0) {
+          showToast('No hay archivos para limpiar ahora', 'success');
+        } else if (confirm(`Se borrarían ${sim.deleted} archivos (${sim.freedMB} MB) con más de ${sim.days} días sin uso. Lo agendado y tu biblioteca no se tocan. ¿Borrar ahora?`)) {
+          const real = await post(false);
+          showToast(`Se liberaron ${real.freedMB} MB (${real.deleted} archivos)`, 'success');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btnCleanupMedia.disabled = false;
       }
     });
   }

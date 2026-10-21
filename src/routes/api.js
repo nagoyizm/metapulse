@@ -891,6 +891,17 @@ function normalizeScheduleDate(scheduledAt, fallback) {
   }
 }
 
+// Limpieza de videos/imágenes generados sin uso (simulación o real)
+router.post('/media/cleanup', (req, res) => {
+  try {
+    const dryRun = req.body?.dryRun !== false;
+    const r = require('../services/mediaCleanupService').runCleanup({ dryRun });
+    res.json({ success: true, dryRun, days: r.days, deleted: r.deleted, freedMB: Math.round(r.freedBytes / 1048576), kept: r.kept });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Reordena las historias ya agendadas para cumplir el límite por 24 h y la separación mínima
 router.post('/stories/repair', (req, res) => {
   try {

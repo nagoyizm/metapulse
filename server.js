@@ -11,6 +11,7 @@ const { initializeDatabase } = require('./src/database/db');
 const apiRoutes = require('./src/routes/api');
 const schedulerService = require('./src/services/schedulerService');
 const inboxSyncService = require('./src/services/inboxSyncService');
+const mediaCleanupService = require('./src/services/mediaCleanupService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -76,6 +77,7 @@ app.get('*', (req, res) => {
 const httpServer = app.listen(PORT, HOST, () => {
   // Subidas grandes de video en conexiones lentas: sin el corte de 5 min por defecto
   httpServer.requestTimeout = 0;
+  mediaCleanupService.startDailyCleanup();
   httpServer.headersTimeout = 60 * 1000;
   console.log('====================================================');
   console.log(`🚀 MetaPulse Suite corriendo en: http://localhost:${PORT}`);
