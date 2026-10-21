@@ -1127,6 +1127,7 @@
 
     const cards = itemsContainer.querySelectorAll('.batch-post-card');
     const postsToSchedule = [];
+    const incompleteCards = [];
 
     cards.forEach(card => {
       const toggle = card.querySelector('.batch-item-toggle');
@@ -1137,6 +1138,10 @@
         const title = card.querySelector('.batch-item-title')?.value.trim() || rawItem?.productName || 'Producto Kmarket';
         const content = card.querySelector('.batch-item-content')?.value.trim();
         const datetimeVal = card.querySelector('.batch-item-datetime')?.value;
+
+        if (!content || !datetimeVal) {
+          incompleteCards.push(`${title}${!content ? ' (sin texto)' : ''}${!datetimeVal ? ' (sin fecha/hora válida)' : ''}`);
+        }
 
         if (content && datetimeVal) {
           const iso = datetimeVal.length === 16 ? datetimeVal + ':00' : datetimeVal;
@@ -1161,6 +1166,13 @@
         }
       }
     });
+
+    if (incompleteCards.length > 0) {
+      if (typeof showToast === 'function') {
+        showToast(`No se programó nada. Completa estas publicaciones o desmarca «Programar»: ${incompleteCards.join('; ')}`, 'error', 9000);
+      }
+      return;
+    }
 
     if (postsToSchedule.length === 0) {
       if (typeof showToast === 'function') showToast('Selecciona al menos una publicación para programar.', 'warning');
