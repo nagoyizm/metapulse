@@ -73,7 +73,10 @@ app.get('*', (req, res) => {
 });
 
 // Iniciar servidor y scheduler
-app.listen(PORT, HOST, () => {
+const httpServer = app.listen(PORT, HOST, () => {
+  // Subidas grandes de video en conexiones lentas: sin el corte de 5 min por defecto
+  httpServer.requestTimeout = 0;
+  httpServer.headersTimeout = 60 * 1000;
   console.log('====================================================');
   console.log(`🚀 MetaPulse Suite corriendo en: http://localhost:${PORT}`);
   console.log(`📊 Base de datos SQLite inicializada`);

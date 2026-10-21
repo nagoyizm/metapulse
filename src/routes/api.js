@@ -67,9 +67,10 @@ const storage = multer.diskStorage({
   }
 });
 
+const MAX_UPLOAD_MB = 300; // reels/videos largos
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024, files: 15, fieldSize: 10 * 1024 * 1024 } // 50MB máximo
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: 15, fieldSize: 10 * 1024 * 1024 }
 });
 
 const watermarkStorage = multer.diskStorage({
@@ -2831,7 +2832,19 @@ router.post('/slots/set-wed-sat', (req, res) => {
 // ==========================================
 // 6. MULTIMEDIA, LOGOS & WATERMARK
 // ==========================================
-router.post('/media/upload', upload.array('files', 10), async (req, res) => {
+// Errores de subida (tamaño, formato) como JSON legible en vez de una página de error
+function uploadFilesMiddleware(req, res, next) {
+  upload.array('files', 10)(req, res, (err) => {
+    if (!err) return next();
+    let msg = err.message || 'Error al recibir el archivo';
+    if (err.code === 'LIMIT_FILE_SIZE') msg = `El archivo supera el límite de ${MAX_UPLOAD_MB} MB`;
+    else if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') msg = 'Demasiados archivos a la vez (máximo 10)';
+    console.warn('[Upload] Falló la subida:', err.code || err.message);
+    res.status(400).json({ success: false, error: msg });
+  });
+}
+
+router.post('/media/upload', uploadFilesMiddleware, async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ success: false, error: 'No se enviaron archivos.' });

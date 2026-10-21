@@ -406,25 +406,89 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Tarjeta flotante con el progreso de la subida (barra, %, MB) que no desaparece sola mientras sube
+  function getUploadCard() {
+    let card = document.getElementById('upload-progress-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'upload-progress-card';
+      card.style.cssText = 'position:fixed; right:16px; bottom:16px; z-index:3000; width:min(340px, calc(100vw - 32px)); background:var(--bg-card, #1e293b); color:var(--text-primary, #f1f5f9); border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:12px 14px; box-shadow:0 8px 28px rgba(0,0,0,0.35); font-size:0.82rem;';
+      card.innerHTML = '<div style="display:flex; justify-content:space-between; gap:8px;"><strong id="upload-card-title" style="word-break:break-all;"></strong><button type="button" id="upload-card-close" aria-label="Cerrar" style="background:none;border:none;color:inherit;cursor:pointer;font-size:1.1rem;line-height:1;display:none;">&times;</button></div><div style="height:8px; background:rgba(148,163,184,0.25); border-radius:4px; margin:8px 0 6px; overflow:hidden;"><div id="upload-card-bar" style="height:100%; width:0%; background:var(--primary, #cc8800); transition:width 0.15s;"></div></div><div id="upload-card-text" style="color:var(--text-secondary, #94a3b8);"></div>';
+      document.body.appendChild(card);
+      card.querySelector('#upload-card-close').onclick = () => card.remove();
+    }
+    return card;
+  }
+
+  function fmtMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(bytes > 10 * 1024 * 1024 ? 0 : 1) + ' MB';
+  }
+
+  function xhrUpload(formData, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/media/upload');
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+      xhr.upload.onload = () => onProgress(null, null);
+      xhr.onerror = () => reject(new Error('Se cortó la conexión. Revisa que Tailscale siga conectado y vuelve a intentar.'));
+      xhr.onabort = () => reject(new Error('Subida cancelada'));
+      xhr.onload = () => {
+        let json = null;
+        try { json = JSON.parse(xhr.responseText); } catch (_) { /* respuesta no JSON */ }
+        if (json) return resolve(json);
+        if (xhr.status === 401) return reject(new Error('Tu sesión expiró. Recarga la página e inicia sesión.'));
+        if (xhr.status === 413) return reject(new Error('El archivo es demasiado grande.'));
+        reject(new Error('El servidor respondió con error ' + xhr.status));
+      };
+      xhr.send(formData);
+    });
+  }
+
   async function handleFileUpload(files) {
-    const formData = buildUploadFormData(files);
-    showToast('Subiendo archivo(s) multimedia...', 'info');
+    const list = Array.from(files);
+    const total = list.reduce((a, f) => a + f.size, 0);
+    const tooBig = list.find(f => f.size > 300 * 1024 * 1024);
+    if (tooBig) {
+      showToast(`"${tooBig.name}" pesa ${fmtMB(tooBig.size)} y el límite es 300 MB. Comprímelo y vuelve a subirlo.`, 'error', 7000);
+      return;
+    }
+    const formData = buildUploadFormData(list);
+    const card = getUploadCard();
+    const titleEl = card.querySelector('#upload-card-title');
+    const barEl = card.querySelector('#upload-card-bar');
+    const textEl = card.querySelector('#upload-card-text');
+    const closeEl = card.querySelector('#upload-card-close');
+    titleEl.textContent = list.length === 1 ? 'Subiendo ' + list[0].name : `Subiendo ${list.length} archivos`;
+    barEl.style.background = 'var(--primary, #cc8800)';
+    barEl.style.width = '0%';
+    textEl.textContent = 'Preparando… (' + fmtMB(total) + ')';
+    closeEl.style.display = 'none';
 
     try {
-      const res = await fetch('/api/media/upload', {
-        method: 'POST',
-        body: formData
+      const json = await xhrUpload(formData, (loaded, all) => {
+        if (loaded === null) {
+          barEl.style.width = '100%';
+          textEl.textContent = 'Enviado. El servidor lo está procesando…';
+          return;
+        }
+        const pct = Math.round((loaded / all) * 100);
+        barEl.style.width = pct + '%';
+        textEl.textContent = `${pct}% · ${fmtMB(loaded)} de ${fmtMB(all)}`;
       });
-      const json = await res.json();
-
-      if (json.success && json.data) {
+      if (json.success) {
         applyUploadedMediaFiles(json.data);
-        showToast('Archivos subidos correctamente', 'success');
+        titleEl.textContent = '✅ ' + (list.length === 1 ? 'Archivo subido' : 'Archivos subidos');
+        textEl.textContent = 'Listo, ya aparece en tu publicación.';
+        setTimeout(() => { if (card.isConnected) card.remove(); }, 3500);
       } else {
-        showToast('Error subiendo media: ' + (json.error || 'Error desconocido'), 'error');
+        throw new Error(json.error || 'Error desconocido');
       }
     } catch (err) {
-      showToast('Error de conexión al subir: ' + err.message, 'error');
+      titleEl.textContent = '❌ No se pudo subir';
+      barEl.style.background = '#ef4444';
+      textEl.textContent = err.message;
+      closeEl.style.display = 'block';
+      showToast('Error subiendo: ' + err.message, 'error', 7000);
     }
   }
 
