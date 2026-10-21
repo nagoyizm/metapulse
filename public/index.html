@@ -3534,10 +3534,14 @@
               </button>
             </div>
             
+            <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:0.85rem; cursor:pointer;">
+              <input type="checkbox" id="batch-stamp-logo"> Estampar el logo de la marca en cada imagen (esquina inferior derecha)
+            </label>
+
             <div style="margin-top: 16px; background: var(--bg-surface-subtle); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-secondary);">
               <strong>ℹ️ ¿Cómo funciona el Autopilot?</strong>
               <ul style="margin: 6px 0 0 18px; padding: 0; line-height: 1.5;">
-                <li>Estampa automáticamente el sello circular de Kmarket en cada afiche.</li>
+                <li>No estampa el logo a menos que marques la casilla de arriba; así puedes posicionarlo tú después.</li>
                 <li>La IA analiza cada imagen y redacta el post con la <strong>fórmula oficial de Kmarket</strong> (dirección física y 5-7 hashtags).</li>
                 <li>Calcula los <strong>próximos slots de horario libres</strong> en tu calendario para no colisionar publicaciones.</li>
                 <li>Podrás revisar y afinar cada texto y fecha antes de programar con un solo clic.</li>
@@ -3896,7 +3900,7 @@
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/watermark.js?v=3.2"></script>
   <script src="js/settings.js?v=2.5"></script>
-  <script src="js/batchScheduler.js?v=2.4"></script>
+  <script src="js/batchScheduler.js?v=2.5"></script>
   <script src="js/inbox.js?v=2.4"></script>
   <script src="js/brand.js?v=1.0"></script>
   <script src="js/campaigns.js"></script>

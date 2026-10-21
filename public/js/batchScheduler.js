@@ -211,6 +211,7 @@
       });
       if (activeAcc?.pageId) formData.append('account_id', activeAcc.pageId);
       if (activeAcc?.pageName) formData.append('account_name', activeAcc.pageName);
+      formData.append('stamp_logo', document.getElementById('batch-stamp-logo')?.checked ? 'true' : 'false');
 
       const headers = {};
       if (activeAcc?.pageId) headers['x-account-id'] = activeAcc.pageId;

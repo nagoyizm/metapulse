@@ -3590,12 +3590,14 @@ router.post('/batch/process-images', upload.array('files', 15), async (req, res)
         wmRow = db.prepare('SELECT * FROM watermarks WHERE account_id = ? ORDER BY is_default DESC, id DESC LIMIT 1').get(activeAccountId);
       }
     }
-    const shouldStamp = getSetting('auto_stamp_seal') !== 'false' && Boolean(wmRow);
+    // El lote NO estampa el logo salvo que se pida explícitamente (checkbox del lote): así se puede posicionar a mano después
+    const stampRequested = String(req.body.stamp_logo || '') === 'true';
+    const shouldStamp = stampRequested && Boolean(wmRow);
     const wmPath = wmRow ? path.join(__dirname, '../../uploads/watermarks', wmRow.filename) : null;
     if (shouldStamp) {
       console.log(`[Batch Autopilot] ✅ Usando logo oficial de la marca: ${wmRow.name} (${wmRow.filename}) para cuenta ${activeAccountId}`);
     } else {
-      console.log(`[Batch Autopilot] ℹ️ Sin logo configurado para cuenta ${activeAccountId || 'desconocida'}. Omitiendo estampado de logos ajenos.`);
+      console.log(`[Batch Autopilot] ℹ️ Sin estampar logo (${stampRequested ? 'la cuenta ' + (activeAccountId || 'desconocida') + ' no tiene logo registrado' : 'no se pidió estampar'}).`);
     }
 
     // 2. Calcular los próximos slots disponibles para la cantidad de imágenes
