@@ -919,7 +919,7 @@ router.get('/engagement/feed', (req, res) => {
     const params = [Number(sinceId) || 0];
     if (accountId && accountId !== 'all') { where.push('account_id = ?'); params.push(accountId); }
     const rows = db.prepare(`
-      SELECT id, meta_media_id, account_id, account_name, kind, delta, total, caption, permalink, thumb_url, created_at
+      SELECT id, meta_media_id, account_id, account_name, kind, delta, total, caption, permalink, thumb_url, created_at, author, text, event_time
       FROM engagement_events WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?
     `).all(...params, Math.min(200, Number(limit) || 60));
     res.json({ success: true, data: rows });

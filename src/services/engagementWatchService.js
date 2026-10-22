@@ -33,6 +33,10 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_engagement_events_created ON engagement_events (id DESC);
   `);
   try { db.prepare('ALTER TABLE post_metrics ADD COLUMN thumb_url TEXT').run(); } catch (_) { /* ya existe */ }
+  for (const col of ['author TEXT', 'text TEXT', 'comment_id TEXT', 'event_time TEXT']) {
+    try { db.prepare('ALTER TABLE engagement_events ADD COLUMN ' + col).run(); } catch (_) { /* ya existe */ }
+  }
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_engagement_comment_id ON engagement_events (comment_id) WHERE comment_id IS NOT NULL');
 }
 
 function loadAccounts() {
@@ -70,6 +74,10 @@ async function checkAccount(account) {
     INSERT INTO engagement_events (meta_media_id, account_id, account_name, kind, delta, total, caption, permalink, thumb_url)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const addComment = db.prepare(`
+    INSERT OR IGNORE INTO engagement_events (meta_media_id, account_id, account_name, kind, delta, total, caption, permalink, thumb_url, author, text, comment_id, event_time)
+    VALUES (?, ?, ?, 'comment', 1, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
   let events = 0;
   for (const p of posts) {
     if (!p || !p.id) continue;
@@ -80,7 +88,25 @@ async function checkAccount(account) {
     if (prev) {
       // Solo se registran aumentos; las bajas (alguien quitó su me gusta) se actualizan sin evento
       if (likes > prev.likes) { addEvent.run(p.id, accountId, accountName, 'likes', likes - prev.likes, likes, p.caption || '', p.permalink || '', thumb); events++; }
-      if (comments > prev.comments) { addEvent.run(p.id, accountId, accountName, 'comments', comments - prev.comments, comments, p.caption || '', p.permalink || '', thumb); events++; }
+      if (comments > prev.comments) {
+        const delta = comments - prev.comments;
+        let found = 0;
+        try {
+          const list = (await getMediaComments(p.id, account))
+            .filter(c => c && c.id)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .slice(0, delta);
+          for (const c of list) {
+            const r = addComment.run(p.id, accountId, accountName, comments, p.caption || '', p.permalink || '', thumb, c.username || '', c.text || '', c.id, c.timestamp || null);
+            if (r.changes > 0) { found++; events++; }
+          }
+        } catch (e) {
+          console.warn('[Engagement] No se pudieron leer los comentarios de', p.id, e.message);
+        }
+        // Lo que no se pudo detallar (respuestas, fallo de lectura) queda como conteo
+        const rest = delta - found;
+        if (rest > 0 && found === 0) { addEvent.run(p.id, accountId, accountName, 'comments', rest, comments, p.caption || '', p.permalink || '', thumb); events++; }
+      }
     }
     // Primera vez que se ve el post: se guarda como base, sin evento
     metaService.upsertPostMetrics([p], { accountId, accountName });
@@ -110,9 +136,9 @@ async function checkAll({ manual = false } = {}) {
 }
 
 // Comentarios de un post de Instagram, en vivo desde Meta
-async function getMediaComments(mediaId, accountId) {
+async function getMediaComments(mediaId, accountOrId) {
   const axios = require('axios');
-  const creds = metaService.getAccountCredentials(accountId || null);
+  const creds = metaService.getAccountCredentials(accountOrId || null);
   if (!creds || !creds.pageToken) throw new Error('La cuenta no tiene token de Instagram.');
   const res = await axios.get(`${metaService.graphUrl}/${encodeURIComponent(mediaId)}/comments`, {
     params: { fields: 'id,text,timestamp,username,like_count', limit: 50, access_token: creds.pageToken },

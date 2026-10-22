@@ -29,11 +29,34 @@
     return Math.round(sec / 86400) + ' d';
   }
 
+  // "hace 5 min" + hora de Chile (ej. "hace 5 min · 14:32")
+  function timeLabel(s) {
+    const d = parseUtc(s);
+    if (!d) return '';
+    const clock = d.toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false });
+    const day = (Date.now() - d.getTime()) > 86400000 ? d.toLocaleDateString('es-CL', { timeZone: 'America/Santiago', day: 'numeric', month: 'short' }) + ' ' : '';
+    const a = ago(s);
+    return (a === 'ahora' ? 'ahora' : 'hace ' + a) + '<br>' + day + clock;
+  }
+
   function thumbHtml(url) {
     return url ? `<img class="activity-thumb" src="${esc(url)}" alt="" loading="lazy">` : '<div class="activity-thumb"></div>';
   }
 
   function eventHtml(e, isNew) {
+    if (e.kind === 'comment') {
+      const tag = e.permalink ? 'a' : 'div';
+      const href = e.permalink ? ` href="${esc(e.permalink)}" target="_blank" rel="noopener"` : '';
+      return `<${tag} class="activity-event${isNew ? ' is-new' : ''}"${href}>
+        ${thumbHtml(e.thumb_url)}
+        <div class="activity-event-main">
+          <strong>💬 @${esc(e.author || 'usuario')} comentó</strong>
+          <span style="white-space:normal;">${esc((e.text || '').slice(0, 140))}</span>
+          <span>${esc(e.account_name || '')} · ${esc((e.caption || '').replace(/\s+/g, ' ').slice(0, 40))}</span>
+        </div>
+        <div class="activity-event-time">${timeLabel(e.event_time || e.created_at)}</div>
+      </${tag}>`;
+    }
     const what = e.kind === 'likes'
       ? `❤️ +${e.delta} me gusta`
       : `💬 +${e.delta} comentario${e.delta > 1 ? 's' : ''}`;
@@ -45,7 +68,7 @@
         <strong>${what} <small class="text-muted">· total ${e.total}</small></strong>
         <span>${esc(e.account_name || '')} · ${esc((e.caption || '').replace(/\s+/g, ' ').slice(0, 70))}</span>
       </div>
-      <div class="activity-event-time">${ago(e.created_at)}</div>
+      <div class="activity-event-time">${timeLabel(e.created_at)}</div>
     </${tag}>`;
   }
 
