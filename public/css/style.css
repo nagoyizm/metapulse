@@ -3329,5 +3329,24 @@ input:checked + .slider:before {
   font-weight: 600;
 }
 
-
-
+/* Actividad: feed de me gusta/comentarios y lista de posts */
+.activity-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .activity-layout { grid-template-columns: 1fr; } }
+.activity-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.activity-filters { display: flex; gap: 6px; }
+.activity-filters .form-control { padding: 4px 8px; font-size: 0.8rem; width: auto; }
+.activity-feed { margin-top: 10px; max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.activity-event { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); font-size: 0.82rem; text-decoration: none; color: inherit; }
+.activity-event.is-new { animation: activityFlash 2.4s ease-out; }
+@keyframes activityFlash { from { background: rgba(236, 72, 153, 0.28); } to { background: var(--bg-surface-subtle); } }
+.activity-thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: rgba(148, 163, 184, 0.2); flex: none; }
+.activity-event-main { min-width: 0; flex: 1; }
+.activity-event-main strong { display: block; }
+.activity-event-main span { display: block; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-event-time { color: var(--text-muted); font-size: 0.72rem; flex: none; }
+.activity-post { border-bottom: 1px solid var(--border-subtle); padding: 10px 0; }
+.activity-post-row { display: flex; gap: 12px; align-items: center; cursor: pointer; }
+.activity-post-row .activity-thumb { width: 56px; height: 56px; }
+.activity-post-stats { display: flex; gap: 12px; font-weight: 600; font-size: 0.85rem; flex: none; }
+.activity-comments { margin: 8px 0 0 68px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; }
+.activity-comment { padding: 6px 10px; background: var(--bg-surface-subtle); border-radius: 8px; }

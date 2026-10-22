@@ -55,6 +55,7 @@ function navigateToTab(tabId) {
     composer: 'Crear',
     queue: 'Calendario',
     inbox: 'Bandeja',
+    activity: 'Actividad',
     analytics: 'Resultados',
     brand: 'Marca',
     media: 'Biblioteca',
@@ -79,6 +80,7 @@ function navigateToTab(tabId) {
       window.loadScheduleSlots?.();
     },
     inbox: () => window.loadInboxData?.(),
+    activity: () => window.loadActivityData?.(),
     analytics: () => window.loadAnalyticsData?.(),
     brand: () => window.loadBrandProfiles?.(),
     media: () => {

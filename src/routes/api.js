@@ -891,6 +891,62 @@ function normalizeScheduleDate(scheduledAt, fallback) {
   }
 }
 
+// ── Actividad: posts con me gusta/comentarios y feed de aumentos ──
+router.get('/engagement/posts', (req, res) => {
+  try {
+    const { accountId = '', type = '', sort = 'date', limit = 100 } = req.query;
+    const where = [];
+    const params = [];
+    if (accountId && accountId !== 'all') { where.push('account_id = ?'); params.push(accountId); }
+    if (type === 'video') where.push("media_type = 'VIDEO'");
+    else if (type === 'image') where.push("media_type IN ('IMAGE', 'CAROUSEL_ALBUM')");
+    const order = sort === 'likes' ? 'likes DESC' : sort === 'comments' ? 'comments DESC' : 'posted_at DESC';
+    const rows = db.prepare(`
+      SELECT meta_media_id, account_id, account_name, caption, media_type, permalink, posted_at, likes, comments, thumb_url, fetched_at
+      FROM post_metrics ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+      ORDER BY ${order} LIMIT ?
+    `).all(...params, Math.min(300, Number(limit) || 100));
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/engagement/feed', (req, res) => {
+  try {
+    const { accountId = '', sinceId = 0, limit = 60 } = req.query;
+    const where = ['id > ?'];
+    const params = [Number(sinceId) || 0];
+    if (accountId && accountId !== 'all') { where.push('account_id = ?'); params.push(accountId); }
+    const rows = db.prepare(`
+      SELECT id, meta_media_id, account_id, account_name, kind, delta, total, caption, permalink, thumb_url, created_at
+      FROM engagement_events WHERE ${where.join(' AND ')} ORDER BY id DESC LIMIT ?
+    `).all(...params, Math.min(200, Number(limit) || 60));
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/engagement/refresh', async (req, res) => {
+  try {
+    const r = await require('../services/engagementWatchService').checkAll({ manual: true });
+    res.json({ success: true, data: r });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/engagement/posts/:mediaId/comments', async (req, res) => {
+  try {
+    const row = db.prepare('SELECT account_id FROM post_metrics WHERE meta_media_id = ?').get(req.params.mediaId);
+    const comments = await require('../services/engagementWatchService').getMediaComments(req.params.mediaId, row && row.account_id);
+    res.json({ success: true, data: comments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err.response && err.response.data && err.response.data.error && err.response.data.error.message) || err.message });
+  }
+});
+
 // Limpieza de videos/imágenes generados sin uso (simulación o real)
 router.post('/media/cleanup', (req, res) => {
   try {

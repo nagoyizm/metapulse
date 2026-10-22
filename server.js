@@ -93,4 +93,7 @@ const httpServer = app.listen(PORT, HOST, () => {
 
   // Iniciar sincronización diaria de métricas de posts
   require('./src/services/metricsSyncService').start();
+
+  // Vigilar me gusta y comentarios de Instagram (feed de la pestaña Actividad)
+  require('./src/services/engagementWatchService').start();
 });
