@@ -3205,6 +3205,11 @@ router.get('/music/library', (req, res) => {
 router.get('/music/search', async (req, res) => {
   try {
     const { q = '', tag = '', limit = 20, provider = 'all' } = req.query;
+    // Con texto de búsqueda se busca por tema en fuentes con licencia comercial verificada (ccMixter, Jamendo, Mi música)
+    if (q && (provider === 'all' || provider === 'theme')) {
+      const themed = await require('../services/musicThemeService').searchByTheme({ query: q, limit: Number(limit) || 20 });
+      if (themed.results.length > 0) return res.json({ success: true, data: themed });
+    }
     const result = await musicService.searchAllSources({ query: q, tag, limit: Number(limit), provider });
     res.json({ success: true, data: result });
   } catch (err) {

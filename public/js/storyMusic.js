@@ -193,8 +193,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 4. Selección y Configuración de Pista
+  // Las licencias CC BY exigen dar crédito: se agrega al final del texto del post (una sola vez)
+  function ensureAttributionInCaption(track) {
+    const area = document.getElementById('post-content');
+    if (!area || !track || !track.attribution) return;
+    if (area.value.includes(track.attribution)) return;
+    area.value = (area.value.trimEnd() + '\n\n' + track.attribution).trim();
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof showToast === 'function') showToast('Esta licencia exige crédito: lo agregué al final del texto. No lo quites.', 'info', 6000);
+  }
+
   function selectTrack(track, playSnippet = false) {
     StoryMusicState.selectedTrack = track;
+    ensureAttributionInCaption(track);
     activePanel.style.display = 'flex';
 
     if (activeTrackTitle) activeTrackTitle.textContent = track.title;
@@ -430,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const query = (customQuery || jamendoInput?.value || '').trim();
     if (!query) return;
 
-    jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">🌸 Buscando en Audius API...</div>';
+    jamendoResults.innerHTML = '<div style="text-align:center; padding:15px; color:#94a3b8; font-size:0.8rem;">🌸 Buscando música libre para tu tema...</div>';
 
     try {
       const res = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&limit=20`);
@@ -444,6 +455,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         jamendoResults.innerHTML = '';
+        if (json.data.source === 'theme') {
+          const hint = document.createElement('div');
+          hint.style.cssText = 'font-size:0.72rem; color:#94a3b8; padding:2px 4px 6px;';
+          hint.textContent = `Buscado como: ${(json.data.tags || []).join(', ')}${json.data.jamendo === 'sin clave' ? ' · Jamendo sin activar' : ''}. Solo se muestran pistas con licencia comercial.`;
+          jamendoResults.appendChild(hint);
+        }
         results.forEach(track => {
           const isSelected = StoryMusicState.selectedTrack && StoryMusicState.selectedTrack.id === track.id;
           const isPlaying = StoryMusicState.playingTrackId === track.id;
@@ -465,6 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>
             <div class="track-right">
+              ${track.licenseInfo ? `<span class="track-badge" style="background:rgba(16,185,129,0.18); color:#10b981;" title="${escapeHtml(track.attribution ? 'Requiere crédito en el texto del post' : 'No requiere crédito')}">✅ ${escapeHtml(track.license)}${track.attribution ? ' · crédito' : ''}</span>` : `<span class="track-badge" style="background:rgba(245,158,11,0.18); color:#f59e0b;" title="Licencia sin verificar: revisa antes de usar en una marca">⚠️ revisar licencia</span>`}
               <span class="track-badge">${escapeHtml(track.badge || 'Audius')}</span>
               <button type="button" class="btn-select-track" data-id="${track.id}">
                 ${isSelected ? '✓ Seleccionada' : 'Seleccionar'}
