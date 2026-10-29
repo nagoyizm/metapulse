@@ -337,7 +337,9 @@ class MusicService {
           timeout: 25000,
           maxRedirects: 8,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            // ccMixter bloquea la descarga directa (403) si la petición no dice que viene de su sitio
+            ...(/^https?:\/\/([^/]*\.)?ccmixter\.org\//i.test(tryUrl) ? { Referer: 'https://ccmixter.org/' } : {})
           }
         });
 

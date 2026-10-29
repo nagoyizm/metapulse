@@ -798,7 +798,7 @@
     if (!track.streamUrl) return;
     stopBatchAudio();
 
-    batchMusicState.audioPlayer.src = track.streamUrl;
+    batchMusicState.audioPlayer.src = track.previewUrl || track.streamUrl;
     batchMusicState.audioPlayer.currentTime = batchMusicState.startTime;
     batchMusicState.audioPlayer.play()
       .then(() => {

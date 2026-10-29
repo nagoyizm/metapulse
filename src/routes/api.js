@@ -3228,6 +3228,34 @@ router.get('/music/audius', async (req, res) => {
   }
 });
 
+// Reproducción de pistas de ccMixter: bloquea el acceso directo desde navegadores (exige Referer propio), así que pasa por el servidor.
+// Solo se permiten audios de ccmixter.org (evita usar el servidor como proxy abierto).
+router.get('/music/proxy', async (req, res) => {
+  try {
+    let target;
+    try { target = new URL(String(req.query.url || '')); } catch (_) { return res.status(400).end(); }
+    const okHost = target.protocol === 'https:' && (target.hostname === 'ccmixter.org' || target.hostname.endsWith('.ccmixter.org'));
+    if (!okHost || !/\.mp3$/i.test(target.pathname)) return res.status(400).json({ success: false, error: 'Origen no permitido' });
+    const upstream = await axios.get(target.toString(), {
+      responseType: 'stream',
+      timeout: 25000,
+      maxRedirects: 3,
+      validateStatus: (st) => st < 500,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', Referer: 'https://ccmixter.org/', ...(req.headers.range ? { Range: req.headers.range } : {}) }
+    });
+    if (upstream.status >= 400) { upstream.data.destroy(); return res.status(502).json({ success: false, error: 'La fuente rechazó la descarga (' + upstream.status + ')' }); }
+    res.status(upstream.status);
+    for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+      if (upstream.headers[h]) res.setHeader(h, upstream.headers[h]);
+    }
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    req.on('close', () => upstream.data.destroy());
+    upstream.data.pipe(res);
+  } catch (err) {
+    if (!res.headersSent) res.status(502).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/music/precache', async (req, res) => {
   try {
     const { url, id, category, title, artist } = req.body;

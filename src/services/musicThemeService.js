@@ -125,6 +125,7 @@ async function searchCcMixter(tags, limit) {
         title: r.upload_name,
         artist: r.user_real_name || r.user_name,
         streamUrl: mp3.download_url,
+        previewUrl: '/api/music/proxy?url=' + encodeURIComponent(mp3.download_url),
         durationSec: dur || 120,
         mood: String(extra.usertags || '').split(',').filter(Boolean).slice(0, 4).join(', '),
         badge: 'ccMixter',

@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (playSnippet) {
-      playTrackSnippet(track.streamUrl, StoryMusicState.startTime, track.id);
+      playTrackSnippet(track.previewUrl || track.streamUrl, StoryMusicState.startTime, track.id);
     }
   }
 
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Regla de UX: al reproducir una canción para escucharla, seleccionarla como activa
       selectTrack(track, false);
-      playTrackSnippet(track.streamUrl, StoryMusicState.startTime || 0, track.id);
+      playTrackSnippet(track.previewUrl || track.streamUrl, StoryMusicState.startTime || 0, track.id);
     }
   }
 
