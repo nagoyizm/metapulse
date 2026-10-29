@@ -25,7 +25,12 @@
 
   function firstImageUrl() {
     const files = (window.ComposerState && window.ComposerState.mediaFiles) || [];
-    return files.find(u => !/\.(mp4|mov|webm|m4v)(\?|$)/i.test(u)) || null;
+    const img = files.find(u => !/\.(mp4|mov|webm|m4v)(\?|$)/i.test(u));
+    if (img) return img;
+    // El post es el video generado a partir de una imagen con música: se diseña sobre esa imagen
+    const cs = window.ComposerState || {};
+    if (cs.sourceImage && cs.sourceImageVideo && files[0] === cs.sourceImageVideo) return cs.sourceImage;
+    return null;
   }
 
   async function post(path, body) {
@@ -60,7 +65,7 @@
         <span>🎨 Diseñar la Historia (texto gancho y stickers)</span>
       </label>
       <div id="sd-panel" style="display:none;margin-top:10px;">
-        <div id="sd-novideo" style="display:none;font-size:0.78rem;color:#b45309;">El diseño solo funciona con imágenes. Sube una imagen primero.</div>
+        <div id="sd-novideo" style="display:none;font-size:0.78rem;color:#b45309;">El diseño solo funciona con imágenes (si el post es un video que subiste, no se puede). Sube una imagen primero.</div>
         <div id="sd-body" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">
           <div>
             <div id="sd-stage" style="position:relative;width:${STAGE_W}px;height:${STAGE_H}px;background:#222;border-radius:10px;overflow:hidden;touch-action:none;user-select:none;">
@@ -316,7 +321,7 @@
       kind: i.kind, text: i.text, code: i.code, targetDate: i.targetDate,
       x: i.x, y: i.y, scale: i.scale, rotate: i.rotate, animated: Boolean(i.animated)
     }));
-    return { enabled: true, caption: state.useHook ? state.hook.trim() : '', items };
+    return { enabled: true, caption: state.useHook ? state.hook.trim() : '', items, imageUrl: firstImageUrl() };
   }
 
   function reset() {

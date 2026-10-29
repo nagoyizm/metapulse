@@ -562,9 +562,12 @@ async function createCrossStoryPost(opts) {
   const isReel = post_type === 'reel';
   const videoMedia = media_urls.find(u => isVideoUrl(u));
   let storyMediaUrl = media_urls[0];
-  const useDesign = Boolean(story_design && story_design.enabled && !isReel && !videoMedia);
+  // Imagen sobre la que se diseña: la del diseño (post que se volvió video al ponerle música) o la primera del post
+  const designImage = (story_design && typeof story_design.imageUrl === 'string' && /^\/uploads\/[^?#]+\.(jpe?g|png|webp)$/i.test(story_design.imageUrl) && !story_design.imageUrl.includes('..'))
+    ? story_design.imageUrl : null;
+  const useDesign = Boolean(story_design && story_design.enabled && !isReel && (!videoMedia || designImage));
 
-  if (isReel || videoMedia) {
+  if (!useDesign && (isReel || videoMedia)) {
     const rawVideo = videoMedia || media_urls[0];
     try {
       const conv = await videoService.convertVideoToStoryVideo({ videoInput: rawVideo });
@@ -622,7 +625,7 @@ async function createCrossStoryPost(opts) {
     let url = storyMediaUrl;
     try {
       const out = await storyDesignService.renderDesign({
-        imagePath: media_urls[0],
+        imagePath: designImage || media_urls[0],
         caption: story_design.caption || '',
         items,
         referenceDate: new Date(item.schedule),

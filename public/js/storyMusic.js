@@ -578,8 +578,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (json.success && json.data) {
         StoryMusicState.generatedVideoUrl = json.data.relativeUrl;
         
-        // Reemplazar la imagen en el composer con el video MP4 generado
+        // Reemplazar la imagen en el composer con el video MP4 generado.
+        // Se guarda la imagen de origen para que el diseñador de historias pueda seguir usándola.
+        if (ComposerState.mediaFiles[0] && !/\.(mp4|mov|webm|m4v)(\?|$)/i.test(ComposerState.mediaFiles[0])) {
+          ComposerState.sourceImage = ComposerState.mediaFiles[0];
+        }
         ComposerState.mediaFiles[0] = json.data.relativeUrl;
+        ComposerState.sourceImageVideo = json.data.relativeUrl;
         if (typeof window.renderMediaPreviews === 'function') {
           window.renderMediaPreviews();
         }
