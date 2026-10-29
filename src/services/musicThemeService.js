@@ -213,10 +213,12 @@ async function searchByTheme({ query, limit = 20 }) {
   const theme = String(query || '').trim();
   const { tags, ai } = await expandTheme(theme);
   const mine = searchMyLibrary(theme, tags);
-  const [ccm, jam] = await Promise.allSettled([
+  const [ccm, jam, aud] = await Promise.allSettled([
     searchCcMixter(tags, limit),
-    searchJamendoFree(tags, theme, limit)
+    searchJamendoFree(tags, theme, limit),
+    musicService.searchAudius({ query: tags.slice(0, 3).join(' '), limit: 8 })
   ]);
+  const audiusList = aud.status === 'fulfilled' ? (aud.value.results || []).slice(0, 6) : [];
   const ccmList = ccm.status === 'fulfilled' ? ccm.value : [];
   const jamRes = jam.status === 'fulfilled' ? jam.value : { results: [] };
 
@@ -228,7 +230,8 @@ async function searchByTheme({ query, limit = 20 }) {
     if (a.length) merged.push(a.shift());
     if (b.length) merged.push(b.shift());
   }
-  const results = merged.slice(0, limit).map(({ _tagHits, _score, ...t }) => t);
+  // Audius al final: es útil pero NO es libre de derechos (cada artista decide), por eso va sin etiqueta verde
+  const results = merged.slice(0, limit).concat(audiusList).map(({ _tagHits, _score, ...t }) => t);
   return {
     source: 'theme',
     tags,

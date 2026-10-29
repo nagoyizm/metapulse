@@ -757,15 +757,11 @@
     });
   }
 
-  // Licencias CC BY: el crédito se agrega al texto de la tarjeta del lote (una sola vez)
+  // Licencias CC BY: el crédito NO se escribe en el texto; se copia al portapapeles
   function addBatchAttribution(track) {
-    if (!track || !track.attribution || !batchMusicState.currentItemId) return;
-    const card = document.querySelector(`.batch-post-card[data-item-id="${batchMusicState.currentItemId}"]`);
-    const area = card && card.querySelector('.batch-item-content');
-    if (!area || area.value.includes(track.attribution)) return;
-    area.value = (area.value.trimEnd() + '\n\n' + track.attribution).trim();
-    area.dispatchEvent(new Event('input', { bubbles: true }));
-    if (typeof showToast === 'function') showToast('Esta licencia exige crédito: lo agregué al texto de la publicación. No lo quites.', 'info', 6000);
+    if (!track || !track.attribution) return;
+    try { navigator.clipboard.writeText(track.attribution); } catch (_) { /* sin permiso */ }
+    if (typeof showToast === 'function') showToast('Esta licencia pide crédito al autor. Lo copié al portapapeles por si quieres pegarlo en un comentario.', 'info', 6000);
   }
 
   function selectBatchTrack(track, autoplay = false) {

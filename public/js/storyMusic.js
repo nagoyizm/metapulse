@@ -193,19 +193,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 4. Selección y Configuración de Pista
-  // Las licencias CC BY exigen dar crédito: se agrega al final del texto del post (una sola vez)
-  function ensureAttributionInCaption(track) {
-    const area = document.getElementById('post-content');
-    if (!area || !track || !track.attribution) return;
-    if (area.value.includes(track.attribution)) return;
-    area.value = (area.value.trimEnd() + '\n\n' + track.attribution).trim();
-    area.dispatchEvent(new Event('input', { bubbles: true }));
-    if (typeof showToast === 'function') showToast('Esta licencia exige crédito: lo agregué al final del texto. No lo quites.', 'info', 6000);
+  // Las licencias CC BY piden crédito: NO se escribe en el post; se copia al portapapeles para pegarlo donde quieras
+  // (por ejemplo en un comentario fijado).
+  function copyAttribution(track) {
+    if (!track || !track.attribution) return;
+    try { navigator.clipboard.writeText(track.attribution); } catch (_) { /* sin permiso de portapapeles */ }
+    if (typeof showToast === 'function') showToast('Esta licencia pide crédito al autor. Lo copié al portapapeles: pégalo en un comentario fijado si quieres cumplirla.', 'info', 7000);
   }
 
   function selectTrack(track, playSnippet = false) {
     StoryMusicState.selectedTrack = track;
-    ensureAttributionInCaption(track);
+    copyAttribution(track);
     activePanel.style.display = 'flex';
 
     if (activeTrackTitle) activeTrackTitle.textContent = track.title;

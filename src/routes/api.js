@@ -3206,7 +3206,8 @@ router.get('/music/search', async (req, res) => {
   try {
     const { q = '', tag = '', limit = 20, provider = 'all' } = req.query;
     // Con texto de búsqueda se busca por tema en fuentes con licencia comercial verificada (ccMixter, Jamendo, Mi música)
-    if (q && (provider === 'all' || provider === 'theme')) {
+    const looksKpop = /k-?pop|korean|asian|seoul|kawaii|bts|twice|blackpink/i.test(q);
+    if (q && !looksKpop && (provider === 'all' || provider === 'theme')) {
       const themed = await require('../services/musicThemeService').searchByTheme({ query: q, limit: Number(limit) || 20 });
       if (themed.results.length > 0) return res.json({ success: true, data: themed });
     }
