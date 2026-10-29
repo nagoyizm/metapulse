@@ -138,44 +138,46 @@ async function searchCcMixter(tags, limit) {
   return found.sort((a, b) => b._tagHits - a._tagHits).slice(0, limit);
 }
 
-// Jamendo: necesita client_id gratis. Se descartan las pistas NC/ND.
+// Jamendo: necesita client_id gratis. Se consulta una etiqueta por vez (varias juntas devuelven 0) y se descartan las pistas NC/ND:
+// la gran mayoría de su catálogo es no comercial (en una muestra, 48 de 50), así que aporta pocas pistas aptas para una marca.
 async function searchJamendoFree(tags, query, limit) {
   const clientId = getSetting('jamendo_client_id');
   if (!clientId) return { results: [], skipped: 'sin clave' };
-  try {
-    const res = await axios.get('https://api.jamendo.com/v3.0/tracks/', {
-      params: {
-        client_id: clientId, format: 'json', limit: 50, audioformat: 'mp32', include: 'musicinfo',
-        fuzzytags: tags.join('+'), boost: 'popularity_month', order: 'relevance', vocalinstrumental: 'instrumental'
-      },
-      timeout: HTTP_TIMEOUT
-    });
-    if (res.data && res.data.headers && res.data.headers.status === 'failed') {
-      return { results: [], error: res.data.headers.error_message };
-    }
-    const results = [];
-    for (const t of res.data.results || []) {
-      const license = classifyLicense(t.license_ccurl);
-      if (!license || !t.audio || (t.duration || 0) < MIN_DURATION_SEC) continue;
-      results.push({
-        id: 'jam_' + t.id,
-        title: t.name,
-        artist: t.artist_name,
-        streamUrl: t.audio,
-        durationSec: t.duration,
-        artworkUrl: t.image || '',
-        mood: ((t.musicinfo && t.musicinfo.tags && t.musicinfo.tags.vartags) || []).slice(0, 4).join(', '),
-        badge: 'Jamendo',
-        license: license.label,
-        licenseInfo: license,
-        attribution: license.attributionRequired ? attributionText(t.name, t.artist_name, license, t.shareurl) : null
+  const results = [];
+  const seen = new Set();
+  let failed = 0;
+  for (const tag of tags.slice(0, 4)) {
+    try {
+      const res = await axios.get('https://api.jamendo.com/v3.0/tracks/', {
+        params: { client_id: clientId, format: 'json', limit: 100, audioformat: 'mp32', include: 'musicinfo', tags: tag, order: 'popularity_total' },
+        timeout: HTTP_TIMEOUT
       });
+      if (res.data && res.data.headers && res.data.headers.status === 'failed') { failed++; continue; }
+      for (const t of res.data.results || []) {
+        if (seen.has(t.id)) continue;
+        const license = classifyLicense(t.license_ccurl);
+        if (!license || !t.audio || (t.duration || 0) < MIN_DURATION_SEC) continue;
+        seen.add(t.id);
+        results.push({
+          id: 'jam_' + t.id,
+          title: t.name,
+          artist: t.artist_name,
+          streamUrl: t.audio,
+          durationSec: t.duration,
+          artworkUrl: t.image || '',
+          mood: ((t.musicinfo && t.musicinfo.tags && t.musicinfo.tags.vartags) || []).slice(0, 4).join(', '),
+          badge: 'Jamendo',
+          license: license.label,
+          licenseInfo: license,
+          attribution: license.attributionRequired ? attributionText(t.name, t.artist_name, license, t.shareurl) : null
+        });
+      }
+    } catch (e) {
+      failed++;
+      console.warn('[MusicTheme] Jamendo falló:', e.message);
     }
-    return { results: results.slice(0, limit) };
-  } catch (e) {
-    console.warn('[MusicTheme] Jamendo falló:', e.message);
-    return { results: [], error: e.message };
   }
+  return { results: results.slice(0, limit), error: failed >= Math.min(4, tags.length) ? 'falló' : undefined };
 }
 
 // "Mi música": archivos subidos por el usuario cuyo nombre coincide con el tema (ej. "ano-nuevo-familia-pixabay.mp3").
