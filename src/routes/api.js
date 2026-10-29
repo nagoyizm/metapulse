@@ -626,7 +626,8 @@ async function createCrossStoryPost(opts) {
         caption: story_design.caption || '',
         items,
         referenceDate: new Date(item.schedule),
-        brandName: accountName || getSetting('meta_page_name') || ''
+        brandName: accountName || getSetting('meta_page_name') || '',
+        music: story_music_config || null
       });
       url = out.relativeUrl;
       if (out.type === 'image' && story_music_config?.audio_url) {

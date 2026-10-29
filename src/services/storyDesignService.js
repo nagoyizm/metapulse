@@ -4,6 +4,7 @@ const fs = require('fs');
 const imageService = require('./imageService');
 const videoService = require('./videoService');
 const stickers = require('./storyStickers');
+const musicService = require('./musicService');
 
 const VIDEO_SECONDS = 7;
 
@@ -18,9 +19,11 @@ function toAbsolute(p) {
  * @param {string} o.caption    texto gancho ('' = sin cuadro blanco)
  * @param {Array}  o.items      elementos del diseño (ver storyStickers.js)
  * @param {Date}   [o.referenceDate] fecha de publicación (para la cuenta regresiva)
+ * @param {Object} [o.music]    { audio_url, start_time, duration }: si hay GIF animados, el video lleva esta música
+ *                              (para imagen fija con música, el llamador genera el video aparte con generateStoryVideo)
  * @returns {{relativeUrl: string, type: 'image'|'video', path: string}}
  */
-async function renderDesign({ imagePath, caption = '', items = [], referenceDate = new Date(), brandName = '' }) {
+async function renderDesign({ imagePath, caption = '', items = [], referenceDate = new Date(), brandName = '', music = null }) {
   const hasAnimated = (items || []).some(i => i && i.kind === 'emoji' && i.animated);
   const { layers, animatedItems } = await stickers.buildDesignLayers(items, { referenceDate, animated: hasAnimated });
   const card = await imageService.createStoryCard({
@@ -33,7 +36,15 @@ async function renderDesign({ imagePath, caption = '', items = [], referenceDate
     return { relativeUrl: card.relativeUrl, type: 'image', path: card.outputPath };
   }
 
-  const inputs = ['-y', '-loop', '1', '-t', String(VIDEO_SECONDS), '-i', card.outputPath];
+  // Con música el video dura lo que se eligió para la canción; sin música, 7 s
+  let seconds = VIDEO_SECONDS;
+  let audioPath = null;
+  if (music && music.audio_url) {
+    seconds = Math.min(Math.max(Number(music.duration) || 15, 3), 60);
+    try { audioPath = await musicService.ensureTrackCached(music.audio_url, { title: music.song_title || '' }); } catch (_) { audioPath = null; }
+    if (!audioPath || !fs.existsSync(audioPath)) { audioPath = null; seconds = VIDEO_SECONDS; }
+  }
+  const inputs = ['-y', '-loop', '1', '-t', String(seconds), '-i', card.outputPath];
   const chains = [];
   let last = '0:v';
   animatedItems.forEach((a, i) => {
@@ -46,14 +57,20 @@ async function renderDesign({ imagePath, caption = '', items = [], referenceDate
     last = `o${i}`;
   });
   chains.push(`[${last}]format=yuv420p[v]`);
+  const audioIndex = animatedItems.length + 1;
+  if (audioPath) {
+    inputs.push('-ss', String(Math.max(Number(music.start_time) || 0, 0)), '-t', String(seconds), '-i', audioPath);
+  }
 
   const outName = `story_design_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`;
   const outPath = path.join(videoService.storiesDir, outName);
   await videoService.runFFmpeg([
-    ...inputs, '-filter_complex', chains.join(';'), '-map', '[v]', '-t', String(VIDEO_SECONDS), '-r', '25',
+    ...inputs, '-filter_complex', chains.join(';'), '-map', '[v]',
+    ...(audioPath ? ['-map', `${audioIndex}:a`, '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2', '-af', `afade=t=out:st=${Math.max(seconds - 1, 0)}:d=1`] : []),
+    '-t', String(seconds), '-r', '25',
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outPath
   ]);
-  return { relativeUrl: `/uploads/stories/${outName}`, type: 'video', path: outPath };
+  return { relativeUrl: `/uploads/stories/${outName}`, type: 'video', path: outPath, hasAudio: Boolean(audioPath) };
 }
 
 module.exports = { renderDesign };
