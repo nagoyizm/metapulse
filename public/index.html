@@ -835,7 +835,7 @@
                           <span>Subir mi canción</span>
                         </button>
                         <button type="button" class="music-tab-btn" data-tab="jamendo">
-                          <span>K-Pop y Audius API</span>
+                          <span>🎼 Buscar por tema</span>
                         </button>
                       </div>
 
@@ -867,16 +867,17 @@
                       <!-- TAB 3: Audius & K-Pop API Libre -->
                       <div id="music-tab-jamendo" class="music-tab-content" style="display:none;">
                         <div style="display:flex; gap:8px; margin-bottom:8px;">
-                          <input type="text" id="jamendo-search-input" aria-label="Buscar K-Pop, Beats y Canciones en Audius" class="music-search-input" placeholder="Buscar K-Pop, Korean Lo-Fi, Asian Beats o cualquier artista...">
+                          <input type="text" id="jamendo-search-input" aria-label="Buscar música por tema" class="music-search-input" placeholder="Escribe un tema: celebración familiar, hogareño y relajado, año nuevo...">
                           <button type="button" class="btn btn-primary btn-sm" id="btn-jamendo-search" style="padding:0 14px; white-space:nowrap;">Buscar</button>
                         </div>
                         <!-- Chips de Acceso Rápido para Kmarket / K-Pop -->
                         <div class="music-quick-chips" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
-                          <button type="button" class="music-chip-btn active" data-q="kpop" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid rgba(236,72,153,0.3); background:rgba(236,72,153,0.1); color:#ec4899; cursor:pointer;">🌸 K-Pop Hits</button>
-                          <button type="button" class="music-chip-btn" data-q="korean lofi" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">☕ Seoul Lo-Fi</button>
-                          <button type="button" class="music-chip-btn" data-q="kpop remix" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">⚡ K-Dance Beat</button>
-                          <button type="button" class="music-chip-btn" data-q="k-indie" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">🎸 K-Indie & Acoustic</button>
-                          <button type="button" class="music-chip-btn" data-q="kawaii beat" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">✨ Kawaii Trap</button>
+                          <button type="button" class="music-chip-btn" data-q="Año nuevo en familia" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Año nuevo en familia</button>
+                          <button type="button" class="music-chip-btn" data-q="Hogareño y relajado" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Hogareño y relajado</button>
+                          <button type="button" class="music-chip-btn" data-q="Celebración familiar" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Celebración familiar</button>
+                          <button type="button" class="music-chip-btn" data-q="Acústico cálido" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Acústico cálido</button>
+                          <button type="button" class="music-chip-btn" data-q="Navidad" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Navidad</button>
+                          <button type="button" class="music-chip-btn" data-q="Verano y playa" style="font-size:0.73rem; padding:3px 8px; border-radius:12px; border:1px solid var(--border-subtle); background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;">Verano y playa</button>
                         </div>
                         <div class="music-track-list" id="jamendo-results-list">
                           <div style="text-align:center; padding:15px; color:var(--text-secondary); font-size:0.8rem;">
@@ -3793,7 +3794,7 @@
                 <span>Subir MP3</span>
               </button>
               <button type="button" class="music-tab-btn batch-music-tab-btn" data-tab="jamendo">
-                <span>K-Pop y Audius</span>
+                <span>🎼 Buscar por tema</span>
               </button>
             </div>
 
@@ -3820,11 +3821,11 @@
             <!-- TAB 3: Audius / K-Pop -->
             <div id="batch-music-tab-jamendo" class="batch-music-tab-pane" style="display:none;">
               <div style="display:flex; gap:6px; margin-bottom:8px;">
-                <input type="text" id="batch-jamendo-search-input" aria-label="Buscar en Audius" class="music-search-input" placeholder="Buscar K-Pop, Korean Lo-Fi o cualquier artista en Audius..." style="font-size:0.8rem;">
+                <input type="text" id="batch-jamendo-search-input" aria-label="Buscar música por tema" class="music-search-input" placeholder="Escribe un tema: celebración familiar, año nuevo, relajado..." style="font-size:0.8rem;">
                 <button type="button" class="btn btn-primary btn-sm" id="btn-batch-jamendo-search" style="padding:4px 12px; font-size:0.78rem;">Buscar</button>
               </div>
               <div class="music-track-list" id="batch-jamendo-results-list" style="max-height:190px; overflow-y:auto;">
-                <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.78rem;">Escribe una palabra clave para buscar canciones libres en Audius.</div>
+                <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:0.78rem;">Escribe un tema para buscar música con licencia comercial (ccMixter, Jamendo y tu biblioteca).</div>
               </div>
             </div>
 
@@ -3931,14 +3932,14 @@
   <script src="js/auth.js?v=2.4"></script>
   <script src="js/app.js?v=2.7"></script>
   <script src="js/composer.js?v=3.5"></script>
-  <script src="js/storyMusic.js?v=2.5"></script>
+  <script src="js/storyMusic.js?v=2.6"></script>
   <script src="js/storyDesigner.js?v=1.0"></script>
   <script src="js/calendar.js?v=2.8"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>
   <script src="js/watermark.js?v=3.2"></script>
   <script src="js/settings.js?v=2.7"></script>
-  <script src="js/batchScheduler.js?v=2.7"></script>
+  <script src="js/batchScheduler.js?v=2.8"></script>
   <script src="js/inbox.js?v=2.4"></script>
   <script src="js/brand.js?v=1.0"></script>
   <script src="js/campaigns.js"></script>

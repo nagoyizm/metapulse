@@ -735,6 +735,7 @@
           </div>
         </div>
         <div class="track-right" style="display:flex; align-items:center; gap:6px;">
+          ${track.licenseInfo ? `<span class="track-badge" style="background:rgba(16,185,129,0.18); color:#10b981;" title="${escapeHtml(track.attribution ? 'Requiere crédito en el texto' : 'No requiere crédito')}">✅ ${escapeHtml(track.license)}${track.attribution ? ' · crédito' : ''}</span>` : ''}
           <button type="button" class="btn-select-track" style="font-size:0.72rem; padding:3px 8px;">Elegir</button>
         </div>
       `;
@@ -756,8 +757,20 @@
     });
   }
 
+  // Licencias CC BY: el crédito se agrega al texto de la tarjeta del lote (una sola vez)
+  function addBatchAttribution(track) {
+    if (!track || !track.attribution || !batchMusicState.currentItemId) return;
+    const card = document.querySelector(`.batch-post-card[data-item-id="${batchMusicState.currentItemId}"]`);
+    const area = card && card.querySelector('.batch-item-content');
+    if (!area || area.value.includes(track.attribution)) return;
+    area.value = (area.value.trimEnd() + '\n\n' + track.attribution).trim();
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    if (typeof showToast === 'function') showToast('Esta licencia exige crédito: lo agregué al texto de la publicación. No lo quites.', 'info', 6000);
+  }
+
   function selectBatchTrack(track, autoplay = false) {
     batchMusicState.selectedTrack = track;
+    addBatchAttribution(track);
 
     // Actualizar UI del panel activo
     const titleEl = getEl('batch-active-music-title');
