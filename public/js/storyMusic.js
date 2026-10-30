@@ -521,7 +521,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const baseImage = ComposerState.mediaFiles[0];
+    // Si el post ya es el video generado antes (cambio de canción), se parte de la imagen original
+    let baseImage = ComposerState.mediaFiles[0];
+    if (ComposerState.sourceImage && baseImage === ComposerState.sourceImageVideo) baseImage = ComposerState.sourceImage;
+    if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(baseImage)) {
+      if (typeof showToast === 'function') showToast('El post ya es un video: la música solo se puede aplicar a una imagen.', 'warning');
+      return;
+    }
     const postTypeRadio = document.querySelector('input[name="post_type"]:checked');
     const currentPostType = postTypeRadio ? postTypeRadio.value : 'feed';
     const isFeed = currentPostType === 'feed';
