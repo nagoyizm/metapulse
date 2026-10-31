@@ -76,3 +76,6 @@ Formato: fecha · decisión · por qué.
 
 ## La foto de referencia manda sobre el plan (Campiña)
 - Si hay foto de referencia, la escena se adapta a lo que muestra (ignora espacio recomendado que no aparezca), ubica personas solo en zonas libres, devuelve `photoSummary` ("Veo en tu foto") y hay botón "Reanalizar con esta foto" que regenera solo escena y prompt.
+
+## Ubicación libre de los datos de contacto en la imagen
+- Botón "📍 Elegir ubicación" (Creador, bloque datos de contacto): modal para arrastrar el texto sobre la imagen, con tamaño, color (auto/claro/oscuro) y fondo suave. El texto de la vista previa lo dibuja el servidor (misma imagen que se estampa). `/media/stamp-contact` acepta `placement {x,y,scale,color,veil}` (y `chip:true` para la vista previa). El botón "Estampar en la imagen" sigue estampando abajo como antes.

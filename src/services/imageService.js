@@ -867,7 +867,7 @@ class ImageService {
    * @param {string[]|string} options.lines - Array de líneas o elementos de contacto, o texto ya unido
    * @param {string} [options.fontPath] - Ruta al archivo de fuente TTF (default: Lato-Regular.ttf)
    */
-  async stampContactLine({ inputImagePath, lines, fontPath }) {
+  async stampContactLine({ inputImagePath, lines, fontPath, placement = null }) {
     if (!inputImagePath || typeof inputImagePath !== 'string' || !inputImagePath.trim()) {
       throw new Error('inputImagePath es requerido');
     }
@@ -921,8 +921,21 @@ class ImageService {
     const stripHeight = Math.max(1, Math.round(baseHeight * 0.12));
     const stripTop = baseHeight - stripHeight;
 
+    const clampN = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+    // Con ubicación libre se mide la luminosidad alrededor de donde irá el texto
+    let statRegion = { left: 0, top: stripTop, width: baseWidth, height: stripHeight };
+    if (placement) {
+      const rw = Math.max(1, Math.round(baseWidth * 0.5));
+      const rh = Math.max(1, Math.round(baseHeight * 0.1));
+      statRegion = {
+        left: clampN(Math.round(placement.x * baseWidth - rw / 2), 0, baseWidth - rw),
+        top: clampN(Math.round(placement.y * baseHeight - rh / 2), 0, baseHeight - rh),
+        width: rw,
+        height: rh
+      };
+    }
     const stripStats = await sharp(resolvedPath)
-      .extract({ left: 0, top: stripTop, width: baseWidth, height: stripHeight })
+      .extract(statRegion)
       .stats();
 
     const rMean = stripStats.channels[0]?.mean || 0;
@@ -931,8 +944,10 @@ class ImageService {
     const luminosity = (0.2126 * rMean + 0.7152 * gMean + 0.0722 * bMean) / 255;
 
     const isDark = luminosity < 0.55;
-    const textColor = isDark ? '#F6EEDF' : '#1F1A17';
-    const veilColor = isDark ? '#000000' : '#FFFFFF';
+    let textColor = isDark ? '#F6EEDF' : '#1F1A17';
+    if (placement && placement.color === 'light') textColor = '#F6EEDF';
+    if (placement && placement.color === 'dark') textColor = '#1F1A17';
+    const veilColor = textColor === '#F6EEDF' ? '#000000' : '#FFFFFF';
 
     // Normalizar elementos de contacto recibidos
     let items = [];
@@ -1050,6 +1065,37 @@ class ImageService {
           .png()
           .toBuffer();
       }
+    }
+
+    // Ubicación elegida por el usuario (centro del texto en x,y de 0 a 1, tamaño y fondo suave opcionales)
+    if (placement) {
+      if (placement.chipOnly) {
+        return { chipBuffer: finalTextBuffer, width: finalWidth, height: finalHeight, baseWidth, baseHeight, lines: renderedLines, textColor };
+      }
+      const scale = Math.min(Math.max(Number(placement.scale) || 1, 0.4), 3);
+      const tw = Math.min(Math.round(finalWidth * scale), Math.round(baseWidth * 0.96));
+      const th = Math.max(1, Math.round(finalHeight * (tw / finalWidth)));
+      const textBuf = tw === finalWidth
+        ? finalTextBuffer
+        : await sharp(finalTextBuffer).resize(tw, th, { kernel: 'lanczos3' }).png().toBuffer();
+      const pLeft = clampN(Math.round(placement.x * baseWidth - tw / 2), 0, baseWidth - tw);
+      const pTop = clampN(Math.round(placement.y * baseHeight - th / 2), 0, baseHeight - th);
+      const layers = [];
+      if (placement.veil) {
+        const pad = Math.round(Math.max(th * 0.8, baseHeight * 0.012));
+        const veilFull = `<svg width="${baseWidth}" height="${baseHeight}" xmlns="http://www.w3.org/2000/svg">
+  <defs><filter id="softBlur" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="${(pad / 2.2).toFixed(1)}"/></filter></defs>
+  <rect x="${pLeft - Math.round(pad * 0.4)}" y="${pTop - Math.round(pad * 0.4)}" width="${tw + Math.round(pad * 0.8)}" height="${th + Math.round(pad * 0.8)}" rx="${pad}" fill="${veilColor}" fill-opacity="0.45" filter="url(#softBlur)"/>
+</svg>`;
+        layers.push({ input: Buffer.from(veilFull), top: 0, left: 0 });
+      }
+      layers.push({ input: textBuf, top: pTop, left: pLeft });
+      const placedName = `contact-${Date.now()}.jpg`;
+      await sharp(resolvedPath)
+        .composite(layers)
+        .jpeg({ quality: 92, mozjpeg: true })
+        .toFile(path.join(this.uploadsDir, placedName));
+      return { url: `/uploads/${placedName}`, filename: placedName, lines: renderedLines };
     }
 
     // Posición del texto: centrado horizontalmente, base a 4.2% del borde inferior

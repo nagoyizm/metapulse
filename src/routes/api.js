@@ -3505,10 +3505,39 @@ router.post('/media/stamp-contact', async (req, res) => {
     const uppercaseItems = contactItems.map(item => item.toLocaleUpperCase('es-CL'));
     const joinedLine = uppercaseItems.join('  •  ');
 
+    // Ubicación libre elegida por el usuario (opcional)
+    let placement = null;
+    const rawPlacement = req.body && req.body.placement;
+    if (rawPlacement && typeof rawPlacement === 'object') {
+      const n01 = (v, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(Math.max(n, 0), 1) : d; };
+      placement = {
+        x: n01(rawPlacement.x, 0.5),
+        y: n01(rawPlacement.y, 0.9),
+        scale: Math.min(Math.max(Number(rawPlacement.scale) || 1, 0.4), 3),
+        color: ['light', 'dark'].includes(rawPlacement.color) ? rawPlacement.color : 'auto',
+        veil: Boolean(rawPlacement.veil),
+        chipOnly: Boolean(rawPlacement.chip)
+      };
+    }
+
     const result = await imageService.stampContactLine({
       inputImagePath: resolvedPath,
-      lines: [joinedLine]
+      lines: [joinedLine],
+      placement
     });
+
+    if (placement && placement.chipOnly) {
+      return res.json({
+        success: true,
+        data: {
+          chip: 'data:image/png;base64,' + result.chipBuffer.toString('base64'),
+          wRel: result.width / result.baseWidth,
+          hRel: result.height / result.baseHeight,
+          textColor: result.textColor,
+          lines: result.lines
+        }
+      });
+    }
 
     res.json({
       success: true,

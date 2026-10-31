@@ -5055,7 +5055,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function handlePipStampContact() {
+  async function handlePipStampContact(placement) {
     const currentImg = ComposerState.mediaFiles && ComposerState.mediaFiles[0];
     if (!currentImg || typeof currentImg !== 'string' || !currentImg.startsWith('/uploads/')) {
       showToast('Sube primero la imagen final de Gemini', 'warning');
@@ -5087,7 +5087,8 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           imageUrl: window._pipOriginalImage || currentImg,
           accountName,
-          fields
+          fields,
+          ...(placement ? { placement } : {})
         })
       });
       const json = await res.json();
@@ -5378,7 +5379,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const btnStamp = document.getElementById('btn-pip-stamp-contact');
-    if (btnStamp) btnStamp.addEventListener('click', handlePipStampContact);
+    if (btnStamp) btnStamp.addEventListener('click', () => handlePipStampContact());
+
+    // Elegir exactamente dónde van los datos de contacto (arrastrando sobre la imagen)
+    const btnPlace = document.getElementById('btn-pip-place-contact');
+    if (btnPlace) btnPlace.addEventListener('click', () => {
+      const stampBtn = document.getElementById('btn-pip-stamp-contact');
+      if (stampBtn && stampBtn.disabled) { showToast('Activa "Incluir datos de contacto" y sube la imagen final', 'warning'); return; }
+      const currentImg = ComposerState.mediaFiles && ComposerState.mediaFiles[0];
+      const baseImg = window._pipOriginalImage || currentImg;
+      if (!baseImg || typeof baseImg !== 'string' || !baseImg.startsWith('/uploads/')) { showToast('Sube primero la imagen final de Gemini', 'warning'); return; }
+      const accountName = window._pipAccountName || window.AppState?.config?.pageName || localStorage.getItem('metapulse_active_account_name') || '';
+      const fields = {
+        whatsapp: Boolean(document.getElementById('pip-contact-whatsapp')?.checked),
+        web: Boolean(document.getElementById('pip-contact-web')?.checked),
+        direccion: Boolean(document.getElementById('pip-contact-direccion')?.checked)
+      };
+      window.openContactPlacer({ imageUrl: baseImg, accountName, fields, onConfirm: (placement) => handlePipStampContact(placement) });
+    });
 
     const btnUnstamp = document.getElementById('btn-pip-unstamp-contact');
     if (btnUnstamp) btnUnstamp.addEventListener('click', handlePipUnstampContact);
