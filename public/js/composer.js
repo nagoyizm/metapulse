@@ -4512,6 +4512,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sceneHint: ''
       };
       if (imageUrl) payload.imageUrl = imageUrl;
+      if (postContent && postContent.value.trim()) payload.content = postContent.value;
 
       const res = await fetch('/api/ai/campina-prepare-post', {
         method: 'POST',
@@ -4652,7 +4653,8 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           postId: window._editingScheduledPostId,
-          force: true
+          force: true,
+          content: postContent ? postContent.value : ''
         })
       });
       const json = await res.json();

@@ -2419,7 +2419,7 @@ function getContactAvailable(accountName) {
 
 router.post('/ai/post-brief', async (req, res) => {
   try {
-    const { postId, force = false } = req.body || {};
+    const { postId, force = false, content: liveContent } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
     }
@@ -2428,6 +2428,8 @@ router.post('/ai/post-brief', async (req, res) => {
     if (!post) {
       return res.status(404).json({ success: false, error: 'Post no encontrado' });
     }
+    // El texto que el usuario tiene en el editor (reescrito, sin guardar) manda sobre el guardado
+    if (typeof liveContent === 'string' && liveContent.trim()) post.content = liveContent.trim().slice(0, 4000);
 
     let planContext = {};
     if (post.plan_context) {
@@ -2461,7 +2463,7 @@ router.post('/ai/post-brief', async (req, res) => {
 
 router.post('/ai/campina-prepare-post', async (req, res) => {
   try {
-    const { postId, imageUrl, sceneHint, force = false } = req.body || {};
+    const { postId, imageUrl, sceneHint, force = false, content: liveContent } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
     }
@@ -2474,6 +2476,7 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
     if (!post) {
       return res.status(404).json({ success: false, error: 'Post no encontrado' });
     }
+    if (typeof liveContent === 'string' && liveContent.trim()) post.content = liveContent.trim().slice(0, 4000);
 
     let cleanImageUrl = '';
     if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim().startsWith('/uploads/')) {
