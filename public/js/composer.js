@@ -4557,6 +4557,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (d.scene) {
           setInputValue('pip-scene-prompt', d.scene.sceneDirective || '');
+          showPipPhotoSummary(d.scene.photoSummary);
           const reasoningList = document.getElementById('pip-reasoning-list');
           if (reasoningList && Array.isArray(d.scene.reasoning)) {
             reasoningList.innerHTML = '';
@@ -5140,6 +5141,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function showPipPhotoSummary(text) {
+    const box = document.getElementById('pip-photo-summary');
+    const btn = document.getElementById('btn-pip-reanalyze');
+    if (box) {
+      const t = String(text || '').trim();
+      box.style.display = t ? 'block' : 'none';
+      box.innerHTML = t ? '<strong>Veo en tu foto:</strong> ' + escapeHtml(t) : '';
+    }
+    if (btn) btn.style.display = getPipReferenceImage() ? 'inline-flex' : 'none';
+  }
+
+  // Vuelve a pedir solo la escena a la IA con la foto actual (sin rehacer titulares ni arte)
+  async function reanalyzePipPhoto() {
+    const imageUrl = getPipReferenceImage();
+    if (!imageUrl) { showToast('Sube primero una foto de referencia', 'warning'); return; }
+    const theme = document.getElementById('pip-tema')?.value.trim() || document.getElementById('campina-theme')?.value.trim() || '';
+    if (!theme) { showToast('Falta el tema del post: pulsa "Preparar post" primero', 'warning'); return; }
+    const btn = document.getElementById('btn-pip-reanalyze');
+    const orig = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Analizando...'; }
+    try {
+      const res = await fetch('/api/ai/campina-scene-directive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate: document.getElementById('pip-ocasion')?.value.trim() || '',
+          imageUrl,
+          ...(window._draftPlanContext ? { planContext: window._draftPlanContext } : {}),
+          ...(window._postBrief ? { brief: window._postBrief } : {}),
+          caption: postContent ? postContent.value : ''
+        })
+      });
+      const json = await res.json();
+      if (!json.success || !json.data) throw new Error(json.error || 'Error del servidor');
+      const d = json.data;
+      setInputValue('pip-scene-prompt', d.sceneDirective || '');
+      showPipPhotoSummary(d.photoSummary);
+      const reasoningList = document.getElementById('pip-reasoning-list');
+      if (reasoningList && Array.isArray(d.reasoning)) {
+        reasoningList.innerHTML = '';
+        d.reasoning.forEach(r => { const li = document.createElement('li'); li.textContent = r; reasoningList.appendChild(li); });
+      }
+      const sceneMeta = document.getElementById('pip-scene-meta');
+      if (sceneMeta && (d.spaceType || d.audienceFocus)) {
+        sceneMeta.textContent = 'Espacio: ' + (d.spaceType || '') + ' · Enfoque: ' + (d.audienceFocus || '');
+        sceneMeta.style.display = 'inline-block';
+      }
+      window._pipFullPromptEditedManually = false;
+      await callPipComposePrompt();
+      showToast('Foto reanalizada: escena y prompt actualizados', 'success');
+    } catch (err) {
+      showToast('No se pudo reanalizar: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
   // Imagen de referencia (solo para la IA) vs imagen final de Gemini (la que se publica)
   function getPipReferenceImage() {
     if (typeof window._pipRefImage === 'string' && window._pipRefImage.startsWith('/uploads/')) return window._pipRefImage;
@@ -5168,6 +5227,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (thumb) { thumb.src = url; thumb.style.display = 'block'; }
       setElementDisplay('btn-pip-ref-clear', 'inline-flex');
       setElementText('pip-ref-status', 'Referencia lista: la IA la usará al preparar. No se publica.');
+      showPipPhotoSummary('');
     } catch (err) {
       setElementText('pip-ref-status', 'Error al subir la referencia.');
       showToast('Error subiendo la referencia: ' + err.message, 'error');
@@ -5210,11 +5270,14 @@ document.addEventListener('DOMContentLoaded', () => {
       await handlePipFinalSelected(finalFile.files?.[0]);
       finalFile.value = '';
     });
+    document.getElementById('btn-pip-reanalyze')?.addEventListener('click', reanalyzePipPhoto);
     document.getElementById('btn-pip-ref-clear')?.addEventListener('click', () => {
       window._pipRefImage = null;
       setElementDisplay('pip-ref-thumb', 'none');
       setElementDisplay('btn-pip-ref-clear', 'none');
       setElementText('pip-ref-status', 'Sin foto de referencia.');
+      showPipPhotoSummary('');
+      setElementDisplay('btn-pip-reanalyze', 'none');
     });
   }
 

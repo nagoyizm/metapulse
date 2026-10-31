@@ -2881,9 +2881,12 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
 
     const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
     const userHintInfo = sceneHint ? `\nPISTA DE ESCENA INDICADA POR EL USUARIO (MANDA SOBRE EL ESPACIO):\n"${sceneHint}"` : '';
+    const photoRule = inlineData
+      ? '\nLA FOTO ADJUNTA MANDA: es el fondo real que el dueño usará. Si el espacio recomendado, el brief o el plan sugieren un espacio o elementos que NO aparecen en la foto, ignóralos y adapta la escena a lo que la foto realmente muestra. Solo coloca personas y objetos en zonas que existan y estén libres en la foto (suelo, pasto, terraza, camino, banca); nunca delante de puertas, ventanas o elementos clave, ni donde no hay espacio físico.\n'
+      : '';
 
     const prompt = `Actúa como un Director de Arte y Fotógrafo Publicitario Senior para "Cabañas La Campiña" (Algarrobo, Chile).
-Tu misión es deducir las indicaciones de escena precisas para la imagen de un post publicitario, mediante razonamiento por pasos.
+Tu misión es deducir las indicaciones de escena precisas para la imagen de un post publicitario, mediante razonamiento por pasos.${photoRule}
 
 DATOS DEL POST:
 - Tema o enfoque: "${theme}"
@@ -2903,6 +2906,7 @@ Todo lo demás de la foto permanece idéntico.
 
 Devuelve ESTRICTAMENTE un JSON con esta estructura:
 {
+  "photoSummary": "SOLO si hay foto adjunta: 1 a 3 frases con lo que ves (espacio, elementos principales, luz) y las zonas libres donde caben personas (ej: 'Quincho con mesa larga al centro; pasto libre a la izquierda y camino al fondo. Personas: junto a la mesa y en el pasto'). Si no hay foto, cadena vacía.",
   "spaceType": "espacio identificado (ej: quincho, suite, cabaña, sendero de pinos, terraza, pastizal/áreas verdes)",
   "audienceFocus": "enfoque de público (ej: familia, pareja, amigos, descanso solo, celebración)",
   "reasoning": [
@@ -2984,7 +2988,8 @@ Devuelve ESTRICTAMENTE un JSON con esta estructura:
       spaceType: parsed.spaceType || 'otro',
       audienceFocus: parsed.audienceFocus || 'familia',
       reasoning: Array.isArray(parsed.reasoning) ? parsed.reasoning : [],
-      sceneDirective: parsed.sceneDirective.trim()
+      sceneDirective: parsed.sceneDirective.trim(),
+      photoSummary: (inlineData && typeof parsed.photoSummary === 'string') ? parsed.photoSummary.trim() : ''
     };
   }
 

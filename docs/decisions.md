@@ -73,3 +73,6 @@ Formato: fecha · decisión · por qué.
 - **2026-10-15 · Menos pruebas duplicadas.** El subagente no repite pruebas que Claude hará; la UI la prueba el dueño.
 - **2026-10-16 · Respuestas breves y concisas** en este proyecto.
 - Cada cambio va a `main` y se despliega en Contabo, con respaldo previo de la BD.
+
+## La foto de referencia manda sobre el plan (Campiña)
+- Si hay foto de referencia, la escena se adapta a lo que muestra (ignora espacio recomendado que no aparezca), ubica personas solo en zonas libres, devuelve `photoSummary` ("Veo en tu foto") y hay botón "Reanalizar con esta foto" que regenera solo escena y prompt.
