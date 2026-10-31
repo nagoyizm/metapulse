@@ -598,8 +598,14 @@ TEXTO ACTUAL:
 ${caption}
 """
 
-INSTRUCCIÓN DEL DUEÑO (prioridad máxima, cúmplela al pie de la letra; si pide evitar algo, no lo menciones ni lo insinúes):
+INSTRUCCIÓN DEL DUEÑO (es una DIRECCIÓN para ti, no texto para copiar. Cumple su intención; si pide evitar algo, no lo menciones ni lo insinúes):
 "${String(instruction).slice(0, 500)}"
+
+CÓMO TRABAJAR (piensa antes de escribir):
+1. Entiende qué quiere lograr el dueño con la instrucción (nuevo enfoque, otro público, otro tono, evitar un tema).
+2. Elige un ángulo nuevo y concreto para ese enfoque. Escribe una publicación distinta, no un parche sobre el texto anterior: gancho nuevo, estructura distinta, frases nuevas.
+3. PROHIBIDO pegar frases de la instrucción tal cual en el post ni copiar oraciones del texto actual. Expresa las ideas con tus propias palabras, como lo diría una persona real al contarlo.
+4. Aprovecha solo los hechos reales del texto actual (servicios, lugar, contacto); lo demás debe sonar fresco.
 
 REGLAS:
 - Mantén tono cálido y natural de persona real. Sin guiones largos (—, –, --).
@@ -607,12 +613,29 @@ REGLAS:
 - Conserva EXACTOS los datos de contacto (teléfono, web, dirección) y pon 3 a 5 hashtags al final, coherentes con el nuevo enfoque.
 - No inventes servicios, precios ni datos que no estén en el texto actual.
 - Responde SOLO con el texto final, sin notas, listas de verificación ni explicaciones.`;
+    const grams = (t, n = 5) => {
+      const w = String(t || '').toLowerCase().replace(/[^a-záéíóúñü0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
+      const set = new Set();
+      for (let i = 0; i + n <= w.length; i++) set.add(w.slice(i, i + n).join(' '));
+      return set;
+    };
+    const instrGrams = grams(instruction, 4);
+    const origGrams = grams(caption, 5);
+    const tooSimilar = (out) => {
+      const og = grams(out, 5);
+      if (og.size === 0) return false;
+      let fromOrig = 0;
+      og.forEach(g => { if (origGrams.has(g)) fromOrig++; });
+      const copiesInstruction = [...grams(out, 4)].some(g => instrGrams.has(g));
+      return copiesInstruction || fromOrig / og.size > 0.35;
+    };
     let lastErr = null;
+    let firstValid = null;
     for (const m of sanitizeGeminiModels(getSetting('ai_model'))) {
       try {
         const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: 4096 }
+          generationConfig: { temperature: 1.0, maxOutputTokens: 4096 }
         }, { timeout: 30000 });
         const cand = res.data?.candidates?.[0];
         const parts = cand?.content?.parts || [];
@@ -620,12 +643,20 @@ REGLAS:
         if (!text || cand?.finishReason === 'MAX_TOKENS' || this.looksLikeLeakedReasoning(text)) {
           throw new Error('Respuesta cortada o inválida');
         }
-        return this.cleanCaptionAI(text.trim());
+        const cleaned = this.cleanCaptionAI(text.trim());
+        if (tooSimilar(cleaned)) {
+          // Repite la instrucción o el texto original: se guarda como respaldo y se prueba con el siguiente modelo
+          if (!firstValid) firstValid = cleaned;
+          console.warn(`[rewriteCaption] ${m} devolvió texto muy parecido al original o a la instrucción; reintentando`);
+          continue;
+        }
+        return cleaned;
       } catch (e) {
         lastErr = e;
         console.warn(`[rewriteCaption] Falló con ${m}:`, e.response?.data?.error?.message || e.message);
       }
     }
+    if (firstValid) return firstValid;
     throw lastErr || new Error('No se pudo reescribir el texto.');
   }
 
