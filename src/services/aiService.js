@@ -1813,7 +1813,8 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
     brandTreatment = 'auto',
     colorPalette = 'auto',
     posterReference = 'auto',
-    aiAnalysis = null
+    aiAnalysis = null,
+    isOffer = false
   }) {
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
     const hero = (heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero).toUpperCase().trim();
@@ -1864,6 +1865,15 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
   * Colores de trazos y acentos gráficos: ${matchedPalette.accentColor}
   * Restricción estricta de color: ${matchedPalette.forbiddenColors}
   ${matchedPalette.artDirection || ''}`;
+
+    const offerBlock = isOffer ? `
+
+8. ESTÉTICA DE OFERTA / PROMOCIÓN (este post comunica una oferta):
+- Debe leerse como una promoción a primera vista, pero sobria y de marca premium: nada de estilo supermercado ni liquidación (sin estallidos, sin explosiones, sin colores chillones, sin tipografías gritonas, sin cintas exageradas).
+- Jerarquía: la oferta (lo que se ofrece o el beneficio) es el segundo elemento más importante después del titular; que quede claro y legible.
+- Lenguaje visual de promoción discreto: un sello o etiqueta sencilla y elegante, una cinta fina, un recuadro limpio o un acento de color de la paleta de la marca, y un recurso de urgencia suave solo si el tema lo indica (vigencia, "por tiempo limitado").
+- Usa EXCLUSIVAMENTE los datos de la oferta que aparecen en el titular, subtítulo o tema (porcentajes, precios, fechas). PROHIBIDO inventar porcentajes, precios, fechas o condiciones que no estén indicados.
+- La foto sigue siendo la protagonista; los elementos de oferta ocupan poco espacio y no tapan el producto, el espacio ni a las personas.` : '';
 
     return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
 
@@ -1926,7 +1936,7 @@ ${colorPaletteSection}
 - Revisa que cada palabra del titular y del subtítulo esté escrita exactamente como se indica, con tildes y ñ correctas; si una letra queda deforme, corrígela.
 - PROHIBIDO: manos o rostros deformados, dedos de más, personas duplicadas, logos o marcas de agua inventados, texto adicional, números sueltos, bordes o marcos falsos, y elementos que no existan en el recinto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.${offerBlock}`.trim();
   }
 
   /**

@@ -1426,6 +1426,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setElementText('pip-final-status', 'Aún no subes la imagen final.');
     setInputValue('pip-tema', '');
     setInputValue('pip-ocasion', '');
+    const ofertaReset = document.getElementById('pip-oferta');
+    if (ofertaReset) ofertaReset.checked = false;
     setInputValue('pip-publico', '');
     setElementText('pip-foto-hint', 'Foto a subir: --');
     setInputValue('pip-hero', '');
@@ -4444,7 +4446,8 @@ document.addEventListener('DOMContentLoaded', () => {
           typographyStyle,
           brandTreatment,
           colorPalette,
-          posterReference
+          posterReference,
+          isOffer: Boolean(document.getElementById('pip-oferta')?.checked)
         })
       });
       const json = await res.json();
@@ -4513,6 +4516,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       if (imageUrl) payload.imageUrl = imageUrl;
       if (postContent && postContent.value.trim()) payload.content = postContent.value;
+      payload.isOffer = Boolean(document.getElementById('pip-oferta')?.checked);
 
       const res = await fetch('/api/ai/campina-prepare-post', {
         method: 'POST',
@@ -5309,6 +5313,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sceneInput = document.getElementById('pip-scene-prompt');
     if (sceneInput) sceneInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const ofertaChk = document.getElementById('pip-oferta');
+    if (ofertaChk) ofertaChk.addEventListener('change', () => { window._pipFullPromptEditedManually = false; callPipComposePrompt(); });
 
     const temaInput = document.getElementById('pip-tema');
     if (temaInput) {

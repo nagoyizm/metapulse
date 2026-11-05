@@ -2463,7 +2463,7 @@ router.post('/ai/post-brief', async (req, res) => {
 
 router.post('/ai/campina-prepare-post', async (req, res) => {
   try {
-    const { postId, imageUrl, sceneHint, force = false, content: liveContent } = req.body || {};
+    const { postId, imageUrl, sceneHint, force = false, content: liveContent, isOffer = false } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
     }
@@ -2515,8 +2515,9 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
     const caption = String(post.content || '').slice(0, 4000);
     const cleanHint = sceneHint ? String(sceneHint).slice(0, 4000) : '';
 
+    const offerNote = isOffer ? ' [ES UNA OFERTA/PROMOCIÓN: el titular debe comunicar el beneficio de forma sobria; no inventes porcentajes, precios ni fechas que no estén en el tema o el texto]' : '';
     const headlinesPromise = aiService.generateCampinaHeadlines({
-      theme,
+      theme: theme + offerNote,
       targetDate,
       caption,
       planContext,
@@ -2605,7 +2606,8 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       typographyStyle: artDirection?.typographyStyle || 'auto',
       brandTreatment: artDirection?.brandTreatment || 'auto',
       colorPalette: artDirection?.colorPalette || 'auto',
-      posterReference: artDirection?.posterReference || 'auto'
+      posterReference: artDirection?.posterReference || 'auto',
+      isOffer: Boolean(isOffer)
     });
 
     const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline });
@@ -2651,7 +2653,8 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       brandTreatment = 'auto',
       colorPalette = 'auto',
       posterReference = 'auto',
-      respectBackground = true
+      respectBackground = true,
+      isOffer = false
     } = req.body || {};
 
     if (typeof theme === 'string' && theme.length > 4000) {
@@ -2680,7 +2683,8 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       typographyStyle,
       brandTreatment,
       colorPalette,
-      posterReference
+      posterReference,
+      isOffer: Boolean(isOffer)
     });
 
     const sceneObj = (scene && typeof scene === 'string') ? { sceneDirective: scene } : (scene || null);
