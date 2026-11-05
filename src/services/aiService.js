@@ -1868,13 +1868,11 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
 
     const offerBlock = isOffer ? `
 
-8. ESTÉTICA DE OFERTA / PROMOCIÓN (este post comunica una oferta; estas indicaciones MANDAN sobre cualquier prohibición anterior de texto adicional o números):
-- Para que se note de inmediato que es una promoción, incluye un sello/insignia de oferta con las cifras indicadas en el bloque final del post.
-- Debe leerse como una promoción a primera vista, pero sobria y de marca premium: nada de estilo supermercado ni liquidación (sin estallidos, sin explosiones, sin colores chillones, sin tipografías gritonas, sin cintas exageradas).
-- Jerarquía: la oferta (lo que se ofrece o el beneficio) es el segundo elemento más importante después del titular; que quede claro y legible.
-- Lenguaje visual de promoción discreto: un sello o etiqueta sencilla y elegante, una cinta fina, un recuadro limpio o un acento de color de la paleta de la marca, y un recurso de urgencia suave solo si el tema lo indica (vigencia, "por tiempo limitado").
-- Usa EXCLUSIVAMENTE los datos de la oferta que aparecen en el titular, subtítulo o tema (porcentajes, precios, fechas). PROHIBIDO inventar porcentajes, precios, fechas o condiciones que no estén indicados.
-- La foto sigue siendo la protagonista; los elementos de oferta ocupan poco espacio y no tapan el producto, el espacio ni a las personas.` : '';
+8. TOQUE DE OFERTA / PROMOCIÓN (agregado de diseño; no reemplaza nada de lo indicado antes):
+- Todo lo anterior se mantiene igual: la foto real, las personas y las acciones indicadas en las indicaciones de escena, la paleta y la jerarquía del afiche. La oferta es SOLO un elemento gráfico adicional, bien integrado al diseño.
+- Debe notarse que es una promoción, pero con la sobriedad de la marca: un único sello pequeño y elegante, del mismo lenguaje visual que el resto del afiche. Nada de estilo liquidación, estallidos, explosiones, cintas gigantes, neón ni colores chillones.
+- Usa EXCLUSIVAMENTE los datos de la oferta que se indican (porcentajes, precios, fechas). PROHIBIDO inventar cifras o condiciones.
+- El sello ocupa poco espacio y no tapa personas, producto ni zonas clave de la foto.` : '';
 
     return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
 
@@ -3047,10 +3045,11 @@ Devuelve ESTRICTAMENTE un JSON con esta estructura:
     const offerLine = offer ? `\n- Sello de oferta: "${offerText || 'OFERTA'}"` : '';
     const offerVisual = offer ? `
 
-ESTE POST ES UNA OFERTA: la imagen debe comunicar "promoción" de inmediato, sin perder la elegancia de la marca.
-- Incluye un SELLO DE OFERTA claramente visible con el texto exacto "${offerText || 'OFERTA'}": una insignia circular o una etiqueta/cinta limpia en una esquina o junto al titular, con color de contraste de la paleta (un acento cálido y saturado que destaque sobre la foto), tipografía en negrita y bien legible, con un contorno fino o una leve sombra para que resalte. Debe ser de los primeros elementos que se ven después del titular.
-- Añade un detalle sutil de promoción coherente con la marca (por ejemplo un filete decorativo, una línea fina enmarcando el sello o un ligero brillo), sin estallidos, sin explosiones, sin colores neón ni estilo de supermercado.
-- Esta indicación MANDA sobre las reglas anteriores de "sin texto adicional" y "sin números sueltos": el sello de oferta y sus cifras SÍ deben aparecer, escritos exactamente como se indica.` : '';
+AGREGADO DE OFERTA (suma esto a todo lo anterior sin quitar nada: mantén las personas, las acciones y la escena indicadas arriba, y respeta "Todo lo demás de la foto permanece idéntico"):
+- Integra UN solo sello de oferta, pequeño y elegante, con el texto exacto "${offerText || 'OFERTA'}". Formato: círculo o rectángulo de esquinas suavemente redondeadas, de trazo fino, relleno semitransparente en un tono de la paleta de la marca (o crema/blanco cálido) y texto en la tipografía del afiche, en una sola o dos líneas, con buen interlineado y mucho aire interior.
+- Tamaño discreto: aprox. 12 a 16% del ancho de la imagen. Ubicación: en una esquina con un margen generoso, o alineado con el titular, en una zona de la foto despejada y sin personas. Debe leerse bien pero sin competir con el titular.
+- Estilo sobrio, premium: sin cintas, sin explosiones ni destellos, sin sombras duras, sin colores neón ni saturados, sin cajas pesadas. Basta una pequeña pieza limpia que se perciba como parte del diseño.
+- Las reglas de "sin texto adicional" y "sin números sueltos" no aplican a este sello: su texto y sus cifras deben aparecer exactamente como se indican.` : '';
     const bloqueTexto = `TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):
 - Titular: "${cleanHero}"
 - Subtítulo: "${cleanSubline}"
