@@ -2463,7 +2463,7 @@ router.post('/ai/post-brief', async (req, res) => {
 
 router.post('/ai/campina-prepare-post', async (req, res) => {
   try {
-    const { postId, imageUrl, sceneHint, force = false, content: liveContent, isOffer = false } = req.body || {};
+    const { postId, imageUrl, sceneHint, force = false, content: liveContent, isOffer = false, offerText = '' } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
     }
@@ -2610,7 +2610,7 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       isOffer: Boolean(isOffer)
     });
 
-    const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline });
+    const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline, offer: isOffer ? { text: String(offerText || '') } : null });
     const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
     const contactAvailable = getContactAvailable(post.account_name);
 
@@ -2654,7 +2654,8 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       colorPalette = 'auto',
       posterReference = 'auto',
       respectBackground = true,
-      isOffer = false
+      isOffer = false,
+      offerText = ''
     } = req.body || {};
 
     if (typeof theme === 'string' && theme.length > 4000) {
@@ -2688,7 +2689,7 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
     });
 
     const sceneObj = (scene && typeof scene === 'string') ? { sceneDirective: scene } : (scene || null);
-    const postBlock = aiService.buildCampinaPostBlock({ scene: sceneObj, hero: cleanHero, subline: cleanSubline });
+    const postBlock = aiService.buildCampinaPostBlock({ scene: sceneObj, hero: cleanHero, subline: cleanSubline, offer: isOffer ? { text: String(offerText || '') } : null });
     const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
 
     res.json({

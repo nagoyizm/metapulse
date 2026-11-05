@@ -1428,6 +1428,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setInputValue('pip-ocasion', '');
     const ofertaReset = document.getElementById('pip-oferta');
     if (ofertaReset) ofertaReset.checked = false;
+    setInputValue('pip-oferta-texto', '');
+    const ofertaBoxReset = document.getElementById('pip-oferta-box');
+    if (ofertaBoxReset) ofertaBoxReset.style.display = 'none';
     setInputValue('pip-publico', '');
     setElementText('pip-foto-hint', 'Foto a subir: --');
     setInputValue('pip-hero', '');
@@ -4447,7 +4450,8 @@ document.addEventListener('DOMContentLoaded', () => {
           brandTreatment,
           colorPalette,
           posterReference,
-          isOffer: Boolean(document.getElementById('pip-oferta')?.checked)
+          isOffer: Boolean(document.getElementById('pip-oferta')?.checked),
+          offerText: document.getElementById('pip-oferta-texto')?.value.trim() || ''
         })
       });
       const json = await res.json();
@@ -4517,6 +4521,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (imageUrl) payload.imageUrl = imageUrl;
       if (postContent && postContent.value.trim()) payload.content = postContent.value;
       payload.isOffer = Boolean(document.getElementById('pip-oferta')?.checked);
+      payload.offerText = document.getElementById('pip-oferta-texto')?.value.trim() || '';
 
       const res = await fetch('/api/ai/campina-prepare-post', {
         method: 'POST',
@@ -5315,7 +5320,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sceneInput) sceneInput.addEventListener('input', triggerPipComposeDebounced);
 
     const ofertaChk = document.getElementById('pip-oferta');
-    if (ofertaChk) ofertaChk.addEventListener('change', () => { window._pipFullPromptEditedManually = false; callPipComposePrompt(); });
+    if (ofertaChk) ofertaChk.addEventListener('change', () => {
+      const box = document.getElementById('pip-oferta-box');
+      if (box) box.style.display = ofertaChk.checked ? 'block' : 'none';
+      window._pipFullPromptEditedManually = false;
+      callPipComposePrompt();
+    });
+    const ofertaTxt = document.getElementById('pip-oferta-texto');
+    if (ofertaTxt) ofertaTxt.addEventListener('input', () => { triggerPipComposeDebounced(); });
 
     const temaInput = document.getElementById('pip-tema');
     if (temaInput) {

@@ -1868,7 +1868,8 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
 
     const offerBlock = isOffer ? `
 
-8. ESTÉTICA DE OFERTA / PROMOCIÓN (este post comunica una oferta):
+8. ESTÉTICA DE OFERTA / PROMOCIÓN (este post comunica una oferta; estas indicaciones MANDAN sobre cualquier prohibición anterior de texto adicional o números):
+- Para que se note de inmediato que es una promoción, incluye un sello/insignia de oferta con las cifras indicadas en el bloque final del post.
 - Debe leerse como una promoción a primera vista, pero sobria y de marca premium: nada de estilo supermercado ni liquidación (sin estallidos, sin explosiones, sin colores chillones, sin tipografías gritonas, sin cintas exageradas).
 - Jerarquía: la oferta (lo que se ofrece o el beneficio) es el segundo elemento más importante después del titular; que quede claro y legible.
 - Lenguaje visual de promoción discreto: un sello o etiqueta sencilla y elegante, una cinta fina, un recuadro limpio o un acento de color de la paleta de la marca, y un recurso de urgencia suave solo si el tema lo indica (vigencia, "por tiempo limitado").
@@ -3037,16 +3038,24 @@ Devuelve ESTRICTAMENTE un JSON con esta estructura:
   /**
    * Construye el bloque del post determinista para la imagen (escena + texto exacto)
    */
-  buildCampinaPostBlock({ scene, hero = '', subline = '' }) {
+  buildCampinaPostBlock({ scene, hero = '', subline = '', offer = null }) {
     const cleanHero = (hero || '').trim().toUpperCase();
     const cleanSubline = (subline || '').trim();
     const sceneDirective = (scene && typeof scene.sceneDirective === 'string') ? scene.sceneDirective.trim() : '';
 
+    const offerText = offer ? String(offer.text || '').replace(/\s+/g, ' ').trim().slice(0, 60).toUpperCase() : '';
+    const offerLine = offer ? `\n- Sello de oferta: "${offerText || 'OFERTA'}"` : '';
+    const offerVisual = offer ? `
+
+ESTE POST ES UNA OFERTA: la imagen debe comunicar "promoción" de inmediato, sin perder la elegancia de la marca.
+- Incluye un SELLO DE OFERTA claramente visible con el texto exacto "${offerText || 'OFERTA'}": una insignia circular o una etiqueta/cinta limpia en una esquina o junto al titular, con color de contraste de la paleta (un acento cálido y saturado que destaque sobre la foto), tipografía en negrita y bien legible, con un contorno fino o una leve sombra para que resalte. Debe ser de los primeros elementos que se ven después del titular.
+- Añade un detalle sutil de promoción coherente con la marca (por ejemplo un filete decorativo, una línea fina enmarcando el sello o un ligero brillo), sin estallidos, sin explosiones, sin colores neón ni estilo de supermercado.
+- Esta indicación MANDA sobre las reglas anteriores de "sin texto adicional" y "sin números sueltos": el sello de oferta y sus cifras SÍ deben aparecer, escritos exactamente como se indica.` : '';
     const bloqueTexto = `TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):
 - Titular: "${cleanHero}"
 - Subtítulo: "${cleanSubline}"
-- Identidad discreta: "CABAÑAS LA CAMPIÑA • ALGARROBO"
-No escribas ningún otro texto, número, logo ni marca de agua. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).`;
+- Identidad discreta: "CABAÑAS LA CAMPIÑA • ALGARROBO"${offerLine}
+No escribas ningún otro texto, número, logo ni marca de agua${offer ? ' fuera de los indicados arriba' : ''}. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).${offerVisual}`;
 
     return [sceneDirective, bloqueTexto].filter(Boolean).join('\n\n');
   }
