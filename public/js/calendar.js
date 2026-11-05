@@ -693,6 +693,29 @@ function renderPlannerCalendar() {
   }
 }
 
+// Mueve un borrador a otro día manteniendo su hora (hora de Chile)
+async function moveDraftToDate(postId, dateStr) {
+  const post = PlannerState.posts.find(p => Number(p.id) === Number(postId));
+  if (!post || post.status !== 'draft') return;
+  const rawDate = post.scheduled_at || post.published_at;
+  if (getChileDateString(rawDate) === dateStr) return;
+  const time = (formatChileTime(rawDate) || '12:00').replace(/^24:/, '00:');
+  try {
+    const res = await fetch('/api/posts/' + postId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduled_at: dateStr + 'T' + time })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.error || 'Error del servidor (' + res.status + ')');
+    post.scheduled_at = json.data.scheduled_at;
+    renderPlannerCalendar();
+    if (typeof showToast === 'function') showToast('Borrador movido al ' + dateStr.split('-').reverse().join('/') + ' a las ' + time, 'success');
+  } catch (err) {
+    if (typeof showToast === 'function') showToast('No se pudo mover el borrador: ' + err.message, 'error');
+  }
+}
+
 // Crea una celda individual de día en el Planner
 function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
   const cell = document.createElement('div');
@@ -719,6 +742,23 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
   }
 
   cell.appendChild(header);
+
+  if (!isOtherMonth && dateStr) {
+    cell.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      cell.classList.add('drop-target');
+    });
+    cell.addEventListener('dragleave', (e) => {
+      if (!cell.contains(e.relatedTarget)) cell.classList.remove('drop-target');
+    });
+    cell.addEventListener('drop', (e) => {
+      e.preventDefault();
+      cell.classList.remove('drop-target');
+      const id = Number(e.dataTransfer.getData('text/plain'));
+      if (id) moveDraftToDate(id, dateStr);
+    });
+  }
 
   // Lista de publicaciones en ese día
   if (posts && posts.length > 0) {
@@ -781,6 +821,21 @@ function createDayCell(dayNum, isOtherMonth, isToday, dateStr, posts = []) {
       item.addEventListener('click', () => {
         showPlannerPostDetail(post);
       });
+
+      // Los borradores se pueden arrastrar a otro día para reordenarlos
+      if (isDraft) {
+        item.draggable = true;
+        item.title = 'Arrástralo a otro día para reprogramarlo';
+        item.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', String(post.id));
+          e.dataTransfer.effectAllowed = 'move';
+          item.classList.add('is-dragging');
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('is-dragging');
+          document.querySelectorAll('.planner-day-cell.drop-target').forEach(c => c.classList.remove('drop-target'));
+        });
+      }
 
       list.appendChild(item);
     });

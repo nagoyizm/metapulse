@@ -3350,3 +3350,8 @@ input:checked + .slider:before {
 .activity-post-stats { display: flex; gap: 12px; font-weight: 600; font-size: 0.85rem; flex: none; }
 .activity-comments { margin: 8px 0 0 68px; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; }
 .activity-comment { padding: 6px 10px; background: var(--bg-surface-subtle); border-radius: 8px; }
+
+/* Arrastrar borradores entre días del calendario */
+.planner-card-item.is-dragging { opacity: 0.4; }
+.planner-card-item.is-draft[draggable="true"] { cursor: grab; }
+.planner-day-cell.drop-target { outline: 2px dashed var(--primary, #6366f1); outline-offset: -2px; background: rgba(99, 102, 241, 0.08); }

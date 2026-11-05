@@ -82,3 +82,6 @@ Formato: fecha · decisión · por qué.
 
 ## Check "Oferta / promoción" en el Creador (Campiña)
 - Check `pip-oferta` junto a Tema/Ocasión: agrega al prompt maestro un bloque de estética de promoción sobria (sello/cinta discreta, sin estilo liquidación, solo datos reales de la oferta, foto protagonista) y pide titulares sobrios sin inventar cifras. Param `isOffer` en `/ai/campina-compose-prompt` y `/ai/campina-prepare-post`.
+
+## Arrastrar borradores entre días del calendario
+- En el Planner, los borradores son arrastrables a otro día (mantienen su hora de Chile; PUT /posts/:id con scheduled_at). Solo borradores; no funciona con tacto en celular (HTML5 drag and drop).
