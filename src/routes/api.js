@@ -3856,7 +3856,7 @@ async function insertSingleBatchPost(p, ctx) {
             audioInput: p.musicConfig.audio_url,
             duration: p.musicConfig.duration || 15,
             startTime: p.musicConfig.start_time || 0,
-            addMusicSticker: true,
+            addMusicSticker: false,
             songTitle: p.musicConfig.song_title || '',
             songArtist: p.musicConfig.song_artist || ''
           });
