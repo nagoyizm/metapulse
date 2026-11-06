@@ -197,9 +197,9 @@ class VideoService {
         .jpeg({ quality: 95 })
         .toBuffer();
     }
-
-    // 3. Si se solicitó el sticker de música estilo Instagram
-    if (addMusicSticker && (songTitle || songArtist)) {
+    // 3. Sticker de música: desactivado a pedido del dueño (las historias nunca lo llevan). Poner true para reactivar.
+    const STORY_MUSIC_STICKER_ENABLED = false;
+    if (STORY_MUSIC_STICKER_ENABLED && addMusicSticker && (songTitle || songArtist)) {
       const cleanTitle = (songTitle || 'Audio Original').replace(/[<>&"]/g, '');
       const cleanArtist = (songArtist || 'MetaPulse Music').replace(/[<>&"]/g, '');
 
