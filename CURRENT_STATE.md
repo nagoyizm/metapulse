@@ -31,6 +31,8 @@ Actualizado: 2026-11-05 · `main` desplegado en Contabo (commit `3f2a9eb`, PM2 o
 - **Actividad:** pestaña con feed de me gusta/comentarios de Instagram. **Archivos:** limpieza automática de generados sin uso (60 días). **Inicio:** publicaciones con falla parcial y motivo por red.
 - **Seguridad:** sin contraseña en código, bloqueo por cuenta, cookie estricta, CORS cerrado, HTTPS por Tailscale.
 
+- **Estudio de Reels (pestaña Reels, Kmarket y La Campiña):** subir clips/fotos y describirlos → la IA arma escenas, textos en pantalla, guion de voz y caption → voz Gemini TTS elegible (Sulafat, Achird, Vindemiatrix, Leda, Aoede, Puck, Algieba, Charon, Orus) + música con ducking → MP4 1080x1920 (FFmpeg, `reelStudioService.js`) → borrador de Reel. Probado con clips sintéticos y TTS real; falta probar con tus videos en el navegador. Sin logo todavía.
+
 ## Pendiente de prueba por el dueño
 00. Lo de la sección anterior (oferta, arrastre en calendario, contacto arrastrable, búsqueda de música por tema, actividad) no tiene registro de prueba del dueño.
 0. Diseñador de historias en el navegador (arrastrar, tamaño/giro, sugerir con IA, estático y animado) y revisar la historia agendada. (UI, con Gemini real)

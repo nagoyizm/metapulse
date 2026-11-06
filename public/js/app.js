@@ -54,6 +54,7 @@ function navigateToTab(tabId) {
     dashboard: 'Hoy',
     composer: 'Crear',
     queue: 'Calendario',
+    reels: 'Estudio de Reels',
     inbox: 'Bandeja',
     activity: 'Actividad',
     analytics: 'Resultados',
@@ -79,6 +80,7 @@ function navigateToTab(tabId) {
       window.loadQueuePosts?.(active?.pageId);
       window.loadScheduleSlots?.();
     },
+    reels: () => window.loadReelStudio?.(),
     inbox: () => window.loadInboxData?.(),
     activity: () => window.loadActivityData?.(),
     analytics: () => window.loadAnalyticsData?.(),

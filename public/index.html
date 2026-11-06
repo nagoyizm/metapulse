@@ -94,6 +94,10 @@
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           <span>Crear</span>
         </button>
+        <button class="nav-item" data-tab="reels">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"></rect><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+          <span>Reels</span>
+        </button>
         <button class="nav-item" data-tab="queue">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <span>Calendario</span>
@@ -1395,6 +1399,80 @@
                 <!-- Se llena dinámicamente con los 7 días de la semana -->
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: ESTUDIO DE REELS -->
+      <section class="tab-pane" id="tab-reels">
+        <div class="reel-layout">
+          <div class="card">
+            <div class="card-body">
+              <h3 style="margin:0 0 4px;">🎬 Estudio de Reels</h3>
+              <small class="text-muted">Sube tus clips o fotos, descríbelos y la IA arma un reel corto con textos, voz y música. Todo en formato vertical 9:16.</small>
+              <h4 class="reel-h">1. Tus clips</h4>
+              <div id="reel-clips"></div>
+              <label class="btn btn-secondary btn-sm" style="margin-top:8px; cursor:pointer;">＋ Subir videos o fotos
+                <input type="file" id="reel-file" accept="video/*,image/*" multiple style="display:none;">
+              </label>
+              <div class="reel-goal-row">
+                <label style="flex:1;">¿Qué quieres lograr? (opcional)
+                  <input type="text" id="reel-goal" class="form-control" placeholder="Ej: que la gente quiera probar el helado y lo envíe a un amigo">
+                </label>
+                <label>Duración
+                  <select id="reel-target" class="form-control"><option value="8">8 s</option><option value="10" selected>10 s</option><option value="12">12 s</option><option value="15">15 s</option></select>
+                </label>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-reel-plan" style="margin-top:10px;">✨ Armar reel con IA</button>
+            </div>
+          </div>
+
+          <div id="reel-editor" style="display:none;">
+            <div class="card"><div class="card-body">
+              <h4 class="reel-h" style="margin-top:0;">2. Escenas y textos <small class="text-muted">· total <span id="reel-total">0 s</span></small></h4>
+              <div id="reel-scenes"></div>
+            </div></div>
+
+            <div class="card"><div class="card-body">
+              <h4 class="reel-h" style="margin-top:0;">3. Voz</h4>
+              <label style="display:flex; gap:6px; align-items:center; font-weight:600;"><input type="checkbox" id="reel-use-voice" checked> Usar voz en el reel</label>
+              <label>Guion de voz<textarea id="reel-voiceover" class="form-control" rows="3"></textarea></label>
+              <div class="reel-goal-row">
+                <label style="flex:1;">Voz<select id="reel-voice" class="form-control"></select></label>
+                <label style="flex:1;">Estilo (opcional)<input type="text" id="reel-voice-style" class="form-control" placeholder="Ej: entusiasta, susurrando, como cuento"></label>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-voice">🔊 Escuchar voz</button>
+                <label style="display:flex; gap:6px; align-items:center;">Volumen <input type="range" id="reel-voice-vol" min="0.4" max="1.6" step="0.1" value="1"> <span id="reel-voice-vol-n">100%</span></label>
+              </div>
+              <audio id="reel-voice-audio" controls style="display:none; width:100%; margin-top:6px;"></audio>
+              <small class="text-muted" id="reel-voice-info"></small>
+            </div></div>
+
+            <div class="card"><div class="card-body">
+              <h4 class="reel-h" style="margin-top:0;">4. Música de fondo</h4>
+              <div style="display:flex; gap:6px;">
+                <input type="text" id="reel-music-q" class="form-control" placeholder="Busca por tema (ej: alegre, coreano, acústico) o deja vacío para la biblioteca">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-music-search">Buscar</button>
+              </div>
+              <div id="reel-music-results" class="reel-music-results"></div>
+              <div id="reel-music-sel" class="reel-music-sel">Sin música seleccionada</div>
+              <label style="display:flex; gap:6px; align-items:center;">Volumen música <input type="range" id="reel-music-vol" min="0.1" max="0.8" step="0.05" value="0.3"> <span id="reel-music-vol-n">30%</span></label>
+              <small class="text-muted">Con voz, la música baja sola mientras se habla.</small>
+            </div></div>
+
+            <div class="card"><div class="card-body">
+              <h4 class="reel-h" style="margin-top:0;">5. Texto del post</h4>
+              <textarea id="reel-caption" class="form-control" rows="6"></textarea>
+              <button type="button" class="btn btn-primary" id="btn-reel-render" style="margin-top:10px;">🎬 Renderizar reel</button>
+              <div class="reel-result">
+                <video id="reel-result-video" controls playsinline style="display:none;"></video>
+                <small class="text-muted" id="reel-result-info"></small>
+                <div id="reel-result-actions" style="display:none; gap:8px; flex-wrap:wrap;">
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-reel-draft">💾 Guardar como borrador de Reel</button>
+                </div>
+              </div>
+            </div></div>
           </div>
         </div>
       </section>
@@ -3946,6 +4024,7 @@
   <script src="js/composer.js?v=4.0"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
+  <script src="js/reelStudio.js?v=1.0"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>
