@@ -2223,7 +2223,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const prod = (prodName || '').trim() || 'este producto';
     const brandStr = brand ? ` (${brand})` : '';
     const descStr = details ? `\nDetalles: ${details}` : '';
-    return `necesito que te comportes como un diseñador grafico senior experto en marketing. hacer una imagen publicitaria de este producto ("${prod}") de dimensiones 4:5 vertical para instagram , el titulo debe ser una reproduccion fiel del logotipo/nombre del producto tal como esta impreso en su envase y en su publicidad oficial (buscar online la publicidad y el logo del producto): mismas letras, proporciones, peso, remates, inclinacion y colores originales, sin redondear ni suavizar las formas, sin estilo comic ni infantil. Acabado limpio y elegante: SIN contornos gruesos, SIN bordes de color, SIN sombras exageradas ni efectos 3D; solo el color de las letras del original, con a lo mas una sombra sutil para legibilidad. Prohibido usar tipografias genericas (Arial, Impact, sans-serif comun o fuentes de plantilla). El subtitulo con una fuente de menor tamaño, elegante y sobria, coherente con el titulo, y un diseño similar al del envase para poner el titulo de lo que es, buscar info online del producto e imagenes de referencia de este mismo (es decir no usar exactamente la imagen que te di) . Todo texto en español. No hacer referencia a ninguna tienda en especial. ni poner nada como comprar ahora . no dar tanto enfasis a lo de "sabor coreano" ni a la marca, si es que, solo de manera pequeña.\n\nProducto: ${prod}${brandStr}${descStr}`.trim();
+    return `Actúa como diseñador gráfico senior experto en marketing. Crea una imagen publicitaria de este producto ("${prod}"), 4:5 vertical para Instagram, usando la foto adjunta como referencia obligatoria del producto.
+
+REGLAS:
+1. ENVASE INTOCABLE: NO redibujes, rediseñes ni reinterpretes el envase de la foto. Si aparece en la imagen, debe ser idéntico al de la foto: misma forma, ilustraciones, logo, textos y colores. Si no puedes conservarlo exacto, muestra solo el producto (sin envase) en vez de inventar un envase nuevo.
+2. ESCENA NUEVA: crea una escena publicitaria apetitosa alrededor del producto (fondo, luz y composición propios); no copies la foto tal cual. Puedes buscar online cómo luce el producto por fuera del envase, solo para representarlo con fidelidad.
+3. TITULAR: el nombre del producto en español, con un lettering inspirado en el logo del envase (mismo carácter, proporciones y color), limpio y elegante: sin redondear, sin estilo cómic, sin contornos gruesos ni bordes de color, sin sombras fuertes ni efectos 3D y sin tipografías genéricas.
+4. SUBTÍTULO: una línea corta, en fuente más pequeña, sobria y coherente con el titular.
+5. Todo el texto en español y con ortografía correcta. No menciones ninguna tienda ni pongas frases como "comprar ahora". La marca y el "sabor coreano" solo de forma pequeña y discreta.\n\nProducto: ${prod}${brandStr}${descStr}`.trim();
   }
 
   function applyScannedProductData(data) {
