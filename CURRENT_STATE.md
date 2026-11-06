@@ -1,6 +1,6 @@
 # CURRENT_STATE — MetaPulse
 
-Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
+Actualizado: 2026-11-05 · `main` desplegado en Contabo (commit `3f2a9eb`, PM2 online).
 
 ## Funciona (en producción)
 - Publicación programada FB/IG con detección de fallos parciales; IA de texto con Gemini 3.x (cadena gratis, salto ante 503); métricas diarias; limpieza de captions.
@@ -21,7 +21,18 @@ Actualizado: 2026-10-17 · `main` desplegado en Contabo (commit `c82e00b`).
 
 - **Diseñador de historias (Creador → "Compartir como Historia" → 🎨):** texto gancho en cuadro blanco pegado a la imagen (Gemini lo sugiere; checkbox), ubicación, mención, cuenta regresiva (se recalcula por cada historia agendada) y stickers de emoji (Noto) que el dueño arrastra a su posición. Estático = imagen con borde blanco; animado = video de 7 s con GIF. Historias derivadas ya no llevan sticker de canción (si hay música, solo el audio). Solo imágenes; el diseño no se guarda en borradores ni aplica al lote.
 
+## Novedades 2026-10-18 → 2026-11-05 (ya en producción)
+- **Calendario:** arrastrar borradores a otro día para reordenarlos.
+- **La Campiña:** check "Oferta/promoción" en el Creador (estética sobria + sello con texto exacto, conserva indicaciones de escena); la foto de referencia manda sobre el plan, resumen de lo que ve la IA y botón reanalizar; "Rehacer análisis"/"Preparar post" usan el texto actual del editor.
+- **Contacto:** se elige dónde estamparlo arrastrándolo sobre la imagen.
+- **Música:** búsqueda por tema con filtro de licencia comercial (ccMixter, Jamendo, Audius, Mi música), crédito automático al portapapeles; ccMixter vía proxy con Referer; al cambiar de canción se regenera desde la imagen original.
+- **Historias:** GIF animados conservan la música; máximo configurable por ventana de 24 h con reubicación; diseñador funciona si el post pasó a video.
+- **Creador/IA:** "Reescribir con instrucción libre" (con deshacer, reintenta si repite); editar posts programados en el Redactor; subida con barra de progreso (videos hasta 300 MB); lote conserva ediciones y avisa de tarjetas incompletas, logo no se estampa por defecto.
+- **Actividad:** pestaña con feed de me gusta/comentarios de Instagram. **Archivos:** limpieza automática de generados sin uso (60 días). **Inicio:** publicaciones con falla parcial y motivo por red.
+- **Seguridad:** sin contraseña en código, bloqueo por cuenta, cookie estricta, CORS cerrado, HTTPS por Tailscale.
+
 ## Pendiente de prueba por el dueño
+00. Lo de la sección anterior (oferta, arrastre en calendario, contacto arrastrable, búsqueda de música por tema, actividad) no tiene registro de prueba del dueño.
 0. Diseñador de historias en el navegador (arrastrar, tamaño/giro, sugerir con IA, estático y animado) y revisar la historia agendada. (UI, con Gemini real)
 1. Borrador de La Campiña → Editar → panel, "Preparar post" y barra de progreso; paleta elegida y "Otra dirección de arte".
 2. Subir referencia + imagen final; estampar contacto y logo; quitar contacto.
