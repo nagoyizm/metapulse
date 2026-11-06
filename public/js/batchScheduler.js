@@ -480,23 +480,62 @@
   }
 
   /**
+   * Regenera el video del ítem con su música actual a partir de la imagen base (originalImageUrl)
+   */
+  async function regenerateBatchVideoFromBase(item) {
+    const mc = item.musicConfig;
+    if (!mc || !mc.audio_url) throw new Error('El ítem no tiene música configurada.');
+    if (typeof showToast === 'function') showToast('Regenerando video con el logo estampado...', 'info');
+    const res = await fetch('/api/stories/generate-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_url: item.originalImageUrl,
+        audio_url: mc.audio_url,
+        post_type: item.post_type === 'story' ? 'story' : 'feed',
+        duration: mc.duration,
+        start_time: mc.start_time,
+        add_music_sticker: false,
+        song_title: mc.song_title,
+        song_artist: mc.song_artist
+      })
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success || !json.data?.relativeUrl) throw new Error(json.error || `Error del servidor (${res.status})`);
+    item.imageUrl = json.data.relativeUrl;
+    item.isVideo = true;
+  }
+
+  /**
    * Abre el modal interactivo de estampado de logo para un ítem específico
    */
   function handleStampLogoForCard(itemId) {
     const item = currentBatchItems.find(i => i.id === itemId);
     if (!item) return;
 
-    if (item.imageUrl.match(/\.(mp4|mov|webm)$/i)) {
-      if (typeof showToast === 'function') {
-        showToast('El archivo actual es un video con música. Si deseas estamparle el logo, haz clic en "Volver a Imagen", estámpalo y luego vuelve a generar el video.', 'warning');
-      }
+    const isVideoItem = /\.(mp4|mov|webm)$/i.test(item.imageUrl);
+    if (isVideoItem && !item.originalImageUrl) {
+      if (typeof showToast === 'function') showToast('No se encontró la imagen base de este video para estampar el logo.', 'warning');
       return;
     }
+    // En un video se estampa sobre la imagen base y luego se regenera el video con la misma música.
+    const stampSource = isVideoItem ? item.originalImageUrl : item.imageUrl;
 
     if (typeof window.openInteractiveStampModal === 'function') {
-      window.openInteractiveStampModal(item.imageUrl, (stampedUrl) => {
+      window.openInteractiveStampModal(stampSource, async (stampedUrl) => {
+        // La imagen base siempre es la que lleva el logo (así la música/video posterior lo conserva)
+        item.originalImageUrl = stampedUrl;
+        if (isVideoItem) {
+          try {
+            await regenerateBatchVideoFromBase(item);
+            if (typeof showToast === 'function') showToast('Logo estampado y video con música regenerado.', 'success');
+          } catch (err) {
+            if (typeof showToast === 'function') showToast('Logo estampado, pero falló al regenerar el video: ' + err.message, 'error');
+          }
+          renderReviewCards(currentBatchItems);
+          return;
+        }
         item.imageUrl = stampedUrl;
-        if (!item.originalImageUrl) item.originalImageUrl = stampedUrl;
 
         // Actualizar vista previa en el DOM directamente
         const itemsContainer = getEl('batch-items-container');
