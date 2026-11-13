@@ -37,8 +37,10 @@ class BrandProfileService {
     }
   }
 
-  getProfile(accountName = '', accountId = '') {
-    const combined = `${accountName || ''} ${accountId || ''}`.toLowerCase();
+  getProfileEntry(accountName = '', accountId = '') {
+    const combined = `${accountName || ''} ${accountId || ''}`.toLowerCase().trim();
+    if (!combined) return null;
+
     const rows = db.prepare('SELECT id, match_keywords, profile FROM brand_profiles').all();
     for (const row of rows) {
       let keywords = [];
@@ -46,15 +48,54 @@ class BrandProfileService {
         keywords = JSON.parse(row.match_keywords || '[]');
       } catch (_) {}
 
-      if (Array.isArray(keywords) && keywords.some(k => k && combined.includes(String(k).toLowerCase()))) {
+      const idMatch = row.id && combined.includes(String(row.id).toLowerCase());
+      const kwMatch = Array.isArray(keywords) && keywords.some(k => k && combined.includes(String(k).toLowerCase().trim()));
+
+      if (idMatch || kwMatch) {
         try {
           const profile = JSON.parse(row.profile);
           profile.id = profile.id || row.id;
-          return profile;
+          return {
+            id: row.id,
+            matchKeywords: keywords,
+            profile
+          };
         } catch (_) {}
       }
     }
+
+    let fallbackId = null;
+    if (combined.includes('campi') || combined.includes('cabaña') || combined.includes('cabana')) {
+      fallbackId = 'campina';
+    } else if (combined.includes('kmarket') || combined.includes('corea') || combined.includes('k-food')) {
+      fallbackId = 'kmarket';
+    } else if (combined.includes('agendio') || combined.includes('1236967112842449')) {
+      fallbackId = 'agendio';
+    }
+
+    if (fallbackId) {
+      const row = rows.find(r => r.id === fallbackId);
+      if (row) {
+        try {
+          const profile = JSON.parse(row.profile);
+          profile.id = profile.id || row.id;
+          let keywords = [];
+          try { keywords = JSON.parse(row.match_keywords || '[]'); } catch (_) {}
+          return {
+            id: row.id,
+            matchKeywords: keywords,
+            profile
+          };
+        } catch (_) {}
+      }
+    }
+
     return null;
+  }
+
+  getProfile(accountName = '', accountId = '') {
+    const entry = this.getProfileEntry(accountName, accountId);
+    return entry ? entry.profile : null;
   }
 
   updateProfile(id, patch = {}) {

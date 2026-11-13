@@ -635,6 +635,7 @@ async function handleAccountSwitch(opt) {
       if (window.loadActiveSealPreview) window.loadActiveSealPreview();
       if (window.loadInboxData) window.loadInboxData();
       if (window.adaptComposerToActiveBrand) window.adaptComposerToActiveBrand();
+      if (window.loadBrandProfiles) window.loadBrandProfiles();
     }
   } catch (e) {
     showToast('Error cambiando de cuenta: ' + e.message, 'error');
@@ -685,6 +686,7 @@ async function loadAccountSwitcher() {
     // Actualizar badges visuales
     window.updateActiveAccountBadges();
     if (window.adaptComposerToActiveBrand) window.adaptComposerToActiveBrand();
+    if (AppState.activeTab === 'brand' && window.loadBrandProfiles) window.loadBrandProfiles();
 
     select.onchange = () => {
       const opt = select.options[select.selectedIndex];

@@ -1697,6 +1697,18 @@ router.post('/settings', (req, res) => {
 
 router.get('/brand-profiles', (req, res) => {
   try {
+    const { all, accountId, account_id, accountName, account_name } = req.query;
+    const accId = accountId || account_id || req.headers['x-account-id'] || '';
+    const accName = accountName || account_name || '';
+
+    if (all !== 'true' && (accId || accName)) {
+      const entry = brandProfileService.getProfileEntry(accName, accId);
+      if (entry) {
+        return res.json({ success: true, profiles: [entry] });
+      }
+      return res.json({ success: true, profiles: [] });
+    }
+
     res.json({ success: true, profiles: brandProfileService.listProfiles() });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
