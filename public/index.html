@@ -531,10 +531,28 @@
                             <input type="text" id="pip-ocasion" class="form-control form-control-sm" style="font-size: 0.8rem;" placeholder="Ocasión del post">
                           </div>
                         </div>
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 600; margin-bottom: 8px; cursor: pointer;" title="La imagen y los titulares tendrán estética de promoción, sobria y de marca">
-                          <input type="checkbox" id="pip-oferta" style="cursor: pointer;"> 🏷️ Oferta / promoción
-                        </label>
-                        <div id="pip-oferta-box" class="form-group" style="display: none; margin-bottom: 8px;">
+                        <div class="form-group" style="margin-bottom: 8px;">
+                          <label class="form-label" for="pip-poster-type" style="font-size: 0.75rem; font-weight: 600;">Enfoque publicitario de la imagen</label>
+                          <select id="pip-poster-type" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                            <option value="standard">🌲 Estándar (Descanso &amp; Naturaleza sobrio)</option>
+                            <option value="availability">📅 Disponibilidad &amp; Temporada (Últimas cabañas / Fin de año)</option>
+                            <option value="offer">🏷️ Oferta / Promoción (Sello de beneficio)</option>
+                          </select>
+                        </div>
+                        <input type="checkbox" id="pip-oferta" style="display: none;">
+                        <div id="pip-disponibilidad-box" class="form-group" style="display: none; margin-bottom: 8px; padding: 8px; background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 4px;">
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                              <label class="form-label" for="pip-disp-eyebrow" style="font-size: 0.73rem;">Ceja superior / Ocasión <span class="text-muted">(mayúsculas)</span></label>
+                              <input type="text" id="pip-disp-eyebrow" class="form-control form-control-sm" style="font-size: 0.78rem;" maxlength="80" placeholder="Ej: AÑO NUEVO 2026 • ALGARROBO">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                              <label class="form-label" for="pip-disp-badge" style="font-size: 0.73rem;">Cápsula de disponibilidad <span class="text-muted">(badge sobrio)</span></label>
+                              <input type="text" id="pip-disp-badge" class="form-control form-control-sm" style="font-size: 0.78rem;" maxlength="100" placeholder="Ej: NAVIDAD: AGOTADA • AÑO NUEVO: ÚLTIMAS CABAÑAS">
+                            </div>
+                          </div>
+                        </div>
+                        <div id="pip-oferta-box" class="form-group" style="display: none; margin-bottom: 8px; padding: 8px; background: rgba(245, 158, 11, 0.05); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 4px;">
                           <label class="form-label" for="pip-oferta-texto" style="font-size: 0.75rem;">Texto del sello de oferta <span class="text-muted">(corto, tal como saldrá en la imagen)</span></label>
                           <input type="text" id="pip-oferta-texto" class="form-control form-control-sm" style="font-size: 0.8rem;" maxlength="60" placeholder="Ej: 20% DE DESCUENTO · HASTA EL DOMINGO">
                         </div>

@@ -1426,11 +1426,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setElementText('pip-final-status', 'Aún no subes la imagen final.');
     setInputValue('pip-tema', '');
     setInputValue('pip-ocasion', '');
+    const posterTypeReset = document.getElementById('pip-poster-type');
+    if (posterTypeReset) posterTypeReset.value = 'standard';
     const ofertaReset = document.getElementById('pip-oferta');
     if (ofertaReset) ofertaReset.checked = false;
     setInputValue('pip-oferta-texto', '');
     const ofertaBoxReset = document.getElementById('pip-oferta-box');
     if (ofertaBoxReset) ofertaBoxReset.style.display = 'none';
+    const dispBoxReset = document.getElementById('pip-disponibilidad-box');
+    if (dispBoxReset) dispBoxReset.style.display = 'none';
+    setInputValue('pip-disp-eyebrow', '');
+    setInputValue('pip-disp-badge', '');
     setInputValue('pip-publico', '');
     setElementText('pip-foto-hint', 'Foto a subir: --');
     setInputValue('pip-hero', '');
@@ -4442,6 +4448,9 @@ REGLAS:
       : (pipArt.brandTreatment || document.getElementById('campina-brand-treatment')?.value || 'auto');
 
     const posterReference = pipArt.posterReference || document.getElementById('campina-poster-reference')?.value || 'auto';
+    const posterTypeVal = document.getElementById('pip-poster-type')?.value || (document.getElementById('pip-oferta')?.checked ? 'offer' : 'standard');
+    const isAvail = posterTypeVal === 'availability';
+    const isOff = posterTypeVal === 'offer' || Boolean(document.getElementById('pip-oferta')?.checked);
 
     try {
       const res = await fetch('/api/ai/campina-compose-prompt', {
@@ -4457,7 +4466,11 @@ REGLAS:
           brandTreatment,
           colorPalette,
           posterReference,
-          isOffer: Boolean(document.getElementById('pip-oferta')?.checked),
+          posterType: posterTypeVal,
+          isAvailability: isAvail,
+          availabilityBadge: document.getElementById('pip-disp-badge')?.value.trim() || '',
+          eyebrowText: document.getElementById('pip-disp-eyebrow')?.value.trim() || '',
+          isOffer: isOff,
           offerText: document.getElementById('pip-oferta-texto')?.value.trim() || ''
         })
       });
@@ -4527,7 +4540,13 @@ REGLAS:
       };
       if (imageUrl) payload.imageUrl = imageUrl;
       if (postContent && postContent.value.trim()) payload.content = postContent.value;
-      payload.isOffer = Boolean(document.getElementById('pip-oferta')?.checked);
+
+      const posterTypeVal = document.getElementById('pip-poster-type')?.value || (document.getElementById('pip-oferta')?.checked ? 'offer' : 'standard');
+      payload.posterType = posterTypeVal;
+      payload.isAvailability = posterTypeVal === 'availability';
+      payload.eyebrowText = document.getElementById('pip-disp-eyebrow')?.value.trim() || '';
+      payload.availabilityBadge = document.getElementById('pip-disp-badge')?.value.trim() || '';
+      payload.isOffer = posterTypeVal === 'offer' || Boolean(document.getElementById('pip-oferta')?.checked);
       payload.offerText = document.getElementById('pip-oferta-texto')?.value.trim() || '';
 
       const res = await fetch('/api/ai/campina-prepare-post', {
@@ -4566,6 +4585,23 @@ REGLAS:
 
         if (d.artDirection) {
           await applyPipArtDirection(d.artDirection, false);
+        }
+
+        if (d.posterType) {
+          const typeSel = document.getElementById('pip-poster-type');
+          if (typeSel) typeSel.value = d.posterType;
+          const ofertaBox = document.getElementById('pip-oferta-box');
+          const dispBox = document.getElementById('pip-disponibilidad-box');
+          if (ofertaBox) ofertaBox.style.display = d.posterType === 'offer' ? 'block' : 'none';
+          if (dispBox) dispBox.style.display = d.posterType === 'availability' ? 'block' : 'none';
+          const ofertaChk = document.getElementById('pip-oferta');
+          if (ofertaChk) ofertaChk.checked = d.posterType === 'offer';
+        }
+        if (d.eyebrowText) {
+          setInputValue('pip-disp-eyebrow', d.eyebrowText);
+        }
+        if (d.availabilityBadge) {
+          setInputValue('pip-disp-badge', d.availabilityBadge);
         }
 
         setInputValue('pip-hero', d.hero || '');
@@ -5326,10 +5362,33 @@ REGLAS:
     const sceneInput = document.getElementById('pip-scene-prompt');
     if (sceneInput) sceneInput.addEventListener('input', triggerPipComposeDebounced);
 
+    const posterTypeSel = document.getElementById('pip-poster-type');
+    if (posterTypeSel) {
+      posterTypeSel.addEventListener('change', () => {
+        const val = posterTypeSel.value;
+        const ofertaBox = document.getElementById('pip-oferta-box');
+        const dispBox = document.getElementById('pip-disponibilidad-box');
+        const ofertaChk = document.getElementById('pip-oferta');
+        if (ofertaBox) ofertaBox.style.display = val === 'offer' ? 'block' : 'none';
+        if (dispBox) dispBox.style.display = val === 'availability' ? 'block' : 'none';
+        if (ofertaChk) ofertaChk.checked = val === 'offer';
+        window._pipFullPromptEditedManually = false;
+        callPipComposePrompt();
+      });
+    }
+
+    const dispEyebrow = document.getElementById('pip-disp-eyebrow');
+    if (dispEyebrow) dispEyebrow.addEventListener('input', triggerPipComposeDebounced);
+
+    const dispBadge = document.getElementById('pip-disp-badge');
+    if (dispBadge) dispBadge.addEventListener('input', triggerPipComposeDebounced);
+
     const ofertaChk = document.getElementById('pip-oferta');
     if (ofertaChk) ofertaChk.addEventListener('change', () => {
       const box = document.getElementById('pip-oferta-box');
       if (box) box.style.display = ofertaChk.checked ? 'block' : 'none';
+      const posterSel = document.getElementById('pip-poster-type');
+      if (posterSel) posterSel.value = ofertaChk.checked ? 'offer' : 'standard';
       window._pipFullPromptEditedManually = false;
       callPipComposePrompt();
     });

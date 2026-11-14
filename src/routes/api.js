@@ -2396,7 +2396,13 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
       typographyStyle = 'auto',
       brandTreatment = 'auto',
       colorPalette = 'auto',
-      posterReference = 'auto'
+      posterReference = 'auto',
+      posterType = 'standard',
+      isAvailability = false,
+      availabilityBadge = '',
+      eyebrowText = '',
+      isOffer = false,
+      offerText = ''
     } = req.body;
 
     const masterImagePrompt = aiService.buildCampinaImagePrompt({
@@ -2410,7 +2416,13 @@ router.post('/ai/campina-refresh-prompt', (req, res) => {
       typographyStyle,
       brandTreatment,
       colorPalette,
-      posterReference
+      posterReference,
+      posterType,
+      isAvailability: Boolean(isAvailability || posterType === 'availability'),
+      availabilityBadge,
+      eyebrowText,
+      isOffer: Boolean(isOffer || posterType === 'offer'),
+      offerText
     });
 
     res.json({ success: true, data: { masterImagePrompt } });
@@ -2475,13 +2487,31 @@ router.post('/ai/post-brief', async (req, res) => {
 
 router.post('/ai/campina-prepare-post', async (req, res) => {
   try {
-    const { postId, imageUrl, sceneHint, force = false, content: liveContent, isOffer = false, offerText = '' } = req.body || {};
+    const {
+      postId,
+      imageUrl,
+      sceneHint,
+      force = false,
+      content: liveContent,
+      isOffer = false,
+      offerText = '',
+      posterType = 'standard',
+      isAvailability = false,
+      availabilityBadge = '',
+      eyebrowText = ''
+    } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
     }
 
     if (sceneHint && typeof sceneHint === 'string' && sceneHint.length > 4000) {
       return res.status(400).json({ success: false, error: 'sceneHint excede el tamaño máximo permitido' });
+    }
+    if (eyebrowText && typeof eyebrowText === 'string' && eyebrowText.length > 4000) {
+      return res.status(400).json({ success: false, error: 'eyebrowText excede el tamaño máximo permitido' });
+    }
+    if (availabilityBadge && typeof availabilityBadge === 'string' && availabilityBadge.length > 4000) {
+      return res.status(400).json({ success: false, error: 'availabilityBadge excede el tamaño máximo permitido' });
     }
 
     const post = db.prepare('SELECT id, title, content, scheduled_at, account_name, plan_context FROM posts WHERE id = ?').get(postId);
@@ -2527,9 +2557,46 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
     const caption = String(post.content || '').slice(0, 4000);
     const cleanHint = sceneHint ? String(sceneHint).slice(0, 4000) : '';
 
-    const offerNote = isOffer ? ' [ES UNA OFERTA/PROMOCIÓN: el titular debe comunicar el beneficio de forma sobria; no inventes porcentajes, precios ni fechas que no estén en el tema o el texto]' : '';
+    let resolvedPosterType = posterType || 'standard';
+    let resolvedIsAvailability = Boolean(isAvailability || resolvedPosterType === 'availability');
+    let resolvedEyebrow = (eyebrowText || '').trim();
+    let resolvedAvailBadge = (availabilityBadge || '').trim();
+
+    const fullDetectionText = `${theme} ${targetDate} ${caption}`.toLowerCase();
+    const hasAvailabilitySignals = /(año nuevo|ano nuevo|navidad|últim[oa]s|quedan pocas|disponibil|agotad|suites disponibles|cabañas disponibles|reservas abiertas)/i.test(fullDetectionText);
+
+    if (!resolvedIsAvailability && resolvedPosterType === 'standard' && hasAvailabilitySignals) {
+      resolvedPosterType = 'availability';
+      resolvedIsAvailability = true;
+    }
+
+    if (resolvedIsAvailability) {
+      if (!resolvedEyebrow) {
+        if (/año nuevo|ano nuevo/i.test(fullDetectionText)) {
+          resolvedEyebrow = 'AÑO NUEVO 2026 • ALGARROBO';
+        } else if (/navidad/i.test(fullDetectionText)) {
+          resolvedEyebrow = 'TEMPORADA FESTIVA • ALGARROBO';
+        } else if (/verano/i.test(fullDetectionText)) {
+          resolvedEyebrow = 'TEMPORADA DE VERANO • ALGARROBO';
+        } else {
+          resolvedEyebrow = targetDate ? targetDate.toUpperCase() : 'TEMPORADA 2026 • ALGARROBO';
+        }
+      }
+      if (!resolvedAvailBadge) {
+        if (/navidad.*agotad/i.test(fullDetectionText) || /agotad.*navidad/i.test(fullDetectionText)) {
+          resolvedAvailBadge = 'NAVIDAD: AGOTADA • AÑO NUEVO: ÚLTIMAS CABAÑAS';
+        } else if (/últim[oa]s/i.test(fullDetectionText)) {
+          resolvedAvailBadge = 'ÚLTIMAS CABAÑAS Y SUITES DISPONIBLES';
+        } else {
+          resolvedAvailBadge = 'CUPOS LIMITADOS • RESERVA ANTICIPADA';
+        }
+      }
+    }
+
+    const availNote = resolvedIsAvailability ? ' [POST DE DISPONIBILIDAD/FECHAS CRÍTICAS: el titular debe ser directo, sobrio y anunciar disponibilidad de cabañas/suites o fin de año; sin mayúsculas exageradas ni signos excesivos]' : '';
+    const offerNote = (isOffer || resolvedPosterType === 'offer') ? ' [ES UNA OFERTA/PROMOCIÓN: el titular debe comunicar el beneficio de forma sobria; no inventes porcentajes, precios ni fechas que no estén en el tema o el texto]' : '';
     const headlinesPromise = aiService.generateCampinaHeadlines({
-      theme: theme + offerNote,
+      theme: theme + availNote + offerNote,
       targetDate,
       caption,
       planContext,
@@ -2610,6 +2677,7 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       keyword = 'DESCANSO';
     }
 
+    const isOff = Boolean(isOffer || resolvedPosterType === 'offer');
     const masterImagePrompt = aiService.buildCampinaImagePrompt({
       theme,
       targetDate,
@@ -2619,10 +2687,21 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       brandTreatment: artDirection?.brandTreatment || 'auto',
       colorPalette: artDirection?.colorPalette || 'auto',
       posterReference: artDirection?.posterReference || 'auto',
-      isOffer: Boolean(isOffer)
+      posterType: resolvedPosterType,
+      isAvailability: resolvedIsAvailability,
+      availabilityBadge: resolvedAvailBadge,
+      eyebrowText: resolvedEyebrow,
+      isOffer: isOff,
+      offerText: String(offerText || '')
     });
 
-    const postBlock = aiService.buildCampinaPostBlock({ scene, hero, subline, offer: isOffer ? { text: String(offerText || '') } : null });
+    const postBlock = aiService.buildCampinaPostBlock({
+      scene,
+      hero,
+      subline,
+      offer: isOff ? { text: String(offerText || '') } : null,
+      availability: resolvedIsAvailability ? { eyebrow: resolvedEyebrow, badge: resolvedAvailBadge } : null
+    });
     const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
     const contactAvailable = getContactAvailable(post.account_name);
 
@@ -2639,7 +2718,11 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
         contactAvailable,
         masterImagePrompt,
         postBlock,
-        fullPrompt
+        fullPrompt,
+        posterType: resolvedPosterType,
+        isAvailability: resolvedIsAvailability,
+        eyebrowText: resolvedEyebrow,
+        availabilityBadge: resolvedAvailBadge
       }
     };
 
@@ -2666,6 +2749,10 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       colorPalette = 'auto',
       posterReference = 'auto',
       respectBackground = true,
+      posterType = 'standard',
+      isAvailability = false,
+      availabilityBadge = '',
+      eyebrowText = '',
       isOffer = false,
       offerText = ''
     } = req.body || {};
@@ -2682,10 +2769,18 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
     if (typeof subline === 'string' && subline.length > 4000) {
       return res.status(400).json({ success: false, error: 'subline excede el límite de 4000 caracteres' });
     }
+    if (typeof eyebrowText === 'string' && eyebrowText.length > 4000) {
+      return res.status(400).json({ success: false, error: 'eyebrowText excede el límite de 4000 caracteres' });
+    }
+    if (typeof availabilityBadge === 'string' && availabilityBadge.length > 4000) {
+      return res.status(400).json({ success: false, error: 'availabilityBadge excede el límite de 4000 caracteres' });
+    }
 
     const cleanTheme = (theme || 'Descanso en la naturaleza').trim();
     const cleanHero = (hero || '').trim().toUpperCase();
     const cleanSubline = (subline || '').trim();
+    const isAvail = Boolean(isAvailability || posterType === 'availability');
+    const isOff = Boolean(isOffer || posterType === 'offer');
 
     const masterImagePrompt = aiService.buildCampinaImagePrompt({
       theme: cleanTheme,
@@ -2697,11 +2792,22 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       brandTreatment,
       colorPalette,
       posterReference,
-      isOffer: Boolean(isOffer)
+      posterType: posterType || (isAvail ? 'availability' : (isOff ? 'offer' : 'standard')),
+      isAvailability: isAvail,
+      availabilityBadge: (availabilityBadge || '').trim(),
+      eyebrowText: (eyebrowText || '').trim(),
+      isOffer: isOff,
+      offerText: (offerText || '').trim()
     });
 
     const sceneObj = (scene && typeof scene === 'string') ? { sceneDirective: scene } : (scene || null);
-    const postBlock = aiService.buildCampinaPostBlock({ scene: sceneObj, hero: cleanHero, subline: cleanSubline, offer: isOffer ? { text: String(offerText || '') } : null });
+    const postBlock = aiService.buildCampinaPostBlock({
+      scene: sceneObj,
+      hero: cleanHero,
+      subline: cleanSubline,
+      offer: isOff ? { text: String(offerText || '') } : null,
+      availability: isAvail ? { eyebrow: String(eyebrowText || ''), badge: String(availabilityBadge || '') } : null
+    });
     const fullPrompt = aiService.buildCampinaFullPrompt({ masterImagePrompt, postBlock });
 
     res.json({

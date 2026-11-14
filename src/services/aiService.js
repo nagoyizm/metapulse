@@ -1215,11 +1215,49 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
     let alternatives = [];
 
     const isFestive = /(año nuevo|ano nuevo|fin de año|navidad|nochebuena|navideñ)/i.test(text);
+    const hasAvailability = /(últim[oa]s|quedan|disponib|agotad|cupos? limitad|reserva|suites disponibles|cabañas disponibles)/i.test(text);
     const has18Patria = (hasWord(text, '18') && (text.includes('septiembre') || text.includes('patria') || text.includes('dieciocho'))) || /(^|[^a-záéíóúñ0-9])el 18($|[^a-záéíóúñ0-9])/i.test(text);
     const isPatria = !isFestive && (has18Patria || text.includes('septiembre') || text.includes('patria') || text.includes('chilenidad') || text.includes('fonda') || hasWord(text, 'fiesta'));
     const isPareja = text.includes('pareja') || text.includes('suite') || text.includes('romántic') || text.includes('dos');
 
-    if (isPatria && isPareja) {
+    if (isFestive && hasAvailability) {
+      const isAnoNuevo = /(año nuevo|ano nuevo|fin de año|2026)/i.test(text);
+      if (text.includes('suite') && text.includes('cabaña')) {
+        primaryHero = 'ÚLTIMAS CABAÑAS Y SUITES';
+        primaryKeyword = 'ÚLTIMAS';
+      } else if (text.includes('suite')) {
+        primaryHero = 'ÚLTIMAS SUITES DISPONIBLES';
+        primaryKeyword = 'ÚLTIMAS';
+      } else {
+        primaryHero = 'ÚLTIMAS CABAÑAS DISPONIBLES';
+        primaryKeyword = 'ÚLTIMAS';
+      }
+      primarySubline = isAnoNuevo ? 'Recibe el año nuevo entre bosque y tranquilidad' : 'Descanso natural y desconexión en Algarrobo';
+      alternatives = [
+        { hero: primaryHero, subline: primarySubline, style: 'kinfolk_luxury' },
+        { hero: isAnoNuevo ? 'AÑO NUEVO EN EL BOSQUE' : 'FIESTAS EN LA CAMPIÑA', subline: 'Últimas cabañas y suites familiares en Algarrobo', style: 'rustic_timber' },
+        { hero: 'ÚLTIMA DISPONIBILIDAD', subline: isAnoNuevo ? 'Asegura tu inicio de año en plena naturaleza' : 'Cupos limitados para tu estadía de descanso', style: 'botanical_minimal' }
+      ];
+    } else if (isFestive) {
+      const isAnoNuevo = /(año nuevo|ano nuevo|fin de año|2026)/i.test(text);
+      primaryHero = isAnoNuevo ? 'AÑO NUEVO EN EL BOSQUE' : 'FIESTAS EN LA CAMPIÑA';
+      primaryKeyword = isAnoNuevo ? 'AÑO NUEVO' : 'FIESTAS';
+      primarySubline = isAnoNuevo ? 'Recibe el 2026 entre bosque, tranquilidad y descanso' : 'Celebra en familia con quinchos y naturaleza';
+      alternatives = [
+        { hero: isAnoNuevo ? 'AÑO NUEVO EN EL BOSQUE' : 'FIESTAS EN LA CAMPIÑA', subline: primarySubline, style: 'kinfolk_luxury' },
+        { hero: 'DESPIDE EL AÑO EN CALMA', subline: 'Cabañas familiares y suites en Algarrobo', style: 'botanical_minimal' },
+        { hero: 'CELEBRA EN FAMILIA', subline: 'Quinchos privados y bosque nativo a minutos del mar', style: 'rustic_timber' }
+      ];
+    } else if (hasAvailability) {
+      primaryHero = text.includes('suite') ? 'ÚLTIMAS SUITES DISPONIBLES' : 'ÚLTIMAS CABAÑAS DISPONIBLES';
+      primaryKeyword = 'ÚLTIMAS';
+      primarySubline = 'Asegura tu descanso rodeado de bosque en Algarrobo';
+      alternatives = [
+        { hero: primaryHero, subline: primarySubline, style: 'kinfolk_luxury' },
+        { hero: 'ÚLTIMOS CUPOS EN EL BOSQUE', subline: 'Cabañas con quincho privado y suites para dos', style: 'rustic_timber' },
+        { hero: 'ASEGURA TU DESCANSO', subline: 'Tranquilidad, aire puro y desconexión en Algarrobo', style: 'botanical_minimal' }
+      ];
+    } else if (isPatria && isPareja) {
       primaryHero = '18 EN PAREJA';
       primaryKeyword = '18';
       primarySubline = 'Suites acogedoras y descanso íntimo en Algarrobo';
@@ -1821,8 +1859,17 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
     colorPalette = 'auto',
     posterReference = 'auto',
     aiAnalysis = null,
-    isOffer = false
+    isOffer = false,
+    offerText = '',
+    posterType = 'standard',
+    isAvailability = false,
+    availabilityBadge = '',
+    eyebrowText = ''
   }) {
+    const isAvail = Boolean(isAvailability || posterType === 'availability');
+    const cleanEyebrow = (eyebrowText || targetDate || 'AÑO NUEVO 2026 • ALGARROBO').trim().toUpperCase();
+    const cleanAvailBadge = (availabilityBadge || '').trim().toUpperCase();
+
     const hierarchy = this.extractCampinaVisualHierarchy(theme, targetDate);
     const hero = (heroHeadline || aiAnalysis?.heroHeadline || hierarchy.hero).toUpperCase().trim();
     const subline = sublineHeadline || aiAnalysis?.sublineHeadline || hierarchy.subline;
@@ -1881,6 +1928,47 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
 - Usa EXCLUSIVAMENTE los datos de la oferta que se indican (porcentajes, precios, fechas). PROHIBIDO inventar cifras o condiciones.
 - El sello ocupa poco espacio y no tapa personas, producto ni zonas clave de la foto.` : '';
 
+    const availabilityBlock = isAvail ? `
+
+8. TOQUE DE DISPONIBILIDAD Y TEMPORADA (afiche de venta de temporada; no reemplaza la foto real, integra los elementos con sobriedad de lodge boutique):
+- Este es un afiche de venta y disponibilidad real de temporada (ej. Año Nuevo / Fiestas / Vacaciones).
+- Estructura visual de hospitalidad boutique: integra el cintillo superior de ocasión "${cleanEyebrow}", el titular hero de disponibilidad "${hero}", el subtítulo y la cápsula o pastilla de fechas "${cleanAvailBadge || 'NAVIDAD: AGOTADA • AÑO NUEVO: ÚLTIMAS CABAÑAS Y SUITES'}".
+- Todo el conjunto tipográfico debe verse como una cartelera o afiche editorial de un lodge o resort de alta gama (estilo Relais & Châteaux o Kinfolk), perfectamente integrado al fondo con sombra de contacto natural.
+- Nada de estilo supermercado, sin carteles de neón ni estallidos de descuento. Elegancia, contraste y lectura impecable.` : '';
+
+    const contentHierarchySection = isAvail
+      ? `5. JERARQUÍA DE CONTENIDO (AFICHE EDITORIAL DE DISPONIBILIDAD & TEMPORADA):
+- CINTILLO SUPERIOR (Ocasión/Fecha próxima en letras espaciadas y refinadas):
+  "${cleanEyebrow}"
+  Tipografía: Sans-serif limpia o serif clásica pequeña, con amplio espaciado entre letras (letter-spacing abierto) en la zona superior de la foto.
+
+- TITULAR HERO DE DISPONIBILIDAD (Rótulo publicitario dominante):
+  "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
+
+- SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual):
+  "${subline}"
+  Tipografía: Sans-serif limpia, ligera y con amplio espaciado entre letras.
+${cleanAvailBadge ? `- CÁPSULA / SELLO DE ESTADO DE FECHAS (Badge comercial sobrio y refinado):
+  "${cleanAvailBadge}"
+  Formato: Placa, cápsula o pastillero elegante de esquinas redondeadas, trazo fino, relleno semitransparente de la paleta de la marca (verde bosque o crema cálido), tipografía nítida y equilibrada.\n` : ''}
+- IDENTIDAD & RESERVAS:
+  En la parte inferior o junto al rótulo: "CABAÑAS LA CAMPIÑA • RESERVAS POR WHATSAPP".
+
+- DETALLES COMPLEMENTARIOS:
+  Quinchos, valores y teléfonos van en el copy/pie de publicación de Instagram.`
+      : `5. JERARQUÍA DE CONTENIDO:
+- TITULAR HERO (Rótulo publicitario dominante):
+  "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
+
+- SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
+  "${subline}"
+  Tipografía: Sans-serif limpia, ligera y con amplio espaciado entre letras (letter-spacing elegante).
+
+- IDENTIDAD DISCRETA:
+  En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
+
+- CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.`;
+
     return `Actúa como un Director de Arte y Diseñador Gráfico Publicitario Senior especializado en branding y publicidad editorial para hotelería boutique y turismo de naturaleza (estilo Kinfolk / Architectural Digest / Campañas de Marcas Outdoor de Alta Gama).
 
 OBJETIVO: Crear un AFICHE PUBLICITARIO COMERCIAL 4:5 VERTICAL (1080x1350 px) para Instagram de "Cabañas La Campiña" (Algarrobo, Chile), utilizando la fotografía adjunta.
@@ -1918,18 +2006,7 @@ ${colorPaletteSection}
      Familias tipográficas de referencia: ${(matchedStyle.fontFamilies || []).filter(Boolean).join(' / ') || 'sans-serif editorial'} (o equivalentes muy cercanas).
      CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
 
-5. JERARQUÍA DE CONTENIDO:
-- TITULAR HERO (Rótulo publicitario dominante):
-  "${hero}" (jerarquizando con fuerza "${keyword.toUpperCase()}")
-
-- SUBTÍTULO EDITORIAL (1 sola línea corta con respiro visual, máximo 6 palabras):
-  "${subline}"
-  Tipografía: Sans-serif limpia, ligera y con amplio espaciado entre letras (letter-spacing elegante).
-
-- IDENTIDAD DISCRETA:
-  En la parte superior o inferior de forma sobria: "CABAÑAS LA CAMPIÑA • ALGARROBO".
-
-- CERO TEXTO DE RELLENO: Todo el resto de la información (quinchos, número de cabañas, fechas y WhatsApp) irá en el copy/pie de publicación de Instagram, NUNCA dentro de la foto.
+${contentHierarchySection}
 
 6. ZONAS SEGURAS Y POSICIÓN DEL TITULAR:
 - Elige tú la posición del titular según el espacio libre REAL de la foto (tercio superior, tercio inferior o franja lateral). Nunca lo pongas sobre el elemento principal (cabaña, quincho, personas) ni fuerces siempre el centro.
@@ -1942,7 +2019,7 @@ ${colorPaletteSection}
 - Revisa que cada palabra del titular y del subtítulo esté escrita exactamente como se indica, con tildes y ñ correctas; si una letra queda deforme, corrígela.
 - PROHIBIDO: manos o rostros deformados, dedos de más, personas duplicadas, logos o marcas de agua inventados, texto adicional, números sueltos, bordes o marcos falsos, y elementos que no existan en el recinto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.${offerBlock}`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.${offerBlock}${availabilityBlock}`.trim();
   }
 
   /**
@@ -3043,7 +3120,7 @@ Devuelve ESTRICTAMENTE un JSON con esta estructura:
   /**
    * Construye el bloque del post determinista para la imagen (escena + texto exacto)
    */
-  buildCampinaPostBlock({ scene, hero = '', subline = '', offer = null }) {
+  buildCampinaPostBlock({ scene, hero = '', subline = '', offer = null, availability = null }) {
     const cleanHero = (hero || '').trim().toUpperCase();
     const cleanSubline = (subline || '').trim();
     const sceneDirective = (scene && typeof scene.sceneDirective === 'string') ? scene.sceneDirective.trim() : '';
@@ -3057,11 +3134,32 @@ AGREGADO DE OFERTA (suma esto a todo lo anterior sin quitar nada: mantén las pe
 - Tamaño discreto: aprox. 12 a 16% del ancho de la imagen. Ubicación: en una esquina con un margen generoso, o alineado con el titular, en una zona de la foto despejada y sin personas. Debe leerse bien pero sin competir con el titular.
 - Estilo sobrio, premium: sin cintas, sin explosiones ni destellos, sin sombras duras, sin colores neón ni saturados, sin cajas pesadas. Basta una pequeña pieza limpia que se perciba como parte del diseño.
 - Las reglas de "sin texto adicional" y "sin números sueltos" no aplican a este sello: su texto y sus cifras deben aparecer exactamente como se indican.` : '';
-    const bloqueTexto = `TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):
+
+    const isAvail = Boolean(availability);
+    const eyebrowText = isAvail ? String(availability.eyebrow || '').replace(/\s+/g, ' ').trim().slice(0, 80).toUpperCase() : '';
+    const badgeText = isAvail ? String(availability.badge || '').replace(/\s+/g, ' ').trim().slice(0, 100).toUpperCase() : '';
+
+    const eyebrowLine = eyebrowText ? `\n- Ocasión / Ceja superior: "${eyebrowText}"` : '';
+    const badgeLine = badgeText ? `\n- Cápsula de disponibilidad: "${badgeText}"` : '';
+
+    const availVisual = isAvail ? `
+
+AGREGADO DE DISPONIBILIDAD & TEMPORADA (mantén la escena, la arquitectura y las personas idénticas):
+- Estructura editorial en bloque limpio y legible:
+  1. Ceja superior (eyebrow) en mayúsculas pequeñas con tracking generoso: "${eyebrowText || 'AÑO NUEVO 2026 • ALGARROBO'}".
+  2. Titular hero dominante: "${cleanHero}".
+  3. Subtítulo complementario con respiro visual: "${cleanSubline}".
+${badgeText ? `  4. Cápsula de disponibilidad sobria: un contenedor tipo píldora o marco rectangular fino de esquinas redondeadas con fondo semitransparente oscuro o crema cálido, con el texto exacto "${badgeText}".` : ''}
+  5. Cierre discreto de identidad: "CABAÑAS LA CAMPIÑA • RESERVAS POR WHATSAPP".
+- Dirección de arte: Afiche de boutique lodge o viña exclusiva. Sin carteles amarillos de descuento, sin números de teléfono deformados, sin sellos de remate agresivos. Máxima elegancia tipográfica y legibilidad.` : '';
+
+    const baseIdentity = isAvail ? 'CABAÑAS LA CAMPIÑA • RESERVAS POR WHATSAPP' : 'CABAÑAS LA CAMPIÑA • ALGARROBO';
+
+    const bloqueTexto = `TEXTO EXACTO EN LA IMAGEN (cópialo letra por letra, con tildes y ñ, sin cambiar nada):${eyebrowLine}
 - Titular: "${cleanHero}"
-- Subtítulo: "${cleanSubline}"
-- Identidad discreta: "CABAÑAS LA CAMPIÑA • ALGARROBO"${offerLine}
-No escribas ningún otro texto, número, logo ni marca de agua${offer ? ' fuera de los indicados arriba' : ''}. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).${offerVisual}`;
+- Subtítulo: "${cleanSubline}"${badgeLine}
+- Identidad discreta: "${baseIdentity}"${offerLine}
+No escribas ningún otro texto, número, logo ni marca de agua${(offer || isAvail) ? ' fuera de los indicados arriba' : ''}. Si una palabra queda con error ortográfico o letras deformes, corrígela antes de entregar. Entrega UNA sola imagen 4:5 (1080x1350).${offerVisual}${availVisual}`;
 
     return [sceneDirective, bloqueTexto].filter(Boolean).join('\n\n');
   }
