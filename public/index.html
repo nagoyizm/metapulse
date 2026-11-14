@@ -556,6 +556,28 @@
                           <label class="form-label" for="pip-oferta-texto" style="font-size: 0.75rem;">Texto del sello de oferta <span class="text-muted">(corto, tal como saldrá en la imagen)</span></label>
                           <input type="text" id="pip-oferta-texto" class="form-control form-control-sm" style="font-size: 0.8rem;" maxlength="60" placeholder="Ej: 20% DE DESCUENTO · HASTA EL DOMINGO">
                         </div>
+                        <!-- Indicaciones de escena del usuario (Situación, personas, acción) -->
+                        <div id="pip-scene-custom-box" style="margin-bottom: 8px; padding: 10px; background: rgba(99, 102, 241, 0.04); border: 1px solid rgba(99, 102, 241, 0.18); border-radius: var(--radius-xs);">
+                          <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <span>🌲 Situación de la imagen y personas <span style="font-weight: 400; font-size: 0.72rem; color: var(--text-muted);">(opcional)</span></span>
+                          </div>
+                          <div style="display: grid; grid-template-columns: 1fr; gap: 6px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                              <label class="form-label" for="pip-scene-situation" style="font-size: 0.73rem;">Situación / Momento del día</label>
+                              <input type="text" id="pip-scene-situation" class="form-control form-control-sm" style="font-size: 0.78rem;" placeholder="Ej: Atardecer dorado en el bosque frente a la cabaña, luces cálidas encendidas">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                              <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="pip-scene-people" style="font-size: 0.73rem;">Gente a agregar</label>
+                                <input type="text" id="pip-scene-people" class="form-control form-control-sm" style="font-size: 0.78rem;" placeholder="Ej: Una pareja, o Familia de 4, o Sin personas">
+                              </div>
+                              <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="pip-scene-action" style="font-size: 0.73rem;">Celebración o acción</label>
+                                <input type="text" id="pip-scene-action" class="form-control form-control-sm" style="font-size: 0.78rem;" placeholder="Ej: Brindando con copas por Año Nuevo, asado en el quincho">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         <div class="form-group" style="margin-bottom: 8px;">
                           <label class="form-label" for="pip-publico" style="font-size: 0.75rem;">Público</label>
                           <input type="text" id="pip-publico" class="form-control form-control-sm" style="font-size: 0.8rem;" readonly placeholder="Público objetivo">

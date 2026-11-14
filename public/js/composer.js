@@ -1437,6 +1437,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dispBoxReset) dispBoxReset.style.display = 'none';
     setInputValue('pip-disp-eyebrow', '');
     setInputValue('pip-disp-badge', '');
+    setInputValue('pip-scene-situation', '');
+    setInputValue('pip-scene-people', '');
+    setInputValue('pip-scene-action', '');
     setInputValue('pip-publico', '');
     setElementText('pip-foto-hint', 'Foto a subir: --');
     setInputValue('pip-hero', '');
@@ -4471,7 +4474,10 @@ REGLAS:
           availabilityBadge: document.getElementById('pip-disp-badge')?.value.trim() || '',
           eyebrowText: document.getElementById('pip-disp-eyebrow')?.value.trim() || '',
           isOffer: isOff,
-          offerText: document.getElementById('pip-oferta-texto')?.value.trim() || ''
+          offerText: document.getElementById('pip-oferta-texto')?.value.trim() || '',
+          sceneSituation: document.getElementById('pip-scene-situation')?.value.trim() || '',
+          scenePeople: document.getElementById('pip-scene-people')?.value.trim() || '',
+          sceneAction: document.getElementById('pip-scene-action')?.value.trim() || ''
         })
       });
       const json = await res.json();
@@ -4548,6 +4554,9 @@ REGLAS:
       payload.availabilityBadge = document.getElementById('pip-disp-badge')?.value.trim() || '';
       payload.isOffer = posterTypeVal === 'offer' || Boolean(document.getElementById('pip-oferta')?.checked);
       payload.offerText = document.getElementById('pip-oferta-texto')?.value.trim() || '';
+      payload.sceneSituation = document.getElementById('pip-scene-situation')?.value.trim() || '';
+      payload.scenePeople = document.getElementById('pip-scene-people')?.value.trim() || '';
+      payload.sceneAction = document.getElementById('pip-scene-action')?.value.trim() || '';
 
       const res = await fetch('/api/ai/campina-prepare-post', {
         method: 'POST',
@@ -5382,6 +5391,15 @@ REGLAS:
 
     const dispBadge = document.getElementById('pip-disp-badge');
     if (dispBadge) dispBadge.addEventListener('input', triggerPipComposeDebounced);
+
+    const sceneSituationInput = document.getElementById('pip-scene-situation');
+    if (sceneSituationInput) sceneSituationInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const scenePeopleInput = document.getElementById('pip-scene-people');
+    if (scenePeopleInput) scenePeopleInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const sceneActionInput = document.getElementById('pip-scene-action');
+    if (sceneActionInput) sceneActionInput.addEventListener('input', triggerPipComposeDebounced);
 
     const ofertaChk = document.getElementById('pip-oferta');
     if (ofertaChk) ofertaChk.addEventListener('change', () => {

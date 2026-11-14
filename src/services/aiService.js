@@ -1347,7 +1347,13 @@ Entrega ÚNICAMENTE el texto final listo para publicar en Instagram.
         id: 'auto',
         name: '✨ Auto-seleccionar acabado de marca',
         shortName: 'Auto Acabado',
-        description: 'La IA analiza el concepto y selecciona el tratamiento de rótulo (pincelada, pan de oro o relieve en madera) que mejor ensamble con el ambiente de la fotografía.'
+        description: 'La IA analiza el concepto y selecciona el tratamiento de rótulo que mejor ensamble con el ambiente de la fotografía.'
+      },
+      {
+        id: 'minimal_sober',
+        name: '🌿 Máxima Sobriedad & Lujo Silencioso (Editorial Kinfolk)',
+        shortName: 'Máxima Sobriedad',
+        artDirection: 'Diseño ultra-sobrio y refinado estilo revista de arquitectura o lodge boutique de alta gama. Tipografía limpia, ligera y pura con generoso interletreado (letter-spacing abierto) y respiración visual. CERO efectos estridentes: sin pinceladas gruesas, sin dorados reflectantes, sin neón, sin sombras duras ni ribetes pesados. Se integra a la fotografía con sombra ambiental sutil y máxima serenidad.'
       },
       {
         id: 'brush_stroke',
@@ -1814,16 +1820,16 @@ Entrega tu respuesta EXCLUSIVAMENTE en JSON válido con esta estructura:
     const paletteForbidsGold = Boolean(matchedPalette?.forbiddenColors && /dorado/i.test(matchedPalette.forbiddenColors));
 
     const treatmentsCatalog = this.getCampinaBrandTreatments();
-    const detectedTreatment = (activeStyleKey === 'patria_heritage' || activeStyleKey === 'rustic_timber')
+    const detectedTreatment = (activeStyleKey === 'patria_heritage')
       ? 'brush_stroke'
-      : (activeStyleKey === 'kinfolk_luxury'
-          ? (paletteForbidsGold ? 'editorial_lockup' : 'gold_foil')
-          : 'editorial_lockup');
+      : (activeStyleKey === 'rustic_timber')
+          ? 'timber_burn'
+          : 'minimal_sober';
     let activeTreatmentKey = (!brandTreatment || brandTreatment === 'auto')
       ? (aiAnalysis?.recommendedTreatment || detectedTreatment)
       : brandTreatment;
     if (activeTreatmentKey === 'gold_foil' && paletteForbidsGold && (!brandTreatment || brandTreatment === 'auto')) {
-      activeTreatmentKey = 'editorial_lockup';
+      activeTreatmentKey = 'minimal_sober';
     }
     const matchedTreatment = treatmentsCatalog.find(t => t.id === activeTreatmentKey) || treatmentsCatalog[1];
 
@@ -1984,27 +1990,24 @@ ${posterRefSection}
 ${colorPaletteSection}
 - REGLA DE ARMONÍA: usa SOLO los colores indicados y sus tintes; máximo 3 colores en el rótulo (60/30/10); el trazo y los ribetes toman el acento o el profundo de la paleta; prohibido un verde saturado sobre un tono café/terracota.
 
-4. COMPOSICIÓN DE RÓTULO PUBLICITARIO DE MARCA (CERO TEXTO PLANO O "FOME"):
-- REGLA DE ORO DE BRANDING (COMO DISEÑAN LAS GRANDES MARCAS SUS ESLÓGANS):
-  PROHIBIDO poner texto plano, aburrido, monocromático o letras simples pegadas que parezcan de Word.
-  Debes diseñar el titular exactamente como lo hacen las grandes agencias con los eslogans de marcas icónicas: UN LOCKUP / EMBLEMA PUBLICITARIO con personalidad, dinamismo y acabado artesanal de alta gama:
-
-  a) CONTRASTE TIPOGRÁFICO INTERNO (DUAL-WEIGHT & COMPOSICIÓN DE MARCA):
-     Dentro del titular "${hero}", NO uses todas las letras iguales.
-     - La palabra/cifra clave "${keyword.toUpperCase()}" debe ser la estrella visual indiscutible: mayor tamaño, grosor contundente o caligrafía de autor expresiva utilizando los tonos de acento de la paleta.
-     - Las palabras complementarias deben equilibrar la composición con menor peso, estilo sans-serif refinado o serif clásica con amplio espaciado (letter-spacing abierto) en el color principal del titular.
-
-  b) TRATAMIENTO DE MARCA & TRAZOS DINÁMICOS ("${matchedTreatment.name}"):
-     ${matchedTreatment.artDirection}
-     - Incorpora trazos de apoyo gráfico (como una pincelada texturada debajo de la palabra clave, un ribete orgánico, o líneas finas de corte publicitario) utilizando los tonos de acento seleccionados para darle movimiento y factura artística.
-
-  c) TEXTURA, VOLUMEN Y PROFUNDIDAD INTEGRADA:
-     El texto debe tener textura material auténtica (microrrelieve con bisel cálido, tacto de imprenta serigráfica artesanal o tinte orgánico). Debe sentirse material y tridimensional, con sombra de contacto suave ("ambient occlusion shadow") sobre la superficie y el fondo de la escena fotográfica, sea cual sea (césped, cielo, madera, piedra o interior).
-
-  d) ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe})
-     ${matchedStyle.description}
-     Familias tipográficas de referencia: ${(matchedStyle.fontFamilies || []).filter(Boolean).join(' / ') || 'sans-serif editorial'} (o equivalentes muy cercanas).
-     CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
+4. COMPOSICIÓN TIPOGRÁFICA PUBLICITARIA (MÁXIMA SOBRIEDAD & LUJO SILENCIOSO):
+- FILOSOFÍA VISUAL: Hospitalidad boutique, serenidad de bosque y elegancia contenida (estilo Kinfolk, Architectural Digest, Relais & Châteaux o Aman Resorts).
+  La fotografía del bosque, las cabañas de madera noble y el entorno natural es la protagonista indiscutible. El afiche publicitario debe sentirse sobrio, refinado, liviano y arquitectónico, NUNCA sobrecargado ni estridente.
+- CERO ESTRIDENCIAS COMERCIALES:
+  PROHIBIDO terminantemente:
+  - Estilo supermercado o liquidación (sin cintas rojas, sin sellos amarillos de rebaja, sin fuegos artificiales ni destellos).
+  - Pinceladas gruesas o trazos de pintura que manchen la fotografía o tapen el paisaje.
+  - Tipografías de cómic, caligrafías pesadas o letras derretidas.
+  - Efectos 3D plásticos o neón chillón.
+- TRATAMIENTO DEL TITULAR:
+  - Tipografía refinada, limpia y con generoso aire visual (interletreado abierto en mayúsculas).
+  - Jerarquía clara pero contenida: la palabra clave "${keyword.toUpperCase()}" se destaca con sutileza y nobleza de peso o tono de la paleta, sin recurrir a contrastes estridentes.
+  - Tonos nobles y armónicos: blanco marfil, crema cálido, arena o carbón vegetal suave con sombra de contacto sutil ("soft ambient contact shadow") que garantiza lectura nítida sin invadir la escena.
+  - Tratamiento seleccionado: "${matchedTreatment.name}" (${matchedTreatment.artDirection}).
+- ESTILO TIPOGRÁFICO BASE: "${matchedStyle.name}" (${matchedStyle.vibe}).
+  ${matchedStyle.description}
+  Familias tipográficas de referencia: ${(matchedStyle.fontFamilies || []).filter(Boolean).join(' / ') || 'sans-serif editorial limpia / serif boutique clásica'}.
+  CERO letras derretidas, fuentes infantiles o tipografías sintéticas genéricas de IA.
 
 ${contentHierarchySection}
 
@@ -2019,7 +2022,7 @@ ${contentHierarchySection}
 - Revisa que cada palabra del titular y del subtítulo esté escrita exactamente como se indica, con tildes y ñ correctas; si una letra queda deforme, corrígela.
 - PROHIBIDO: manos o rostros deformados, dedos de más, personas duplicadas, logos o marcas de agua inventados, texto adicional, números sueltos, bordes o marcos falsos, y elementos que no existan en el recinto.
 
-Tono: Sereno, exclusivo, cálido y acogedor. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 con un diseño de eslogan de marca comercial, con colores 100% acordes a la ocasión, trazos dinámicos, volumen, vida y máxima belleza visual.${offerBlock}${availabilityBlock}`.trim();
+Tono: Sereno, exclusivo, cálido y acogedor. Máxima sobriedad editorial de lodge boutique y naturaleza. Todo texto en español impecable. Resultado: Afiche publicitario 4:5 elegante y minimalista, con tipografía refinada, respiración visual, colores 100% armónicos y respeto total por la fotografía.${offerBlock}${availabilityBlock}`.trim();
   }
 
   /**
@@ -2976,7 +2979,18 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
    * Genera indicaciones de escena deducidas con razonamiento por pasos para Cabañas La Campiña
    * Admite imagen base local (/uploads/...) o deducción contextual solo con texto
    */
-  async buildCampinaSceneDirective({ theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '', brief = null }) {
+  async buildCampinaSceneDirective({
+    theme,
+    targetDate = '',
+    sceneHint = '',
+    imageUrl = '',
+    planContext = null,
+    caption = '',
+    brief = null,
+    sceneSituation = '',
+    scenePeople = '',
+    sceneAction = ''
+  }) {
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       throw new Error('El campo theme es requerido');
     }
@@ -3004,7 +3018,25 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
     }
 
     const captionInfo = caption ? `\nCOPY/CAPTION:\n"""${caption}"""` : '';
-    const userHintInfo = sceneHint ? `\nPISTA DE ESCENA INDICADA POR EL USUARIO (MANDA SOBRE EL ESPACIO):\n"${sceneHint}"` : '';
+
+    const userDirectives = [];
+    if (sceneSituation && typeof sceneSituation === 'string' && sceneSituation.trim()) {
+      userDirectives.push(`Situación y momento deseado: "${sceneSituation.trim()}"`);
+    }
+    if (scenePeople && typeof scenePeople === 'string' && scenePeople.trim()) {
+      userDirectives.push(`Cantidad de personas / Perfil: "${scenePeople.trim()}"`);
+    }
+    if (sceneAction && typeof sceneAction === 'string' && sceneAction.trim()) {
+      userDirectives.push(`Celebración o acción que realizan: "${sceneAction.trim()}"`);
+    }
+    if (sceneHint && typeof sceneHint === 'string' && sceneHint.trim()) {
+      userDirectives.push(`Otras indicaciones: "${sceneHint.trim()}"`);
+    }
+
+    const userHintInfo = userDirectives.length > 0
+      ? `\nINDICACIONES DIRECTAS DEL USUARIO PARA LA ESCENA (TIENEN MÁXIMA PRIORIDAD ABSOLUTA - DEBES ACATARLAS EXACTAMENTE):\n- ${userDirectives.join('\n- ')}`
+      : '';
+
     const photoRule = inlineData
       ? '\nLA FOTO ADJUNTA MANDA: es el fondo real que el dueño usará. Si el espacio recomendado, el brief o el plan sugieren un espacio o elementos que NO aparecen en la foto, ignóralos y adapta la escena a lo que la foto realmente muestra. Solo coloca personas y objetos en zonas que existan y estén libres en la foto (suelo, pasto, terraza, camino, banca); nunca delante de puertas, ventanas o elementos clave, ni donde no hay espacio físico.\n'
       : '';
@@ -3018,10 +3050,10 @@ DATOS DEL POST:
 
 RAZONAMIENTO POR PASOS OBLIGATORIO:
 Debes resolver y reportar en el array "reasoning" (un string explicativo por cada paso del 1 al 5):
-(1) IDENTIFICAR el espacio: La pista del usuario (${sceneHint ? `"${sceneHint}"` : 'ninguna'}) manda; si no hay, dedúcelo de la foto o contexto (pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina, otro) -> spaceType.
+(1) IDENTIFICAR el espacio: La pista del usuario (${userDirectives.length > 0 ? userDirectives.join('; ') : 'ninguna'}) manda; si no hay, dedúcelo de la foto o contexto (pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina, otro) -> spaceType.
 (2) DEDUCIR el enfoque/público de la publicación desde tema, ocasión, planContext (angle, hook, why, campaña) y caption (familia, pareja, amigos, descanso solo, celebración) -> audienceFocus.
-(3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2) usando solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción o mueble que no esté en la foto.
-(4) FIJAR RESTRICCIONES: Personas chilenas de rasgos comunes en Chile, sin estereotipos (ni bastón/caricatura en adultos mayores, ni poses de stock), nunca en primer plano: pequeñas, de espaldas o de perfil, habitando el espacio (caminando, conversando, jugando, comiendo), pocas personas. Poses naturales y relajadas, sin primeros planos de rostros, número reducido de personas, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
+(3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2): Si el usuario especificó cantidad de gente, situación o acción (${userDirectives.length > 0 ? userDirectives.join('; ') : 'ninguna'}), DEBES acatarlas estrictamente (ej: si indica 'una pareja brindando con copas', deben ser exactamente 2 personas brindando; si indica 'familia de 4', deben ser exactamente 4 personas; si indica 'sin personas', no coloques a nadie). En lo demás, usa solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción o mueble que no esté en la foto.
+(4) FIJAR RESTRICCIONES: Personas chilenas de rasgos comunes en Chile, sin estereotipos, nunca en primer plano invasivo: pequeñas, de espaldas o de perfil, habitando el espacio de forma creíble (caminando, conversando, brindando, comiendo), en la cantidad exacta pedida por el usuario. Poses naturales y relajadas, sin primeros planos de rostros, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
 (5) REDACTAR "sceneDirective": Bloque en español, listo para pegar en Gemini, que empieza con:
 INDICACIONES DE ESCENA DE ESTE POST (tienen prioridad sobre "conservar la foto" solo en lo que se declara aquí):
 seguido de 3 a 6 viñetas concretas (qué personas/acciones/objetos añadir, exactamente en qué zona de la escena, con qué luz, qué NO añadir).

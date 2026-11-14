@@ -2498,7 +2498,10 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       posterType = 'standard',
       isAvailability = false,
       availabilityBadge = '',
-      eyebrowText = ''
+      eyebrowText = '',
+      sceneSituation = '',
+      scenePeople = '',
+      sceneAction = ''
     } = req.body || {};
     if (!postId) {
       return res.status(400).json({ success: false, error: 'postId es requerido' });
@@ -2512,6 +2515,15 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
     }
     if (availabilityBadge && typeof availabilityBadge === 'string' && availabilityBadge.length > 4000) {
       return res.status(400).json({ success: false, error: 'availabilityBadge excede el tamaño máximo permitido' });
+    }
+    if (sceneSituation && typeof sceneSituation === 'string' && sceneSituation.length > 2000) {
+      return res.status(400).json({ success: false, error: 'sceneSituation excede el tamaño máximo permitido' });
+    }
+    if (scenePeople && typeof scenePeople === 'string' && scenePeople.length > 2000) {
+      return res.status(400).json({ success: false, error: 'scenePeople excede el tamaño máximo permitido' });
+    }
+    if (sceneAction && typeof sceneAction === 'string' && sceneAction.length > 2000) {
+      return res.status(400).json({ success: false, error: 'sceneAction excede el tamaño máximo permitido' });
     }
 
     const post = db.prepare('SELECT id, title, content, scheduled_at, account_name, plan_context FROM posts WHERE id = ?').get(postId);
@@ -2610,7 +2622,10 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
       imageUrl: cleanImageUrl,
       planContext,
       caption,
-      brief
+      brief,
+      sceneSituation: (sceneSituation || '').trim(),
+      scenePeople: (scenePeople || '').trim(),
+      sceneAction: (sceneAction || '').trim()
     });
 
     const artDirectionPromise = aiService.chooseCampinaArtDirection({
@@ -2722,7 +2737,10 @@ router.post('/ai/campina-prepare-post', async (req, res) => {
         posterType: resolvedPosterType,
         isAvailability: resolvedIsAvailability,
         eyebrowText: resolvedEyebrow,
-        availabilityBadge: resolvedAvailBadge
+        availabilityBadge: resolvedAvailBadge,
+        sceneSituation: (sceneSituation || '').trim(),
+        scenePeople: (scenePeople || '').trim(),
+        sceneAction: (sceneAction || '').trim()
       }
     };
 
@@ -2754,7 +2772,10 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
       availabilityBadge = '',
       eyebrowText = '',
       isOffer = false,
-      offerText = ''
+      offerText = '',
+      sceneSituation = '',
+      scenePeople = '',
+      sceneAction = ''
     } = req.body || {};
 
     if (typeof theme === 'string' && theme.length > 4000) {
@@ -2774,6 +2795,15 @@ router.post('/ai/campina-compose-prompt', (req, res) => {
     }
     if (typeof availabilityBadge === 'string' && availabilityBadge.length > 4000) {
       return res.status(400).json({ success: false, error: 'availabilityBadge excede el límite de 4000 caracteres' });
+    }
+    if (typeof sceneSituation === 'string' && sceneSituation.length > 2000) {
+      return res.status(400).json({ success: false, error: 'sceneSituation excede el límite de 2000 caracteres' });
+    }
+    if (typeof scenePeople === 'string' && scenePeople.length > 2000) {
+      return res.status(400).json({ success: false, error: 'scenePeople excede el límite de 2000 caracteres' });
+    }
+    if (typeof sceneAction === 'string' && sceneAction.length > 2000) {
+      return res.status(400).json({ success: false, error: 'sceneAction excede el límite de 2000 caracteres' });
     }
 
     const cleanTheme = (theme || 'Descanso en la naturaleza').trim();
