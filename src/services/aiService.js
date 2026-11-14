@@ -3011,9 +3011,9 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
     if (brief && typeof brief === 'object') {
       const bParts = [];
       if (brief.temaTrabajado) bParts.push(`Tema trabajado: "${brief.temaTrabajado}"`);
-      if (brief.publico) bParts.push(`Público objetivo: "${brief.publico}"`);
+      if (!scenePeople && brief.publico) bParts.push(`Público objetivo: "${brief.publico}"`);
       if (brief.espacioRecomendado) bParts.push(`Espacio recomendado: "${brief.espacioRecomendado}"`);
-      if (brief.notasPersonas) bParts.push(`Indicaciones de personas: "${brief.notasPersonas}"`);
+      if (!scenePeople && !sceneAction && brief.notasPersonas) bParts.push(`Indicaciones de personas: "${brief.notasPersonas}"`);
       if (bParts.length > 0) briefInfo = `\nCONTEXTO DEL BRIEF:\n- ${bParts.join('\n- ')}`;
     }
 
@@ -3021,20 +3021,20 @@ Devuelve ESTRICTAMENTE un JSON con este formato exacto:
 
     const userDirectives = [];
     if (sceneSituation && typeof sceneSituation === 'string' && sceneSituation.trim()) {
-      userDirectives.push(`Situación y momento deseado: "${sceneSituation.trim()}"`);
+      userDirectives.push(`SITUACIÓN Y MOMENTO DEL DÍA (OBLIGATORIO): "${sceneSituation.trim()}" -> La iluminación, cielo y atmósfera de la escena deben corresponder a este momento. Si dice 'atardecer', la luz DEBE ser cálida y dorada de puesta de sol con sombras suaves de crepúsculo. PROHIBIDO mantener o forzar luz de mediodía si se pide atardecer o noche.`);
     }
     if (scenePeople && typeof scenePeople === 'string' && scenePeople.trim()) {
-      userDirectives.push(`Cantidad de personas / Perfil: "${scenePeople.trim()}"`);
+      userDirectives.push(`CANTIDAD Y TIPO DE PERSONAS (OBLIGATORIO): "${scenePeople.trim()}" -> Debes incorporar exactamente este grupo de personas en la escena. Si dice 'una familia grande', describe a una familia numerosa (de 4 a 7 personas: adultos, jóvenes y niños) reunida en el espacio. ESTÁ TERMINANTEMENTE PROHIBIDO reducir la escena a una pareja o a 2 personas cuando el usuario pidió una familia grande o un grupo numeroso. Si dice 'sin personas', no coloques a nadie.`);
     }
     if (sceneAction && typeof sceneAction === 'string' && sceneAction.trim()) {
-      userDirectives.push(`Celebración o acción que realizan: "${sceneAction.trim()}"`);
+      userDirectives.push(`CELEBRACIÓN O ACCIÓN EN CURSO (OBLIGATORIO): "${sceneAction.trim()}" -> La escena debe reflejar activamente esta acción. Si es una comida, almuerzo, cena o celebración en el quincho o terraza, la mesa debe tener elementos de esa comida (fuentes para compartir, platos, copas o vasos para brindar, comida dispuesta con naturalidad y calidez). ESTÁ PROHIBIDO decir 'no añadir copas, botellas ni comida' cuando el usuario pidió celebrar una comida o brindis.`);
     }
     if (sceneHint && typeof sceneHint === 'string' && sceneHint.trim()) {
-      userDirectives.push(`Otras indicaciones: "${sceneHint.trim()}"`);
+      userDirectives.push(`OTRAS INDICACIONES: "${sceneHint.trim()}"`);
     }
 
     const userHintInfo = userDirectives.length > 0
-      ? `\nINDICACIONES DIRECTAS DEL USUARIO PARA LA ESCENA (TIENEN MÁXIMA PRIORIDAD ABSOLUTA - DEBES ACATARLAS EXACTAMENTE):\n- ${userDirectives.join('\n- ')}`
+      ? `\nINDICACIONES DIRECTAS DEL USUARIO PARA LA ESCENA (TIENEN MÁXIMA PRIORIDAD ABSOLUTA - DEBES ACATARLAS EXACTAMENTE Y ANULAN CUALQUIER RESTRICCIÓN PREVIA DEL BRIEF O DE LA FOTO):\n- ${userDirectives.join('\n- ')}\n`
       : '';
 
     const photoRule = inlineData
@@ -3052,8 +3052,8 @@ RAZONAMIENTO POR PASOS OBLIGATORIO:
 Debes resolver y reportar en el array "reasoning" (un string explicativo por cada paso del 1 al 5):
 (1) IDENTIFICAR el espacio: La pista del usuario (${userDirectives.length > 0 ? userDirectives.join('; ') : 'ninguna'}) manda; si no hay, dedúcelo de la foto o contexto (pastizal/áreas verdes, cabaña, suite, quincho, sendero de pinos, terraza, piscina, otro) -> spaceType.
 (2) DEDUCIR el enfoque/público de la publicación desde tema, ocasión, planContext (angle, hook, why, campaña) y caption (familia, pareja, amigos, descanso solo, celebración) -> audienceFocus.
-(3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2): Si el usuario especificó cantidad de gente, situación o acción (${userDirectives.length > 0 ? userDirectives.join('; ') : 'ninguna'}), DEBES acatarlas estrictamente (ej: si indica 'una pareja brindando con copas', deben ser exactamente 2 personas brindando; si indica 'familia de 4', deben ser exactamente 4 personas; si indica 'sin personas', no coloques a nadie). En lo demás, usa solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción o mueble que no esté en la foto.
-(4) FIJAR RESTRICCIONES: Personas chilenas de rasgos comunes en Chile, sin estereotipos, nunca en primer plano invasivo: pequeñas, de espaldas o de perfil, habitando el espacio de forma creíble (caminando, conversando, brindando, comiendo), en la cantidad exacta pedida por el usuario. Poses naturales y relajadas, sin primeros planos de rostros, sin texto ni logotipos dentro de la imagen, iluminación natural coherente con la foto, la arquitectura y vegetación de la foto quedan intactas.
+(3) ELEGIR elementos humanos y de ambiente coherentes con (1) y (2): Si el usuario especificó cantidad de gente, situación o acción (${userDirectives.length > 0 ? userDirectives.join('; ') : 'ninguna'}), DEBES acatarlas estrictamente sin excepciones (ej: si indica 'una familia grande chilena', describe una familia amplia de 4 a 7 personas —adultos, jóvenes, niños— sentados o reunidos en torno a la mesa o bancos; si indica 'una pareja', exactamente 2 personas; si indica 'sin personas', no coloques a nadie). En lo demás, usa solo hechos reales del recinto: cabañas de 2 a 8 personas, suites para parejas (sin mascotas), quinchos privados o comunitarios, jardines y senderos temáticos, juegos infantiles en áreas verdes, silencio nocturno apacible desde las 21:00 hrs, piscinas solo dic–Semana Santa. PROHIBIDO terminantemente tinajas, jacuzzis, hot tubs y cualquier construcción que no esté en la foto.
+(4) FIJAR RESTRICCIONES Y ELEMENTOS: Personas chilenas de rasgos comunes en Chile, sin estereotipos, nunca en primer plano invasivo: de espaldas o de perfil, habitando el espacio de forma creíble (conversando, compartiendo la comida, brindando, jugando), en la cantidad y grupo exacto pedido por el usuario (si es familia grande, toda la familia reunida). Poses naturales y relajadas, sin primeros planos de rostros, sin texto ni logotipos dentro de la imagen. La iluminación debe corresponder exactamente a la situación solicitada por el usuario (si indicó atardecer, luz cálida y dorada de atardecer; si no indicó nada, iluminación natural de la foto). Si el usuario pidió una comida o celebración, se deben detallar los elementos sobre la mesa (platos, fuentes, vasos o copas) de forma cálida y acogedora, quedando PROHIBIDO prohibir comida o copas si la acción es comer o celebrar. La arquitectura y vegetación del fondo se mantienen intactas.
 (5) REDACTAR "sceneDirective": Bloque en español, listo para pegar en Gemini, que empieza con:
 INDICACIONES DE ESCENA DE ESTE POST (tienen prioridad sobre "conservar la foto" solo en lo que se declara aquí):
 seguido de 3 a 6 viñetas concretas (qué personas/acciones/objetos añadir, exactamente en qué zona de la escena, con qué luz, qué NO añadir).

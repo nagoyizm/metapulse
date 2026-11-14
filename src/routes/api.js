@@ -2886,7 +2886,18 @@ router.post('/ai/campina-headlines', async (req, res) => {
 
 router.post('/ai/campina-scene-directive', async (req, res) => {
   try {
-    let { theme, targetDate = '', sceneHint = '', imageUrl = '', planContext = null, caption = '', brief = null } = req.body || {};
+    let {
+      theme,
+      targetDate = '',
+      sceneHint = '',
+      imageUrl = '',
+      planContext = null,
+      caption = '',
+      brief = null,
+      sceneSituation = '',
+      scenePeople = '',
+      sceneAction = ''
+    } = req.body || {};
     if (!theme || typeof theme !== 'string' || !theme.trim()) {
       return res.status(400).json({ success: false, error: 'Debes indicar el tema o enfoque.' });
     }
@@ -2895,6 +2906,9 @@ router.post('/ai/campina-scene-directive', async (req, res) => {
     if (targetDate) targetDate = String(targetDate).slice(0, 2000);
     if (sceneHint) sceneHint = String(sceneHint).slice(0, 2000);
     if (caption) caption = String(caption).slice(0, 2000);
+    if (sceneSituation) sceneSituation = String(sceneSituation).slice(0, 2000);
+    if (scenePeople) scenePeople = String(scenePeople).slice(0, 2000);
+    if (sceneAction) sceneAction = String(sceneAction).slice(0, 2000);
 
     const safePlanContext = (planContext && typeof planContext === 'object' && !Array.isArray(planContext)) ? planContext : null;
     const safeBrief = (brief && typeof brief === 'object' && !Array.isArray(brief)) ? brief : null;
@@ -2906,7 +2920,10 @@ router.post('/ai/campina-scene-directive', async (req, res) => {
       imageUrl,
       planContext: safePlanContext,
       caption,
-      brief: safeBrief
+      brief: safeBrief,
+      sceneSituation: (sceneSituation || '').trim(),
+      scenePeople: (scenePeople || '').trim(),
+      sceneAction: (sceneAction || '').trim()
     });
 
     res.json({ success: true, data });

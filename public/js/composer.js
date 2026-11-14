@@ -5235,7 +5235,10 @@ REGLAS:
           imageUrl,
           ...(window._draftPlanContext ? { planContext: window._draftPlanContext } : {}),
           ...(window._postBrief ? { brief: window._postBrief } : {}),
-          caption: postContent ? postContent.value : ''
+          caption: postContent ? postContent.value : '',
+          sceneSituation: document.getElementById('pip-scene-situation')?.value.trim() || '',
+          scenePeople: document.getElementById('pip-scene-people')?.value.trim() || '',
+          sceneAction: document.getElementById('pip-scene-action')?.value.trim() || ''
         })
       });
       const json = await res.json();
@@ -5260,6 +5263,85 @@ REGLAS:
       showToast('No se pudo reanalizar: ' + err.message, 'error');
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
+  // Regenera la directiva de escena respetando las indicaciones de situación, gente y acción
+  async function handlePipRegenerateScene() {
+    const btn = document.getElementById('btn-pip-update-scene');
+    const origText = btn ? btn.textContent : 'Actualizar escena';
+
+    const theme = document.getElementById('pip-tema')?.value.trim() || document.getElementById('campina-theme')?.value.trim() || '';
+    if (!theme) {
+      showToast('Falta el tema del post: pulsa "Preparar post" primero', 'warning');
+      return;
+    }
+
+    const targetDate = document.getElementById('pip-ocasion')?.value.trim() || document.getElementById('campina-date')?.value.trim() || '';
+    const rawImg = (typeof getPipReferenceImage === 'function' ? getPipReferenceImage() : null) || campinaBackgroundImagePath || (ComposerState.mediaFiles && ComposerState.mediaFiles[0]) || '';
+    const imageUrl = (typeof rawImg === 'string' && rawImg.startsWith('/uploads/')) ? rawImg : undefined;
+
+    const sceneSituation = document.getElementById('pip-scene-situation')?.value.trim() || '';
+    const scenePeople = document.getElementById('pip-scene-people')?.value.trim() || '';
+    const sceneAction = document.getElementById('pip-scene-action')?.value.trim() || '';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Actualizando...';
+    }
+
+    try {
+      const res = await fetch('/api/ai/campina-scene-directive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          targetDate,
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(window._draftPlanContext ? { planContext: window._draftPlanContext } : {}),
+          ...(window._postBrief ? { brief: window._postBrief } : {}),
+          caption: postContent ? postContent.value : '',
+          sceneSituation,
+          scenePeople,
+          sceneAction
+        })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success || !json.data) {
+        throw new Error(json.error || `Error del servidor (${res.status})`);
+      }
+
+      const d = json.data;
+      setInputValue('pip-scene-prompt', d.sceneDirective || '');
+      if (typeof showPipPhotoSummary === 'function') {
+        showPipPhotoSummary(d.photoSummary);
+      }
+      const reasoningList = document.getElementById('pip-reasoning-list');
+      if (reasoningList && Array.isArray(d.reasoning)) {
+        reasoningList.innerHTML = '';
+        d.reasoning.forEach(r => {
+          const li = document.createElement('li');
+          li.textContent = r;
+          reasoningList.appendChild(li);
+        });
+      }
+      const sceneMeta = document.getElementById('pip-scene-meta');
+      if (sceneMeta && (d.spaceType || d.audienceFocus)) {
+        sceneMeta.textContent = 'Espacio: ' + (d.spaceType || '') + ' · Enfoque: ' + (d.audienceFocus || '');
+        sceneMeta.style.display = 'inline-block';
+      }
+
+      window._pipFullPromptEditedManually = false;
+      await callPipComposePrompt();
+      showToast('Escena y prompt actualizados con tus indicaciones', 'success');
+    } catch (err) {
+      console.error('[Composer] Error actualizando escena:', err);
+      showToast('No se pudo actualizar la escena: ' + (err.message || 'Error del servidor'), 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
     }
   }
 
@@ -5392,6 +5474,9 @@ REGLAS:
     const dispBadge = document.getElementById('pip-disp-badge');
     if (dispBadge) dispBadge.addEventListener('input', triggerPipComposeDebounced);
 
+    const btnUpdateScene = document.getElementById('btn-pip-update-scene');
+    if (btnUpdateScene) btnUpdateScene.addEventListener('click', handlePipRegenerateScene);
+
     const sceneSituationInput = document.getElementById('pip-scene-situation');
     if (sceneSituationInput) sceneSituationInput.addEventListener('input', triggerPipComposeDebounced);
 
@@ -5400,6 +5485,16 @@ REGLAS:
 
     const sceneActionInput = document.getElementById('pip-scene-action');
     if (sceneActionInput) sceneActionInput.addEventListener('input', triggerPipComposeDebounced);
+
+    const onSceneInputEnter = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handlePipRegenerateScene();
+      }
+    };
+    if (sceneSituationInput) sceneSituationInput.addEventListener('keydown', onSceneInputEnter);
+    if (scenePeopleInput) scenePeopleInput.addEventListener('keydown', onSceneInputEnter);
+    if (sceneActionInput) sceneActionInput.addEventListener('keydown', onSceneInputEnter);
 
     const ofertaChk = document.getElementById('pip-oferta');
     if (ofertaChk) ofertaChk.addEventListener('change', () => {
