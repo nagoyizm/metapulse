@@ -1,7 +1,7 @@
-// Estudio de Reels: arma reels cortos 9:16 a partir de clips/imagenes descritos por el dueno.
-// - plan(): la IA ordena y recorta los clips, escribe textos en pantalla, guion de voz y caption.
+// Estudio de Reels: arma reels cortos 9:16 a partir de clips/imágenes descritos por el dueño.
+// - plan(): la IA selecciona plantilla o guión sugerido, ordena y recorta los clips, escribe textos en pantalla, guión de voz y caption.
 // - synthesizeVoice(): voz con Gemini TTS (WAV).
-// - render(): FFmpeg une escenas + textos + voz + musica en un MP4 1080x1920.
+// - render(): FFmpeg une escenas con transiciones dinámicas (xfade), encuadre horizontal/vertical (crop o blur), textos en cápsula y música con ducking en MP4 1080x1920.
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
@@ -19,7 +19,7 @@ const W = 1080;
 const H = 1920;
 const FPS = 30;
 
-// Voces de Gemini TTS elegibles (nombre oficial -> como suena)
+// Voces de Gemini TTS elegibles (nombre oficial -> cómo suena)
 const VOICES = [
   { id: 'Sulafat', label: 'Sulafat', desc: 'Cálida y cercana (recomendada)' },
   { id: 'Achird', label: 'Achird', desc: 'Amistosa, como un vecino simpático' },
@@ -33,6 +33,52 @@ const VOICES = [
 ];
 
 const TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-flash-tts', 'gemini-3.1-flash-tts-preview'];
+
+// Plantillas de Guiones Virales
+const TEMPLATES = [
+  {
+    id: 'review',
+    title: 'Reseña de Producto / Prueba',
+    desc: 'Gancho llamativo (0-2s) ➔ Textura o detalle (2-6s) ➔ Veredicto y ubicación (6-10s)',
+    recommendedFor: 'Kmarket Algarrobo (snacks, helados, ramen, bebidas)'
+  },
+  {
+    id: 'top3',
+    title: 'Top 3 / Lista Rápida',
+    desc: 'Gancho de lista (0-2s) ➔ Punto 1 ➔ Punto 2 ➔ Punto 3 ➔ Llamado a guardar/enviar',
+    recommendedFor: 'Ambas marcas (productos favoritos, rincones de La Campiña)'
+  },
+  {
+    id: 'atmosphere',
+    title: 'Atmósfera y Recorrido',
+    desc: 'Detalle sensorial (0-2s) ➔ Espacio amplio (2-7s) ➔ Momento acogedor ➔ Reservas WhatsApp',
+    recommendedFor: 'Cabañas La Campiña (bosque, quinchos, cabañas, silencio)'
+  },
+  {
+    id: 'promo',
+    title: 'Novedad o Temporada',
+    desc: 'Titular directo ➔ Demostración rápida de lo que llegó o queda ➔ Dónde conseguirlo',
+    recommendedFor: 'Nuevos productos, fechas festivas, ofertas del mes'
+  },
+  {
+    id: 'custom',
+    title: 'Guion Personalizado',
+    desc: 'Escribe o pega tu propio guion o sugerencia y la IA distribuirá las tomas',
+    recommendedFor: 'Cualquier idea específica que tengas en mente'
+  }
+];
+
+const VALID_XFADE_TRANSITIONS = [
+  'zoomin',
+  'slideleft',
+  'slideright',
+  'smoothleft',
+  'smoothright',
+  'fadewhite',
+  'fadeblack',
+  'dissolve',
+  'fade'
+];
 
 function ensureDirs() {
   fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -65,7 +111,7 @@ function runFFmpeg(args, timeoutMs = 240000) {
   });
 }
 
-// Duracion en segundos leyendo la salida de "ffmpeg -i" (no hay ffprobe)
+// Duración en segundos leyendo la salida de "ffmpeg -i" (no hay ffprobe)
 async function probeDuration(absPath) {
   if (isImage(absPath)) return 0;
   return new Promise((resolve) => {
@@ -81,16 +127,22 @@ function wordsPerSecond() {
 }
 
 // ───────────────────────── Plan con IA ─────────────────────────
-async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10 }) {
+async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10, template = 'auto', customScript = '' }) {
   if (!clips.length) throw new Error('Agrega al menos un clip o imagen.');
-  const target = Math.min(Math.max(Number(targetSeconds) || 10, 6), 20);
+  const target = Math.min(Math.max(Number(targetSeconds) || 10, 6), 25);
 
   const described = [];
   for (let i = 0; i < clips.length; i++) {
     const c = clips[i];
     const abs = localPath(c.url);
     const dur = await probeDuration(abs);
-    described.push({ index: i, url: c.url, kind: isImage(abs) ? 'imagen' : 'video', duration: dur ? Math.round(dur * 10) / 10 : null, description: String(c.description || '').slice(0, 300) });
+    described.push({
+      index: i,
+      url: c.url,
+      kind: isImage(abs) ? 'imagen' : 'video',
+      duration: dur ? Math.round(dur * 10) / 10 : null,
+      description: String(c.description || '').slice(0, 300)
+    });
   }
 
   const lower = String(brand).toLowerCase();
@@ -102,29 +154,62 @@ async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10 }) {
       ? 'Marca: Cabañas La Campiña (Algarrobo): cabañas rústicas familiares, quinchos con parrilla, pinos y jardines. CERO tinajas, jacuzzis ni hot tubs. Tono cálido y familiar. El caption invita a escribir por WhatsApp para reservar y lleva 3-5 hashtags.'
       : `Marca: ${brand || 'la marca'}. Tono cercano y claro.`;
 
-  const prompt = `Eres editor de reels de Instagram/Facebook de alto rendimiento. Arma un reel vertical de ${target} segundos (máximo ${target + 3}) con estos clips del dueño.
+  let templateDirective = '';
+  if (customScript && customScript.trim()) {
+    templateDirective = `\nGUION SUGERIDO POR EL USUARIO (DEBES RESPETAR Y ASIGNAR LOS CLIPS A ESTE GUION):\n"""\n${customScript.trim()}\n"""\n`;
+  } else if (template && template !== 'auto') {
+    const matched = TEMPLATES.find(t => t.id === template);
+    if (matched) {
+      templateDirective = `\nFÓRMULA NARRATIVA SELECCIONADA: "${matched.title}"\nEstructura: ${matched.desc}\n`;
+    }
+  }
+
+  const prompt = `Eres un editor de reels de Instagram/Facebook y TikTok de alto rendimiento y viralidad.
+Tu misión es armar un reel vertical de ${target} segundos (máximo ${target + 3}) con estos clips del dueño.
 
 ${brandRules}
-
-OBJETIVO DEL REEL: ${goal || 'mostrar el producto/lugar y provocar que lo envíen a alguien'}
+${templateDirective}
+OBJETIVO DEL REEL: ${goal || 'mostrar el producto/lugar con ritmo ágil y provocar que lo compartan o guarden'}
 
 CLIPS DISPONIBLES (índice, tipo, duración, descripción del dueño):
 ${JSON.stringify(described, null, 1)}
 
-REGLAS:
-1. Escena 1 = GANCHO que atrapa en el primer segundo. Última escena = cierre que invita a ENVIARLO a alguien (no "comprar ahora", no menciones tiendas ajenas).
-2. Cada escena usa un clip (puedes reutilizar un clip con otro tramo). "start" y "length" en segundos; start+length no puede superar la duración del clip (las imágenes aceptan cualquier length). Escenas de 1.5 a 4 s, cortes rápidos.
-3. "text": texto en pantalla de 2 a 6 palabras por escena, en español, impactante, sin emojis. "pos": "top", "center" o "bottom".
-4. "voiceover": guion hablado, cálido y natural, en español chileno neutro, máximo ${Math.round(target * wordsPerSecond())} palabras en total (debe caber en el reel). Sin emojis ni hashtags.
-5. "caption": texto del post (máx 600 caracteres), con gancho en la primera línea.
-6. "musicQuery": 2-4 palabras en español o inglés para buscar música de fondo adecuada.
-7. No inventes productos, precios ni instalaciones que el dueño no haya descrito.
+REGLAS DE EDICIÓN:
+1. Escena 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos.
+2. Cada escena usa un clip (puedes reutilizar un clip con otro tramo). "start" y "length" en segundos; start+length no puede superar la duración del clip (las imágenes aceptan cualquier length). Escenas dinámicas de 1.5 a 3.5 segundos.
+3. "text": texto en pantalla de 2 a 6 palabras por escena, en español, contundente, sin emojis.
+4. "pos": "top", "center" o "bottom".
+5. "textStyle": "pill" (cápsula oscura de alto contraste, recomendada), "minimal" (limpio con sombra) o "impact" (borde de contraste).
+6. "transition": sugiere la transición hacia la siguiente escena entre "zoomin", "slideleft", "fadewhite", "smoothleft", "dissolve" o "none".
+7. "fitMode": si la descripción sugiere un plano amplio donde no se debe cortar nada, "blur"; si es un plano de acción que llena la pantalla vertical, "crop".
+8. "voiceover": guion hablado natural, cálido y conciso, en español chileno neutro, máximo ${Math.round(target * wordsPerSecond())} palabras en total.
+9. "caption": texto para el pie de publicación de Instagram (máx 600 caracteres), con gancho en la primera línea y hashtags al final.
+10. "musicQuery": 2 a 4 palabras clave para la música de fondo (ej: "kpop beat upbeat" o "acoustic warm nature").
 
-Devuelve SOLO JSON:
-{"title":"nombre interno corto","scenes":[{"clip":0,"start":0,"length":2.5,"text":"...","pos":"center"}],"voiceover":"...","caption":"...","musicQuery":"..."}`;
+Devuelve ESTRICTAMENTE JSON con esta estructura:
+{
+  "title": "nombre interno corto",
+  "scenes": [
+    {
+      "clip": 0,
+      "start": 0,
+      "length": 2.5,
+      "text": "TITULAR CORTO",
+      "pos": "center",
+      "textStyle": "pill",
+      "transition": "zoomin",
+      "fitMode": "crop"
+    }
+  ],
+  "voiceover": "...",
+  "caption": "...",
+  "musicQuery": "..."
+}`;
 
   const { data } = await aiService.generateJSON({ prompt, temperature: 0.7, maxOutputTokens: 4096 });
-  const scenes = (Array.isArray(data.scenes) ? data.scenes : []).map((s) => {
+  const rawScenes = Array.isArray(data.scenes) ? data.scenes : [];
+
+  const scenes = rawScenes.map((s, idx) => {
     const clipIdx = Math.min(Math.max(parseInt(s.clip, 10) || 0, 0), clips.length - 1);
     const info = described[clipIdx];
     let length = Math.min(Math.max(Number(s.length) || 2.5, 1), 6);
@@ -135,6 +220,12 @@ Devuelve SOLO JSON:
     } else {
       start = 0;
     }
+
+    const defaultTransitions = ['zoomin', 'slideleft', 'fadewhite', 'smoothleft'];
+    const assignedTransition = VALID_XFADE_TRANSITIONS.includes(s.transition)
+      ? s.transition
+      : defaultTransitions[idx % defaultTransitions.length];
+
     return {
       clip: clipIdx,
       url: info.url,
@@ -142,13 +233,21 @@ Devuelve SOLO JSON:
       start: Math.round(start * 10) / 10,
       length: Math.round(length * 10) / 10,
       text: String(s.text || '').slice(0, 60),
-      pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center'
+      pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center',
+      textStyle: ['pill', 'minimal', 'impact'].includes(s.textStyle) ? s.textStyle : 'pill',
+      fitMode: s.fitMode === 'blur' ? 'blur' : 'crop',
+      zoom: 1.0,
+      panX: 0.5,
+      panY: 0.5,
+      transition: assignedTransition
     };
   }).filter(s => s.url);
+
   if (!scenes.length) throw new Error('La IA no devolvió escenas utilizables. Intenta de nuevo con descripciones más claras.');
 
   let caption = String(data.caption || '');
   try { caption = aiService.cleanCaptionAI(caption); } catch (_) {}
+
   return {
     title: String(data.title || 'Reel').slice(0, 80),
     scenes,
@@ -232,7 +331,7 @@ async function synthesizeVoice({ text, voice = 'Sulafat', style = '' }) {
   throw new Error('No se pudo generar la voz: ' + (lastErr?.response?.data?.error?.message || lastErr?.message || 'sin modelo TTS disponible'));
 }
 
-// ───────────────────────── Render ─────────────────────────
+// ───────────────────────── Render con FFmpeg ─────────────────────────
 function wrapText(text, maxChars) {
   const words = String(text).toUpperCase().split(/\s+/).filter(Boolean);
   const lines = [];
@@ -244,56 +343,141 @@ function wrapText(text, maxChars) {
   return lines.slice(0, 3);
 }
 
-async function render({ scenes = [], voiceUrl = '', voiceVolume = 1, music = null, musicVolume = 0.3, keepClipAudio = false }) {
+async function render({
+  scenes = [],
+  voiceUrl = '',
+  voiceVolume = 1,
+  music = null,
+  musicVolume = 0.3,
+  keepClipAudio = false,
+  globalTransition = 'zoomin'
+}) {
   ensureDirs();
   if (!scenes.length) throw new Error('No hay escenas para renderizar.');
   const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   const tmpFiles = [];
   const inputs = [];
   const filters = [];
-  const sceneLabels = [];
 
   try {
-    let total = 0;
+    let rawTotal = 0;
     scenes.forEach((s, i) => {
       const abs = localPath(s.url);
       const len = Math.min(Math.max(Number(s.length) || 2.5, 0.8), 8);
       const start = Math.max(Number(s.start) || 0, 0);
-      total += len;
+      const fitMode = s.fitMode === 'blur' ? 'blur' : 'crop';
+      const zoom = Math.max(1, Math.min(Number(s.zoom) || 1, 3));
+      const panX = Math.max(0, Math.min(Number(s.panX) != null ? Number(s.panX) : 0.5, 1));
+      const panY = Math.max(0, Math.min(Number(s.panY) != null ? Number(s.panY) : 0.5, 1));
+      const textStyle = ['pill', 'minimal', 'impact'].includes(s.textStyle) ? s.textStyle : 'pill';
+
+      rawTotal += len;
+
       if (isImage(abs)) {
         inputs.push('-loop', '1', '-framerate', String(FPS), '-t', String(len), '-i', abs);
       } else {
         inputs.push('-ss', String(start), '-t', String(len), '-i', abs);
       }
-      let chain;
-      if (isImage(abs)) {
-        // Ken Burns suave: imagen ampliada 15 % con paneo vertical lento
-        chain = `[${i}:v]scale=${Math.round(W * 1.15)}:${Math.round(H * 1.15)}:force_original_aspect_ratio=increase,crop=${W}:${H}:x='(iw-ow)/2':y='(ih-oh)*t/${len}',setsar=1,fps=${FPS},format=yuv420p`;
+
+      const baseLabel = `base_${i}`;
+      if (fitMode === 'blur') {
+        filters.push(`[${i}:v]split=2[in_bg_${i}][in_fg_${i}]`);
+        filters.push(`[in_bg_${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=22:5,eq=brightness=-0.15,setsar=1,fps=${FPS}[bg_${i}]`);
+        filters.push(`[in_fg_${i}]scale=${W}:${H}:force_original_aspect_ratio=decrease,setsar=1,fps=${FPS}[fg_${i}]`);
+        const ptsFilter = isImage(abs) ? '' : 'setpts=PTS-STARTPTS,';
+        filters.push(`[bg_${i}][fg_${i}]overlay=(W-w)/2:(H-h)/2,${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
       } else {
-        chain = `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${FPS},setpts=PTS-STARTPTS,format=yuv420p`;
+        // Modo crop con zoom y encuadre interactivo panX / panY
+        const scaledW = Math.round(W * zoom);
+        const scaledH = Math.round(H * zoom);
+        const ptsFilter = isImage(abs) ? '' : 'setpts=PTS-STARTPTS,';
+        filters.push(`[${i}:v]scale=${scaledW}:${scaledH}:force_original_aspect_ratio=increase,crop=${W}:${H}:x='(in_w-${W})*${panX}':y='(in_h-${H})*${panY}',${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
       }
-      // Texto en pantalla: una linea por drawtext, centrada, con entrada deslizante y sombra suave (sin contornos)
+
+      // Textos en pantalla según estilo (cápsula pill, minimal o impact)
       const lines = wrapText(s.text, 16);
-      const fontSize = lines.length > 2 ? 92 : 108;
-      const lineH = Math.round(fontSize * 1.25);
-      const blockH = lines.length * lineH;
-      const baseY = s.pos === 'top' ? 240 : s.pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
-      lines.forEach((ln, k) => {
-        const tf = path.join(TMP_DIR, `t_${id}_${i}_${k}.txt`);
-        fs.writeFileSync(tf, ln, 'utf8');
-        tmpFiles.push(tf);
-        const y = baseY + k * lineH;
-        const delay = (0.1 + k * 0.08).toFixed(2);
-        chain += `,drawtext=fontfile='${FONT_BOLD}':textfile='${rel(tf)}':fontsize=${fontSize}:fontcolor=white:x=(w-text_w)/2:y='${y}+40*(1-min(1,max(0,(t-${delay})/0.3)))':alpha='min(1,max(0,(t-${delay})/0.25))':shadowcolor=black@0.55:shadowx=4:shadowy=4`;
-      });
-      const isLast = i === scenes.length - 1;
-      sceneLabels.push(`[v${i}]`);
-      filters.push(`${chain}[v${i}]`);
+      if (lines.length > 0) {
+        const fontSize = lines.length > 2 ? 88 : 100;
+        const lineH = Math.round(fontSize * 1.30);
+        const blockH = lines.length * lineH;
+        const baseY = s.pos === 'top' ? 240 : s.pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
+
+        const drawFilters = [];
+        lines.forEach((ln, k) => {
+          const tf = path.join(TMP_DIR, `t_${id}_${i}_${k}.txt`);
+          fs.writeFileSync(tf, ln, 'utf8');
+          tmpFiles.push(tf);
+          const y = baseY + k * lineH;
+          const delay = (0.1 + k * 0.08).toFixed(2);
+
+          let styleAttrs = '';
+          if (textStyle === 'pill') {
+            styleAttrs = `:box=1:boxcolor=black@0.72:boxborderw=18:fontcolor=white:shadowcolor=black@0.4:shadowx=2:shadowy=2`;
+          } else if (textStyle === 'minimal') {
+            styleAttrs = `:box=1:boxcolor=black@0.35:boxborderw=10:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
+          } else if (textStyle === 'impact') {
+            styleAttrs = `:borderw=5:bordercolor=black:fontcolor=white:shadowcolor=black@0.7:shadowx=4:shadowy=4`;
+          } else {
+            styleAttrs = `:box=1:boxcolor=black@0.72:boxborderw=18:fontcolor=white`;
+          }
+
+          drawFilters.push(`drawtext=fontfile='${FONT_BOLD}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y='${y}+30*(1-min(1,max(0,(t-${delay})/0.25)))':alpha='min(1,max(0,(t-${delay})/0.20))'`);
+        });
+        filters.push(`[${baseLabel}]${drawFilters.join(',')}[v${i}]`);
+      } else {
+        filters.push(`[${baseLabel}]copy[v${i}]`);
+      }
+
       s._len = len;
-      s._isLast = isLast;
     });
 
-    // Voz mas larga que el video: se alarga la ultima escena congelando el ultimo cuadro
+    let totalDuration = scenes[0]._len;
+    let finalVideoLabel = 'v0';
+
+    if (scenes.length === 1) {
+      finalVideoLabel = 'v0';
+      totalDuration = scenes[0]._len;
+    } else {
+      // Verificar si hay transiciones xfade activas
+      const hasXfade = scenes.some((s, idx) => {
+        if (idx === 0) return false;
+        const tr = s.transition || globalTransition;
+        return tr && tr !== 'none' && VALID_XFADE_TRANSITIONS.includes(tr);
+      });
+
+      if (!hasXfade) {
+        // Concatenación plana estándar
+        const sceneLabels = scenes.map((_, idx) => `[v${idx}]`).join('');
+        filters.push(`${sceneLabels}concat=n=${scenes.length}:v=1:a=0[concat_out]`);
+        finalVideoLabel = 'concat_out';
+        totalDuration = rawTotal;
+      } else {
+        // Encadenamiento dinámico con xfade
+        let currentLabel = 'v0';
+        let currentDur = scenes[0]._len;
+
+        for (let i = 0; i < scenes.length - 1; i++) {
+          const nextIdx = i + 1;
+          const nextLen = scenes[nextIdx]._len;
+          let tr = scenes[nextIdx].transition || globalTransition || 'zoomin';
+          if (!VALID_XFADE_TRANSITIONS.includes(tr)) tr = 'zoomin';
+
+          const transDur = Math.min(0.35, Math.min(currentDur * 0.35, nextLen * 0.35));
+          const offset = Math.max(0, currentDur - transDur);
+          const outLabel = `vx${i + 1}`;
+
+          filters.push(`[${currentLabel}][v${nextIdx}]xfade=transition=${tr}:duration=${transDur.toFixed(2)}:offset=${offset.toFixed(2)}[${outLabel}]`);
+
+          currentLabel = outLabel;
+          currentDur = offset + nextLen;
+        }
+
+        finalVideoLabel = currentLabel;
+        totalDuration = currentDur;
+      }
+    }
+
+    // Alargamiento si la voz es más larga que el video (tpad sobre el stream final)
     let voiceAbs = null;
     let voiceDur = 0;
     if (voiceUrl) {
@@ -301,18 +485,15 @@ async function render({ scenes = [], voiceUrl = '', voiceVolume = 1, music = nul
       const size = fs.statSync(voiceAbs).size;
       voiceDur = /\.wav$/i.test(voiceAbs) ? (size - 44) / (24000 * 2) : await probeDuration(voiceAbs);
     }
-    const extra = voiceAbs ? Math.max(0, voiceDur + 0.5 - total) : 0;
+    const extra = voiceAbs ? Math.max(0, voiceDur + 0.5 - totalDuration) : 0;
     if (extra > 0) {
-      const last = scenes.length - 1;
-      filters[last] = filters[last].replace(`[v${last}]`, '') + `,tpad=stop_mode=clone:stop_duration=${extra.toFixed(2)}[v${last}]`;
-      total += extra;
+      filters.push(`[${finalVideoLabel}]tpad=stop_mode=clone:stop_duration=${extra.toFixed(2)}[vout_padded]`);
+      finalVideoLabel = 'vout_padded';
+      totalDuration += extra;
     }
 
-    filters.push(`${sceneLabels.join('')}concat=n=${scenes.length}:v=1:a=0[vout]`);
-
-    // Audio
+    // Audio mixing con sidechain compressor ducking
     let nextIdx = scenes.length;
-    const audioLabels = [];
     let voiceIdx = -1;
     let musicIdx = -1;
     if (voiceAbs) { inputs.push('-i', voiceAbs); voiceIdx = nextIdx++; }
@@ -321,19 +502,20 @@ async function render({ scenes = [], voiceUrl = '', voiceVolume = 1, music = nul
       inputs.push('-ss', String(Math.max(Number(music.start) || 0, 0)), '-i', cached);
       musicIdx = nextIdx++;
     }
-    const fadeOutAt = Math.max(total - 1.2, 0).toFixed(2);
+
+    const fadeOutAt = Math.max(totalDuration - 1.2, 0).toFixed(2);
     let audioMap = null;
     if (voiceIdx >= 0 && musicIdx >= 0) {
       filters.push(`[${voiceIdx}:a]volume=${Number(voiceVolume) || 1},apad,asplit=2[vo][vsc]`);
       filters.push(`[${musicIdx}:a]volume=${Number(musicVolume) || 0.3},aloop=loop=-1:size=2e9[mus]`);
       filters.push(`[mus][vsc]sidechaincompress=threshold=0.04:ratio=8:attack=20:release=400[duck]`);
-      filters.push(`[vo][duck]amix=inputs=2:duration=first:dropout_transition=0,atrim=0:${total.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
+      filters.push(`[vo][duck]amix=inputs=2:duration=first:dropout_transition=0,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
       audioMap = '[aout]';
     } else if (voiceIdx >= 0) {
-      filters.push(`[${voiceIdx}:a]volume=${Number(voiceVolume) || 1},apad,atrim=0:${total.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
+      filters.push(`[${voiceIdx}:a]volume=${Number(voiceVolume) || 1},apad,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
       audioMap = '[aout]';
     } else if (musicIdx >= 0) {
-      filters.push(`[${musicIdx}:a]volume=${Math.min((Number(musicVolume) || 0.3) * 2.5, 1)},aloop=loop=-1:size=2e9,atrim=0:${total.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
+      filters.push(`[${musicIdx}:a]volume=${Math.min((Number(musicVolume) || 0.3) * 2.5, 1)},aloop=loop=-1:size=2e9,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
       audioMap = '[aout]';
     }
 
@@ -343,17 +525,31 @@ async function render({ scenes = [], voiceUrl = '', voiceVolume = 1, music = nul
 
     const outName = `reel_${id}.mp4`;
     const outPath = path.join(REELS_DIR, outName);
-    const args = ['-y', '-threads', '2', ...inputs, '-filter_complex_script', rel(scriptPath), '-map', '[vout]'];
+    const args = ['-y', '-threads', '2', ...inputs, '-filter_complex_script', rel(scriptPath), '-map', `[${finalVideoLabel}]`];
     if (audioMap) args.push('-map', audioMap, '-c:a', 'aac', '-b:a', '160k', '-ar', '44100', '-ac', '2');
     else args.push('-an');
-    args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-t', total.toFixed(2), '-movflags', '+faststart', outPath);
+    args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-t', totalDuration.toFixed(2), '-movflags', '+faststart', outPath);
 
     await runFFmpeg(args);
     const stat = fs.statSync(outPath);
-    return { url: `/uploads/reels/${outName}`, duration: Math.round(total * 10) / 10, sizeBytes: stat.size, width: W, height: H };
+    return {
+      url: `/uploads/reels/${outName}`,
+      duration: Math.round(totalDuration * 10) / 10,
+      sizeBytes: stat.size,
+      width: W,
+      height: H
+    };
   } finally {
     for (const f of tmpFiles) { try { fs.unlinkSync(f); } catch (_) {} }
   }
 }
 
-module.exports = { VOICES, plan, synthesizeVoice, render, probeDuration };
+module.exports = {
+  TEMPLATES,
+  VOICES,
+  VALID_XFADE_TRANSITIONS,
+  plan,
+  synthesizeVoice,
+  render,
+  probeDuration
+};

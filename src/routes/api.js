@@ -3515,16 +3515,20 @@ router.post('/stories/generate-video', async (req, res) => {
 // ── Estudio de Reels (clips descritos → reel 9:16 con texto, voz IA y música) ──
 const reelStudio = require('../services/reelStudioService');
 router.get('/reel/voices', (req, res) => res.json({ success: true, data: reelStudio.VOICES }));
+router.get('/reel/templates', (req, res) => res.json({ success: true, data: reelStudio.TEMPLATES }));
+router.get('/reel/transitions', (req, res) => res.json({ success: true, data: reelStudio.VALID_XFADE_TRANSITIONS }));
+
 router.post('/reel/plan', async (req, res) => {
   try {
-    const { brand = '', clips = [], goal = '', target_seconds = 10 } = req.body;
-    const data = await reelStudio.plan({ brand, clips, goal, targetSeconds: target_seconds });
+    const { brand = '', clips = [], goal = '', target_seconds = 10, template = 'auto', custom_script = '' } = req.body;
+    const data = await reelStudio.plan({ brand, clips, goal, targetSeconds: target_seconds, template, customScript: custom_script });
     res.json({ success: true, data });
   } catch (err) {
     console.error('[Reel plan]', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 router.post('/reel/voice', async (req, res) => {
   try {
     const { text, voice = 'Sulafat', style = '' } = req.body;
@@ -3535,10 +3539,18 @@ router.post('/reel/voice', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 router.post('/reel/render', async (req, res) => {
   try {
-    const { scenes, voice_url = '', voice_volume = 1, music = null, music_volume = 0.3 } = req.body;
-    const data = await reelStudio.render({ scenes, voiceUrl: voice_url, voiceVolume: voice_volume, music, musicVolume: music_volume });
+    const { scenes, voice_url = '', voice_volume = 1, music = null, music_volume = 0.3, global_transition = 'zoomin' } = req.body;
+    const data = await reelStudio.render({
+      scenes,
+      voiceUrl: voice_url,
+      voiceVolume: voice_volume,
+      music,
+      musicVolume: music_volume,
+      globalTransition: global_transition
+    });
     res.json({ success: true, data });
   } catch (err) {
     console.error('[Reel render]', err.message);
