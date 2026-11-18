@@ -56,7 +56,7 @@ Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `b44b142`, PM2 o
 - `parseBrief` pone el inicio de la ficha de Año Nuevo en "hoy" en vez de ~6 semanas antes (se corrige a mano).
 - Borradores sin `account_id` no se ven si el calendario filtra por cuenta; borradores anteriores a `plan_context` calculan el brief al abrirlos.
 - `inboxSyncService` intenta leer DMs cada 90 s y llena el log de permisos (falta desactivarlo).
-- Contabo: `package-lock.json` modificado y PNG sin seguimiento (no bloquean el pull). Sin fuentes del sistema: el texto sobre imagen usa `assets/fonts/Lato-*.ttf`.
+- Contabo: reels usan ffmpeg del sistema (`apt install ffmpeg`, 6.1 con drawtext); el de ffmpeg-static no trae drawtext. `package-lock.json` modificado y PNG sin seguimiento (no bloquean el pull). Sin fuentes del sistema: el texto sobre imagen usa `assets/fonts/Lato-*.ttf`.
 
 ## Respaldos / reversión
 Etiquetas git: `prompt-maestro-v1`, `prompt-maestro-v2`, `creador-v1`. Texto del maestro v1 en `docs/backups/prompt-maestro-v1.txt`. Restaurar: `git checkout <etiqueta> -- <archivo>`.
