@@ -144,12 +144,29 @@
     }
 
     if (!S.clips.length) {
-      if (drop) drop.style.display = 'block';
+      if (drop) {
+        drop.style.display = 'block';
+        drop.classList.remove('reel-dropzone-compact');
+        drop.innerHTML = `
+          <div style="font-size:1.5rem; margin-bottom:6px;">📹</div>
+          <div style="font-weight:600; font-size:0.86rem; color:var(--text-primary); margin-bottom:2px;">Haz clic aquí o arrastra tus videos grabados</div>
+          <small class="text-muted">Formatos MP4, MOV o fotos. Puedes subir videos en horizontal o vertical.</small>
+        `;
+      }
       list.innerHTML = '';
       return;
     }
 
-    if (drop) drop.style.display = 'none';
+    if (drop) {
+      drop.style.display = 'block';
+      drop.classList.add('reel-dropzone-compact');
+      drop.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span style="font-size:1.1rem;">➕</span>
+          <span style="font-weight:600; font-size:0.82rem; color:var(--text-primary);">Arrastra más videos o fotos aquí o haz clic para agregar</span>
+        </div>
+      `;
+    }
 
     list.innerHTML = S.clips.map((c, i) => `
       <div class="reel-clip-card" data-i="${i}">
@@ -183,50 +200,126 @@
     });
   }
 
-  async function uploadFiles(fileList) {
+  function uploadFiles(fileList) {
     const files = Array.from(fileList || []);
     if (!files.length) return;
+
+    const progressBox = $('reel-upload-progress-box');
+    const progressBar = $('reel-upload-bar');
+    const progressPct = $('reel-upload-pct');
+    const progressStatus = $('reel-upload-status');
+    const progressDetail = $('reel-upload-detail');
+
+    if (progressBox) progressBox.style.display = 'block';
+    if (progressBar) {
+      progressBar.style.width = '0%';
+      progressBar.style.background = 'var(--primary)';
+    }
+    if (progressPct) progressPct.textContent = '0%';
+    if (progressStatus) progressStatus.textContent = `Subiendo ${files.length} archivo(s)...`;
+    if (progressDetail) progressDetail.textContent = 'Iniciando subida...';
+
     const fd = new FormData();
     files.forEach((f) => fd.append('files', f));
-    toast(`Subiendo ${files.length} archivo(s)...`, 'info');
 
-    try {
-      const acc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
-      if (acc?.pageId) fd.append('account_id', acc.pageId);
-      if (acc?.pageName) fd.append('account_name', acc.pageName);
+    const acc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
+    if (acc?.pageId) fd.append('account_id', acc.pageId);
+    if (acc?.pageName) fd.append('account_name', acc.pageName);
 
-      const res = await fetch('/api/media/upload', { method: 'POST', body: fd });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'No se pudo subir');
+    const startTime = Date.now();
+    const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
 
-      for (const m of json.data) {
-        const isImg = (m.mime_type || '').startsWith('image/');
-        const clipObj = {
-          url: m.url,
-          kind: isImg ? 'imagen' : 'video',
-          description: '',
-          name: m.original_name,
-          duration: null
-        };
-        S.clips.push(clipObj);
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/media/upload');
 
-        // Intento de leer duración exacta en frontend para video
-        if (!isImg) {
-          const v = document.createElement('video');
-          v.src = m.url;
-          v.preload = 'metadata';
-          v.onloadedmetadata = () => {
-            clipObj.duration = Math.round(v.duration * 10) / 10;
+      xhr.upload.onprogress = (e) => {
+        const total = e.lengthComputable ? e.total : (totalBytes || 1);
+        const loaded = e.loaded;
+        const pct = Math.min(99, Math.round((loaded / total) * 100));
+
+        if (progressBar) progressBar.style.width = pct + '%';
+        if (progressPct) progressPct.textContent = pct + '%';
+
+        const loadedMB = (loaded / (1024 * 1024)).toFixed(1);
+        const totalMB = (total / (1024 * 1024)).toFixed(1);
+        const elapsedSec = (Date.now() - startTime) / 1000;
+        const speedMBs = elapsedSec > 0.4 ? ((loaded / (1024 * 1024)) / elapsedSec).toFixed(1) : '...';
+
+        if (progressStatus) progressStatus.textContent = `Subiendo ${files.length} archivo(s) (${pct}%)...`;
+        if (progressDetail) progressDetail.textContent = `${loadedMB} MB de ${totalMB} MB · ${speedMBs} MB/s`;
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (!json.success) throw new Error(json.error || 'No se pudo subir');
+
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressPct) progressPct.textContent = '100%';
+            if (progressStatus) progressStatus.textContent = '¡Archivos subidos con éxito!';
+            if (progressDetail) progressDetail.textContent = `${json.data.length} archivo(s) procesados.`;
+
+            setTimeout(() => {
+              if (progressBox) progressBox.style.display = 'none';
+            }, 2000);
+
+            for (const m of json.data) {
+              const isImg = (m.mime_type || '').startsWith('image/');
+              const clipObj = {
+                url: m.url,
+                kind: isImg ? 'imagen' : 'video',
+                description: '',
+                name: m.original_name,
+                duration: null
+              };
+              S.clips.push(clipObj);
+
+              if (!isImg) {
+                const v = document.createElement('video');
+                v.src = m.url;
+                v.preload = 'metadata';
+                v.onloadedmetadata = () => {
+                  clipObj.duration = Math.round(v.duration * 10) / 10;
+                  renderClips();
+                };
+              }
+            }
+
             renderClips();
-          };
+            toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
+            resolve(json.data);
+          } catch (err) {
+            handleError(err.message);
+            reject(err);
+          }
+        } else {
+          const err = new Error(`Error en el servidor (${xhr.status})`);
+          handleError(err.message);
+          reject(err);
         }
+      };
+
+      xhr.onerror = () => {
+        const err = new Error('Error de conexión al subir');
+        handleError(err.message);
+        reject(err);
+      };
+
+      function handleError(msg) {
+        if (progressStatus) progressStatus.textContent = 'Error al subir';
+        if (progressDetail) progressDetail.textContent = msg;
+        if (progressBar) progressBar.style.background = 'var(--danger, #ef4444)';
+        toast('Error al subir: ' + msg, 'error');
+        setTimeout(() => {
+          if (progressBox) progressBox.style.display = 'none';
+          if (progressBar) progressBar.style.background = 'var(--primary)';
+        }, 5000);
       }
 
-      renderClips();
-      toast('Clips subidos con éxito. Descríbelos y arma el reel.', 'success');
-    } catch (err) {
-      toast('Error al subir: ' + err.message, 'error');
-    }
+      xhr.send(fd);
+    });
   }
 
   // ── Planificación IA ──
@@ -912,6 +1005,86 @@
     }
   }
 
+  function bindDropEvents() {
+    const dropzone = $('reel-dropzone');
+    const pane = $('reel-pane-2');
+    const fileInput = $('reel-file');
+
+    if (dropzone) {
+      dropzone.addEventListener('click', () => fileInput?.click());
+
+      ['dragenter', 'dragover'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+          uploadFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    if (pane) {
+      ['dragenter', 'dragover'].forEach((evt) => {
+        pane.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (dropzone) dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach((evt) => {
+        pane.addEventListener(evt, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!pane.contains(e.relatedTarget) && dropzone) {
+            dropzone.classList.remove('dragover');
+          }
+        });
+      });
+
+      pane.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dropzone) dropzone.classList.remove('dragover');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+          uploadFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    fileInput?.addEventListener('change', (e) => {
+      uploadFiles(e.target.files);
+      e.target.value = '';
+    });
+
+    const tabReels = $('tab-reels');
+    if (tabReels) {
+      ['dragover', 'drop'].forEach((evt) => {
+        tabReels.addEventListener(evt, (e) => {
+          if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+            e.preventDefault();
+          }
+        });
+      });
+    }
+  }
+
   // ── Inicialización ──
   async function init() {
     if (!$('tab-reels') || init.done) return;
@@ -928,12 +1101,8 @@
     renderTemplates(DEFAULT_TEMPLATES);
     $('btn-reel-go-step-2')?.addEventListener('click', () => goToStep(2));
 
-    // Paso 2
-    $('reel-dropzone')?.addEventListener('click', () => $('reel-file')?.click());
-    $('reel-file')?.addEventListener('change', (e) => {
-      uploadFiles(e.target.files);
-      e.target.value = '';
-    });
+    // Paso 2: Subida y clips
+    bindDropEvents();
     $('btn-reel-back-step-1')?.addEventListener('click', () => goToStep(1));
     $('btn-reel-plan')?.addEventListener('click', planWithAI);
     $('btn-reel-manual-scenes')?.addEventListener('click', createManualScenes);
