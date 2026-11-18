@@ -21,8 +21,13 @@ const FPS = 30;
 
 // Mapeo de fuentes tipográficas para textos de Reels (FFmpeg drawtext fontfile)
 const FONTS_MAP = {
+  archivo: 'assets/fonts/ArchivoBlack-Regular.ttf',
+  bangers: 'assets/fonts/Bangers-Regular.ttf',
+  titan: 'assets/fonts/TitanOne-Regular.ttf',
   bebas: 'assets/fonts/BebasNeue-Regular.ttf',
   anton: 'assets/fonts/Anton-Regular.ttf',
+  righteous: 'assets/fonts/Righteous-Regular.ttf',
+  syne: 'assets/fonts/Syne-Bold.ttf',
   montserrat: 'assets/fonts/Montserrat-Bold.ttf',
   poppins: 'assets/fonts/Poppins-Bold.ttf',
   oswald: 'assets/fonts/Oswald-Bold.ttf',
@@ -34,14 +39,19 @@ const FONTS_MAP = {
 
 function getFonts() {
   return [
-    { id: 'bebas', name: 'Bebas Neue (Viral Reels / Punch)', family: "'Bebas Neue', sans-serif" },
-    { id: 'anton', name: 'Anton (Impacto Pesado)', family: "'Anton', sans-serif" },
-    { id: 'montserrat', name: 'Montserrat (Moderno Geométrico)', family: "'Montserrat', sans-serif" },
+    { id: 'archivo', name: 'Archivo Black (Viral Hormozi / Máximo Impacto)', family: "'Archivo Black', sans-serif" },
+    { id: 'bangers', name: 'Bangers (Estilo Cómic / Gancho MrBeast)', family: "'Bangers', cursive" },
+    { id: 'titan', name: 'Titan One (Gruesa y Amigable / Comida & Snacks)', family: "'Titan One', cursive" },
+    { id: 'bebas', name: 'Bebas Neue (Viral Reels / Punch Clásico)', family: "'Bebas Neue', sans-serif" },
+    { id: 'anton', name: 'Anton (Impacto Pesado y Grueso)', family: "'Anton', sans-serif" },
+    { id: 'righteous', name: 'Righteous (Retro-Moderna Punchy)', family: "'Righteous', cursive" },
+    { id: 'syne', name: 'Syne (Vanguardista / Estética y Lujo)', family: "'Syne', sans-serif" },
+    { id: 'montserrat', name: 'Montserrat (Moderno Geométrico Limpio)', family: "'Montserrat', sans-serif" },
     { id: 'poppins', name: 'Poppins (Amigable y Redondeado)', family: "'Poppins', sans-serif" },
     { id: 'oswald', name: 'Oswald (Condensado Dinámico)', family: "'Oswald', sans-serif" },
     { id: 'playfair', name: 'Playfair Display (Elegante Boutique)', family: "'Playfair Display', serif" },
     { id: 'cinzel', name: 'Cinzel (Cinemático Rústico)', family: "'Cinzel', serif" },
-    { id: 'caveat', name: 'Caveat (Manuscrito Cálido)', family: "'Caveat', cursive" },
+    { id: 'caveat', name: 'Caveat (Manuscrito Cálido Orgánico)', family: "'Caveat', cursive" },
     { id: 'lato', name: 'Lato (Clásico y Neutro)', family: "'Lato', sans-serif" }
   ];
 }
@@ -193,6 +203,9 @@ async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10, tem
 
   const prompt = `Eres un editor de reels de Instagram/Facebook y TikTok de alto rendimiento y viralidad.
 Tu misión es armar un reel vertical de ${target} segundos (máximo ${target + 3}) con estos clips del dueño.
+SEPARANDO CLARAMENTE dos capas:
+1. PISTA DE VIDEO: la secuencia de tomas (cortes de clips, duración de cada toma, encuadres y transiciones dinámicas).
+2. PISTA DE TEXTOS (OVERLAYS): textos en pantalla que flotan independientemente sobre el video, con sus propios tiempos de inicio y fin (pueden durar más que una sola toma y atravesar cortes de video), tipografía viral, estilo y animación.
 
 ${brandRules}
 ${templateDirective}
@@ -202,16 +215,24 @@ CLIPS DISPONIBLES (índice, tipo, duración, descripción del dueño):
 ${JSON.stringify(described, null, 1)}
 
 REGLAS DE EDICIÓN:
-1. Escena 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos.
-2. Cada escena usa un clip (puedes reutilizar un clip con otro tramo). "start" y "length" en segundos; start+length no puede superar la duración del clip (las imágenes aceptan cualquier length). Escenas dinámicas de 1.5 a 3.5 segundos.
-3. "text": texto en pantalla de 2 a 6 palabras por escena, en español, contundente, sin emojis.
-4. "pos": "top", "center" o "bottom".
-5. "textStyle": "pill" (cápsula oscura de alto contraste, recomendada), "minimal" (limpio con sombra) o "impact" (borde de contraste).
-6. "transition": sugiere la transición hacia la siguiente escena entre "zoomin", "slideleft", "fadewhite", "smoothleft", "dissolve" o "none".
-7. "fitMode": si la descripción sugiere un plano amplio donde no se debe cortar nada, "blur"; si es un plano de acción que llena la pantalla vertical, "crop".
-8. "voiceover": guion hablado natural, cálido y conciso, en español chileno neutro, máximo ${Math.round(target * wordsPerSecond())} palabras en total.
-9. "caption": texto para el pie de publicación de Instagram (máx 600 caracteres), con gancho en la primera línea y hashtags al final.
-10. "musicQuery": 2 a 4 palabras clave para la música de fondo (ej: "kpop beat upbeat" o "acoustic warm nature").
+1. Pista de Video:
+   - Toma 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos.
+   - Cada toma usa un clip (start y length en segundos). Tomas dinámicas de 1.5 a 3.5 segundos.
+   - "transition": sugiere la transición hacia la siguiente toma entre "zoomin", "slideleft", "fadewhite", "smoothleft", "dissolve" o "none".
+   - "fitMode": "crop" (llena pantalla vertical 9:16) o "blur" (fondo borroso para planos amplios que no se deben recortar).
+
+2. Pista de Textos en Pantalla (Overlays independientes):
+   - Textos de 2 a 6 palabras, en mayúsculas, contundentes, sin emojis.
+   - Cada texto tiene su tiempo global en segundos: "start" (segundo de aparición) y "end" (segundo de desaparición).
+   - Un texto puede abarcar una o varias tomas (ej: texto 1 de 0.0s a 3.0s; texto 2 de 3.0s a 6.0s; texto 3 de 6.0s a ${target}.0s).
+   - "pos": "top", "center" o "bottom".
+   - "textStyle": "yellow" (cápsula amarilla viral TikTok/Reels), "pill" (cápsula oscura), "impact" (borde grueso estilo Hormozi), "neon" (resplandor neón) o "minimal" (sombra limpia).
+   - "font": "archivo" (Hormozi / impacto), "bangers" (cómic / MrBeast), "titan" (comida / amigable), "bebas" (clásica), "anton", "righteous", "syne", "montserrat", "poppins", "oswald", "playfair", "cinzel", "caveat", "lato".
+   - "effect": "pop" (punch de impacto), "fade" (desvanecido suave), "slide" (deslizamiento vertical), "bounce" (rebote elástico), "none".
+
+3. "voiceover": guion hablado conciso en español chileno neutro, máx ${Math.round(target * wordsPerSecond())} palabras.
+4. "caption": texto para pie de publicación de Instagram con gancho en primera línea y hashtags al final.
+5. "musicQuery": 2 a 4 palabras clave para música de fondo (ej: "kpop upbeat" o "acoustic warm nature").
 
 Devuelve ESTRICTAMENTE JSON con esta estructura:
 {
@@ -221,11 +242,19 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       "clip": 0,
       "start": 0,
       "length": 2.5,
-      "text": "TITULAR CORTO",
-      "pos": "center",
-      "textStyle": "pill",
       "transition": "zoomin",
       "fitMode": "crop"
+    }
+  ],
+  "textOverlays": [
+    {
+      "text": "GANCHO EN 3 PALABRAS",
+      "start": 0.0,
+      "end": 3.0,
+      "pos": "top",
+      "textStyle": "yellow",
+      "font": "archivo",
+      "effect": "pop"
     }
   ],
   "voiceover": "...",
@@ -236,6 +265,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
   const { data } = await aiService.generateJSON({ prompt, temperature: 0.7, maxOutputTokens: 4096 });
   const rawScenes = Array.isArray(data.scenes) ? data.scenes : [];
 
+  let accumTime = 0;
   const scenes = rawScenes.map((s, idx) => {
     const clipIdx = Math.min(Math.max(parseInt(s.clip, 10) || 0, 0), clips.length - 1);
     const info = described[clipIdx];
@@ -253,7 +283,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       ? s.transition
       : defaultTransitions[idx % defaultTransitions.length];
 
-    return {
+    const scObj = {
       clip: clipIdx,
       url: info.url,
       kind: info.kind,
@@ -261,17 +291,56 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       length: Math.round(length * 10) / 10,
       text: String(s.text || '').slice(0, 60),
       pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center',
-      textStyle: ['pill', 'minimal', 'impact'].includes(s.textStyle) ? s.textStyle : 'pill',
-      font: s.font && FONTS_MAP[s.font] ? s.font : 'bebas',
+      textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(s.textStyle) ? s.textStyle : 'pill',
+      font: s.font && FONTS_MAP[s.font] ? s.font : 'archivo',
       fitMode: s.fitMode === 'blur' ? 'blur' : 'crop',
       zoom: 1.0,
       panX: 0.5,
       panY: 0.5,
       transition: assignedTransition
     };
+    accumTime += scObj.length;
+    return scObj;
   }).filter(s => s.url);
 
   if (!scenes.length) throw new Error('La IA no devolvió escenas utilizables. Intenta de nuevo con descripciones más claras.');
+
+  const totalEstDuration = accumTime;
+  const rawOverlays = Array.isArray(data.textOverlays) ? data.textOverlays : [];
+  let textOverlays = rawOverlays.map((ov, idx) => {
+    const oStart = Math.max(0, Number(ov.start) || (idx * 2.8));
+    const oEnd = Math.min(totalEstDuration, Math.max(oStart + 0.8, Number(ov.end) || (oStart + 2.8)));
+    return {
+      id: `ov_${idx + 1}`,
+      text: String(ov.text || '').slice(0, 70),
+      start: Math.round(oStart * 10) / 10,
+      end: Math.round(oEnd * 10) / 10,
+      pos: ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : (idx === 0 ? 'top' : idx === 1 ? 'center' : 'bottom'),
+      textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : (idx === 0 ? 'yellow' : 'pill'),
+      font: ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo',
+      effect: ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop'
+    };
+  }).filter(ov => ov.text);
+
+  // Fallback si la IA no entregó textOverlays pero sí escenas con texto
+  if (!textOverlays.length) {
+    let tOffset = 0;
+    textOverlays = scenes.map((s, idx) => {
+      const start = tOffset;
+      const end = tOffset + s.length;
+      tOffset = end;
+      return {
+        id: `ov_${idx + 1}`,
+        text: s.text || (idx === 0 ? 'MIRA ESTO' : idx === 1 ? 'EL DETALLE QUE BUSCABAS' : 'VEN A CONOCERLO'),
+        start: Math.round(start * 10) / 10,
+        end: Math.round(end * 10) / 10,
+        pos: s.pos || 'center',
+        textStyle: s.textStyle || 'pill',
+        font: s.font || 'archivo',
+        effect: 'pop'
+      };
+    });
+  }
 
   let caption = String(data.caption || '');
   try { caption = aiService.cleanCaptionAI(caption); } catch (_) {}
@@ -279,10 +348,75 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
   return {
     title: String(data.title || 'Reel').slice(0, 80),
     scenes,
+    textOverlays,
     voiceover: String(data.voiceover || '').trim(),
     caption,
     musicQuery: String(data.musicQuery || '').trim()
   };
+}
+
+// ───────────────────── Sugerir Textos con IA (Paso 4) ─────────────────────
+async function suggestTextOverlays({ brand = '', scenes = [], clips = [], goal = '', voiceover = '' }) {
+  const totalEstDuration = scenes.reduce((acc, s) => acc + (Number(s.length) || 0), 0) || 10;
+  const lower = String(brand).toLowerCase();
+  const isKmarket = lower.includes('kmarket');
+  const isCampina = lower.includes('campi');
+  const brandRules = isKmarket
+    ? 'Marca: Kmarket Algarrobo (tienda de snacks, golosinas y ramen coreano).'
+    : isCampina
+      ? 'Marca: Cabañas La Campiña (Algarrobo: descanso familiar campestre).'
+      : `Marca: ${brand || 'la marca'}.`;
+
+  const prompt = `Eres un editor de reels virales en TikTok e Instagram experto en ganchos de texto de alto impacto (estilo Alex Hormozi / MrBeast).
+El video dura un total de ${totalEstDuration.toFixed(1)} segundos y tiene ${scenes.length} tomas de video.
+${brandRules}
+Objetivo: ${goal || 'retención, viralidad y llamado a la acción'}
+Guion de voz actual: "${voiceover || 'Sin locución'}"
+
+Genera una lista de 2 a 4 textos independientes (overlays) que aparezcan sobre el video a lo largo de su duración total (${totalEstDuration.toFixed(1)} s).
+REGLAS:
+- Textos cortos de 2 a 5 palabras, en MAYÚSCULAS, contundentes, sin signos ni emojis (ej: "MIRA ESTE HELADO", "RELLENO CREMOSO", "SOLO EN KMARKET").
+- "start" y "end" en segundos flotantes dentro de 0.0 y ${totalEstDuration.toFixed(1)}. Los textos pueden durar de 2 a 3.5 segundos cada uno.
+- "pos": "top", "center" o "bottom".
+- "textStyle": "yellow" (cápsula amarilla viral TikTok/Reels), "pill" (cápsula oscura), "impact" (borde de impacto), "neon" o "minimal".
+- "font": "archivo" (Hormozi), "bangers" (cómic), "titan" (comida), "bebas", "anton", "righteous", "syne", "montserrat", "poppins".
+- "effect": "pop", "fade", "slide", "bounce" o "none".
+
+Devuelve ESTRICTAMENTE JSON con este formato:
+{
+  "textOverlays": [
+    {
+      "text": "GANCHO DE IMPACTO",
+      "start": 0.0,
+      "end": 2.8,
+      "pos": "top",
+      "textStyle": "yellow",
+      "font": "archivo",
+      "effect": "pop"
+    }
+  ]
+}`;
+
+  const { data } = await aiService.generateJSON({ prompt, temperature: 0.7, maxOutputTokens: 2048 });
+  const rawOverlays = Array.isArray(data.textOverlays) ? data.textOverlays : [];
+  const textOverlays = rawOverlays.map((ov, idx) => {
+    const oStart = Math.max(0, Number(ov.start) || (idx * 2.8));
+    const oEnd = Math.min(totalEstDuration, Math.max(oStart + 0.8, Number(ov.end) || (oStart + 2.8)));
+    return {
+      id: `ov_${idx + 1}_${Date.now()}`,
+      text: String(ov.text || '').slice(0, 70),
+      start: Math.round(oStart * 10) / 10,
+      end: Math.round(oEnd * 10) / 10,
+      pos: ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : (idx === 0 ? 'top' : 'center'),
+      textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : (idx === 0 ? 'yellow' : 'pill'),
+      font: ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo',
+      effect: ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop'
+    };
+  }).filter(ov => ov.text);
+
+  return textOverlays.length ? textOverlays : [
+    { id: 'ov_1', text: 'MIRA ESTO', start: 0, end: Math.min(2.5, totalEstDuration), pos: 'top', textStyle: 'yellow', font: 'archivo', effect: 'pop' }
+  ];
 }
 
 // ───────────────────────── Voz (Gemini TTS) ─────────────────────────
@@ -371,8 +505,30 @@ function wrapText(text, maxChars) {
   return lines.slice(0, 3);
 }
 
+function synthesizeOverlaysFromScenes(scenes) {
+  let offset = 0;
+  const list = [];
+  for (const s of scenes) {
+    const len = Number(s.length) || Number(s._len) || 2.5;
+    if (s.text && s.text.trim()) {
+      list.push({
+        text: s.text.trim(),
+        start: Math.round(offset * 10) / 10,
+        end: Math.round((offset + len) * 10) / 10,
+        pos: s.pos || 'center',
+        textStyle: s.textStyle || 'pill',
+        font: s.font || 'archivo',
+        effect: 'pop'
+      });
+    }
+    offset += len;
+  }
+  return list;
+}
+
 async function render({
   scenes = [],
+  textOverlays = [],
   voiceUrl = '',
   voiceVolume = 1,
   music = null,
@@ -397,7 +553,6 @@ async function render({
       const zoom = Math.max(1, Math.min(Number(s.zoom) || 1, 3));
       const panX = Math.max(0, Math.min(Number(s.panX) != null ? Number(s.panX) : 0.5, 1));
       const panY = Math.max(0, Math.min(Number(s.panY) != null ? Number(s.panY) : 0.5, 1));
-      const textStyle = ['pill', 'minimal', 'impact'].includes(s.textStyle) ? s.textStyle : 'pill';
 
       rawTotal += len;
 
@@ -407,7 +562,7 @@ async function render({
         inputs.push('-ss', String(start), '-t', String(len), '-i', abs);
       }
 
-      const baseLabel = `base_${i}`;
+      const baseLabel = `v${i}`;
       if (fitMode === 'blur') {
         filters.push(`[${i}:v]split=2[in_bg_${i}][in_fg_${i}]`);
         filters.push(`[in_bg_${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=22:5,eq=brightness=-0.15,setsar=1,fps=${FPS}[bg_${i}]`);
@@ -420,44 +575,6 @@ async function render({
         const scaledH = Math.round(H * zoom);
         const ptsFilter = isImage(abs) ? '' : 'setpts=PTS-STARTPTS,';
         filters.push(`[${i}:v]scale=${scaledW}:${scaledH}:force_original_aspect_ratio=increase,crop=${W}:${H}:x='(in_w-${W})*${panX}':y='(in_h-${H})*${panY}',${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
-      }
-
-      // Textos en pantalla según estilo (cápsula pill, minimal o impact) y fuente seleccionada
-      const lines = wrapText(s.text, 16);
-      if (lines.length > 0) {
-        const fontKey = s.font && FONTS_MAP[s.font] ? s.font : 'bebas';
-        const fontFile = FONTS_MAP[fontKey] || FONTS_MAP.bebas;
-        let fontSize = lines.length > 2 ? 88 : 100;
-        if (fontKey === 'bebas' || fontKey === 'anton') fontSize = lines.length > 2 ? 98 : 112;
-        if (fontKey === 'caveat') fontSize = lines.length > 2 ? 104 : 120;
-        const lineH = Math.round(fontSize * 1.25);
-        const blockH = lines.length * lineH;
-        const baseY = s.pos === 'top' ? 240 : s.pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
-
-        const drawFilters = [];
-        lines.forEach((ln, k) => {
-          const tf = path.join(TMP_DIR, `t_${id}_${i}_${k}.txt`);
-          fs.writeFileSync(tf, ln, 'utf8');
-          tmpFiles.push(tf);
-          const y = baseY + k * lineH;
-          const delay = (0.1 + k * 0.08).toFixed(2);
-
-          let styleAttrs = '';
-          if (textStyle === 'pill') {
-            styleAttrs = `:box=1:boxcolor=black@0.72:boxborderw=18:fontcolor=white:shadowcolor=black@0.4:shadowx=2:shadowy=2`;
-          } else if (textStyle === 'minimal') {
-            styleAttrs = `:box=1:boxcolor=black@0.35:boxborderw=10:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
-          } else if (textStyle === 'impact') {
-            styleAttrs = `:borderw=5:bordercolor=black:fontcolor=white:shadowcolor=black@0.7:shadowx=4:shadowy=4`;
-          } else {
-            styleAttrs = `:box=1:boxcolor=black@0.72:boxborderw=18:fontcolor=white`;
-          }
-
-          drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y='${y}+30*(1-min(1,max(0,(t-${delay})/0.25)))':alpha='min(1,max(0,(t-${delay})/0.20))'`);
-        });
-        filters.push(`[${baseLabel}]${drawFilters.join(',')}[v${i}]`);
-      } else {
-        filters.push(`[${baseLabel}]copy[v${i}]`);
       }
 
       s._len = len;
@@ -518,11 +635,94 @@ async function render({
       voiceDur = /\.wav$/i.test(voiceAbs) ? (size - 44) / (24000 * 2) : await probeDuration(voiceAbs);
     }
     const extra = voiceAbs ? Math.max(0, voiceDur + 0.5 - totalDuration) : 0;
+    let masterVideo = finalVideoLabel;
     if (extra > 0) {
-      filters.push(`[${finalVideoLabel}]tpad=stop_mode=clone:stop_duration=${extra.toFixed(2)}[vout_padded]`);
-      finalVideoLabel = 'vout_padded';
+      filters.push(`[${masterVideo}]tpad=stop_mode=clone:stop_duration=${extra.toFixed(2)}[vout_padded]`);
+      masterVideo = 'vout_padded';
       totalDuration += extra;
     }
+
+    // Pista de Textos Desacoplada (Overlays en la línea de tiempo global)
+    const overlaysToRender = (Array.isArray(textOverlays) && textOverlays.length)
+      ? textOverlays
+      : synthesizeOverlaysFromScenes(scenes);
+
+    let currentMaster = masterVideo;
+    let overlayCounter = 0;
+
+    overlaysToRender.forEach((ov, oIdx) => {
+      const textRaw = String(ov.text || '').trim();
+      if (!textRaw) return;
+      const start = Math.max(0, Number(ov.start) || 0);
+      const end = Math.min(totalDuration, Math.max(start + 0.4, Number(ov.end) || (start + 2.8)));
+      const pos = ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : 'center';
+      const textStyle = ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : 'pill';
+      const fontKey = ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo';
+      const fontFile = FONTS_MAP[fontKey] || FONTS_MAP.archivo;
+      const effect = ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop';
+
+      const lines = wrapText(textRaw, 16);
+      if (!lines.length) return;
+
+      let fontSize = lines.length > 2 ? 88 : 100;
+      if (['archivo', 'anton', 'bangers', 'titan'].includes(fontKey)) {
+        fontSize = lines.length > 2 ? 98 : 112;
+      }
+      if (fontKey === 'caveat') {
+        fontSize = lines.length > 2 ? 104 : 120;
+      }
+      const lineH = Math.round(fontSize * 1.25);
+      const blockH = lines.length * lineH;
+      const baseY = pos === 'top' ? 240 : pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
+
+      let styleAttrs = '';
+      if (textStyle === 'pill') {
+        styleAttrs = `:box=1:boxcolor=black@0.78:boxborderw=20:fontcolor=white:shadowcolor=black@0.4:shadowx=2:shadowy=2`;
+      } else if (textStyle === 'impact') {
+        styleAttrs = `:borderw=7:bordercolor=black:fontcolor=white:shadowcolor=black@0.8:shadowx=4:shadowy=4`;
+      } else if (textStyle === 'yellow') {
+        styleAttrs = `:box=1:boxcolor=yellow@0.95:boxborderw=18:fontcolor=black:shadowcolor=black@0.2:shadowx=2:shadowy=2`;
+      } else if (textStyle === 'neon') {
+        styleAttrs = `:box=1:boxcolor=black@0.80:boxborderw=16:fontcolor=0x22d3ee:shadowcolor=0x22d3ee@0.8:shadowx=0:shadowy=0`;
+      } else if (textStyle === 'minimal') {
+        styleAttrs = `:box=1:boxcolor=black@0.35:boxborderw=10:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
+      }
+
+      const drawFilters = [];
+      lines.forEach((ln, k) => {
+        const tf = path.join(TMP_DIR, `ov_${id}_${oIdx}_${k}.txt`);
+        fs.writeFileSync(tf, ln, 'utf8');
+        tmpFiles.push(tf);
+        const lineY = baseY + k * lineH;
+        const lineDelay = (start + k * 0.08).toFixed(2);
+
+        let yExpr = `${lineY}`;
+        let alphaExpr = `1`;
+
+        if (effect === 'pop') {
+          yExpr = `'${lineY} - 35*max(0, 1 - (t-${lineDelay})/0.18)'`;
+          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.10))'`;
+        } else if (effect === 'fade') {
+          alphaExpr = `'if(lt(t, ${start}+0.3), (t-${start})/0.3, if(gt(t, ${end}-0.3), (${end}-t)/0.3, 1))'`;
+        } else if (effect === 'slide') {
+          yExpr = `'${lineY} + 55*max(0, 1 - (t-${lineDelay})/0.22)'`;
+          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.15))'`;
+        } else if (effect === 'bounce') {
+          yExpr = `'${lineY} - 25*sin(min(3.14159, max(0, (t-${lineDelay})*12)))'`;
+          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.12))'`;
+        }
+
+        drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y=${yExpr}:alpha=${alphaExpr}:enable='between(t,${start.toFixed(2)},${end.toFixed(2)})'`);
+      });
+
+      if (drawFilters.length > 0) {
+        const nextMaster = `vt_${overlayCounter++}`;
+        filters.push(`[${currentMaster}]${drawFilters.join(',')}[${nextMaster}]`);
+        currentMaster = nextMaster;
+      }
+    });
+
+    finalVideoLabel = currentMaster;
 
     // Audio mixing con sidechain compressor ducking
     let nextIdx = scenes.length;
@@ -583,6 +783,7 @@ module.exports = {
   getFonts,
   VALID_XFADE_TRANSITIONS,
   plan,
+  suggestTextOverlays,
   synthesizeVoice,
   render,
   probeDuration

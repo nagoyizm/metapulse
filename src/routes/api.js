@@ -3530,6 +3530,17 @@ router.post('/reel/plan', async (req, res) => {
   }
 });
 
+router.post('/reel/suggest-texts', async (req, res) => {
+  try {
+    const { brand = '', scenes = [], clips = [], goal = '', voiceover = '' } = req.body;
+    const data = await reelStudio.suggestTextOverlays({ brand, scenes, clips, goal, voiceover });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Reel suggest-texts]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/reel/voice', async (req, res) => {
   try {
     const { text, voice = 'Sulafat', style = '' } = req.body;
@@ -3543,9 +3554,10 @@ router.post('/reel/voice', async (req, res) => {
 
 router.post('/reel/render', async (req, res) => {
   try {
-    const { scenes, voice_url = '', voice_volume = 1, music = null, music_volume = 0.3, global_transition = 'zoomin' } = req.body;
+    const { scenes, text_overlays = [], textOverlays = [], voice_url = '', voice_volume = 1, music = null, music_volume = 0.3, global_transition = 'zoomin' } = req.body;
     const data = await reelStudio.render({
       scenes,
+      textOverlays: (textOverlays && textOverlays.length) ? textOverlays : text_overlays,
       voiceUrl: voice_url,
       voiceVolume: voice_volume,
       music,

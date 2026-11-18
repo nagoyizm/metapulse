@@ -3400,11 +3400,44 @@ input:checked + .slider:before {
 .reel-live-caption { font-size: 0.84rem; font-weight: 800; text-align: center; line-height: 1.25; }
 .reel-live-caption.pill { background: rgba(0, 0, 0, 0.78); color: #ffffff; padding: 6px 12px; border-radius: 6px; display: inline-block; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
 .reel-live-caption.minimal { background: rgba(0, 0, 0, 0.35); color: #ffffff; padding: 4px 10px; border-radius: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); display: inline-block; margin: 0 auto; }
-.reel-live-caption.impact { color: #ffffff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 3px 6px rgba(0,0,0,0.9); padding: 4px 6px; display: inline-block; margin: 0 auto; }
+.reel-live-caption.impact { color: #ffffff; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 6px rgba(0,0,0,0.9); padding: 4px 6px; display: inline-block; margin: 0 auto; }
+.reel-live-caption.yellow { background: #facc15; color: #000000; font-weight: 900; padding: 6px 12px; border-radius: 6px; display: inline-block; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 2px solid #000; }
+.reel-live-caption.neon { background: rgba(0,0,0,0.85); color: #22d3ee; border: 2px solid #22d3ee; border-radius: 8px; padding: 6px 12px; display: inline-block; margin: 0 auto; box-shadow: 0 0 14px rgba(34,211,238,0.55); text-shadow: 0 0 8px rgba(34,211,238,0.8); }
+
+/* Animaciones y Efectos dinámicos de texto */
+@keyframes reelAnimPop {
+  0% { transform: scale(1.35); opacity: 0; }
+  60% { transform: scale(0.96); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+@keyframes reelAnimFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes reelAnimSlide {
+  0% { transform: translateY(40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes reelAnimBounce {
+  0% { transform: scale(0.7); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  75% { transform: scale(0.97); }
+  100% { transform: scale(1.0); }
+}
+
+.reel-live-caption.effect-pop { animation: reelAnimPop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.reel-live-caption.effect-fade { animation: reelAnimFade 0.35s ease-out forwards; }
+.reel-live-caption.effect-slide { animation: reelAnimSlide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.effect-bounce { animation: reelAnimBounce 0.4s ease-out forwards; }
 
 /* Tipografías virales de texto */
+.reel-live-caption.reel-font-archivo { font-family: 'Archivo Black', sans-serif !important; font-weight: 900; letter-spacing: -0.4px; }
+.reel-live-caption.reel-font-bangers { font-family: 'Bangers', cursive !important; letter-spacing: 1px; font-size: 1.05rem; }
+.reel-live-caption.reel-font-titan { font-family: 'Titan One', cursive !important; font-size: 0.95rem; }
 .reel-live-caption.reel-font-bebas { font-family: 'Bebas Neue', sans-serif !important; font-size: 1.05rem; letter-spacing: 1.2px; font-weight: 400; text-transform: uppercase; }
 .reel-live-caption.reel-font-anton { font-family: 'Anton', sans-serif !important; font-size: 0.95rem; letter-spacing: 0.6px; text-transform: uppercase; }
+.reel-live-caption.reel-font-righteous { font-family: 'Righteous', cursive !important; font-size: 0.95rem; letter-spacing: 0.5px; }
+.reel-live-caption.reel-font-syne { font-family: 'Syne', sans-serif !important; font-weight: 800; letter-spacing: -0.3px; }
 .reel-live-caption.reel-font-montserrat { font-family: 'Montserrat', sans-serif !important; font-weight: 800; letter-spacing: -0.2px; }
 .reel-live-caption.reel-font-poppins { font-family: 'Poppins', sans-serif !important; font-weight: 700; }
 .reel-live-caption.reel-font-oswald { font-family: 'Oswald', sans-serif !important; font-weight: 700; letter-spacing: 0.5px; }
@@ -3412,6 +3445,12 @@ input:checked + .slider:before {
 .reel-live-caption.reel-font-cinzel { font-family: 'Cinzel', serif !important; font-weight: 700; letter-spacing: 1px; }
 .reel-live-caption.reel-font-caveat { font-family: 'Caveat', cursive !important; font-weight: 700; font-size: 1.22rem; }
 .reel-live-caption.reel-font-lato { font-family: 'Lato', sans-serif !important; font-weight: 700; }
+
+/* Tarjetas de texto desacopladas */
+.reel-text-card { border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; background: var(--bg-surface); margin-bottom: 10px; transition: border-color 0.2s; }
+.reel-text-card.selected-for-frame { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.reel-text-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.reel-timing-badge { font-family: monospace; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: rgba(99,102,241,0.1); color: var(--primary); font-weight: 700; }
 
 .reel-phone-btn {
   background: rgba(255, 255, 255, 0.12);

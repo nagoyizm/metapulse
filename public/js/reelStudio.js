@@ -13,8 +13,10 @@
     goal: '',
     targetSeconds: 10,
     clips: [],          // { url, kind, description, name, duration }
-    scenes: [],         // { clip, url, kind, start, length, text, pos, textStyle, fitMode, zoom, panX, panY, transition }
+    scenes: [],         // { clip, url, kind, start, length, fitMode, zoom, panX, panY, transition }
+    textOverlays: [],   // { id, text, start, end, pos, textStyle, font, effect }
     activeSceneIdx: 0,
+    activeOverlayIdx: 0,
     voiceover: '',
     caption: '',
     voices: [],
@@ -39,8 +41,13 @@
   const toast = (m, t = 'info') => { if (typeof showToast === 'function') showToast(m, t); };
 
   const FONTS = [
-    { id: 'bebas', label: 'Bebas Neue (Titular Impacto / Viral)' },
+    { id: 'archivo', label: 'Archivo Black (Viral Hormozi / Máximo Impacto)' },
+    { id: 'bangers', label: 'Bangers (Estilo Cómic / MrBeast)' },
+    { id: 'titan', label: 'Titan One (Gruesa y Curva / Comida & Snacks)' },
+    { id: 'bebas', label: 'Bebas Neue (Titular / Impacto Viral Clásico)' },
     { id: 'anton', label: 'Anton (Impacto Alto / Gruesa)' },
+    { id: 'righteous', label: 'Righteous (Retro-Moderna Punchy)' },
+    { id: 'syne', label: 'Syne (Vanguardista / Estética y Lujo)' },
     { id: 'montserrat', label: 'Montserrat Bold (Limpia / Moderna)' },
     { id: 'poppins', label: 'Poppins Bold (Geométrica / Amigable)' },
     { id: 'oswald', label: 'Oswald Bold (Condensada / Dinámica)' },
@@ -48,6 +55,22 @@
     { id: 'cinzel', label: 'Cinzel Bold (Clásica / Premium)' },
     { id: 'caveat', label: 'Caveat (Manuscrita / Orgánica)' },
     { id: 'lato', label: 'Lato Bold (Sólida / Neutra)' }
+  ];
+
+  const TEXT_STYLES = [
+    { id: 'yellow', label: 'Cápsula Amarilla (Viral TikTok)' },
+    { id: 'pill', label: 'Cápsula Oscura (Elegante)' },
+    { id: 'impact', label: 'Borde de Impacto (Hormozi)' },
+    { id: 'neon', label: 'Resplandor Neón (Llamativo)' },
+    { id: 'minimal', label: 'Limpio con Sombra' }
+  ];
+
+  const TEXT_EFFECTS = [
+    { id: 'pop', label: 'Punch / Pop-in (Impacto viral)' },
+    { id: 'fade', label: 'Desvanecido Suave (Fade in/out)' },
+    { id: 'slide', label: 'Deslizamiento desde Abajo (Slide up)' },
+    { id: 'bounce', label: 'Rebote Elástico (Bounce)' },
+    { id: 'none', label: 'Corte Directo (Sin animación)' }
   ];
 
   function brandName() {
@@ -88,7 +111,9 @@
         targetSeconds: Number($('reel-target')?.value) || S.targetSeconds,
         clips: S.clips,
         scenes: S.scenes,
+        textOverlays: S.textOverlays,
         activeSceneIdx: S.activeSceneIdx,
+        activeOverlayIdx: S.activeOverlayIdx,
         voiceover: $('reel-voiceover')?.value || S.voiceover,
         caption: $('reel-caption')?.value || S.caption,
         voice: S.voice,
@@ -129,6 +154,9 @@
       if (Array.isArray(data.scenes) && data.scenes.length) {
         S.scenes = data.scenes;
       }
+      if (Array.isArray(data.textOverlays) && data.textOverlays.length) {
+        S.textOverlays = data.textOverlays;
+      }
       if (data.voiceover) {
         S.voiceover = data.voiceover;
         const vo = $('reel-voiceover');
@@ -143,6 +171,7 @@
       if (data.music) S.music = data.music;
       if (data.resultUrl) S.resultUrl = data.resultUrl;
       if (data.activeSceneIdx != null) S.activeSceneIdx = data.activeSceneIdx;
+      if (data.activeOverlayIdx != null) S.activeOverlayIdx = data.activeOverlayIdx;
 
       // Resaltar plantilla en UI
       document.querySelectorAll('.reel-template-card').forEach((card) => {
@@ -153,6 +182,7 @@
 
       renderClips();
       renderScenes();
+      renderTextOverlays();
       renderMusicSel();
 
       if (S.resultUrl) {
@@ -179,8 +209,8 @@
   }
 
   function clearState(confirmUser = true) {
-    if (confirmUser && (S.clips.length || S.scenes.length)) {
-      if (!confirm('¿Deseas reiniciar el Estudio de Reels? Se limpiarán los clips y escenas cargadas.')) {
+    if (confirmUser && (S.clips.length || S.scenes.length || S.textOverlays.length)) {
+      if (!confirm('¿Deseas reiniciar el Estudio de Reels? Se limpiarán los clips, tomas y textos cargados.')) {
         return;
       }
     }
@@ -190,7 +220,9 @@
     S.step = 1;
     S.clips = [];
     S.scenes = [];
+    S.textOverlays = [];
     S.activeSceneIdx = 0;
+    S.activeOverlayIdx = 0;
     S.voiceover = '';
     S.caption = '';
     S.music = null;
@@ -210,6 +242,7 @@
     resetViewportPlaceholder();
     renderClips();
     renderScenes();
+    renderTextOverlays();
     renderMusicSel();
     goToStep(1);
     toast('Estudio de Reels reiniciado.', 'info');
@@ -231,6 +264,13 @@
       previewClip(0);
     } else if (n === 3 && S.scenes.length > 0) {
       selectSceneForFrame(S.activeSceneIdx >= 0 && S.activeSceneIdx < S.scenes.length ? S.activeSceneIdx : 0);
+    } else if (n === 4) {
+      renderTextOverlays();
+      if (S.textOverlays.length > 0) {
+        previewTextOverlay(S.activeOverlayIdx >= 0 && S.activeOverlayIdx < S.textOverlays.length ? S.activeOverlayIdx : 0);
+      }
+    } else if (n === 5) {
+      renderMusicSel();
     }
     saveState();
   }
@@ -514,14 +554,27 @@
       });
 
       S.scenes = (data.scenes || []).map((sc) => ({
-        ...sc,
-        font: sc.font || 'bebas',
+        clip: sc.clip != null ? sc.clip : 0,
+        url: sc.url,
+        kind: sc.kind,
+        start: Number(sc.start) || 0,
+        length: Number(sc.length) || 2.5,
         fitMode: sc.fitMode || 'crop',
         zoom: sc.zoom || 1.0,
         panX: sc.panX != null ? sc.panX : 0.5,
         panY: sc.panY != null ? sc.panY : 0.5,
-        textStyle: sc.textStyle || 'pill',
         transition: sc.transition || 'zoomin'
+      }));
+
+      S.textOverlays = (data.textOverlays || []).map((t, idx) => ({
+        id: t.id || `txt_${idx + 1}`,
+        text: t.text || '',
+        start: Number(t.start) || 0,
+        end: Number(t.end) || 3.0,
+        pos: t.pos || (idx === 0 ? 'top' : idx === 1 ? 'center' : 'bottom'),
+        textStyle: t.textStyle || (idx === 0 ? 'yellow' : 'pill'),
+        font: t.font || 'archivo',
+        effect: t.effect || 'pop'
       }));
 
       S.voiceover = data.voiceover || '';
@@ -531,11 +584,12 @@
       S.resultUrl = '';
 
       renderScenes();
+      renderTextOverlays();
       if ($('reel-music-q') && S.musicQuery) $('reel-music-q').value = S.musicQuery;
       if ($('reel-voiceover')) $('reel-voiceover').value = S.voiceover;
       if ($('reel-caption')) $('reel-caption').value = S.caption;
 
-      toast('¡Reel armado con éxito! Revisa las escenas y ajusta el encuadre en la mini pantalla.', 'success');
+      toast('¡Reel armado con éxito! Revisa las tomas de video y luego ajusta tus textos.', 'success');
       goToStep(3);
     } catch (err) {
       toast('No se pudo armar el reel: ' + err.message, 'error');
@@ -552,22 +606,36 @@
       kind: c.kind,
       start: 0,
       length: c.duration ? Math.min(c.duration, 4) : 3,
-      text: '',
-      pos: 'center',
-      textStyle: 'pill',
-      font: 'bebas',
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
       panY: 0.5,
       transition: i === 0 ? 'none' : 'zoomin'
     }));
+
+    if (!S.textOverlays.length) {
+      const tot = totalSeconds();
+      S.textOverlays = [
+        {
+          id: 'txt_1',
+          text: 'MIRA ESTO',
+          start: 0,
+          end: Math.min(2.8, tot > 1 ? tot : 2.8),
+          pos: 'top',
+          textStyle: 'yellow',
+          font: 'archivo',
+          effect: 'pop'
+        }
+      ];
+    }
+
     renderScenes();
+    renderTextOverlays();
     goToStep(3);
-    toast(`${S.scenes.length} escena(s) creadas (1 por cada video subido).`, 'info');
+    toast(`${S.scenes.length} toma(s) creadas (1 por cada clip subido).`, 'info');
   }
 
-  // ── Paso 3: Escenas y Textos ──
+  // ── Paso 3: Pista de Video (Cortes, Encuadre 9:16 y Transiciones) ──
   function totalSeconds() {
     return S.scenes.reduce((acc, s) => acc + (Number(s.length) || 0), 0);
   }
@@ -587,7 +655,7 @@
     }
 
     if (!S.scenes.length) {
-      list.innerHTML = '<div class="reel-empty">No hay escenas armadas aún.</div>';
+      list.innerHTML = '<div class="reel-empty">No hay tomas de video armadas aún.</div>';
       return;
     }
 
@@ -604,22 +672,18 @@
       { id: 'none', label: 'Corte Directo (Sin transición)' }
     ].map((t) => `<option value="${t.id}" ${t.id === sel ? 'selected' : ''}>${t.label}</option>`).join('');
 
-    const fontOpts = (sel) => FONTS.map((f) =>
-      `<option value="${f.id}" ${f.id === (sel || 'bebas') ? 'selected' : ''}>${f.label}</option>`
-    ).join('');
-
     list.innerHTML = S.scenes.map((s, i) => `
       <div class="reel-scene-card ${i === S.activeSceneIdx ? 'selected-for-frame' : ''}" data-i="${i}">
         <div class="reel-scene-header">
           <div>
-            <strong style="font-size:0.84rem;">Escena ${i + 1}</strong>
+            <strong style="font-size:0.84rem;">Toma ${i + 1}</strong>
             <span class="badge" style="font-size:0.68rem; margin-left:6px; background:var(--bg-surface-subtle);">${s.length}s</span>
           </div>
           <div style="display:flex; gap:4px; align-items:center;">
             <button type="button" class="btn btn-secondary btn-xs reel-act-frame" style="font-weight:600;">Encuadrar en 9:16</button>
             <button type="button" class="btn btn-secondary btn-xs reel-act-up" ${i === 0 ? 'disabled' : ''}>↑</button>
             <button type="button" class="btn btn-secondary btn-xs reel-act-down" ${i === S.scenes.length - 1 ? 'disabled' : ''}>↓</button>
-            <button type="button" class="btn btn-secondary btn-xs reel-act-del" title="Eliminar escena">✕</button>
+            <button type="button" class="btn btn-secondary btn-xs reel-act-del" title="Eliminar toma">✕</button>
           </div>
         </div>
 
@@ -633,7 +697,7 @@
             <input type="number" class="form-control form-control-sm reel-scene-start" step="0.1" min="0" value="${s.start}" ${s.kind === 'imagen' ? 'disabled' : ''}>
           </div>
           <div>
-            <label style="font-size:0.72rem; font-weight:600;">Duración escena (s)</label>
+            <label style="font-size:0.72rem; font-weight:600;">Duración toma (s)</label>
             <input type="number" class="form-control form-control-sm reel-scene-length" step="0.1" min="0.8" max="8" value="${s.length}">
           </div>
           <div>
@@ -641,45 +705,10 @@
             <select class="form-control form-control-sm reel-scene-trans">${transOpts(s.transition)}</select>
           </div>
         </div>
-
-        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:8px; margin-top:8px;">
-          <div>
-            <label style="font-size:0.72rem; font-weight:600;">Texto en pantalla (2 a 6 palabras)</label>
-            <input type="text" class="form-control form-control-sm reel-scene-text" maxlength="60" value="${esc(s.text)}" placeholder="Ej: PRUÉBALO BIEN FRÍO">
-          </div>
-          <div>
-            <label style="font-size:0.72rem; font-weight:600;">Posición</label>
-            <select class="form-control form-control-sm reel-scene-pos">
-              <option value="top" ${s.pos === 'top' ? 'selected' : ''}>Arriba</option>
-              <option value="center" ${s.pos === 'center' ? 'selected' : ''}>Centro</option>
-              <option value="bottom" ${s.pos === 'bottom' ? 'selected' : ''}>Abajo</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:0.72rem; font-weight:600;">Estilo de texto</label>
-            <select class="form-control form-control-sm reel-scene-style">
-              <option value="pill" ${s.textStyle === 'pill' ? 'selected' : ''}>Cápsula oscura</option>
-              <option value="minimal" ${s.textStyle === 'minimal' ? 'selected' : ''}>Limpio boutique</option>
-              <option value="impact" ${s.textStyle === 'impact' ? 'selected' : ''}>Borde de impacto</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); flex-wrap:wrap;">
-          <div style="flex:1; min-width:200px;">
-            <label style="font-size:0.72rem; font-weight:600; display:block; margin-bottom:2px;">Tipografía / Fuente del texto</label>
-            <select class="form-control form-control-sm reel-scene-font">
-              ${fontOpts(s.font)}
-            </select>
-          </div>
-          <button type="button" class="btn btn-secondary btn-xs reel-apply-font-all" title="Aplicar esta tipografía a todas las escenas" style="margin-top:16px;">
-            Aplicar a todas
-          </button>
-        </div>
       </div>
     `).join('');
 
-    // Eventos de inputs de escena
+    // Eventos de inputs de toma
     list.querySelectorAll('.reel-scene-card').forEach((card) => {
       const i = +card.dataset.i;
 
@@ -707,39 +736,13 @@
       card.querySelector('.reel-scene-length')?.addEventListener('change', (e) => {
         S.scenes[i].length = Math.min(Math.max(Number(e.target.value) || 2.5, 0.8), 8);
         if (totalEl) totalEl.textContent = `${totalSeconds().toFixed(1)} s`;
+        const textTot = $('reel-text-total-dur');
+        if (textTot) textTot.textContent = `${totalSeconds().toFixed(1)} s`;
         saveState();
       });
       card.querySelector('.reel-scene-trans')?.addEventListener('change', (e) => {
         S.scenes[i].transition = e.target.value;
         saveState();
-      });
-      card.querySelector('.reel-scene-text')?.addEventListener('input', (e) => {
-        S.scenes[i].text = e.target.value;
-        if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
-        saveState();
-      });
-      card.querySelector('.reel-scene-pos')?.addEventListener('change', (e) => {
-        S.scenes[i].pos = e.target.value;
-        if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
-        saveState();
-      });
-      card.querySelector('.reel-scene-style')?.addEventListener('change', (e) => {
-        S.scenes[i].textStyle = e.target.value;
-        if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
-        saveState();
-      });
-      card.querySelector('.reel-scene-font')?.addEventListener('change', (e) => {
-        S.scenes[i].font = e.target.value;
-        if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
-        saveState();
-      });
-      card.querySelector('.reel-apply-font-all')?.addEventListener('click', () => {
-        const chosen = S.scenes[i].font || 'bebas';
-        S.scenes.forEach((sc) => { sc.font = chosen; });
-        renderScenes();
-        if (S.scenes[S.activeSceneIdx]) updateLiveTextOverlay(S.scenes[S.activeSceneIdx]);
-        saveState();
-        toast('Tipografía aplicada a todas las escenas.', 'info');
       });
       card.querySelector('.reel-act-up')?.addEventListener('click', () => {
         if (i > 0) {
@@ -780,10 +783,6 @@
       kind: c.kind,
       start: 0,
       length: 2.5,
-      text: '',
-      pos: 'center',
-      textStyle: 'pill',
-      font: 'bebas',
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -793,6 +792,358 @@
     renderScenes();
     selectSceneForFrame(S.scenes.length - 1);
     saveState();
+  }
+
+  // ── Paso 4: Capa de Textos y Efectos Virales (Overlays Desacoplados) ──
+  function renderTextOverlays() {
+    const list = $('reel-texts-list');
+    const badge = $('reel-badge-texts-count');
+    const totalEl = $('reel-text-total-dur');
+    const summaryEl = $('reel-texts-summary');
+    if (!list) return;
+
+    const tot = totalSeconds();
+    if (badge) {
+      badge.textContent = S.textOverlays.length;
+      badge.style.display = S.textOverlays.length ? 'inline-block' : 'none';
+    }
+    if (totalEl) {
+      totalEl.textContent = `${tot.toFixed(1)} s`;
+    }
+    if (summaryEl) {
+      if (!S.textOverlays.length) {
+        summaryEl.textContent = '0 textos configurados';
+      } else {
+        const minT = Math.min(...S.textOverlays.map((t) => Number(t.start) || 0));
+        const maxT = Math.max(...S.textOverlays.map((t) => Number(t.end) || 0));
+        summaryEl.textContent = `${S.textOverlays.length} texto(s) · Cobertura: ${minT.toFixed(1)}s a ${maxT.toFixed(1)}s (Total video: ${tot.toFixed(1)}s)`;
+      }
+    }
+
+    if (!S.textOverlays.length) {
+      list.innerHTML = `
+        <div class="reel-empty" style="padding:24px; text-align:center;">
+          <div style="font-size:1.4rem; margin-bottom:6px;">✍️</div>
+          <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px;">No hay textos configurados aún</div>
+          <small class="text-muted" style="display:block; margin-bottom:12px;">Los textos flotan sobre el video y capturan la atención en los primeros segundos.</small>
+          <div style="display:flex; justify-content:center; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-empty-add-text">+ Agregar primer texto</button>
+            <button type="button" class="btn btn-primary btn-xs" id="btn-reel-empty-suggest-texts">Sugerir textos con IA</button>
+          </div>
+        </div>
+      `;
+      $('btn-reel-empty-add-text')?.addEventListener('click', addTextOverlay);
+      $('btn-reel-empty-suggest-texts')?.addEventListener('click', suggestTextsWithAI);
+      return;
+    }
+
+    const fontOpts = (sel) => FONTS.map((f) =>
+      `<option value="${f.id}" ${f.id === (sel || 'archivo') ? 'selected' : ''}>${esc(f.label)}</option>`
+    ).join('');
+
+    const styleOpts = (sel) => TEXT_STYLES.map((st) =>
+      `<option value="${st.id}" ${st.id === (sel || 'yellow') ? 'selected' : ''}>${esc(st.label)}</option>`
+    ).join('');
+
+    const effectOpts = (sel) => TEXT_EFFECTS.map((ef) =>
+      `<option value="${ef.id}" ${ef.id === (sel || 'pop') ? 'selected' : ''}>${esc(ef.label)}</option>`
+    ).join('');
+
+    list.innerHTML = S.textOverlays.map((t, i) => `
+      <div class="reel-text-card ${i === S.activeOverlayIdx ? 'selected-for-frame' : ''}" data-i="${i}">
+        <div class="reel-text-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong style="font-size:0.84rem;">Texto ${i + 1}</strong>
+            <span class="reel-timing-badge">${(Number(t.start) || 0).toFixed(1)}s a ${(Number(t.end) || 0).toFixed(1)}s (${((Number(t.end) || 0) - (Number(t.start) || 0)).toFixed(1)}s)</span>
+          </div>
+          <div style="display:flex; gap:4px; align-items:center;">
+            <button type="button" class="btn btn-secondary btn-xs reel-btn-preview-text" style="font-weight:600;">Previsualizar</button>
+            <button type="button" class="btn btn-secondary btn-xs reel-del-text" title="Eliminar texto">✕</button>
+          </div>
+        </div>
+
+        <div style="margin-top:8px;">
+          <label style="font-size:0.72rem; font-weight:600;">Texto en pantalla (2 a 6 palabras, directo e impactante)</label>
+          <input type="text" class="form-control form-control-sm reel-overlay-text" maxlength="70" value="${esc(t.text)}" placeholder="Ej: PRUÉBALO BIEN FRÍO">
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-top:8px;">
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Aparece al seg</label>
+            <input type="number" class="form-control form-control-sm reel-overlay-start" step="0.1" min="0" max="${Math.max(0, tot)}" value="${t.start}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Desaparece al seg</label>
+            <input type="number" class="form-control form-control-sm reel-overlay-end" step="0.1" min="0.4" max="${Math.max(0, tot)}" value="${t.end}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Posición en pantalla</label>
+            <select class="form-control form-control-sm reel-overlay-pos">
+              <option value="top" ${t.pos === 'top' ? 'selected' : ''}>Arriba (Titular)</option>
+              <option value="center" ${t.pos === 'center' ? 'selected' : ''}>Centro (Foco)</option>
+              <option value="bottom" ${t.pos === 'bottom' ? 'selected' : ''}>Abajo (Subtítulo)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:8px;">
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Tipografía Viral</label>
+            <select class="form-control form-control-sm reel-overlay-font">
+              ${fontOpts(t.font)}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Estilo Visual</label>
+            <select class="form-control form-control-sm reel-overlay-style">
+              ${styleOpts(t.textStyle)}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Efecto de Animación</label>
+            <select class="form-control form-control-sm reel-overlay-effect">
+              ${effectOpts(t.effect)}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:8px; padding-top:6px; border-top:1px dashed var(--border-subtle);">
+          <button type="button" class="btn btn-ghost btn-xs reel-apply-text-style-all" style="font-size:0.72rem; border:1px solid var(--border-subtle);">
+            Aplicar esta fuente y estilo a todos los textos
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    // Eventos de inputs de texto
+    list.querySelectorAll('.reel-text-card').forEach((card) => {
+      const i = +card.dataset.i;
+      const ov = S.textOverlays[i];
+      if (!ov) return;
+
+      card.querySelector('.reel-btn-preview-text')?.addEventListener('click', () => {
+        previewTextOverlay(i);
+      });
+
+      card.querySelector('.reel-overlay-text')?.addEventListener('input', (e) => {
+        ov.text = e.target.value;
+        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, false);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-start')?.addEventListener('change', (e) => {
+        ov.start = Math.max(0, Number(e.target.value) || 0);
+        renderTextOverlays();
+        previewTextOverlay(i);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-end')?.addEventListener('change', (e) => {
+        ov.end = Math.max(ov.start + 0.4, Number(e.target.value) || (ov.start + 2.5));
+        renderTextOverlays();
+        previewTextOverlay(i);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-pos')?.addEventListener('change', (e) => {
+        ov.pos = e.target.value;
+        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, false);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-font')?.addEventListener('change', (e) => {
+        ov.font = e.target.value;
+        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, true);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-style')?.addEventListener('change', (e) => {
+        ov.textStyle = e.target.value;
+        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, true);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-effect')?.addEventListener('change', (e) => {
+        ov.effect = e.target.value;
+        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, true);
+        saveState();
+      });
+
+      card.querySelector('.reel-apply-text-style-all')?.addEventListener('click', () => {
+        const chosenFont = ov.font || 'archivo';
+        const chosenStyle = ov.textStyle || 'yellow';
+        const chosenEffect = ov.effect || 'pop';
+        S.textOverlays.forEach((t) => {
+          t.font = chosenFont;
+          t.textStyle = chosenStyle;
+          t.effect = chosenEffect;
+        });
+        renderTextOverlays();
+        previewTextOverlay(i);
+        saveState();
+        toast('Tipografía y estilo aplicados a todos los textos.', 'info');
+      });
+
+      card.querySelector('.reel-del-text')?.addEventListener('click', () => {
+        S.textOverlays.splice(i, 1);
+        if (S.activeOverlayIdx >= S.textOverlays.length) {
+          S.activeOverlayIdx = Math.max(0, S.textOverlays.length - 1);
+        }
+        renderTextOverlays();
+        if (S.textOverlays.length) previewTextOverlay(S.activeOverlayIdx);
+        else renderLiveOverlay(null);
+        saveState();
+      });
+    });
+  }
+
+  function addTextOverlay() {
+    const tot = totalSeconds() || 10;
+    let nextStart = 0;
+    if (S.textOverlays.length) {
+      const last = S.textOverlays[S.textOverlays.length - 1];
+      nextStart = Math.min(Math.max(0, tot - 1), Math.max(0, Number(last.end) || 0));
+    }
+    const nextEnd = Math.min(tot, nextStart + 2.5);
+    const newOv = {
+      id: `ov_${Date.now()}`,
+      text: 'NUEVO TEXTO',
+      start: Math.round(nextStart * 10) / 10,
+      end: Math.round(nextEnd * 10) / 10,
+      pos: 'center',
+      textStyle: S.textOverlays.length ? S.textOverlays[0].textStyle : 'yellow',
+      font: S.textOverlays.length ? S.textOverlays[0].font : 'archivo',
+      effect: 'pop'
+    };
+    S.textOverlays.push(newOv);
+    S.activeOverlayIdx = S.textOverlays.length - 1;
+    renderTextOverlays();
+    previewTextOverlay(S.activeOverlayIdx);
+    saveState();
+  }
+
+  async function suggestTextsWithAI() {
+    if (!S.scenes.length) return toast('Crea o define las tomas primero en el Paso 3.', 'warning');
+    setBusy('btn-reel-ai-suggest-texts', true, 'Generando textos virales...');
+    try {
+      const data = await api('/reel/suggest-texts', {
+        brand: brandName(),
+        scenes: S.scenes,
+        clips: S.clips,
+        goal: $('reel-goal')?.value || S.goal || '',
+        voiceover: $('reel-voiceover')?.value || S.voiceover || ''
+      });
+      if (Array.isArray(data) && data.length) {
+        S.textOverlays = data;
+        S.activeOverlayIdx = 0;
+        renderTextOverlays();
+        previewTextOverlay(0);
+        saveState();
+        toast('¡Textos virales sugeridos con éxito!', 'success');
+      } else {
+        toast('No se generaron textos nuevos.', 'info');
+      }
+    } catch (err) {
+      toast('Error al sugerir textos: ' + err.message, 'error');
+    } finally {
+      setBusy('btn-reel-ai-suggest-texts', false);
+    }
+  }
+
+  function findSceneAtTime(globalSec) {
+    let accum = 0;
+    for (let i = 0; i < S.scenes.length; i++) {
+      const sc = S.scenes[i];
+      const len = Number(sc.length) || 0;
+      if (globalSec >= accum && globalSec < accum + len) {
+        return { sceneIdx: i, scene: sc, offsetInScene: Math.max(0, globalSec - accum) };
+      }
+      accum += len;
+    }
+    if (S.scenes.length > 0) {
+      const lastIdx = S.scenes.length - 1;
+      return { sceneIdx: lastIdx, scene: S.scenes[lastIdx], offsetInScene: 0 };
+    }
+    return null;
+  }
+
+  function renderLiveOverlay(ov, triggerAnim = false) {
+    const topEl = $('reel-vp-text-top');
+    const centerEl = $('reel-vp-text-center');
+    const bottomEl = $('reel-vp-text-bottom');
+    if (!topEl || !centerEl || !bottomEl) return;
+
+    topEl.innerHTML = '';
+    centerEl.innerHTML = '';
+    bottomEl.innerHTML = '';
+
+    if (!ov || !ov.text || !ov.text.trim()) return;
+
+    const fontClass = `reel-font-${ov.font || 'archivo'}`;
+    const effectClass = ov.effect && ov.effect !== 'none' ? `effect-${ov.effect}` : '';
+    const badge = document.createElement('div');
+    badge.className = `reel-live-caption ${ov.textStyle || 'yellow'} ${fontClass} ${effectClass}`;
+    badge.textContent = ov.text.trim().toUpperCase();
+
+    const targetEl = ov.pos === 'top' ? topEl : ov.pos === 'bottom' ? bottomEl : centerEl;
+    targetEl.appendChild(badge);
+
+    if (triggerAnim && effectClass) {
+      badge.classList.remove(effectClass);
+      void badge.offsetWidth;
+      badge.classList.add(effectClass);
+    }
+  }
+
+  function previewTextOverlay(idx) {
+    if (idx < 0 || idx >= S.textOverlays.length) return;
+    S.activeOverlayIdx = idx;
+
+    document.querySelectorAll('.reel-text-card').forEach((card) => {
+      card.classList.toggle('selected-for-frame', +card.dataset.i === idx);
+    });
+
+    const ov = S.textOverlays[idx];
+    const badge = $('reel-active-scene-badge');
+    if (badge) badge.textContent = `Texto ${idx + 1} (${ov.start.toFixed(1)}s)`;
+
+    const found = findSceneAtTime(ov.start);
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const vpBg = $('reel-vp-bg');
+    const placeholder = $('reel-vp-placeholder');
+    const finalPlayer = $('reel-final-player');
+
+    if (finalPlayer) finalPlayer.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'none';
+
+    if (found && found.scene) {
+      const sc = found.scene;
+      if (sc.kind === 'imagen') {
+        if (vpVideo) {
+          vpVideo.pause();
+          vpVideo.style.display = 'none';
+        }
+        if (vpImg) {
+          vpImg.src = sc.url;
+          vpImg.style.display = 'block';
+        }
+        updatePlayBtn(false);
+      } else {
+        if (vpImg) vpImg.style.display = 'none';
+        if (vpVideo) {
+          const seekTime = (sc.start || 0) + (found.offsetInScene || 0);
+          vpVideo.src = sc.url + `#t=${seekTime}`;
+          vpVideo.style.display = 'block';
+          vpVideo.currentTime = seekTime;
+          vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
+        }
+      }
+      if (vpBg) vpBg.style.backgroundImage = `url("${sc.url}")`;
+      updateLiveMediaTransform(sc);
+    }
+
+    renderLiveOverlay(ov, true);
   }
 
   // ── Mini Pantalla 9:16 y Encuadre Interactivo ──
@@ -915,7 +1266,7 @@
     });
 
     const badge = $('reel-active-scene-badge');
-    if (badge) badge.textContent = `Escena ${idx + 1}`;
+    if (badge) badge.textContent = `Toma ${idx + 1}`;
 
     const sc = S.scenes[idx];
     const vpVideo = $('reel-vp-video');
@@ -966,7 +1317,7 @@
     if (cropBox) cropBox.style.display = sc.fitMode === 'blur' ? 'none' : 'block';
 
     updateLiveMediaTransform(sc);
-    updateLiveTextOverlay(sc);
+    renderLiveOverlay(null);
   }
 
   function updateLiveMediaTransform(sc) {
@@ -1003,28 +1354,6 @@
       const shiftY = (0.5 - panY) * 60 * zoom;
       mediaEl.style.transform = `scale(${zoom}) translate(${shiftX}px, ${shiftY}px)`;
     }
-  }
-
-  function updateLiveTextOverlay(sc) {
-    const topEl = $('reel-vp-text-top');
-    const centerEl = $('reel-vp-text-center');
-    const bottomEl = $('reel-vp-text-bottom');
-    if (!topEl || !centerEl || !bottomEl) return;
-
-    topEl.innerHTML = '';
-    centerEl.innerHTML = '';
-    bottomEl.innerHTML = '';
-
-    if (!sc.text || !sc.text.trim()) return;
-
-    const fontClass = `reel-font-${sc.font || 'bebas'}`;
-    const badge = document.createElement('div');
-    badge.className = `reel-live-caption ${sc.textStyle || 'pill'} ${fontClass}`;
-    badge.textContent = sc.text.trim().toUpperCase();
-
-    if (sc.pos === 'top') topEl.appendChild(badge);
-    else if (sc.pos === 'bottom') bottomEl.appendChild(badge);
-    else centerEl.appendChild(badge);
   }
 
   function bindFramingTools() {
@@ -1264,15 +1593,20 @@
           url: sc.url,
           start: sc.start,
           length: sc.length,
-          text: sc.text,
-          pos: sc.pos,
-          textStyle: sc.textStyle,
-          font: sc.font || 'bebas',
           fitMode: sc.fitMode,
           zoom: sc.zoom,
           panX: sc.panX,
           panY: sc.panY,
           transition: sc.transition
+        })),
+        textOverlays: S.textOverlays.map((ov) => ({
+          text: ov.text,
+          start: Number(ov.start) || 0,
+          end: Number(ov.end) || 3,
+          pos: ov.pos || 'center',
+          textStyle: ov.textStyle || 'yellow',
+          font: ov.font || 'archivo',
+          effect: ov.effect || 'pop'
         })),
         voice_url: useVoice ? S.voiceUrl : '',
         voice_volume: Number($('reel-voice-vol')?.value) || 1,
@@ -1450,13 +1784,19 @@
     $('btn-reel-plan')?.addEventListener('click', planWithAI);
     $('btn-reel-manual-scenes')?.addEventListener('click', createManualScenes);
 
-    // Paso 3
+    // Paso 3: Pista de Video
     $('btn-reel-add-scene')?.addEventListener('click', addScene);
     $('btn-reel-back-step-2')?.addEventListener('click', () => goToStep(2));
     $('btn-reel-go-step-4')?.addEventListener('click', () => goToStep(4));
 
-    // Paso 4
+    // Paso 4: Capa de Textos y Efectos
     $('btn-reel-back-step-3')?.addEventListener('click', () => goToStep(3));
+    $('btn-reel-go-step-5')?.addEventListener('click', () => goToStep(5));
+    $('btn-reel-add-text')?.addEventListener('click', addTextOverlay);
+    $('btn-reel-ai-suggest-texts')?.addEventListener('click', suggestTextsWithAI);
+
+    // Paso 5: Música, Voz y Render
+    $('btn-reel-back-step-4')?.addEventListener('click', () => goToStep(4));
     $('btn-reel-voice')?.addEventListener('click', previewVoice);
     $('btn-reel-music-search')?.addEventListener('click', searchMusic);
     $('reel-music-q')?.addEventListener('keydown', (e) => {
