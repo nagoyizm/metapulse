@@ -116,6 +116,7 @@ const VALID_EFFECTS_IN = TEXT_EFFECTS_IN.map(e => e.id);
 const VALID_EFFECTS_LOOP = TEXT_EFFECTS_LOOP.map(e => e.id);
 const VALID_EFFECTS_OUT = TEXT_EFFECTS_OUT.map(e => e.id);
 const VALID_SPEEDS = ['fast', 'normal', 'slow'];
+const VALID_SCENE_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 
 function normalizeOverlay(ov) {
   if (!ov || typeof ov !== 'object') return null;
@@ -900,6 +901,7 @@ REGLAS DE EDICIÓN:
    - Toma 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos. La toma 1 usa el hook del clip más fuerte.
    - Si un clip trae highlights, elige start/length dentro de ellos; evita los tramos con issues.
    - Cada toma usa un clip (start y length en segundos). Tomas dinámicas de 1.5 a 3.5 segundos.
+   - "speed": velocidad de reproducción opcional (0.5 para cámara lenta en detalles apetitosos, 1.5-2 para recorridos); por defecto 1. Opciones válidas: 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4.
    - "transition": sugiere la transición hacia la siguiente toma entre "zoomin", "slideleft", "fadewhite", "smoothleft", "dissolve" o "none".
    - "fitMode": "crop" (llena pantalla vertical 9:16) o "blur" (fondo borroso para planos amplios que no se deben recortar).
 
@@ -928,6 +930,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       "clip": 0,
       "start": 0,
       "length": 2.5,
+      "speed": 1,
       "transition": "zoomin",
       "fitMode": "crop"
     }
@@ -987,12 +990,16 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       if (framing.fitMode === 'blur' || framing.fitMode === 'crop') fitMode = framing.fitMode;
     }
 
+    const rawSpeed = Number(s.speed);
+    const speed = info.kind === 'imagen' ? 1 : (VALID_SCENE_SPEEDS.includes(rawSpeed) ? rawSpeed : 1);
+
     const scObj = {
       clip: clipIdx,
       url: info.url,
       kind: info.kind,
       start: Math.round(start * 10) / 10,
       length: Math.round(length * 10) / 10,
+      speed,
       text: String(s.text || '').slice(0, 60),
       pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center',
       textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(s.textStyle) ? s.textStyle : 'pill',
@@ -1003,7 +1010,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       panY,
       transition: assignedTransition
     };
-    accumTime += scObj.length;
+    accumTime += (scObj.kind === 'imagen' ? scObj.length : (scObj.length / scObj.speed));
     return scObj;
   }).filter(s => s.url);
 
@@ -1273,17 +1280,29 @@ async function render({
     let rawTotal = 0;
     scenes.forEach((s, i) => {
       const abs = localPath(s.url);
-      const len = Math.min(Math.max(Number(s.length) || 2.5, 0.8), 8);
+      const isImg = isImage(abs);
+      const rawSpeed = Number(s.speed);
+      const speed = isImg ? 1 : (VALID_SCENE_SPEEDS.includes(rawSpeed) ? rawSpeed : 1);
+      let len = Math.min(Math.max(Number(s.length) || 2.5, 0.3), 30);
+      let _len = isImg ? len : (len / speed);
+      if (_len < 0.4) {
+        _len = 0.4;
+        len = isImg ? 0.4 : Math.max(0.3, 0.4 * speed);
+      } else if (_len > 15) {
+        _len = 15;
+        len = isImg ? 15 : Math.min(30, 15 * speed);
+      }
+      _len = isImg ? len : (len / speed);
       const start = Math.max(Number(s.start) || 0, 0);
       const fitMode = s.fitMode === 'blur' ? 'blur' : 'crop';
       const zoom = Math.max(1, Math.min(Number(s.zoom) || 1, 3));
       const panX = Math.max(0, Math.min(Number(s.panX) != null ? Number(s.panX) : 0.5, 1));
       const panY = Math.max(0, Math.min(Number(s.panY) != null ? Number(s.panY) : 0.5, 1));
 
-      rawTotal += len;
+      rawTotal += _len;
 
-      if (isImage(abs)) {
-        inputs.push('-loop', '1', '-framerate', String(FPS), '-t', String(len), '-i', abs);
+      if (isImg) {
+        inputs.push('-loop', '1', '-framerate', String(FPS), '-t', String(_len), '-i', abs);
       } else {
         inputs.push('-ss', String(start), '-t', String(len), '-i', abs);
       }
@@ -1293,17 +1312,17 @@ async function render({
         filters.push(`[${i}:v]split=2[in_bg_${i}][in_fg_${i}]`);
         filters.push(`[in_bg_${i}]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=22:5,eq=brightness=-0.15,setsar=1,fps=${FPS}[bg_${i}]`);
         filters.push(`[in_fg_${i}]scale=${W}:${H}:force_original_aspect_ratio=decrease,setsar=1,fps=${FPS}[fg_${i}]`);
-        const ptsFilter = isImage(abs) ? '' : 'setpts=PTS-STARTPTS,';
+        const ptsFilter = isImg ? '' : `setpts=(PTS-STARTPTS)/${speed},`;
         filters.push(`[bg_${i}][fg_${i}]overlay=(W-w)/2:(H-h)/2,${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
       } else {
         // Modo crop con zoom y encuadre interactivo panX / panY
         const scaledW = Math.round(W * zoom);
         const scaledH = Math.round(H * zoom);
-        const ptsFilter = isImage(abs) ? '' : 'setpts=PTS-STARTPTS,';
+        const ptsFilter = isImg ? '' : `setpts=(PTS-STARTPTS)/${speed},`;
         filters.push(`[${i}:v]scale=${scaledW}:${scaledH}:force_original_aspect_ratio=increase,crop=${W}:${H}:x='(in_w-${W})*${panX}':y='(in_h-${H})*${panY}',${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
       }
 
-      s._len = len;
+      s._len = _len;
     });
 
     let totalDuration = scenes[0]._len;
@@ -1726,6 +1745,7 @@ module.exports = {
   TEXT_EFFECTS_LOOP,
   TEXT_EFFECTS_OUT,
   SPEED_OPTIONS,
+  VALID_SCENE_SPEEDS,
   normalizeOverlay,
   getTiming,
   VALID_XFADE_TRANSITIONS,

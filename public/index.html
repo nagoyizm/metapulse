@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Caveat:wght@700&family=Cinzel:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@400;700&family=Montserrat:wght@500;700;800&family=Oswald:wght@600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@600;700;800&family=Righteous&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&family=Syne:wght@800&family=Titan+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.7">
+  <link rel="stylesheet" href="css/style.css?v=3.8">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
   <link rel="stylesheet" href="css/composer-steps.css?v=1">
@@ -1555,7 +1555,7 @@
                   </div>
                   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.8rem; cursor:pointer; margin:0; user-select:none;">
-                      <input type="checkbox" id="reel-auto-analyze" checked>
+                      <input type="checkbox" id="reel-auto-analyze">
                       <span>Analizar con IA al subir</span>
                     </label>
                     <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-analyze-all" title="Analiza todos los clips que aún no tienen análisis">Analizar todos con IA</button>
@@ -1586,6 +1586,7 @@
                 </div>
 
                 <!-- Lista de clips subidos -->
+                <small class="text-muted" style="display:block; margin-top:8px;">Usa ▲▼ para elegir el orden en que salen los clips. El recorte de cada video se hace en el paso siguiente (Cortes): pulsa «1 escena por video» y verás el recortador.</small>
                 <div id="reel-clips-list" style="margin-top:12px;"></div>
 
                 <!-- Panel Sugerencias de la IA -->
@@ -1620,6 +1621,23 @@
                   </div>
                   <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-add-scene">+ Agregar toma</button>
                 </div>
+
+                <!-- 1. Barra de todas las tomas (Timeline horizontal de la secuencia) -->
+                <div class="reel-timeline-editor" id="reel-timeline-editor">
+                  <div class="reel-timeline-header">
+                    <span style="font-size:0.75rem; font-weight:700; color:var(--text-secondary);">Línea de tiempo de tomas:</span>
+                    <span id="reel-timeline-summary" style="font-size:0.72rem; color:var(--text-muted);">Arrastra los bordes para recortar o los bloques para reordenar</span>
+                  </div>
+                  <div class="reel-track-wrap" id="reel-track-wrap">
+                    <div class="reel-track-bar" id="reel-track-bar">
+                      <div class="reel-track-playhead" id="reel-track-playhead" style="left: 0%;"></div>
+                    </div>
+                    <div class="reel-track-ruler" id="reel-track-ruler"></div>
+                  </div>
+                </div>
+
+                <!-- 2. Recortador de la toma seleccionada (Trimmer del clip original) -->
+                <div class="reel-trimmer-box" id="reel-trimmer-box" style="display:none;"></div>
 
                 <div id="reel-scenes-list"></div>
 
@@ -4384,7 +4402,7 @@
   <script src="js/composer.js?v=4.3"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
-  <script src="js/reelStudio.js?v=2.9"></script>
+  <script src="js/reelStudio.js?v=3.0"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>

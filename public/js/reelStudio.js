@@ -122,6 +122,27 @@
   const VALID_EFFECTS_LOOP = TEXT_EFFECTS_LOOP.map((e) => e.id);
   const VALID_EFFECTS_OUT = TEXT_EFFECTS_OUT.map((e) => e.id);
   const VALID_SPEEDS = ['fast', 'normal', 'slow'];
+  const SCENE_SPEED_OPTIONS = [
+    { value: 0.25, label: '0.25× cámara lenta' },
+    { value: 0.5, label: '0.5×' },
+    { value: 0.75, label: '0.75×' },
+    { value: 1, label: '1× normal' },
+    { value: 1.25, label: '1.25×' },
+    { value: 1.5, label: '1.5×' },
+    { value: 2, label: '2×' },
+    { value: 3, label: '3×' },
+    { value: 4, label: '4× rápido' }
+  ];
+  const VALID_SCENE_SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+
+  function outLen(sc) {
+    if (!sc) return 2.5;
+    const len = Math.min(30, Math.max(0.3, Number(sc.length) || 2.5));
+    if (sc.kind === 'imagen') return Math.min(15, Math.max(0.4, len));
+    const sp = VALID_SCENE_SPEEDS.includes(Number(sc.speed)) ? Number(sc.speed) : 1;
+    const dur = len / sp;
+    return Math.min(15, Math.max(0.4, dur));
+  }
 
   function normalizeOverlay(ov) {
     if (!ov || typeof ov !== 'object') return null;
@@ -246,7 +267,12 @@
         S.clips = data.clips;
       }
       if (Array.isArray(data.scenes) && data.scenes.length) {
-        S.scenes = data.scenes;
+        S.scenes = data.scenes.map((sc) => ({
+          ...sc,
+          start: Math.max(0, Number(sc.start) || 0),
+          length: Math.min(30, Math.max(0.3, Number(sc.length) || 2.5)),
+          speed: VALID_SCENE_SPEEDS.includes(Number(sc.speed)) ? Number(sc.speed) : 1
+        }));
       }
       if (Array.isArray(data.textOverlays) && data.textOverlays.length) {
         S.textOverlays = data.textOverlays.map(normalizeOverlay).filter(Boolean);
@@ -443,7 +469,20 @@
   }
 
   // ── Paso 2: Subida y Clips ──
-  async function analyzeSingleClip(i, force = false) {
+  // Cola global: una sola petición de análisis a la vez, venga de donde venga
+  let analyzeQueue = Promise.resolve();
+  function analyzeSingleClip(i, force = false) {
+    const clip = S.clips[i];
+    if (!clip) return Promise.resolve();
+    if (clip._analyzingState === 'analyzing' || clip._analyzingState === 'queued') return Promise.resolve();
+    clip._analyzingState = 'queued';
+    renderClips();
+    const run = () => (S.clips.includes(clip) ? analyzeClipNow(S.clips.indexOf(clip), force) : undefined);
+    analyzeQueue = analyzeQueue.then(run, run);
+    return analyzeQueue;
+  }
+
+  async function analyzeClipNow(i, force = false) {
     if (i < 0 || i >= S.clips.length) return;
     const clip = S.clips[i];
     clip._analyzingState = 'analyzing';
@@ -472,11 +511,23 @@
     }
   }
 
+  // Encola los clips; la cola global los procesa uno por uno
   async function analyzeClipsSequentially(indices) {
-    for (const idx of indices) {
-      if (idx >= S.clips.length) continue;
-      await analyzeSingleClip(idx, false);
-    }
+    const clips = indices.map((idx) => S.clips[idx]).filter(Boolean);
+    await Promise.all(clips.map((c) => analyzeSingleClip(S.clips.indexOf(c), false)));
+  }
+
+  // Reordenar clips; las tomas ya creadas siguen apuntando a su clip original
+  function moveClip(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= S.clips.length) return;
+    [S.clips[i], S.clips[j]] = [S.clips[j], S.clips[i]];
+    S.scenes.forEach((sc) => {
+      if (sc.clip === i) sc.clip = j;
+      else if (sc.clip === j) sc.clip = i;
+    });
+    renderClips();
+    saveState();
   }
 
   async function analyzeAllClips() {
@@ -642,7 +693,9 @@
       const hasAnalysis = Boolean(c.analysis);
 
       let statusBadge = '';
-      if (isAnalyzing) {
+      if (c._analyzingState === 'queued') {
+        statusBadge = '<span class="badge" style="background:#f1f5f9; color:#475569; font-size:0.7rem; font-weight:600;">En cola...</span>';
+      } else if (isAnalyzing) {
         statusBadge = '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.7rem; font-weight:600;">Analizando...</span>';
       } else if (isError) {
         statusBadge = `
@@ -678,7 +731,11 @@
                 </strong>
                 ${statusBadge}
               </div>
-              <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip">✕</button>
+              <div style="display:flex; gap:4px; flex-shrink:0;">
+                <button type="button" class="btn btn-secondary btn-xs reel-move-clip" data-dir="-1" title="Subir (sale antes en el reel)" ${i === 0 ? 'disabled' : ''}>▲</button>
+                <button type="button" class="btn btn-secondary btn-xs reel-move-clip" data-dir="1" title="Bajar (sale después en el reel)" ${i === S.clips.length - 1 ? 'disabled' : ''}>▼</button>
+                <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip">✕</button>
+              </div>
             </div>
 
             <textarea class="form-control form-control-sm reel-clip-desc-input" rows="2" style="font-size:0.75rem;" placeholder="¿Qué ocurre en este clip? (ej: cámara lenta abriendo el helado, se ve el relleno cremoso)">${esc(c.description)}</textarea>
@@ -748,6 +805,9 @@
         S.clips[i].description = e.target.value;
         saveState();
       });
+      el.querySelectorAll('.reel-move-clip').forEach((btn) => {
+        btn.addEventListener('click', () => moveClip(i, +btn.dataset.dir));
+      });
       el.querySelector('.reel-del-clip')?.addEventListener('click', () => {
         S.clips.splice(i, 1);
         renderClips();
@@ -801,6 +861,7 @@
           kind: clip.kind,
           start: Math.round(start * 10) / 10,
           length,
+          speed: 1,
           fitMode: framing.fitMode === 'blur' ? 'blur' : 'crop',
           zoom: typeof framing.zoom === 'number' ? framing.zoom : 1.0,
           panX: typeof framing.panX === 'number' ? framing.panX : 0.5,
@@ -942,7 +1003,7 @@
             saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
 
-            const autoAnalyze = $('reel-auto-analyze')?.checked ?? (localStorage.getItem('reel_auto_analyze') !== 'false');
+            const autoAnalyze = $('reel-auto-analyze')?.checked ?? false;
             if (autoAnalyze && addedIndices.length > 0) {
               analyzeClipsSequentially(addedIndices);
             }
@@ -1006,6 +1067,7 @@
         kind: sc.kind,
         start: Number(sc.start) || 0,
         length: Number(sc.length) || 2.5,
+        speed: VALID_SCENE_SPEEDS.includes(Number(sc.speed)) ? Number(sc.speed) : 1,
         fitMode: sc.fitMode || 'crop',
         zoom: sc.zoom || 1.0,
         panX: sc.panX != null ? sc.panX : 0.5,
@@ -1063,6 +1125,7 @@
       kind: c.kind,
       start: 0,
       length: c.duration ? Math.min(c.duration, 4) : 3,
+      speed: 1,
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -1115,7 +1178,7 @@
     }
 
     const items = [];
-    const len0 = Math.min(Math.max(Number(S.scenes[0].length) || 2.5, 0.8), 8);
+    const len0 = outLen(S.scenes[0]);
 
     if (S.scenes.length === 1) {
       items.push({
@@ -1137,7 +1200,7 @@
     if (!hasXfade) {
       let currentOffset = 0;
       for (let i = 0; i < S.scenes.length; i++) {
-        const len = Math.min(Math.max(Number(S.scenes[i].length) || 2.5, 0.8), 8);
+        const len = outLen(S.scenes[i]);
         items.push({
           idx: i,
           startAt: currentOffset,
@@ -1162,7 +1225,7 @@
     let currentDur = len0;
     for (let i = 0; i < S.scenes.length - 1; i++) {
       const nextIdx = i + 1;
-      const nextLen = Math.min(Math.max(Number(S.scenes[nextIdx].length) || 2.5, 0.8), 8);
+      const nextLen = outLen(S.scenes[nextIdx]);
       const rawTr = S.scenes[nextIdx].transition || 'zoomin';
       const isNone = (rawTr === 'none');
       const tr = isNone ? 'none' : (VALID_XFADE_LIST.includes(rawTr) ? rawTr : 'zoomin');
@@ -1185,6 +1248,755 @@
 
   function totalSeconds() {
     return buildTimeline().total;
+  }
+
+  let trimPlayTimer = null;
+  const clipThumbCache = new Map();
+
+  function loadClipThumbnails(url, duration, callback) {
+    if (!url) return;
+    if (clipThumbCache.has(url)) {
+      callback(clipThumbCache.get(url));
+      return;
+    }
+
+    const count = 9;
+    const dur = Math.max(1, Number(duration) || 10);
+    const step = dur / count;
+    const thumbs = [];
+
+    const v = document.createElement('video');
+    v.crossOrigin = 'anonymous';
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    v.src = url;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 80;
+    canvas.height = 45;
+    const ctx = canvas.getContext('2d');
+
+    let currentIdx = 0;
+
+    function seekNext() {
+      if (currentIdx >= count) {
+        clipThumbCache.set(url, thumbs);
+        v.src = '';
+        v.load();
+        callback(thumbs);
+        return;
+      }
+      const targetTime = Math.min(dur - 0.05, Math.max(0.05, currentIdx * step + step / 2));
+      v.currentTime = targetTime;
+    }
+
+    v.addEventListener('seeked', () => {
+      try {
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        thumbs.push(canvas.toDataURL('image/jpeg', 0.6));
+      } catch (_) {
+        thumbs.push('');
+      }
+      currentIdx++;
+      seekNext();
+    });
+
+    v.addEventListener('loadedmetadata', () => {
+      seekNext();
+    });
+
+    v.addEventListener('error', () => {
+      const placeholders = new Array(count).fill('');
+      clipThumbCache.set(url, placeholders);
+      callback(placeholders);
+    });
+  }
+
+  function updateTrimmerPlayhead(currentTime) {
+    const playhead = $('reel-trim-playhead');
+    if (!playhead) return;
+    const sc = S.scenes[S.activeSceneIdx];
+    if (!sc || sc.kind === 'imagen') {
+      playhead.style.display = 'none';
+      return;
+    }
+    const clip = S.clips[sc.clip] || { duration: 10 };
+    const clipDur = clip.duration && clip.duration > 0 ? clip.duration : Math.max(10, (sc.start || 0) + (sc.length || 2.5) + 5);
+    const pct = Math.max(0, Math.min(100, (currentTime / clipDur) * 100));
+    playhead.style.left = `${pct}%`;
+    playhead.style.display = 'block';
+  }
+
+  function updateTrimmerElements(clipDur) {
+    const sc = S.scenes[S.activeSceneIdx];
+    if (!sc) return;
+
+    const start = sc.start || 0;
+    const length = sc.length || 2.5;
+    const end = start + length;
+
+    const startPct = Math.max(0, Math.min(100, (start / clipDur) * 100));
+    const endPct = Math.max(0, Math.min(100, (end / clipDur) * 100));
+    const widthPct = Math.max(0, endPct - startPct);
+
+    const maskLeft = $('reel-trim-mask-left');
+    const maskRight = $('reel-trim-mask-right');
+    const region = $('reel-trim-region');
+    const handleStart = $('reel-trim-handle-start');
+    const handleEnd = $('reel-trim-handle-end');
+
+    if (maskLeft) maskLeft.style.width = `${startPct}%`;
+    if (maskRight) {
+      maskRight.style.left = `${endPct}%`;
+      maskRight.style.width = `${Math.max(0, 100 - endPct)}%`;
+    }
+    if (region) {
+      region.style.left = `${startPct}%`;
+      region.style.width = `${widthPct}%`;
+    }
+    if (handleStart) handleStart.style.left = `${startPct}%`;
+    if (handleEnd) handleEnd.style.left = `${endPct}%`;
+
+    const inpStart = $('reel-trim-start');
+    const inpLength = $('reel-trim-length');
+    const inpEnd = $('reel-trim-end');
+    if (inpStart && document.activeElement !== inpStart) inpStart.value = start.toFixed(1);
+    if (inpLength && document.activeElement !== inpLength) inpLength.value = length.toFixed(1);
+    if (inpEnd && document.activeElement !== inpEnd) inpEnd.value = end.toFixed(1);
+
+    const calcBadge = $('reel-trim-calc-badge');
+    if (calcBadge) {
+      calcBadge.textContent = `${outLen(sc).toFixed(1)}s en el reel final (a ${sc.speed || 1}×)`;
+    }
+  }
+
+  function renderTrimmer() {
+    const box = $('reel-trimmer-box');
+    if (!box) return;
+
+    if (S.activeSceneIdx < 0 || S.activeSceneIdx >= S.scenes.length || !S.scenes.length) {
+      box.innerHTML = '';
+      box.style.display = 'none';
+      return;
+    }
+
+    const sc = S.scenes[S.activeSceneIdx];
+    if (!sc) {
+      box.innerHTML = '';
+      box.style.display = 'none';
+      return;
+    }
+
+    box.style.display = 'block';
+
+    if (sc.kind === 'imagen') {
+      box.innerHTML = `
+        <div class="reel-trimmer-img-notice">
+          <strong>Toma ${S.activeSceneIdx + 1} (Foto fija)</strong> — Ajusta la duración y el encuadre 9:16 en la tarjeta de arriba.
+        </div>
+      `;
+      return;
+    }
+
+    const clip = S.clips[sc.clip] || { duration: 10, url: sc.url };
+    const clipDur = clip.duration && clip.duration > 0 ? clip.duration : Math.max(10, (sc.start || 0) + (sc.length || 2.5) + 5);
+    const start = sc.start || 0;
+    const length = sc.length || 2.5;
+    const end = Math.round((start + length) * 10) / 10;
+    const sp = sc.speed || 1;
+
+    box.innerHTML = `
+      <div class="reel-trimmer-header">
+        <div class="reel-trimmer-title">
+          <strong>Recorte de Toma ${S.activeSceneIdx + 1}</strong>
+          <span class="badge" style="background:var(--bg-surface-subtle); font-size:0.72rem; margin-left:6px;">Clip original: ${clipDur.toFixed(1)}s</span>
+        </div>
+        <div class="reel-trimmer-calc-badge" id="reel-trim-calc-badge">
+          ${outLen(sc).toFixed(1)}s en el reel final (a ${sp}×)
+        </div>
+      </div>
+
+      <div class="reel-trimmer-filmstrip-wrap" id="reel-trim-filmstrip-wrap">
+        <div class="reel-trimmer-filmstrip" id="reel-trimmer-filmstrip">
+          <div class="reel-trimmer-thumb-placeholder"></div>
+        </div>
+        <div class="reel-trimmer-mask-left" id="reel-trim-mask-left"></div>
+        <div class="reel-trimmer-mask-right" id="reel-trim-mask-right"></div>
+        <div class="reel-trimmer-region" id="reel-trim-region" title="Arrastrar para mover tramo"></div>
+        <div class="reel-trimmer-handle-start" id="reel-trim-handle-start" title="Arrastrar para ajustar inicio"></div>
+        <div class="reel-trimmer-handle-end" id="reel-trim-handle-end" title="Arrastrar para ajustar fin"></div>
+        <div class="reel-trimmer-playhead" id="reel-trim-playhead"></div>
+      </div>
+
+      <div class="reel-trimmer-controls">
+        <div class="reel-trimmer-inputs-row">
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Inicio en video (s)</label>
+            <input type="number" class="form-control form-control-sm" id="reel-trim-start" step="0.1" min="0" max="${Math.max(0, clipDur - 0.3).toFixed(1)}" value="${start.toFixed(1)}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Duración toma (s)</label>
+            <input type="number" class="form-control form-control-sm" id="reel-trim-length" step="0.1" min="0.3" max="30" value="${length.toFixed(1)}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Fin en video (s)</label>
+            <input type="number" class="form-control form-control-sm" id="reel-trim-end" step="0.1" min="0.3" max="${clipDur.toFixed(1)}" value="${end.toFixed(1)}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Velocidad toma</label>
+            <select class="form-control form-control-sm" id="reel-trim-speed">
+              ${SCENE_SPEED_OPTIONS.map((opt) => `<option value="${opt.value}" ${opt.value === sp ? 'selected' : ''}>${opt.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="reel-trimmer-help-text">
+          Corte original: 0.3 a 30 s · Duración resultante: 0.4 a 15 s
+        </div>
+
+        <div class="reel-trimmer-buttons-row">
+          <button type="button" class="btn btn-primary btn-xs" id="btn-trim-play">Reproducir tramo</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-trim-mark-start">Marcar inicio aquí</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-trim-mark-end">Marcar fin aquí</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-trim-split">Dividir aquí</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-trim-duplicate">Duplicar toma</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-trim-delete" style="color:var(--danger, #ef4444);">Quitar este tramo</button>
+        </div>
+      </div>
+    `;
+
+    const filmstrip = $('reel-trimmer-filmstrip');
+    loadClipThumbnails(sc.url, clipDur, (thumbs) => {
+      if (!filmstrip || S.activeSceneIdx !== S.scenes.indexOf(sc)) return;
+      filmstrip.innerHTML = thumbs.map((src) => {
+        if (!src) return '<div class="reel-trimmer-thumb-placeholder"></div>';
+        return `<img src="${src}" class="reel-trimmer-thumb" alt="thumb">`;
+      }).join('');
+    });
+
+    updateTrimmerElements(clipDur);
+    const vpVideo = $('reel-vp-video');
+    if (vpVideo) updateTrimmerPlayhead(vpVideo.currentTime);
+
+    const wrap = $('reel-trim-filmstrip-wrap');
+    const handleStart = $('reel-trim-handle-start');
+    const handleEnd = $('reel-trim-handle-end');
+    const region = $('reel-trim-region');
+
+    wrap?.addEventListener('click', (e) => {
+      if (e.target === handleStart || e.target === handleEnd || e.target === region) return;
+      const rect = wrap.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const seekTime = pct * clipDur;
+      if (vpVideo) {
+        vpVideo.currentTime = seekTime;
+        updateTrimmerPlayhead(seekTime);
+      }
+    });
+
+    handleStart?.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const initStart = sc.start || 0;
+      const initLength = sc.length || 2.5;
+      const initEnd = initStart + initLength;
+      const wrapWidth = wrap.getBoundingClientRect().width || 1;
+      const curSp = sc.speed || 1;
+
+      function onMove(ev) {
+        const deltaX = ev.clientX - startX;
+        const deltaSec = (deltaX / wrapWidth) * clipDur;
+        let newStart = Math.max(0, initStart + deltaSec);
+        let newLength = initEnd - newStart;
+
+        newLength = Math.max(0.3, Math.min(30, newLength));
+        if (newLength / curSp < 0.4) newLength = 0.4 * curSp;
+        if (newLength / curSp > 15) newLength = 15 * curSp;
+        newStart = Math.max(0, initEnd - newLength);
+
+        sc.start = Math.round(newStart * 10) / 10;
+        sc.length = Math.round(newLength * 10) / 10;
+
+        updateTrimmerElements(clipDur);
+        if (vpVideo) {
+          vpVideo.currentTime = sc.start;
+          updateTrimmerPlayhead(sc.start);
+        }
+      }
+
+      function onUp() {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        saveState();
+        renderScenes();
+        renderTrack();
+      }
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    handleEnd?.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const initLength = sc.length || 2.5;
+      const wrapWidth = wrap.getBoundingClientRect().width || 1;
+      const curSp = sc.speed || 1;
+
+      function onMove(ev) {
+        const deltaX = ev.clientX - startX;
+        const deltaSec = (deltaX / wrapWidth) * clipDur;
+        let newLength = initLength + deltaSec;
+
+        newLength = Math.max(0.3, Math.min(30, newLength));
+        if (newLength / curSp < 0.4) newLength = 0.4 * curSp;
+        if (newLength / curSp > 15) newLength = 15 * curSp;
+        if ((sc.start || 0) + newLength > clipDur) newLength = clipDur - (sc.start || 0);
+
+        sc.length = Math.max(0.3, Math.round(newLength * 10) / 10);
+
+        updateTrimmerElements(clipDur);
+        if (vpVideo) {
+          vpVideo.currentTime = (sc.start || 0) + sc.length;
+          updateTrimmerPlayhead((sc.start || 0) + sc.length);
+        }
+      }
+
+      function onUp() {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        saveState();
+        renderScenes();
+        renderTrack();
+      }
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    region?.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const initStart = sc.start || 0;
+      const curLen = sc.length || 2.5;
+      const wrapWidth = wrap.getBoundingClientRect().width || 1;
+
+      function onMove(ev) {
+        const deltaX = ev.clientX - startX;
+        const deltaSec = (deltaX / wrapWidth) * clipDur;
+        let newStart = initStart + deltaSec;
+        newStart = Math.max(0, Math.min(clipDur - curLen, newStart));
+
+        sc.start = Math.round(newStart * 10) / 10;
+
+        updateTrimmerElements(clipDur);
+        if (vpVideo) {
+          vpVideo.currentTime = sc.start;
+          updateTrimmerPlayhead(sc.start);
+        }
+      }
+
+      function onUp() {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        saveState();
+        renderScenes();
+        renderTrack();
+      }
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    $('reel-trim-start')?.addEventListener('change', (e) => {
+      let val = Number(e.target.value) || 0;
+      val = Math.max(0, Math.min(clipDur - 0.3, val));
+      const endVal = (sc.start || 0) + (sc.length || 2.5);
+      if (val >= endVal - 0.3) val = Math.max(0, endVal - 0.3);
+      sc.start = Math.round(val * 10) / 10;
+      sc.length = Math.max(0.3, Math.min(30, Math.round((endVal - sc.start) * 10) / 10));
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+    });
+
+    $('reel-trim-length')?.addEventListener('change', (e) => {
+      let val = Number(e.target.value) || 2.5;
+      val = Math.max(0.3, Math.min(30, val));
+      const curSp = sc.speed || 1;
+      if (val / curSp < 0.4) val = 0.4 * curSp;
+      if (val / curSp > 15) val = 15 * curSp;
+      if ((sc.start || 0) + val > clipDur) val = clipDur - (sc.start || 0);
+      sc.length = Math.max(0.3, Math.round(val * 10) / 10);
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+    });
+
+    $('reel-trim-end')?.addEventListener('change', (e) => {
+      let endVal = Number(e.target.value) || ((sc.start || 0) + (sc.length || 2.5));
+      endVal = Math.max((sc.start || 0) + 0.3, Math.min(clipDur, endVal));
+      let len = endVal - (sc.start || 0);
+      const curSp = sc.speed || 1;
+      if (len / curSp > 15) len = 15 * curSp;
+      sc.length = Math.max(0.3, Math.min(30, Math.round(len * 10) / 10));
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+    });
+
+    $('reel-trim-speed')?.addEventListener('change', (e) => {
+      sc.speed = Number(e.target.value) || 1;
+      const curSp = sc.speed;
+      let len = sc.length || 2.5;
+      if (len / curSp < 0.4) len = 0.4 * curSp;
+      if (len / curSp > 15) len = 15 * curSp;
+      sc.length = Math.round(len * 10) / 10;
+      if (vpVideo) vpVideo.playbackRate = curSp;
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+    });
+
+    $('btn-trim-play')?.addEventListener('click', () => {
+      if (!vpVideo) return;
+      if (trimPlayTimer) {
+        clearInterval(trimPlayTimer);
+        trimPlayTimer = null;
+      }
+      vpVideo.currentTime = sc.start || 0;
+      vpVideo.playbackRate = sc.speed || 1;
+      vpVideo.play().then(() => updatePlayBtn(true)).catch(() => {});
+      const stopAt = (sc.start || 0) + (sc.length || 2.5);
+      trimPlayTimer = setInterval(() => {
+        if (!vpVideo || vpVideo.paused || vpVideo.currentTime >= stopAt) {
+          if (vpVideo) vpVideo.pause();
+          clearInterval(trimPlayTimer);
+          trimPlayTimer = null;
+          updatePlayBtn(false);
+        }
+      }, 40);
+    });
+
+    $('btn-trim-mark-start')?.addEventListener('click', () => {
+      if (!vpVideo) return;
+      const cur = vpVideo.currentTime;
+      const curEnd = (sc.start || 0) + (sc.length || 2.5);
+      const newStart = Math.round(cur * 10) / 10;
+      if (newStart >= curEnd - 0.3) {
+        return toast('El inicio debe ser anterior al fin de la toma.', 'warning');
+      }
+      sc.start = newStart;
+      sc.length = Math.max(0.3, Math.min(30, Math.round((curEnd - newStart) * 10) / 10));
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+      toast(`Inicio fijado en ${newStart.toFixed(1)}s`, 'info');
+    });
+
+    $('btn-trim-mark-end')?.addEventListener('click', () => {
+      if (!vpVideo) return;
+      const cur = vpVideo.currentTime;
+      const newEnd = Math.round(cur * 10) / 10;
+      if (newEnd <= (sc.start || 0) + 0.3) {
+        return toast('El fin debe ser posterior al inicio de la toma.', 'warning');
+      }
+      sc.length = Math.max(0.3, Math.min(30, Math.round((newEnd - (sc.start || 0)) * 10) / 10));
+      saveState();
+      renderScenes();
+      renderTrack();
+      renderTrimmer();
+      toast(`Fin fijado en ${newEnd.toFixed(1)}s`, 'info');
+    });
+
+    $('btn-trim-split')?.addEventListener('click', () => {
+      const cur = vpVideo ? vpVideo.currentTime : ((sc.start || 0) + (sc.length || 2.5) / 2);
+      const splitAt = Math.round(cur * 10) / 10;
+      const startVal = sc.start || 0;
+      const endVal = startVal + (sc.length || 2.5);
+
+      if (splitAt <= startVal + 0.3 || splitAt >= endVal - 0.3) {
+        return toast('Ubica el cursor al menos a 0.3s del inicio y del fin para dividir.', 'warning');
+      }
+
+      const len1 = Math.round((splitAt - startVal) * 10) / 10;
+      const len2 = Math.round((endVal - splitAt) * 10) / 10;
+
+      sc.length = len1;
+      const newScene = {
+        ...sc,
+        start: splitAt,
+        length: len2,
+        transition: 'none'
+      };
+      S.scenes.splice(S.activeSceneIdx + 1, 0, newScene);
+      saveState();
+      renderScenes();
+      selectSceneForFrame(S.activeSceneIdx + 1);
+      toast('Toma dividida en 2 tomas.', 'success');
+    });
+
+    $('btn-trim-duplicate')?.addEventListener('click', () => {
+      const dup = JSON.parse(JSON.stringify(sc));
+      S.scenes.splice(S.activeSceneIdx + 1, 0, dup);
+      saveState();
+      renderScenes();
+      selectSceneForFrame(S.activeSceneIdx + 1);
+      toast('Toma duplicada.', 'success');
+    });
+
+    $('btn-trim-delete')?.addEventListener('click', () => {
+      const curIdx = S.activeSceneIdx;
+      S.scenes.splice(curIdx, 1);
+      renderScenes();
+      if (S.scenes.length) {
+        selectSceneForFrame(Math.min(curIdx, S.scenes.length - 1));
+      } else {
+        renderTrack();
+        renderTrimmer();
+      }
+      saveState();
+      toast('Toma eliminada.', 'info');
+    });
+  }
+
+  function renderTrack() {
+    const bar = $('reel-track-bar');
+    const ruler = $('reel-track-ruler');
+    const playhead = $('reel-track-playhead');
+    if (!bar) return;
+
+    if (!S.scenes.length) {
+      bar.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:var(--text-muted); font-size:0.75rem;">Sin tomas configuradas</div>';
+      if (ruler) ruler.innerHTML = '';
+      if (playhead) playhead.style.display = 'none';
+      return;
+    }
+
+    if (playhead) playhead.style.display = 'block';
+
+    const tl = buildTimeline();
+    const totalDur = tl.total || 1;
+
+    bar.innerHTML = S.scenes.map((s, i) => {
+      const dur = outLen(s);
+      const pct = (dur / totalDur) * 100;
+      const isActive = i === S.activeSceneIdx;
+      const spBadge = s.speed && s.speed !== 1 ? `<span class="reel-track-speed-badge">×${s.speed}</span>` : '';
+      const notch = i < S.scenes.length - 1 ? '<div class="reel-track-notch" title="Corte"></div>' : '';
+
+      return `
+        <div class="reel-track-block ${isActive ? 'active' : ''}" data-i="${i}" style="width: ${pct.toFixed(2)}%;" draggable="true">
+          <div class="reel-track-block-label">
+            <strong>Toma ${i + 1}</strong>
+            ${spBadge}
+            <span class="reel-track-dur-label">${dur.toFixed(1)}s</span>
+          </div>
+          ${notch}
+          <div class="reel-track-resize-handle" title="Arrastrar para ajustar duración"></div>
+        </div>
+      `;
+    }).join('');
+
+    if (ruler) {
+      ruler.innerHTML = '';
+      const stepSec = totalDur > 20 ? 5 : totalDur > 8 ? 2 : 1;
+      for (let sec = 0; sec <= totalDur; sec += stepSec) {
+        const tick = document.createElement('div');
+        tick.className = 'reel-track-ruler-tick';
+        tick.style.left = `${(sec / totalDur) * 100}%`;
+        tick.textContent = `${sec}s`;
+        ruler.appendChild(tick);
+      }
+    }
+
+    const blocks = bar.querySelectorAll('.reel-track-block');
+    blocks.forEach((block) => {
+      const i = +block.dataset.i;
+
+      block.addEventListener('click', (e) => {
+        if (e.target.classList.contains('reel-track-resize-handle')) return;
+        selectSceneForFrame(i);
+      });
+
+      block.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', String(i));
+        block.classList.add('dragging');
+      });
+
+      block.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        block.classList.add('drag-over');
+      });
+
+      block.addEventListener('dragleave', () => {
+        block.classList.remove('drag-over');
+      });
+
+      block.addEventListener('drop', (e) => {
+        e.preventDefault();
+        block.classList.remove('drag-over');
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+        if (!isNaN(fromIdx) && fromIdx !== i) {
+          const [moved] = S.scenes.splice(fromIdx, 1);
+          S.scenes.splice(i, 0, moved);
+          S.activeSceneIdx = i;
+          saveState();
+          renderScenes();
+          selectSceneForFrame(i);
+        }
+      });
+
+      block.addEventListener('dragend', () => {
+        block.classList.remove('dragging');
+      });
+
+      const handle = block.querySelector('.reel-track-resize-handle');
+      if (handle) {
+        handle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const sc = S.scenes[i];
+          if (!sc) return;
+
+          const startX = e.clientX;
+          const startLength = Number(sc.length) || 2.5;
+          const barWidth = bar.getBoundingClientRect().width || 1;
+          const sp = sc.speed || 1;
+
+          function onMouseMove(ev) {
+            const deltaX = ev.clientX - startX;
+            const deltaOutSec = (deltaX / barWidth) * totalDur;
+            const deltaLength = deltaOutSec * sp;
+            let newLength = Math.round((startLength + deltaLength) * 10) / 10;
+
+            newLength = Math.max(0.3, Math.min(30, newLength));
+            if (sc.kind !== 'imagen') {
+              if (newLength / sp < 0.4) newLength = Math.round(0.4 * sp * 10) / 10;
+              if (newLength / sp > 15) newLength = Math.round(15 * sp * 10) / 10;
+            } else {
+              newLength = Math.max(0.4, Math.min(15, newLength));
+            }
+
+            sc.length = newLength;
+
+            const durLabel = block.querySelector('.reel-track-dur-label');
+            if (durLabel) durLabel.textContent = `${outLen(sc).toFixed(1)}s`;
+
+            const tlNow = buildTimeline();
+            const totalEl = $('reel-total-dur');
+            if (totalEl) totalEl.textContent = `${tlNow.total.toFixed(1)} s`;
+            const textTot = $('reel-text-total-dur');
+            if (textTot) textTot.textContent = `${tlNow.total.toFixed(1)} s`;
+          }
+
+          function onMouseUp() {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            saveState();
+            renderScenes();
+            selectSceneForFrame(i);
+          }
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        });
+      }
+    });
+
+    if (ruler) {
+      ruler.onclick = (e) => {
+        const rect = ruler.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const targetSec = pct * totalDur;
+        if (seqPlaying) stopSequence(false);
+        showStaticFrameAtTime(targetSec);
+      };
+    }
+  }
+
+  function updateLiveMediaTransform(sc) {
+    if (!sc) return;
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const el = sc.kind === 'imagen' ? vpImg : vpVideo;
+    if (el) applySceneFrame(sc, el);
+  }
+
+  function selectSceneForFrame(idx) {
+    if (idx < 0 || idx >= S.scenes.length) return;
+    S.activeSceneIdx = idx;
+    const sc = S.scenes[idx];
+
+    document.querySelectorAll('.reel-scene-card').forEach((card) => {
+      card.classList.toggle('selected-for-frame', +card.dataset.i === idx);
+    });
+
+    document.querySelectorAll('.reel-track-block').forEach((block) => {
+      block.classList.toggle('active', +block.dataset.i === idx);
+    });
+
+    const modeSel = $('reel-frame-mode');
+    const zoomSlider = $('reel-frame-zoom');
+    const zoomVal = $('reel-zoom-val');
+    const cropBox = $('reel-crop-controls');
+
+    if (modeSel) modeSel.value = sc.fitMode || 'crop';
+    if (zoomSlider) zoomSlider.value = sc.zoom || 1.0;
+    if (zoomVal) zoomVal.textContent = `${(sc.zoom || 1.0).toFixed(2)}x`;
+    if (cropBox) cropBox.style.display = sc.fitMode === 'blur' ? 'none' : 'block';
+
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const placeholder = $('reel-vp-placeholder');
+    const finalPlayer = $('reel-final-player');
+    const badge = $('reel-active-scene-badge');
+
+    if (finalPlayer) finalPlayer.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'none';
+    if (badge) badge.textContent = `Toma ${idx + 1}`;
+
+    if (sc.kind === 'imagen') {
+      if (vpVideo) {
+        vpVideo.pause();
+        vpVideo.style.display = 'none';
+      }
+      if (vpImg) {
+        vpImg.src = sc.url;
+        vpImg.style.display = 'block';
+        updateLiveMediaTransform(sc);
+      }
+      updatePlayBtn(false);
+    } else {
+      if (vpImg) vpImg.style.display = 'none';
+      if (vpVideo) {
+        const seekTime = Number(sc.start) || 0;
+        const currentSrc = vpVideo.src ? vpVideo.src.split('#')[0] : '';
+        const targetSrc = sc.url.split('#')[0];
+        if (currentSrc !== targetSrc) {
+          vpVideo.src = sc.url;
+        }
+        vpVideo.style.display = 'block';
+        vpVideo.playbackRate = sc.speed || 1;
+        vpVideo.muted = isMuted;
+        vpVideo.currentTime = seekTime;
+        updateLiveMediaTransform(sc);
+        vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
+      }
+    }
+
+    renderTrimmer();
   }
 
   function renderScenes() {
@@ -1217,6 +2029,8 @@
 
     if (!S.scenes.length) {
       list.innerHTML = '<div class="reel-empty">No hay tomas de video armadas aún.</div>';
+      renderTrack();
+      renderTrimmer();
       return;
     }
 
@@ -1238,7 +2052,7 @@
         <div class="reel-scene-header">
           <div>
             <strong style="font-size:0.84rem;">Toma ${i + 1}</strong>
-            <span class="badge" style="font-size:0.68rem; margin-left:6px; background:var(--bg-surface-subtle);">${s.length}s</span>
+            <span class="badge" style="font-size:0.68rem; margin-left:6px; background:var(--bg-surface-subtle);">${s.length}s${s.speed && s.speed !== 1 ? ` (${outLen(s).toFixed(1)}s en reel)` : ''}</span>
           </div>
           <div style="display:flex; gap:4px; align-items:center;">
             <button type="button" class="btn btn-secondary btn-xs reel-act-frame" style="font-weight:600;">Encuadrar en 9:16</button>
@@ -1259,7 +2073,13 @@
           </div>
           <div>
             <label style="font-size:0.72rem; font-weight:600;">Duración toma (s)</label>
-            <input type="number" class="form-control form-control-sm reel-scene-length" step="0.1" min="0.8" max="8" value="${s.length}">
+            <input type="number" class="form-control form-control-sm reel-scene-length" step="0.1" min="0.3" max="30" value="${s.length}">
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Velocidad</label>
+            <select class="form-control form-control-sm reel-scene-speed" ${s.kind === 'imagen' ? 'disabled' : ''}>
+              ${SCENE_SPEED_OPTIONS.map((opt) => `<option value="${opt.value}" ${opt.value === (s.speed || 1) ? 'selected' : ''}>${opt.label}</option>`).join('')}
+            </select>
           </div>
           <div>
             <label style="font-size:0.72rem; font-weight:600;">Transición siguiente</label>
@@ -1295,7 +2115,28 @@
         saveState();
       });
       card.querySelector('.reel-scene-length')?.addEventListener('change', (e) => {
-        S.scenes[i].length = Math.min(Math.max(Number(e.target.value) || 2.5, 0.8), 8);
+        let val = Number(e.target.value) || 2.5;
+        val = Math.max(0.3, Math.min(30, val));
+        const sp = S.scenes[i].speed || 1;
+        if (S.scenes[i].kind !== 'imagen') {
+          if (val / sp < 0.4) val = Math.round(0.4 * sp * 10) / 10;
+          if (val / sp > 15) val = Math.round(15 * sp * 10) / 10;
+        } else {
+          val = Math.max(0.4, Math.min(15, val));
+        }
+        S.scenes[i].length = Math.round(val * 10) / 10;
+        renderScenes();
+        renderTextOverlays();
+        renderVoiceSegments();
+        saveState();
+      });
+      card.querySelector('.reel-scene-speed')?.addEventListener('change', (e) => {
+        S.scenes[i].speed = Number(e.target.value) || 1;
+        const sp = S.scenes[i].speed;
+        let val = S.scenes[i].length || 2.5;
+        if (val / sp < 0.4) val = Math.round(0.4 * sp * 10) / 10;
+        if (val / sp > 15) val = Math.round(15 * sp * 10) / 10;
+        S.scenes[i].length = Math.round(val * 10) / 10;
         renderScenes();
         renderTextOverlays();
         renderVoiceSegments();
@@ -1327,10 +2168,18 @@
       card.querySelector('.reel-act-del')?.addEventListener('click', () => {
         S.scenes.splice(i, 1);
         renderScenes();
-        if (S.scenes.length) selectSceneForFrame(Math.min(i, S.scenes.length - 1));
+        if (S.scenes.length) {
+          selectSceneForFrame(Math.min(i, S.scenes.length - 1));
+        } else {
+          renderTrack();
+          renderTrimmer();
+        }
         saveState();
       });
     });
+
+    renderTrack();
+    renderTrimmer();
 
     if (S.scenes.length > 0 && (S.activeSceneIdx < 0 || S.activeSceneIdx >= S.scenes.length)) {
       selectSceneForFrame(0);
@@ -1347,6 +2196,7 @@
       kind: c.kind,
       start: 0,
       length: 2.5,
+      speed: 1,
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -1684,19 +2534,25 @@
       const it = tl.items[i];
       if (t >= it.startAt) {
         const sc = S.scenes[it.idx];
+        const sp = (sc && sc.speed) ? Number(sc.speed) : 1;
+        const offsetOut = Math.max(0, t - it.startAt);
+        const offsetInScene = offsetOut * sp;
         return {
           sceneIdx: it.idx,
           scene: sc,
-          offsetInScene: Math.max(0, t - it.startAt),
+          offsetInScene,
+          offsetOut,
           item: it
         };
       }
     }
     const first = tl.items[0];
+    const scFirst = S.scenes[first.idx];
     return {
       sceneIdx: first.idx,
-      scene: S.scenes[first.idx],
+      scene: scFirst,
       offsetInScene: 0,
+      offsetOut: 0,
       item: first
     };
   }
@@ -1865,6 +2721,7 @@
           const seekTime = (sc.start || 0) + (found.offsetInScene || 0);
           vpVideo.src = sc.url + `#t=${seekTime}`;
           vpVideo.style.display = 'block';
+          vpVideo.playbackRate = sc.speed || 1;
           vpVideo.currentTime = seekTime;
           vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
         }
@@ -2134,6 +2991,11 @@
     if (progressEl) progressEl.value = t.toFixed(2);
     updateSeqTimeLabel(t, tl.total);
 
+    const trackPlayhead = $('reel-track-playhead');
+    if (trackPlayhead && tl.total > 0) {
+      trackPlayhead.style.left = `${(t / tl.total) * 100}%`;
+    }
+
     // 1. Toma activa
     let activeItem = tl.items[0];
     for (let i = 0; i < tl.items.length; i++) {
@@ -2149,6 +3011,7 @@
     const wrap = $('reel-vp-media-wrap');
     const flashEl = $('reel-vp-flash');
     const sc = S.scenes[activeItem.idx];
+    const sp = (sc && sc.speed) ? Number(sc.speed) : 1;
 
     if (activeItem.idx !== seqActiveSceneIdx) {
       seqActiveSceneIdx = activeItem.idx;
@@ -2171,8 +3034,9 @@
         if (vpVideo) {
           vpVideo.src = sc.url;
           vpVideo.style.display = 'block';
+          vpVideo.playbackRate = sp;
           applySceneFrame(sc, vpVideo);
-          const vTime = (sc.start || 0) + (t - activeItem.startAt);
+          const vTime = (sc.start || 0) + (t - activeItem.startAt) * sp;
           vpVideo.currentTime = Math.max(0, vTime);
           vpVideo.muted = isMuted;
           vpVideo.play().catch(() => {});
@@ -2202,7 +3066,8 @@
       }
     } else {
       if (sc && sc.kind !== 'imagen' && vpVideo && !vpVideo.paused) {
-        const expectedTime = (sc.start || 0) + (t - activeItem.startAt);
+        if (vpVideo.playbackRate !== sp) vpVideo.playbackRate = sp;
+        const expectedTime = (sc.start || 0) + (t - activeItem.startAt) * sp;
         if (Math.abs(vpVideo.currentTime - expectedTime) > 0.35) {
           vpVideo.currentTime = Math.max(0, expectedTime);
         }
@@ -2328,9 +3193,15 @@
     if (progressEl) progressEl.value = t.toFixed(2);
     updateSeqTimeLabel(t, tl.total);
 
+    const trackPlayhead = $('reel-track-playhead');
+    if (trackPlayhead && tl.total > 0) {
+      trackPlayhead.style.left = `${(t / tl.total) * 100}%`;
+    }
+
     const found = findSceneAtTime(t);
     if (!found || !found.scene) return;
     const sc = found.scene;
+    const sp = (sc && sc.speed) ? Number(sc.speed) : 1;
     const vpVideo = $('reel-vp-video');
     const vpImg = $('reel-vp-img');
     const placeholder = $('reel-vp-placeholder');
@@ -2357,6 +3228,7 @@
       if (vpVideo) {
         vpVideo.src = sc.url;
         vpVideo.style.display = 'block';
+        vpVideo.playbackRate = sp;
         applySceneFrame(sc, vpVideo);
         vpVideo.pause();
         vpVideo.currentTime = (sc.start || 0) + (found.offsetInScene || 0);
@@ -2960,6 +3832,7 @@
           url: sc.url,
           start: sc.start,
           length: sc.length,
+          speed: sc.speed || 1,
           fitMode: sc.fitMode,
           zoom: sc.zoom,
           panX: sc.panX,
@@ -3144,7 +4017,7 @@
     // Casilla "Analizar con IA al subir": recordar la preferencia
     const autoChk = $('reel-auto-analyze');
     if (autoChk) {
-      try { autoChk.checked = localStorage.getItem('reel_auto_analyze') !== 'false'; } catch (e) { /* sin storage */ }
+      try { autoChk.checked = localStorage.getItem('reel_auto_analyze') === 'true'; } catch (e) { /* sin storage */ }
       autoChk.addEventListener('change', () => {
         try { localStorage.setItem('reel_auto_analyze', autoChk.checked ? 'true' : 'false'); } catch (e) { /* sin storage */ }
       });
@@ -3268,6 +4141,10 @@
 
     $('reel-vp-video')?.addEventListener('play', () => updatePlayBtn(true));
     $('reel-vp-video')?.addEventListener('pause', () => updatePlayBtn(false));
+    $('reel-vp-video')?.addEventListener('timeupdate', () => {
+      const v = $('reel-vp-video');
+      if (v) updateTrimmerPlayhead(v.currentTime);
+    });
     $('reel-final-player')?.addEventListener('play', () => updatePlayBtn(true));
     $('reel-final-player')?.addEventListener('pause', () => updatePlayBtn(false));
 
