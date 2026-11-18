@@ -1,6 +1,6 @@
 # CURRENT_STATE — MetaPulse
 
-Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `b44b142`, PM2 online).
+Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `97b1391`, PM2 online). Respaldo previo a esta tanda: etiqueta `reels-v2`.
 
 ## Funciona (en producción)
 - Publicación programada FB/IG con detección de fallos parciales; IA de texto con Gemini 3.x (cadena gratis, salto ante 503); métricas diarias; limpieza de captions.
@@ -29,6 +29,13 @@ Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `b44b142`, PM2 o
 - **Copy IA:** `generateWithGemini` rechaza respuestas con `finishReason` MAX_TOKENS o con razonamiento filtrado (`looksLikeLeakedReasoning`); `maxOutputTokens` 4096. El borrador #301 (La Campiña) quedó con texto roto: regenerarlo.
 
 - **Diseñador de historias (Creador → "Compartir como Historia" → 🎨):** texto gancho en cuadro blanco pegado a la imagen (Gemini lo sugiere; checkbox), ubicación, mención, cuenta regresiva (se recalcula por cada historia agendada) y stickers de emoji (Noto) que el dueño arrastra a su posición. Estático = imagen con borde blanco; animado = video de 7 s con GIF. Historias derivadas ya no llevan sticker de canción (si hay música, solo el audio). Solo imágenes; el diseño no se guarda en borradores ni aplica al lote.
+
+## Reels 2.1 (2026-11-18, en producción, sin prueba del dueño)
+- **Vista previa de secuencia** en la mini pantalla ("Ver secuencia", barra de tiempo): tomas con transiciones aproximadas en CSS, textos, frases de voz y música. `buildTimeline()` replica los tiempos del render.
+- **Frases de voz (TTS)** con segundo de inicio: agregar/quitar/"Dividir en frases"; render con `adelay`+`amix`. Transición `none` = corte real.
+- **Efectos de texto:** `effectIn` (16), `effectLoop` (8), `effectOut` (13) y `speed`; FFmpeg con expresiones por cuadro y capas fantasma (glitch encima del texto). Campo viejo `effect` se migra.
+- **La IA mira los clips:** `analyzeClip` manda hasta 12 cuadros a Gemini (`aiService.generateJSONWithImages`), caché `<clip>.analysis.json`; `reviewClips` sugiere gancho/fórmula/duración/planos faltantes; `plan()` usa highlights y encuadre.
+- Riesgo: gemini-3.8-flash a veces agota el timeout de 60 s con imágenes; el análisis tarda hasta pasar al siguiente modelo.
 
 ## Novedades 2026-11-05 → 2026-11-18 (ya en producción)
 - **Estudio de Reels 2.0 completo:** Separación total de pista de video (Paso 3) y capa de textos (Paso 4).
