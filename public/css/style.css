@@ -4002,7 +4002,8 @@ input:checked + .slider:before {
   gap: 6px;
 }
 
-.reel-trimmer-bar-wrap {
+.reel-trimmer-bar-wrap,
+.reel-trimmer-filmstrip-wrap {
   position: relative;
   width: 100%;
   height: 64px;
@@ -4176,3 +4177,14 @@ input:checked + .slider:before {
   background: var(--bg-surface);
   border-radius: 6px;
 }
+
+/* Ajustes: nombres de clase usados por el JS del editor de barras */
+.reel-track-block-label { display:flex; flex-direction:column; align-items:center; line-height:1.15; pointer-events:none; }
+.reel-track-block-label strong { font-size:0.74rem; }
+.reel-track-dur-label { font-size:0.68rem; font-family:var(--font-mono, monospace); color:var(--text-secondary); }
+.reel-track-block.active .reel-track-dur-label { color:#e0e7ff; }
+.reel-track-speed-badge { font-size:0.62rem; background:rgba(234,179,8,0.25); color:#a16207; padding:1px 4px; border-radius:3px; font-weight:700; }
+.reel-trimmer-title { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+.reel-trimmer-thumb-placeholder { flex:1; height:100%; background:#1e293b; border-right:1px solid rgba(0,0,0,0.2); }
+.reel-trimmer-controls { margin-top:4px; }
+.reel-trimmer-filmstrip-wrap { height:72px; }
