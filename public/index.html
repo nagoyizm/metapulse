@@ -6,8 +6,8 @@
   <title>MetaPulse — Suite de Gestión y Automatización de Redes Sociales</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.1">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@700&family=Cinzel:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@400;700&family=Montserrat:wght@500;700;800&family=Oswald:wght@600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@600;700;800&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=3.2">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
   <link rel="stylesheet" href="css/composer-steps.css?v=1">
@@ -1583,8 +1583,8 @@
                 <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-back-step-1">Volver a Guion</button>
                   <div style="display:flex; gap:8px;">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-manual-scenes">Crear escenas manual</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-reel-plan">Armar reel con IA</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-manual-scenes" title="Crea exactamente 1 escena por cada video que subiste (ej: 2 videos = 2 escenas)">1 escena por video</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-reel-plan" title="La IA analiza tus descripciones y arma la narrativa con transiciones">Armar reel con IA</button>
                   </div>
                 </div>
               </div>
@@ -1680,8 +1680,12 @@
           <aside class="reel-studio-sidebar">
             <div class="reel-phone-mockup">
               <div class="reel-phone-top-bar">
-                <span>Mini Pantalla 9:16</span>
-                <span id="reel-active-scene-badge" class="badge" style="background:rgba(255,255,255,0.15); color:#fff; font-size:0.68rem;">Escena 1</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:0.72rem; font-weight:700;">Mini Pantalla 9:16</span>
+                  <button type="button" class="reel-phone-btn" id="btn-reel-vp-play" title="Reproducir o pausar video">▶ Play</button>
+                  <button type="button" class="reel-phone-btn" id="btn-reel-vp-mute" title="Activar/Silenciar audio">🔇</button>
+                </div>
+                <span id="reel-active-scene-badge" class="badge" style="background:rgba(255,255,255,0.15); color:#fff; font-size:0.68rem;">Vista previa</span>
               </div>
 
               <!-- El Lienzo 9:16 interactivo -->
@@ -4305,7 +4309,7 @@
   <script src="js/composer.js?v=4.3"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
-  <script src="js/reelStudio.js?v=2.3"></script>
+  <script src="js/reelStudio.js?v=2.4"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>

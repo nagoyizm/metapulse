@@ -3402,6 +3402,34 @@ input:checked + .slider:before {
 .reel-live-caption.minimal { background: rgba(0, 0, 0, 0.35); color: #ffffff; padding: 4px 10px; border-radius: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); display: inline-block; margin: 0 auto; }
 .reel-live-caption.impact { color: #ffffff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 3px 6px rgba(0,0,0,0.9); padding: 4px 6px; display: inline-block; margin: 0 auto; }
 
+/* Tipografías virales de texto */
+.reel-live-caption.reel-font-bebas { font-family: 'Bebas Neue', sans-serif !important; font-size: 1.05rem; letter-spacing: 1.2px; font-weight: 400; text-transform: uppercase; }
+.reel-live-caption.reel-font-anton { font-family: 'Anton', sans-serif !important; font-size: 0.95rem; letter-spacing: 0.6px; text-transform: uppercase; }
+.reel-live-caption.reel-font-montserrat { font-family: 'Montserrat', sans-serif !important; font-weight: 800; letter-spacing: -0.2px; }
+.reel-live-caption.reel-font-poppins { font-family: 'Poppins', sans-serif !important; font-weight: 700; }
+.reel-live-caption.reel-font-oswald { font-family: 'Oswald', sans-serif !important; font-weight: 700; letter-spacing: 0.5px; }
+.reel-live-caption.reel-font-playfair { font-family: 'Playfair Display', serif !important; font-weight: 700; font-style: italic; }
+.reel-live-caption.reel-font-cinzel { font-family: 'Cinzel', serif !important; font-weight: 700; letter-spacing: 1px; }
+.reel-live-caption.reel-font-caveat { font-family: 'Caveat', cursive !important; font-weight: 700; font-size: 1.22rem; }
+.reel-live-caption.reel-font-lato { font-family: 'Lato', sans-serif !important; font-weight: 700; }
+
+.reel-phone-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.reel-phone-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 .reel-framing-tools { margin-top: 10px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; }
 .reel-framing-tools label { font-size: 0.73rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 2px; }
 .reel-framing-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }

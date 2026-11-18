@@ -38,6 +38,18 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const toast = (m, t = 'info') => { if (typeof showToast === 'function') showToast(m, t); };
 
+  const FONTS = [
+    { id: 'bebas', label: 'Bebas Neue (Titular Impacto / Viral)' },
+    { id: 'anton', label: 'Anton (Impacto Alto / Gruesa)' },
+    { id: 'montserrat', label: 'Montserrat Bold (Limpia / Moderna)' },
+    { id: 'poppins', label: 'Poppins Bold (Geométrica / Amigable)' },
+    { id: 'oswald', label: 'Oswald Bold (Condensada / Dinámica)' },
+    { id: 'playfair', label: 'Playfair Display (Elegante / Editorial)' },
+    { id: 'cinzel', label: 'Cinzel Bold (Clásica / Premium)' },
+    { id: 'caveat', label: 'Caveat (Manuscrita / Orgánica)' },
+    { id: 'lato', label: 'Lato Bold (Sólida / Neutra)' }
+  ];
+
   function brandName() {
     const acc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
     return acc?.pageName || (window.AppState?.config?.pageName) || '';
@@ -160,6 +172,8 @@
 
       if (data.step && data.step > 1) {
         goToStep(data.step);
+      } else if (S.clips.length > 0) {
+        previewClip(0);
       }
     } catch (_) {}
   }
@@ -193,6 +207,7 @@
     }
     const actionsBox = $('reel-result-actions-box');
     if (actionsBox) actionsBox.style.display = 'none';
+    resetViewportPlaceholder();
     renderClips();
     renderScenes();
     renderMusicSel();
@@ -212,7 +227,9 @@
     const pane = $(`reel-pane-${n}`);
     if (pane) pane.classList.add('active');
 
-    if (n === 3 && S.scenes.length > 0) {
+    if (n === 2 && S.clips.length > 0 && !S.scenes.length) {
+      previewClip(0);
+    } else if (n === 3 && S.scenes.length > 0) {
       selectSceneForFrame(S.activeSceneIdx >= 0 && S.activeSceneIdx < S.scenes.length ? S.activeSceneIdx : 0);
     }
     saveState();
@@ -329,6 +346,13 @@
 
     list.querySelectorAll('.reel-clip-card').forEach((el) => {
       const i = +el.dataset.i;
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('textarea') || e.target.closest('button')) return;
+        previewClip(i);
+      });
+      el.querySelector('.reel-clip-thumb-box')?.addEventListener('click', () => {
+        previewClip(i);
+      });
       el.querySelector('.reel-clip-desc-input')?.addEventListener('input', (e) => {
         S.clips[i].description = e.target.value;
         saveState();
@@ -336,6 +360,11 @@
       el.querySelector('.reel-del-clip')?.addEventListener('click', () => {
         S.clips.splice(i, 1);
         renderClips();
+        if (S.clips.length) {
+          previewClip(Math.min(i, S.clips.length - 1));
+        } else {
+          resetViewportPlaceholder();
+        }
         saveState();
       });
     });
@@ -430,6 +459,9 @@
             }
 
             renderClips();
+            if (S.clips.length > 0) {
+              previewClip(S.clips.length - 1);
+            }
             saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
             resolve(json.data);
@@ -483,6 +515,7 @@
 
       S.scenes = (data.scenes || []).map((sc) => ({
         ...sc,
+        font: sc.font || 'bebas',
         fitMode: sc.fitMode || 'crop',
         zoom: sc.zoom || 1.0,
         panX: sc.panX != null ? sc.panX : 0.5,
@@ -512,16 +545,17 @@
   }
 
   function createManualScenes() {
-    if (!S.clips.length) return toast('Sube clips primero.', 'warning');
+    if (!S.clips.length) return toast('Sube clips primero en el Paso 2.', 'warning');
     S.scenes = S.clips.map((c, i) => ({
       clip: i,
       url: c.url,
       kind: c.kind,
       start: 0,
-      length: c.duration ? Math.min(c.duration, 3) : 2.5,
+      length: c.duration ? Math.min(c.duration, 4) : 3,
       text: '',
       pos: 'center',
       textStyle: 'pill',
+      font: 'bebas',
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -530,7 +564,7 @@
     }));
     renderScenes();
     goToStep(3);
-    toast('Escenas creadas manualmente.', 'info');
+    toast(`${S.scenes.length} escena(s) creadas (1 por cada video subido).`, 'info');
   }
 
   // ── Paso 3: Escenas y Textos ──
@@ -569,6 +603,10 @@
       { id: 'dissolve', label: 'Disolución Clásica' },
       { id: 'none', label: 'Corte Directo (Sin transición)' }
     ].map((t) => `<option value="${t.id}" ${t.id === sel ? 'selected' : ''}>${t.label}</option>`).join('');
+
+    const fontOpts = (sel) => FONTS.map((f) =>
+      `<option value="${f.id}" ${f.id === (sel || 'bebas') ? 'selected' : ''}>${f.label}</option>`
+    ).join('');
 
     list.innerHTML = S.scenes.map((s, i) => `
       <div class="reel-scene-card ${i === S.activeSceneIdx ? 'selected-for-frame' : ''}" data-i="${i}">
@@ -626,6 +664,18 @@
             </select>
           </div>
         </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px;">
+            <label style="font-size:0.72rem; font-weight:600; display:block; margin-bottom:2px;">Tipografía / Fuente del texto</label>
+            <select class="form-control form-control-sm reel-scene-font">
+              ${fontOpts(s.font)}
+            </select>
+          </div>
+          <button type="button" class="btn btn-secondary btn-xs reel-apply-font-all" title="Aplicar esta tipografía a todas las escenas" style="margin-top:16px;">
+            Aplicar a todas
+          </button>
+        </div>
       </div>
     `).join('');
 
@@ -678,6 +728,19 @@
         if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
         saveState();
       });
+      card.querySelector('.reel-scene-font')?.addEventListener('change', (e) => {
+        S.scenes[i].font = e.target.value;
+        if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
+        saveState();
+      });
+      card.querySelector('.reel-apply-font-all')?.addEventListener('click', () => {
+        const chosen = S.scenes[i].font || 'bebas';
+        S.scenes.forEach((sc) => { sc.font = chosen; });
+        renderScenes();
+        if (S.scenes[S.activeSceneIdx]) updateLiveTextOverlay(S.scenes[S.activeSceneIdx]);
+        saveState();
+        toast('Tipografía aplicada a todas las escenas.', 'info');
+      });
       card.querySelector('.reel-act-up')?.addEventListener('click', () => {
         if (i > 0) {
           [S.scenes[i], S.scenes[i - 1]] = [S.scenes[i - 1], S.scenes[i]];
@@ -720,6 +783,7 @@
       text: '',
       pos: 'center',
       textStyle: 'pill',
+      font: 'bebas',
       fitMode: 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -732,6 +796,115 @@
   }
 
   // ── Mini Pantalla 9:16 y Encuadre Interactivo ──
+  function resetViewportPlaceholder() {
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const vpBg = $('reel-vp-bg');
+    const placeholder = $('reel-vp-placeholder');
+    const badge = $('reel-active-scene-badge');
+    if (vpVideo) {
+      vpVideo.pause();
+      vpVideo.style.display = 'none';
+      vpVideo.src = '';
+    }
+    if (vpImg) {
+      vpImg.style.display = 'none';
+      vpImg.src = '';
+    }
+    if (vpBg) {
+      vpBg.style.backgroundImage = 'none';
+      vpBg.style.opacity = '0';
+    }
+    if (placeholder) placeholder.style.display = 'block';
+    if (badge) badge.textContent = 'Vista previa';
+    updatePlayBtn(false);
+  }
+
+  function previewClip(idx) {
+    if (idx < 0 || idx >= S.clips.length) return;
+    const c = S.clips[idx];
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const vpBg = $('reel-vp-bg');
+    const placeholder = $('reel-vp-placeholder');
+    const finalPlayer = $('reel-final-player');
+    const badge = $('reel-active-scene-badge');
+
+    if (finalPlayer) finalPlayer.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'none';
+    if (badge) badge.textContent = `Clip ${idx + 1}`;
+
+    document.querySelectorAll('.reel-clip-card').forEach((card) => {
+      card.classList.toggle('selected-for-frame', +card.dataset.i === idx);
+    });
+
+    if (c.kind === 'imagen') {
+      if (vpVideo) {
+        vpVideo.pause();
+        vpVideo.style.display = 'none';
+      }
+      if (vpImg) {
+        vpImg.src = c.url;
+        vpImg.style.display = 'block';
+        vpImg.style.transform = 'none';
+        vpImg.style.objectFit = 'contain';
+      }
+      updatePlayBtn(false);
+    } else {
+      if (vpImg) vpImg.style.display = 'none';
+      if (vpVideo) {
+        vpVideo.src = c.url;
+        vpVideo.style.display = 'block';
+        vpVideo.style.transform = 'none';
+        vpVideo.style.objectFit = 'cover';
+        vpVideo.currentTime = 0;
+        vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
+      }
+    }
+
+    if (vpBg) {
+      vpBg.style.backgroundImage = `url("${c.url}")`;
+      vpBg.style.opacity = '0.3';
+    }
+
+    const topEl = $('reel-vp-text-top');
+    const centerEl = $('reel-vp-text-center');
+    const bottomEl = $('reel-vp-text-bottom');
+    if (topEl) topEl.innerHTML = '';
+    if (centerEl) centerEl.innerHTML = '';
+    if (bottomEl) bottomEl.innerHTML = '';
+  }
+
+  function updatePlayBtn(isPlaying) {
+    const btn = $('btn-reel-vp-play');
+    if (btn) btn.textContent = isPlaying ? '⏸ Pausar' : '▶ Play';
+  }
+
+  function toggleVideoPlay() {
+    const vpVideo = $('reel-vp-video');
+    const finalPlayer = $('reel-final-player');
+    const activeVideo = (finalPlayer && finalPlayer.style.display !== 'none') ? finalPlayer : vpVideo;
+    if (!activeVideo || activeVideo.style.display === 'none') return;
+
+    if (activeVideo.paused) {
+      activeVideo.play().then(() => updatePlayBtn(true)).catch(() => {});
+    } else {
+      activeVideo.pause();
+      updatePlayBtn(false);
+    }
+  }
+
+  function toggleVideoMute() {
+    const vpVideo = $('reel-vp-video');
+    const finalPlayer = $('reel-final-player');
+    const activeVideo = (finalPlayer && finalPlayer.style.display !== 'none') ? finalPlayer : vpVideo;
+    const btn = $('btn-reel-vp-mute');
+    if (!activeVideo) return;
+
+    activeVideo.muted = !activeVideo.muted;
+    if (btn) btn.textContent = activeVideo.muted ? '🔇' : '🔊';
+  }
+
   function selectSceneForFrame(idx) {
     if (idx < 0 || idx >= S.scenes.length) return;
     S.activeSceneIdx = idx;
@@ -756,18 +929,22 @@
     if (placeholder) placeholder.style.display = 'none';
 
     if (sc.kind === 'imagen') {
-      if (vpVideo) vpVideo.style.display = 'none';
+      if (vpVideo) {
+        vpVideo.pause();
+        vpVideo.style.display = 'none';
+      }
       if (vpImg) {
         vpImg.src = sc.url;
         vpImg.style.display = 'block';
       }
+      updatePlayBtn(false);
     } else {
       if (vpImg) vpImg.style.display = 'none';
       if (vpVideo) {
         vpVideo.src = sc.url + `#t=${sc.start || 0}`;
         vpVideo.style.display = 'block';
         vpVideo.currentTime = sc.start || 0;
-        vpVideo.play().catch(() => {});
+        vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
       }
     }
 
@@ -840,8 +1017,9 @@
 
     if (!sc.text || !sc.text.trim()) return;
 
+    const fontClass = `reel-font-${sc.font || 'bebas'}`;
     const badge = document.createElement('div');
-    badge.className = `reel-live-caption ${sc.textStyle || 'pill'}`;
+    badge.className = `reel-live-caption ${sc.textStyle || 'pill'} ${fontClass}`;
     badge.textContent = sc.text.trim().toUpperCase();
 
     if (sc.pos === 'top') topEl.appendChild(badge);
@@ -1089,6 +1267,7 @@
           text: sc.text,
           pos: sc.pos,
           textStyle: sc.textStyle,
+          font: sc.font || 'bebas',
           fitMode: sc.fitMode,
           zoom: sc.zoom,
           panX: sc.panX,
@@ -1326,6 +1505,14 @@
       if (n) n.textContent = Math.round(e.target.value * 100) + '%';
       saveState();
     });
+
+    // Controles de reproducción de la mini pantalla
+    $('btn-reel-vp-play')?.addEventListener('click', toggleVideoPlay);
+    $('btn-reel-vp-mute')?.addEventListener('click', toggleVideoMute);
+    $('reel-vp-video')?.addEventListener('play', () => updatePlayBtn(true));
+    $('reel-vp-video')?.addEventListener('pause', () => updatePlayBtn(false));
+    $('reel-final-player')?.addEventListener('play', () => updatePlayBtn(true));
+    $('reel-final-player')?.addEventListener('pause', () => updatePlayBtn(false));
 
     // Herramientas de encuadre interactivo
     bindFramingTools();

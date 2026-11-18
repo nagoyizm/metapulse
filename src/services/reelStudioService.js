@@ -14,10 +14,37 @@ const musicService = require('./musicService');
 const ROOT = path.join(__dirname, '../..');
 const REELS_DIR = path.join(ROOT, 'uploads/reels');
 const TMP_DIR = path.join(REELS_DIR, 'tmp');
-const FONT_BOLD = 'assets/fonts/Lato-Bold.ttf'; // relativa a ROOT (sin ":" para el filtro drawtext)
+const FONT_BOLD = 'assets/fonts/Lato-Bold.ttf'; // fallback clásico
 const W = 1080;
 const H = 1920;
 const FPS = 30;
+
+// Mapeo de fuentes tipográficas para textos de Reels (FFmpeg drawtext fontfile)
+const FONTS_MAP = {
+  bebas: 'assets/fonts/BebasNeue-Regular.ttf',
+  anton: 'assets/fonts/Anton-Regular.ttf',
+  montserrat: 'assets/fonts/Montserrat-Bold.ttf',
+  poppins: 'assets/fonts/Poppins-Bold.ttf',
+  oswald: 'assets/fonts/Oswald-Bold.ttf',
+  playfair: 'assets/fonts/PlayfairDisplay-Bold.ttf',
+  cinzel: 'assets/fonts/Cinzel-Bold.ttf',
+  caveat: 'assets/fonts/Caveat-Bold.ttf',
+  lato: 'assets/fonts/Lato-Bold.ttf'
+};
+
+function getFonts() {
+  return [
+    { id: 'bebas', name: 'Bebas Neue (Viral Reels / Punch)', family: "'Bebas Neue', sans-serif" },
+    { id: 'anton', name: 'Anton (Impacto Pesado)', family: "'Anton', sans-serif" },
+    { id: 'montserrat', name: 'Montserrat (Moderno Geométrico)', family: "'Montserrat', sans-serif" },
+    { id: 'poppins', name: 'Poppins (Amigable y Redondeado)', family: "'Poppins', sans-serif" },
+    { id: 'oswald', name: 'Oswald (Condensado Dinámico)', family: "'Oswald', sans-serif" },
+    { id: 'playfair', name: 'Playfair Display (Elegante Boutique)', family: "'Playfair Display', serif" },
+    { id: 'cinzel', name: 'Cinzel (Cinemático Rústico)', family: "'Cinzel', serif" },
+    { id: 'caveat', name: 'Caveat (Manuscrito Cálido)', family: "'Caveat', cursive" },
+    { id: 'lato', name: 'Lato (Clásico y Neutro)', family: "'Lato', sans-serif" }
+  ];
+}
 
 // Voces de Gemini TTS elegibles (nombre oficial -> cómo suena)
 const VOICES = [
@@ -235,6 +262,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       text: String(s.text || '').slice(0, 60),
       pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center',
       textStyle: ['pill', 'minimal', 'impact'].includes(s.textStyle) ? s.textStyle : 'pill',
+      font: s.font && FONTS_MAP[s.font] ? s.font : 'bebas',
       fitMode: s.fitMode === 'blur' ? 'blur' : 'crop',
       zoom: 1.0,
       panX: 0.5,
@@ -394,11 +422,15 @@ async function render({
         filters.push(`[${i}:v]scale=${scaledW}:${scaledH}:force_original_aspect_ratio=increase,crop=${W}:${H}:x='(in_w-${W})*${panX}':y='(in_h-${H})*${panY}',${ptsFilter}setsar=1,fps=${FPS},format=yuv420p[${baseLabel}]`);
       }
 
-      // Textos en pantalla según estilo (cápsula pill, minimal o impact)
+      // Textos en pantalla según estilo (cápsula pill, minimal o impact) y fuente seleccionada
       const lines = wrapText(s.text, 16);
       if (lines.length > 0) {
-        const fontSize = lines.length > 2 ? 88 : 100;
-        const lineH = Math.round(fontSize * 1.30);
+        const fontKey = s.font && FONTS_MAP[s.font] ? s.font : 'bebas';
+        const fontFile = FONTS_MAP[fontKey] || FONTS_MAP.bebas;
+        let fontSize = lines.length > 2 ? 88 : 100;
+        if (fontKey === 'bebas' || fontKey === 'anton') fontSize = lines.length > 2 ? 98 : 112;
+        if (fontKey === 'caveat') fontSize = lines.length > 2 ? 104 : 120;
+        const lineH = Math.round(fontSize * 1.25);
         const blockH = lines.length * lineH;
         const baseY = s.pos === 'top' ? 240 : s.pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
 
@@ -421,7 +453,7 @@ async function render({
             styleAttrs = `:box=1:boxcolor=black@0.72:boxborderw=18:fontcolor=white`;
           }
 
-          drawFilters.push(`drawtext=fontfile='${FONT_BOLD}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y='${y}+30*(1-min(1,max(0,(t-${delay})/0.25)))':alpha='min(1,max(0,(t-${delay})/0.20))'`);
+          drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y='${y}+30*(1-min(1,max(0,(t-${delay})/0.25)))':alpha='min(1,max(0,(t-${delay})/0.20))'`);
         });
         filters.push(`[${baseLabel}]${drawFilters.join(',')}[v${i}]`);
       } else {
@@ -547,6 +579,8 @@ async function render({
 module.exports = {
   TEMPLATES,
   VOICES,
+  FONTS_MAP,
+  getFonts,
   VALID_XFADE_TRANSITIONS,
   plan,
   synthesizeVoice,

@@ -3517,6 +3517,7 @@ const reelStudio = require('../services/reelStudioService');
 router.get('/reel/voices', (req, res) => res.json({ success: true, data: reelStudio.VOICES }));
 router.get('/reel/templates', (req, res) => res.json({ success: true, data: reelStudio.TEMPLATES }));
 router.get('/reel/transitions', (req, res) => res.json({ success: true, data: reelStudio.VALID_XFADE_TRANSITIONS }));
+router.get('/reel/fonts', (req, res) => res.json({ success: true, data: reelStudio.getFonts() }));
 
 router.post('/reel/plan', async (req, res) => {
   try {
