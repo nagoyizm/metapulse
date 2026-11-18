@@ -3430,6 +3430,205 @@ input:checked + .slider:before {
 .reel-live-caption.effect-slide { animation: reelAnimSlide 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
 .reel-live-caption.effect-bounce { animation: reelAnimBounce 0.4s ease-out forwards; }
 
+/* ── Catálogo Avanzado de Efectos (Entrada, Loop, Salida) ── */
+
+/* Keyframes Entrada */
+@keyframes reelInPop {
+  0% { transform: scale(1.35); opacity: 0; }
+  60% { transform: scale(0.96); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+@keyframes reelInZoomIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  70% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+@keyframes reelInZoomOut {
+  0% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+@keyframes reelInFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes reelInSlideUp {
+  0% { transform: translateY(40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes reelInSlideDown {
+  0% { transform: translateY(-40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes reelInSlideLeft {
+  0% { transform: translateX(50px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes reelInSlideRight {
+  0% { transform: translateX(-50px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes reelInDrop {
+  0% { transform: translateY(-160px); opacity: 0; }
+  55% { transform: translateY(0); opacity: 1; }
+  72% { transform: translateY(-24px); }
+  85% { transform: translateY(0); }
+  93% { transform: translateY(-8px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes reelInBounce {
+  0% { transform: scale(0.7); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  75% { transform: scale(0.97); }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+@keyframes reelInWind {
+  0% { transform: translateX(-60px) skewX(-15deg); opacity: 0; filter: blur(6px); text-shadow: -20px 0 10px rgba(255,255,255,0.5); }
+  70% { transform: translateX(6px) skewX(4deg); opacity: 0.9; filter: blur(1px); }
+  100% { transform: translateX(0) skewX(0); opacity: 1; filter: blur(0); text-shadow: none; }
+}
+@keyframes reelInMagic {
+  0% { transform: scale(0.7); opacity: 0; filter: brightness(2.5) drop-shadow(0 0 16px #facc15); }
+  30% { opacity: 0.4; filter: brightness(1.2); }
+  55% { opacity: 0.9; filter: brightness(2); }
+  75% { opacity: 0.7; filter: brightness(1.4); }
+  100% { transform: scale(1.0); opacity: 1; filter: brightness(1) drop-shadow(0 0 0 transparent); }
+}
+@keyframes reelInGlitch {
+  0% { transform: translateX(0); opacity: 0; text-shadow: -8px 0 #00ffff, 8px 0 #ff0055; }
+  20% { transform: translateX(-6px); opacity: 1; text-shadow: 6px 0 #00ffff, -6px 0 #ff0055; }
+  40% { transform: translateX(6px); text-shadow: -4px 0 #00ffff, 4px 0 #ff0055; }
+  60% { transform: translateX(-3px); text-shadow: 3px 0 #00ffff, -3px 0 #ff0055; }
+  80% { transform: translateX(2px); text-shadow: -1px 0 #00ffff, 1px 0 #ff0055; }
+  100% { transform: translateX(0); opacity: 1; text-shadow: none; }
+}
+
+/* Keyframes Loop */
+@keyframes reelLoopFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes reelLoopPulse {
+  0%, 100% { transform: scale(1.0); }
+  50% { transform: scale(1.04); }
+}
+@keyframes reelLoopHeartbeat {
+  0%, 100% { transform: scale(1.0); }
+  14% { transform: scale(1.06); }
+  28% { transform: scale(1.0); }
+  42% { transform: scale(1.06); }
+  70% { transform: scale(1.0); }
+}
+@keyframes reelLoopShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+@keyframes reelLoopSwing {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-14px); }
+  75% { transform: translateX(14px); }
+}
+@keyframes reelLoopGlow {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(255,255,255,0.4)); }
+  50% { opacity: 0.82; filter: drop-shadow(0 0 14px rgba(250,204,21,0.85)); }
+}
+@keyframes reelLoopWave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(-1.5deg); }
+  75% { transform: translateY(6px) rotate(1.5deg); }
+}
+
+/* Keyframes Salida */
+@keyframes reelOutFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes reelOutZoomOut {
+  0% { transform: scale(1.0); opacity: 1; }
+  100% { transform: scale(0.1); opacity: 0; }
+}
+@keyframes reelOutExplode {
+  0% { transform: scale(1.0); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1.6); opacity: 0; filter: blur(8px); }
+}
+@keyframes reelOutSlideUp {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+@keyframes reelOutSlideDown {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(40px); opacity: 0; }
+}
+@keyframes reelOutSlideLeft {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-50px); opacity: 0; }
+}
+@keyframes reelOutSlideRight {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(50px); opacity: 0; }
+}
+@keyframes reelOutWind {
+  0% { transform: translateX(0) skewX(0); opacity: 1; filter: blur(0); }
+  100% { transform: translateX(60px) skewX(15deg); opacity: 0; filter: blur(8px); }
+}
+@keyframes reelOutMagic {
+  0% { transform: scale(1.0); opacity: 1; filter: brightness(1); }
+  40% { transform: scale(1.08); opacity: 0.9; filter: brightness(2.2) drop-shadow(0 0 16px #facc15); }
+  100% { transform: scale(0.6); opacity: 0; filter: brightness(0.2) blur(6px); }
+}
+@keyframes reelOutGlitch {
+  0% { transform: translateX(0); opacity: 1; }
+  30% { transform: translateX(6px); text-shadow: -8px 0 #00ffff, 8px 0 #ff0055; opacity: 0.8; }
+  60% { transform: translateX(-6px); text-shadow: 6px 0 #00ffff, -6px 0 #ff0055; opacity: 0.5; }
+  100% { transform: translateX(0); opacity: 0; text-shadow: none; }
+}
+@keyframes reelOutDrop {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(160px); opacity: 0; }
+}
+
+/* Clases de Entrada */
+.reel-live-caption.reel-in-pop { animation: reelInPop var(--reel-in-dur, 0.45s) cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.reel-live-caption.reel-in-zoomin { animation: reelInZoomIn var(--reel-in-dur, 0.45s) cubic-bezier(0.175, 0.885, 0.32, 1.15) forwards; }
+.reel-live-caption.reel-in-zoomout { animation: reelInZoomOut var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-wind { animation: reelInWind var(--reel-in-dur, 0.45s) ease-out forwards; }
+.reel-live-caption.reel-in-magic { animation: reelInMagic var(--reel-in-dur, 0.45s) ease-out forwards; }
+.reel-live-caption.reel-in-glitch { animation: reelInGlitch var(--reel-in-dur, 0.45s) ease-out forwards; }
+.reel-live-caption.reel-in-slideup { animation: reelInSlideUp var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-slidedown { animation: reelInSlideDown var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-slideleft { animation: reelInSlideLeft var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-slideright { animation: reelInSlideRight var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-drop { animation: reelInDrop var(--reel-in-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-in-bounce { animation: reelInBounce var(--reel-in-dur, 0.45s) cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.reel-live-caption.reel-in-fade { animation: reelInFade var(--reel-in-dur, 0.45s) ease-out forwards; }
+.reel-live-caption.reel-in-none { animation: none !important; }
+
+/* Clases de Loop */
+.reel-live-caption.reel-loop-none { animation: none !important; }
+.reel-live-caption.reel-loop-float { animation: reelLoopFloat 2.2s ease-in-out infinite; }
+.reel-live-caption.reel-loop-pulse { animation: reelLoopPulse 1.2s ease-in-out infinite; }
+.reel-live-caption.reel-loop-heartbeat { animation: reelLoopHeartbeat 1.0s ease-in-out infinite; }
+.reel-live-caption.reel-loop-shake { animation: reelLoopShake 0.35s linear infinite; }
+.reel-live-caption.reel-loop-swing { animation: reelLoopSwing 1.6s ease-in-out infinite; }
+.reel-live-caption.reel-loop-glow { animation: reelLoopGlow 1.8s ease-in-out infinite; }
+.reel-live-caption.reel-loop-wave { animation: reelLoopWave 2.0s ease-in-out infinite; }
+
+/* Clases de Salida */
+.reel-live-caption.reel-out-fade { animation: reelOutFade var(--reel-out-dur, 0.45s) ease-in forwards; }
+.reel-live-caption.reel-out-zoomout { animation: reelOutZoomOut var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-explode { animation: reelOutExplode var(--reel-out-dur, 0.45s) cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.reel-live-caption.reel-out-slideup { animation: reelOutSlideUp var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-slidedown { animation: reelOutSlideDown var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-slideleft { animation: reelOutSlideLeft var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-slideright { animation: reelOutSlideRight var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-wind { animation: reelOutWind var(--reel-out-dur, 0.45s) ease-in forwards; }
+.reel-live-caption.reel-out-magic { animation: reelOutMagic var(--reel-out-dur, 0.45s) ease-in forwards; }
+.reel-live-caption.reel-out-glitch { animation: reelOutGlitch var(--reel-out-dur, 0.45s) steps(2, end) forwards; }
+.reel-live-caption.reel-out-drop { animation: reelOutDrop var(--reel-out-dur, 0.45s) cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+.reel-live-caption.reel-out-none { animation: none !important; }
+
 /* Tipografías virales de texto */
 .reel-live-caption.reel-font-archivo { font-family: 'Archivo Black', sans-serif !important; font-weight: 900; letter-spacing: -0.4px; }
 .reel-live-caption.reel-font-bangers { font-family: 'Bangers', cursive !important; letter-spacing: 1px; font-size: 1.05rem; }

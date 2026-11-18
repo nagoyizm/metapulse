@@ -59,6 +59,392 @@ function getFonts() {
   ];
 }
 
+// Catálogo de Efectos de Texto para Reels
+const TEXT_EFFECTS_IN = [
+  { id: 'pop', label: 'Punch / Pop (Impacto rápido)' },
+  { id: 'zoomin', label: 'Zoom in (Rebote dinámico)' },
+  { id: 'zoomout', label: 'Zoom desde cerca' },
+  { id: 'typewriter', label: 'Máquina de escribir' },
+  { id: 'wordbyword', label: 'Palabra por palabra' },
+  { id: 'wind', label: 'Viento con estela' },
+  { id: 'magic', label: 'Magia y destello' },
+  { id: 'glitch', label: 'Glitch' },
+  { id: 'slideup', label: 'Deslizar hacia arriba' },
+  { id: 'slidedown', label: 'Deslizar hacia abajo' },
+  { id: 'slideleft', label: 'Deslizar desde la derecha' },
+  { id: 'slideright', label: 'Deslizar desde la izquierda' },
+  { id: 'drop', label: 'Caída con rebote' },
+  { id: 'bounce', label: 'Rebote elástico' },
+  { id: 'fade', label: 'Fundido suave' },
+  { id: 'none', label: 'Corte directo' }
+];
+
+const TEXT_EFFECTS_LOOP = [
+  { id: 'none', label: 'Quieto' },
+  { id: 'float', label: 'Flotar' },
+  { id: 'pulse', label: 'Latido suave' },
+  { id: 'heartbeat', label: 'Corazón' },
+  { id: 'shake', label: 'Temblor' },
+  { id: 'swing', label: 'Vaivén' },
+  { id: 'glow', label: 'Respirar' },
+  { id: 'wave', label: 'Ola entre líneas' }
+];
+
+const TEXT_EFFECTS_OUT = [
+  { id: 'fade', label: 'Fundido' },
+  { id: 'zoomout', label: 'Zoom out' },
+  { id: 'explode', label: 'Explosión' },
+  { id: 'slideup', label: 'Deslizar hacia arriba' },
+  { id: 'slidedown', label: 'Deslizar hacia abajo' },
+  { id: 'slideleft', label: 'Deslizar hacia la izquierda' },
+  { id: 'slideright', label: 'Deslizar hacia la derecha' },
+  { id: 'wind', label: 'Viento hacia la derecha' },
+  { id: 'magic', label: 'Magia y disolución' },
+  { id: 'glitch', label: 'Glitch' },
+  { id: 'typewriter', label: 'Borrado máquina' },
+  { id: 'drop', label: 'Caída fuera' },
+  { id: 'none', label: 'Corte directo' }
+];
+
+const SPEED_OPTIONS = [
+  { id: 'fast', label: 'Rápida (0.25s)', dur: 0.25 },
+  { id: 'normal', label: 'Normal (0.45s)', dur: 0.45 },
+  { id: 'slow', label: 'Lenta (0.8s)', dur: 0.8 }
+];
+
+const VALID_EFFECTS_IN = TEXT_EFFECTS_IN.map(e => e.id);
+const VALID_EFFECTS_LOOP = TEXT_EFFECTS_LOOP.map(e => e.id);
+const VALID_EFFECTS_OUT = TEXT_EFFECTS_OUT.map(e => e.id);
+const VALID_SPEEDS = ['fast', 'normal', 'slow'];
+
+function normalizeOverlay(ov) {
+  if (!ov || typeof ov !== 'object') return null;
+  let effectIn = ov.effectIn;
+  let effectLoop = ov.effectLoop || 'none';
+  let effectOut = ov.effectOut;
+  let speed = ov.speed || 'normal';
+
+  // Compatibilidad con borradores y respuestas viejas que solo traen 'effect'
+  if (!effectIn && ov.effect) {
+    if (ov.effect === 'pop') effectIn = 'pop';
+    else if (ov.effect === 'fade') { effectIn = 'fade'; effectOut = 'fade'; }
+    else if (ov.effect === 'slide') effectIn = 'slideup';
+    else if (ov.effect === 'bounce') effectIn = 'bounce';
+    else if (ov.effect === 'none') { effectIn = 'none'; effectOut = 'none'; }
+    else effectIn = ov.effect;
+  }
+
+  if (!effectIn || !VALID_EFFECTS_IN.includes(effectIn)) effectIn = 'pop';
+  if (!effectLoop || !VALID_EFFECTS_LOOP.includes(effectLoop)) effectLoop = 'none';
+  if (!effectOut || !VALID_EFFECTS_OUT.includes(effectOut)) effectOut = (effectIn === 'none' ? 'none' : 'fade');
+  if (!VALID_SPEEDS.includes(speed)) speed = 'normal';
+
+  return {
+    ...ov,
+    effectIn,
+    effectLoop,
+    effectOut,
+    speed
+  };
+}
+
+function getTiming(start, end, speed = 'normal') {
+  const dur = Math.max(0.1, (Number(end) || 0) - (Number(start) || 0));
+  const baseDur = speed === 'fast' ? 0.25 : speed === 'slow' ? 0.8 : 0.45;
+  const maxCombined = dur * 0.7;
+  let inDur = baseDur;
+  let outDur = baseDur;
+  if (inDur + outDur > maxCombined) {
+    inDur = maxCombined / 2;
+    outDur = maxCombined / 2;
+  }
+  return { inDur, outDur };
+}
+
+async function measureTextWidth(text, fontFile, fontSize) {
+  try {
+    const sharp = require('sharp');
+    const absFont = path.isAbsolute(fontFile) ? fontFile : path.resolve(ROOT, fontFile);
+    if (!fs.existsSync(absFont)) return null;
+    const escXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const pangoSize = Math.round(fontSize * 1024);
+    const buf = await sharp({
+      text: {
+        text: `<span size="${pangoSize}">${escXml(text)}</span>`,
+        fontfile: absFont,
+        rgba: true
+      }
+    }).png().toBuffer();
+    const meta = await sharp(buf).metadata();
+    if (meta && meta.width > 0) return meta.width;
+  } catch (_) {}
+  return null;
+}
+
+function getEntranceExpr(effectIn, pStr) {
+  switch (effectIn) {
+    case 'pop':
+      return {
+        dx: '0',
+        dy: `(-35 * (1 - ${pStr}))`,
+        alpha: `min(1, ${pStr} * 2.5)`,
+        scale: '1'
+      };
+    case 'zoomin':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `min(1, ${pStr} * 3)`,
+        scale: `(0.3 + 0.7 * (1 + 1.7 * pow(${pStr} - 1, 3) + 0.7 * pow(${pStr} - 1, 2)))`
+      };
+    case 'zoomout':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `min(1, ${pStr} * 2)`,
+        scale: `(1.0 + 0.8 * pow(1 - ${pStr}, 2))`
+      };
+    case 'wind':
+      return {
+        dx: `(-400 * pow(1 - ${pStr}, 3))`,
+        dy: '0',
+        alpha: `min(1, ${pStr} * 2.5)`,
+        scale: '1'
+      };
+    case 'magic':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `if(lt(${pStr}, 0.8), 0.3 + 0.7 * abs(sin(${pStr} * 18.84)), 1)`,
+        scale: `(0.7 + 0.3 * (1 - pow(1 - ${pStr}, 2)))`
+      };
+    case 'glitch':
+      return {
+        dx: `(8 * sin(${pStr} * 62.83) * (1 - ${pStr}))`,
+        dy: '0',
+        alpha: `min(1, ${pStr} * 3)`,
+        scale: '1'
+      };
+    case 'slideup':
+      return {
+        dx: '0',
+        dy: `(120 * pow(1 - ${pStr}, 3))`,
+        alpha: `min(1, ${pStr} * 2)`,
+        scale: '1'
+      };
+    case 'slidedown':
+      return {
+        dx: '0',
+        dy: `(-120 * pow(1 - ${pStr}, 3))`,
+        alpha: `min(1, ${pStr} * 2)`,
+        scale: '1'
+      };
+    case 'slideleft':
+      return {
+        dx: `(250 * pow(1 - ${pStr}, 3))`,
+        dy: '0',
+        alpha: `min(1, ${pStr} * 2)`,
+        scale: '1'
+      };
+    case 'slideright':
+      return {
+        dx: `(-250 * pow(1 - ${pStr}, 3))`,
+        dy: '0',
+        alpha: `min(1, ${pStr} * 2)`,
+        scale: '1'
+      };
+    case 'drop':
+      return {
+        dx: '0',
+        dy: `(-600 * abs(cos(${pStr} * 4.71)) * pow(1 - ${pStr}, 2))`,
+        alpha: `min(1, ${pStr} * 4)`,
+        scale: '1'
+      };
+    case 'bounce':
+      return {
+        dx: '0',
+        dy: `(-25 * sin(min(3.14159, ${pStr} * 3.14159)))`,
+        alpha: `min(1, ${pStr} * 3)`,
+        scale: `(1 + 0.15 * sin(min(3.14159, ${pStr} * 3.14159)))`
+      };
+    case 'fade':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: pStr,
+        scale: '1'
+      };
+    case 'typewriter':
+    case 'wordbyword':
+    case 'none':
+    default:
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '1',
+        scale: '1'
+      };
+  }
+}
+
+function getLoopExpr(effectLoop, lineIdx = 0) {
+  switch (effectLoop) {
+    case 'float':
+      return {
+        dx: '0',
+        dy: '10 * sin(2.85599 * t)',
+        alpha: '1',
+        scale: '1'
+      };
+    case 'pulse':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '1',
+        scale: '1 + 0.04 * sin(5.23599 * t)'
+      };
+    case 'heartbeat':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '1',
+        scale: '1 + if(lt(mod(t, 1), 0.18), 0.06 * sin(mod(t, 1) * 17.45), if(between(mod(t, 1), 0.22, 0.40), 0.04 * sin((mod(t, 1) - 0.22) * 17.45), 0))'
+      };
+    case 'shake':
+      return {
+        dx: '4 * sin(t * 50)',
+        dy: '0',
+        alpha: '1',
+        scale: '1'
+      };
+    case 'swing':
+      return {
+        dx: '14 * sin(3.92699 * t)',
+        dy: '0',
+        alpha: '1',
+        scale: '1'
+      };
+    case 'glow':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '0.9 + 0.1 * sin(4.18879 * t)',
+        scale: '1'
+      };
+    case 'wave':
+      return {
+        dx: '0',
+        dy: `10 * sin(2.85599 * t + ${(lineIdx * 1.2).toFixed(2)})`,
+        alpha: '1',
+        scale: '1'
+      };
+    case 'none':
+    default:
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '1',
+        scale: '1'
+      };
+  }
+}
+
+function getExitExpr(effectOut, qStr) {
+  switch (effectOut) {
+    case 'zoomout':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: `max(0.01, 1 - ${qStr})`
+      };
+    case 'explode':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `max(0, 1 - pow(${qStr}, 2))`,
+        scale: `(1 + 0.6 * ${qStr})`
+      };
+    case 'slideup':
+      return {
+        dx: '0',
+        dy: `(-120 * pow(${qStr}, 2))`,
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'slidedown':
+      return {
+        dx: '0',
+        dy: `(120 * pow(${qStr}, 2))`,
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'slideleft':
+      return {
+        dx: `(-250 * pow(${qStr}, 2))`,
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'slideright':
+      return {
+        dx: `(250 * pow(${qStr}, 2))`,
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'wind':
+      return {
+        dx: `(400 * pow(${qStr}, 2))`,
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'magic':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `((1 - ${qStr}) * (0.5 + 0.5 * abs(sin(${qStr} * 18.84))))`,
+        scale: `max(0.01, 1 - 0.3 * ${qStr})`
+      };
+    case 'glitch':
+      return {
+        dx: `(8 * sin(${qStr} * 62.83) * ${qStr})`,
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'drop':
+      return {
+        dx: '0',
+        dy: `(600 * pow(${qStr}, 2))`,
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'fade':
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: `(1 - ${qStr})`,
+        scale: '1'
+      };
+    case 'typewriter':
+    case 'none':
+    default:
+      return {
+        dx: '0',
+        dy: '0',
+        alpha: '1',
+        scale: '1'
+      };
+  }
+}
+
+function composeValue(inVal, loopVal, outVal, tInEnd, tOut0) {
+  if (inVal === loopVal && loopVal === outVal) return inVal;
+  return `if(lt(t, ${tInEnd.toFixed(2)}), ${inVal}, if(lt(t, ${tOut0.toFixed(2)}), ${loopVal}, ${outVal}))`;
+}
+
 // Voces de Gemini TTS elegibles (nombre oficial -> cómo suena)
 const VOICES = [
   { id: 'Sulafat', label: 'Sulafat', desc: 'Cálida y cercana (recomendada)' },
@@ -231,7 +617,11 @@ REGLAS DE EDICIÓN:
    - "pos": "top", "center" o "bottom".
    - "textStyle": "yellow" (cápsula amarilla viral TikTok/Reels), "pill" (cápsula oscura), "impact" (borde grueso estilo Hormozi), "neon" (resplandor neón) o "minimal" (sombra limpia).
    - "font": "archivo" (Hormozi / impacto), "bangers" (cómic / MrBeast), "titan" (comida / amigable), "bebas" (clásica), "anton", "righteous", "syne", "montserrat", "poppins", "oswald", "playfair", "cinzel", "caveat", "lato".
-   - "effect": "pop" (punch de impacto), "fade" (desvanecido suave), "slide" (deslizamiento vertical), "bounce" (rebote elástico), "none".
+   - "effectIn": entrada del texto entre "pop", "zoomin", "zoomout", "typewriter", "wordbyword", "wind", "magic", "glitch", "slideup", "slidedown", "slideleft", "slideright", "drop", "bounce", "fade", "none".
+   - "effectLoop": animación continua entre "none", "float", "pulse", "heartbeat", "shake", "swing", "glow", "wave".
+   - "effectOut": salida del texto entre "fade", "zoomout", "explode", "slideup", "slidedown", "slideleft", "slideright", "wind", "magic", "glitch", "typewriter", "drop", "none".
+   - "speed": "fast" (0.25s), "normal" (0.45s) o "slow" (0.8s).
+   Guía de dinamismo: gancho inicial -> zoomin/glitch/magic; listas -> wordbyword; cierre/CTA -> pop + pulse; atmósfera -> fade + float.
 
 3. "voiceover": guion hablado conciso en español chileno neutro, máx ${Math.round(target * wordsPerSecond())} palabras.
 4. "caption": texto para pie de publicación de Instagram con gancho en primera línea y hashtags al final.
@@ -257,7 +647,10 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       "pos": "top",
       "textStyle": "yellow",
       "font": "archivo",
-      "effect": "pop"
+      "effectIn": "zoomin",
+      "effectLoop": "none",
+      "effectOut": "fade",
+      "speed": "normal"
     }
   ],
   "voiceover": "...",
@@ -313,7 +706,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
   let textOverlays = rawOverlays.map((ov, idx) => {
     const oStart = Math.max(0, Number(ov.start) || (idx * 2.8));
     const oEnd = Math.min(totalEstDuration, Math.max(oStart + 0.8, Number(ov.end) || (oStart + 2.8)));
-    return {
+    return normalizeOverlay({
       id: `ov_${idx + 1}`,
       text: String(ov.text || '').slice(0, 70),
       start: Math.round(oStart * 10) / 10,
@@ -321,9 +714,13 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       pos: ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : (idx === 0 ? 'top' : idx === 1 ? 'center' : 'bottom'),
       textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : (idx === 0 ? 'yellow' : 'pill'),
       font: ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo',
-      effect: ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop'
-    };
-  }).filter(ov => ov.text);
+      effect: ov.effect,
+      effectIn: ov.effectIn,
+      effectLoop: ov.effectLoop,
+      effectOut: ov.effectOut,
+      speed: ov.speed
+    });
+  }).filter(ov => ov && ov.text);
 
   // Fallback si la IA no entregó textOverlays pero sí escenas con texto
   if (!textOverlays.length) {
@@ -332,7 +729,7 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       const start = tOffset;
       const end = tOffset + s.length;
       tOffset = end;
-      return {
+      return normalizeOverlay({
         id: `ov_${idx + 1}`,
         text: s.text || (idx === 0 ? 'MIRA ESTO' : idx === 1 ? 'EL DETALLE QUE BUSCABAS' : 'VEN A CONOCERLO'),
         start: Math.round(start * 10) / 10,
@@ -340,8 +737,11 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
         pos: s.pos || 'center',
         textStyle: s.textStyle || 'pill',
         font: s.font || 'archivo',
-        effect: 'pop'
-      };
+        effectIn: 'pop',
+        effectLoop: 'none',
+        effectOut: 'fade',
+        speed: 'normal'
+      });
     });
   }
 
@@ -383,7 +783,11 @@ REGLAS:
 - "pos": "top", "center" o "bottom".
 - "textStyle": "yellow" (cápsula amarilla viral TikTok/Reels), "pill" (cápsula oscura), "impact" (borde de impacto), "neon" o "minimal".
 - "font": "archivo" (Hormozi), "bangers" (cómic), "titan" (comida), "bebas", "anton", "righteous", "syne", "montserrat", "poppins".
-- "effect": "pop", "fade", "slide", "bounce" o "none".
+- "effectIn": entrada del texto entre "pop", "zoomin", "zoomout", "typewriter", "wordbyword", "wind", "magic", "glitch", "slideup", "slidedown", "slideleft", "slideright", "drop", "bounce", "fade", "none".
+- "effectLoop": animación continua entre "none", "float", "pulse", "heartbeat", "shake", "swing", "glow", "wave".
+- "effectOut": salida del texto entre "fade", "zoomout", "explode", "slideup", "slidedown", "slideleft", "slideright", "wind", "magic", "glitch", "typewriter", "drop", "none".
+- "speed": "fast" (0.25s), "normal" (0.45s) o "slow" (0.8s).
+Guía de dinamismo: gancho inicial -> zoomin/glitch/magic; listas -> wordbyword; cierre/CTA -> pop + pulse; atmósfera -> fade + float.
 
 Devuelve ESTRICTAMENTE JSON con este formato:
 {
@@ -395,7 +799,10 @@ Devuelve ESTRICTAMENTE JSON con este formato:
       "pos": "top",
       "textStyle": "yellow",
       "font": "archivo",
-      "effect": "pop"
+      "effectIn": "zoomin",
+      "effectLoop": "none",
+      "effectOut": "fade",
+      "speed": "normal"
     }
   ]
 }`;
@@ -405,7 +812,7 @@ Devuelve ESTRICTAMENTE JSON con este formato:
   const textOverlays = rawOverlays.map((ov, idx) => {
     const oStart = Math.max(0, Number(ov.start) || (idx * 2.8));
     const oEnd = Math.min(totalEstDuration, Math.max(oStart + 0.8, Number(ov.end) || (oStart + 2.8)));
-    return {
+    return normalizeOverlay({
       id: `ov_${idx + 1}_${Date.now()}`,
       text: String(ov.text || '').slice(0, 70),
       start: Math.round(oStart * 10) / 10,
@@ -413,12 +820,16 @@ Devuelve ESTRICTAMENTE JSON con este formato:
       pos: ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : (idx === 0 ? 'top' : 'center'),
       textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : (idx === 0 ? 'yellow' : 'pill'),
       font: ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo',
-      effect: ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop'
-    };
-  }).filter(ov => ov.text);
+      effect: ov.effect,
+      effectIn: ov.effectIn,
+      effectLoop: ov.effectLoop,
+      effectOut: ov.effectOut,
+      speed: ov.speed
+    });
+  }).filter(ov => ov && ov.text);
 
   return textOverlays.length ? textOverlays : [
-    { id: 'ov_1', text: 'MIRA ESTO', start: 0, end: Math.min(2.5, totalEstDuration), pos: 'top', textStyle: 'yellow', font: 'archivo', effect: 'pop' }
+    normalizeOverlay({ id: 'ov_1', text: 'MIRA ESTO', start: 0, end: Math.min(2.5, totalEstDuration), pos: 'top', textStyle: 'yellow', font: 'archivo', effectIn: 'pop', effectLoop: 'none', effectOut: 'fade', speed: 'normal' })
   ];
 }
 
@@ -514,15 +925,18 @@ function synthesizeOverlaysFromScenes(scenes) {
   for (const s of scenes) {
     const len = Number(s.length) || Number(s._len) || 2.5;
     if (s.text && s.text.trim()) {
-      list.push({
+      list.push(normalizeOverlay({
         text: s.text.trim(),
         start: Math.round(offset * 10) / 10,
         end: Math.round((offset + len) * 10) / 10,
         pos: s.pos || 'center',
         textStyle: s.textStyle || 'pill',
         font: s.font || 'archivo',
-        effect: 'pop'
-      });
+        effectIn: 'pop',
+        effectLoop: 'none',
+        effectOut: 'fade',
+        speed: 'normal'
+      }));
     }
     offset += len;
   }
@@ -668,26 +1082,65 @@ async function render({
     }
 
     // Pista de Textos Desacoplada (Overlays en la línea de tiempo global)
-    const overlaysToRender = (Array.isArray(textOverlays) && textOverlays.length)
+    const rawOverlaysToRender = (Array.isArray(textOverlays) && textOverlays.length)
       ? textOverlays
       : synthesizeOverlaysFromScenes(scenes);
+
+    let overlaysToRender = rawOverlaysToRender.map(normalizeOverlay).filter(ov => ov && ov.text && String(ov.text).trim());
+
+    // Presupuesto de drawtexts (máximo 120 por render)
+    let estimatedDrawtexts = 0;
+    overlaysToRender.forEach((ov) => {
+      const lines = wrapText(ov.text, 16);
+      lines.forEach((ln) => {
+        let countForLine = 1;
+        if (ov.effectIn === 'typewriter') countForLine += Math.min(30, ln.length) - 1;
+        else if (ov.effectIn === 'wordbyword') countForLine += ln.split(/\s+/).filter(Boolean).length - 1;
+        else if (ov.effectIn === 'wind' || ov.effectIn === 'glitch') countForLine += 2;
+        else if (ov.effectIn === 'magic') countForLine += 1;
+
+        if (ov.effectOut === 'typewriter') countForLine += Math.min(30, ln.length);
+        else if (ov.effectOut === 'wind' || ov.effectOut === 'glitch') countForLine += 2;
+        else if (ov.effectOut === 'magic') countForLine += 1;
+
+        estimatedDrawtexts += countForLine;
+      });
+    });
+
+    let degradeDrawtexts = false;
+    if (estimatedDrawtexts > 120) {
+      console.warn(`[ReelStudio] drawtext count (${estimatedDrawtexts}) > 120; degradando typewriter a fade y omitiendo capas fantasma.`);
+      degradeDrawtexts = true;
+      overlaysToRender = overlaysToRender.map((ov) => ({
+        ...ov,
+        effectIn: ['typewriter', 'wordbyword'].includes(ov.effectIn) ? 'fade' : ov.effectIn,
+        effectOut: ov.effectOut === 'typewriter' ? 'fade' : ov.effectOut
+      }));
+    }
 
     let currentMaster = masterVideo;
     let overlayCounter = 0;
 
-    overlaysToRender.forEach((ov, oIdx) => {
+    for (let oIdx = 0; oIdx < overlaysToRender.length; oIdx++) {
+      const ov = overlaysToRender[oIdx];
       const textRaw = String(ov.text || '').trim();
-      if (!textRaw) return;
+      if (!textRaw) continue;
+
       const start = Math.max(0, Number(ov.start) || 0);
       const end = Math.min(totalDuration, Math.max(start + 0.4, Number(ov.end) || (start + 2.8)));
       const pos = ['top', 'center', 'bottom'].includes(ov.pos) ? ov.pos : 'center';
       const textStyle = ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(ov.textStyle) ? ov.textStyle : 'pill';
       const fontKey = ov.font && FONTS_MAP[ov.font] ? ov.font : 'archivo';
       const fontFile = FONTS_MAP[fontKey] || FONTS_MAP.archivo;
-      const effect = ['pop', 'fade', 'slide', 'bounce', 'none'].includes(ov.effect) ? ov.effect : 'pop';
+      const effectIn = ov.effectIn || 'pop';
+      const effectLoop = ov.effectLoop || 'none';
+      const effectOut = ov.effectOut || 'fade';
+      const speed = ov.speed || 'normal';
+
+      const { inDur, outDur } = getTiming(start, end, speed);
 
       const lines = wrapText(textRaw, 16);
-      if (!lines.length) return;
+      if (!lines.length) continue;
 
       let fontSize = lines.length > 2 ? 88 : 100;
       if (['archivo', 'anton', 'bangers', 'titan'].includes(fontKey)) {
@@ -701,51 +1154,187 @@ async function render({
       const baseY = pos === 'top' ? 240 : pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
 
       let styleAttrs = '';
+      let ghostStyleAttrs = '';
       if (textStyle === 'pill') {
         styleAttrs = `:box=1:boxcolor=black@0.78:boxborderw=20:fontcolor=white:shadowcolor=black@0.4:shadowx=2:shadowy=2`;
+        ghostStyleAttrs = `:fontcolor=white:shadowcolor=black@0.4:shadowx=2:shadowy=2`;
       } else if (textStyle === 'impact') {
         styleAttrs = `:borderw=7:bordercolor=black:fontcolor=white:shadowcolor=black@0.8:shadowx=4:shadowy=4`;
+        ghostStyleAttrs = `:borderw=4:bordercolor=black:fontcolor=white:shadowcolor=black@0.8:shadowx=4:shadowy=4`;
       } else if (textStyle === 'yellow') {
         styleAttrs = `:box=1:boxcolor=yellow@0.95:boxborderw=18:fontcolor=black:shadowcolor=black@0.2:shadowx=2:shadowy=2`;
+        ghostStyleAttrs = `:fontcolor=black:shadowcolor=black@0.2:shadowx=2:shadowy=2`;
       } else if (textStyle === 'neon') {
         styleAttrs = `:box=1:boxcolor=black@0.80:boxborderw=16:fontcolor=0x22d3ee:shadowcolor=0x22d3ee@0.8:shadowx=0:shadowy=0`;
+        ghostStyleAttrs = `:fontcolor=0x22d3ee:shadowcolor=0x22d3ee@0.8:shadowx=0:shadowy=0`;
       } else if (textStyle === 'minimal') {
         styleAttrs = `:box=1:boxcolor=black@0.35:boxborderw=10:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
+        ghostStyleAttrs = `:fontcolor=white:shadowcolor=black@0.6:shadowx=3:shadowy=3`;
       }
 
       const drawFilters = [];
-      lines.forEach((ln, k) => {
+
+      const glitchTop = []; // copias roja/cian del glitch: encima del texto (si van detrás, la cápsula las tapa)
+      for (let k = 0; k < lines.length; k++) {
+        const ln = lines[k];
+        const lineY = baseY + k * lineH;
+        const lineCenterY = lineY + Math.round(lineH / 2);
+        const tIn0 = start + k * 0.08;
+        const tInEnd = tIn0 + inDur;
+        const tOut0 = Math.max(tInEnd, end - outDur);
+
+        const isTwIn = (effectIn === 'typewriter');
+        const isWbwIn = (effectIn === 'wordbyword');
+        const isTwOut = (effectOut === 'typewriter');
+        const hasPrefixIn = isTwIn || isWbwIn;
+
+        // Archivo del texto completo de la línea
         const tf = path.join(TMP_DIR, `ov_${id}_${oIdx}_${k}.txt`);
         fs.writeFileSync(tf, ln, 'utf8');
         tmpFiles.push(tf);
-        const lineY = baseY + k * lineH;
-        const lineDelay = (start + k * 0.08).toFixed(2);
 
-        let yExpr = `${lineY}`;
-        let alphaExpr = `1`;
-
-        if (effect === 'pop') {
-          yExpr = `'${lineY} - 35*max(0, 1 - (t-${lineDelay})/0.18)'`;
-          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.10))'`;
-        } else if (effect === 'fade') {
-          alphaExpr = `'if(lt(t, ${start}+0.3), (t-${start})/0.3, if(gt(t, ${end}-0.3), (${end}-t)/0.3, 1))'`;
-        } else if (effect === 'slide') {
-          yExpr = `'${lineY} + 55*max(0, 1 - (t-${lineDelay})/0.22)'`;
-          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.15))'`;
-        } else if (effect === 'bounce') {
-          yExpr = `'${lineY} - 25*sin(min(3.14159, max(0, (t-${lineDelay})*12)))'`;
-          alphaExpr = `'min(1, max(0, (t-${lineDelay})/0.12))'`;
+        // Capas fantasma de ENTRADA (wind, magic, glitch) - van ANTES del texto principal
+        if (!degradeDrawtexts && !hasPrefixIn) {
+          if (effectIn === 'wind') {
+            const pStr = `clip((t - ${tIn0.toFixed(2)})/${inDur.toFixed(2)}, 0, 1)`;
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${ghostStyleAttrs}:x='((w-text_w)/2) - 40 * (1 - ${pStr})':y='${lineCenterY} - text_h/2':alpha='0.35 * (1 - ${pStr})':enable='between(t,${tIn0.toFixed(2)},${tInEnd.toFixed(2)})'`);
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${ghostStyleAttrs}:x='((w-text_w)/2) - 80 * (1 - ${pStr})':y='${lineCenterY} - text_h/2':alpha='0.15 * (1 - ${pStr})':enable='between(t,${tIn0.toFixed(2)},${tInEnd.toFixed(2)})'`);
+          } else if (effectIn === 'glitch') {
+            const pStr = `clip((t - ${tIn0.toFixed(2)})/${inDur.toFixed(2)}, 0, 1)`;
+            glitchTop.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}:fontcolor=0xff2222:shadowx=0:shadowy=0:x='((w-text_w)/2) + 8 * (1 - ${pStr})':y='${lineCenterY} - text_h/2':alpha='0.7 * (1 - ${pStr})':enable='between(t,${tIn0.toFixed(2)},${tInEnd.toFixed(2)})'`);
+            glitchTop.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}:fontcolor=0x22ffff:shadowx=0:shadowy=0:x='((w-text_w)/2) - 8 * (1 - ${pStr})':y='${lineCenterY} - text_h/2':alpha='0.7 * (1 - ${pStr})':enable='between(t,${tIn0.toFixed(2)},${tInEnd.toFixed(2)})'`);
+          } else if (effectIn === 'magic') {
+            const pStr = `clip((t - ${tIn0.toFixed(2)})/${inDur.toFixed(2)}, 0, 1)`;
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize='round(${fontSize} * (1.18 + 0.12 * (1 - ${pStr})))':fontcolor=white@0.85:shadowx=0:shadowy=0:x=(w-text_w)/2:y='${lineCenterY} - text_h/2':alpha='0.6 * (1 - ${pStr})':enable='between(t,${tIn0.toFixed(2)},${tInEnd.toFixed(2)})'`);
+          }
         }
 
-        drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${styleAttrs}:x=(w-text_w)/2:y=${yExpr}:alpha=${alphaExpr}:enable='between(t,${start.toFixed(2)},${end.toFixed(2)})'`);
-      });
+        // Capas fantasma de SALIDA (wind, magic, glitch) - van ANTES del texto principal
+        if (!degradeDrawtexts && !isTwOut) {
+          if (effectOut === 'wind') {
+            const qStr = `clip((t - ${tOut0.toFixed(2)})/${outDur.toFixed(2)}, 0, 1)`;
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${ghostStyleAttrs}:x='((w-text_w)/2) + 40 * ${qStr}':y='${lineCenterY} - text_h/2':alpha='0.35 * (1 - ${qStr})':enable='between(t,${tOut0.toFixed(2)},${end.toFixed(2)})'`);
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}${ghostStyleAttrs}:x='((w-text_w)/2) + 80 * ${qStr}':y='${lineCenterY} - text_h/2':alpha='0.15 * (1 - ${qStr})':enable='between(t,${tOut0.toFixed(2)},${end.toFixed(2)})'`);
+          } else if (effectOut === 'glitch') {
+            const qStr = `clip((t - ${tOut0.toFixed(2)})/${outDur.toFixed(2)}, 0, 1)`;
+            glitchTop.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}:fontcolor=0xff2222:shadowx=0:shadowy=0:x='((w-text_w)/2) + 8 * ${qStr}':y='${lineCenterY} - text_h/2':alpha='0.7 * (1 - ${qStr})':enable='between(t,${tOut0.toFixed(2)},${end.toFixed(2)})'`);
+            glitchTop.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fontSize}:fontcolor=0x22ffff:shadowx=0:shadowy=0:x='((w-text_w)/2) - 8 * ${qStr}':y='${lineCenterY} - text_h/2':alpha='0.7 * (1 - ${qStr})':enable='between(t,${tOut0.toFixed(2)},${end.toFixed(2)})'`);
+          } else if (effectOut === 'magic') {
+            const qStr = `clip((t - ${tOut0.toFixed(2)})/${outDur.toFixed(2)}, 0, 1)`;
+            drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize='round(${fontSize} * (1.0 + 0.3 * ${qStr}))':fontcolor=white@0.85:shadowx=0:shadowy=0:x=(w-text_w)/2:y='${lineCenterY} - text_h/2':alpha='0.6 * (1 - ${qStr})':enable='between(t,${tOut0.toFixed(2)},${end.toFixed(2)})'`);
+          }
+        }
+
+        // Construcción de la capa principal de texto
+        if (hasPrefixIn || isTwOut) {
+          // Medir ancho de la línea completa con sharp para alinear prefijos a la izquierda
+          const fullW = await measureTextWidth(ln, fontFile, fontSize);
+          const leftX = fullW ? Math.max(20, Math.round((W - fullW) / 2)) : null;
+
+          let prefixesIn = [];
+          if (isWbwIn) {
+            const words = ln.split(/\s+/).filter(Boolean);
+            prefixesIn = words.map((_, wIdx) => words.slice(0, wIdx + 1).join(' '));
+          } else if (isTwIn) {
+            const stepCount = Math.min(30, ln.length);
+            for (let s = 0; s < stepCount; s++) {
+              const charCount = Math.round(((s + 1) / stepCount) * ln.length);
+              prefixesIn.push(ln.slice(0, charCount));
+            }
+          }
+
+          // Pasos de entrada (prefijos antes del texto completo)
+          let tFullStart = tIn0;
+          if (prefixesIn.length > 0) {
+            const stepDurIn = inDur / prefixesIn.length;
+            for (let s = 0; s < prefixesIn.length - 1; s++) {
+              const pTxt = prefixesIn[s];
+              const pTf = path.join(TMP_DIR, `ov_${id}_${oIdx}_${k}_in_${s}.txt`);
+              fs.writeFileSync(pTf, pTxt, 'utf8');
+              tmpFiles.push(pTf);
+              const tStep0 = tIn0 + s * stepDurIn;
+              const tStep1 = tIn0 + (s + 1) * stepDurIn;
+              const pX = leftX != null ? `${leftX}` : `(w-text_w)/2`;
+              drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(pTf)}':fontsize=${fontSize}${styleAttrs}:x=${pX}:y='${lineCenterY} - text_h/2':alpha=1:enable='between(t,${tStep0.toFixed(2)},${tStep1.toFixed(2)})'`);
+            }
+            tFullStart = tIn0 + (prefixesIn.length - 1) * stepDurIn;
+          }
+
+          // Texto completo durante el loop (y salida si effectOut no es typewriter)
+          const pStr = `clip((t - ${tIn0.toFixed(2)})/${inDur.toFixed(2)}, 0, 1)`;
+          const qStr = `clip((t - ${tOut0.toFixed(2)})/${outDur.toFixed(2)}, 0, 1)`;
+          const inExpr = getEntranceExpr(effectIn, pStr);
+          const loopExpr = getLoopExpr(effectLoop, k);
+          const outExpr = getExitExpr(effectOut, qStr);
+
+          const scaleExpr = isTwOut
+            ? (loopExpr.scale === '1' ? '1' : `if(lt(t, ${tInEnd.toFixed(2)}), 1, ${loopExpr.scale})`)
+            : composeValue(hasPrefixIn ? '1' : inExpr.scale, loopExpr.scale, outExpr.scale, tInEnd, tOut0);
+          const dxExpr = composeValue(hasPrefixIn ? '0' : inExpr.dx, loopExpr.dx, isTwOut ? '0' : outExpr.dx, tInEnd, tOut0);
+          const dyExpr = composeValue(hasPrefixIn ? '0' : inExpr.dy, loopExpr.dy, isTwOut ? '0' : outExpr.dy, tInEnd, tOut0);
+          const alphaExpr = isTwOut
+            ? (loopExpr.alpha === '1' ? '1' : `if(lt(t, ${tInEnd.toFixed(2)}), 1, ${loopExpr.alpha})`)
+            : composeValue(hasPrefixIn ? '1' : inExpr.alpha, loopExpr.alpha, outExpr.alpha, tInEnd, tOut0);
+
+          const fsExpr = scaleExpr === '1' ? `${fontSize}` : `'round(${fontSize} * (${scaleExpr}))'`;
+          let xExpr = '';
+          if (leftX != null) {
+            xExpr = dxExpr === '0' ? `${leftX}` : `'${leftX} + (${dxExpr})'`;
+          } else {
+            xExpr = dxExpr === '0' ? `(w-text_w)/2` : `'(w-text_w)/2 + (${dxExpr})'`;
+          }
+          const yExpr = dyExpr === '0' ? `'${lineCenterY} - text_h/2'` : `'${lineCenterY} - text_h/2 + (${dyExpr})'`;
+          const aExpr = alphaExpr === '1' ? `1` : `'${alphaExpr}'`;
+
+          const tFullEnd = isTwOut ? tOut0 : end;
+          drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fsExpr}${styleAttrs}:x=${xExpr}:y=${yExpr}:alpha=${aExpr}:enable='between(t,${tFullStart.toFixed(2)},${tFullEnd.toFixed(2)})'`);
+
+          // Pasos de salida (typewriter en orden inverso)
+          if (isTwOut) {
+            const stepCountOut = Math.min(30, ln.length);
+            const stepDurOut = outDur / stepCountOut;
+            for (let e = 0; e < stepCountOut; e++) {
+              const charCount = Math.round(((stepCountOut - 1 - e) / stepCountOut) * ln.length);
+              if (charCount <= 0) continue;
+              const pTxt = ln.slice(0, charCount);
+              const pTf = path.join(TMP_DIR, `ov_${id}_${oIdx}_${k}_out_${e}.txt`);
+              fs.writeFileSync(pTf, pTxt, 'utf8');
+              tmpFiles.push(pTf);
+              const tStep0 = tOut0 + e * stepDurOut;
+              const tStep1 = tOut0 + (e + 1) * stepDurOut;
+              const pX = leftX != null ? `${leftX}` : `(w-text_w)/2`;
+              drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(pTf)}':fontsize=${fontSize}${styleAttrs}:x=${pX}:y='${lineCenterY} - text_h/2':alpha=1:enable='between(t,${tStep0.toFixed(2)},${tStep1.toFixed(2)})'`);
+            }
+          }
+        } else {
+          // Caso estándar (sin typewriter ni wordbyword)
+          const pStr = `clip((t - ${tIn0.toFixed(2)})/${inDur.toFixed(2)}, 0, 1)`;
+          const qStr = `clip((t - ${tOut0.toFixed(2)})/${outDur.toFixed(2)}, 0, 1)`;
+          const inExpr = getEntranceExpr(effectIn, pStr);
+          const loopExpr = getLoopExpr(effectLoop, k);
+          const outExpr = getExitExpr(effectOut, qStr);
+
+          const scaleExpr = composeValue(inExpr.scale, loopExpr.scale, outExpr.scale, tInEnd, tOut0);
+          const dxExpr = composeValue(inExpr.dx, loopExpr.dx, outExpr.dx, tInEnd, tOut0);
+          const dyExpr = composeValue(inExpr.dy, loopExpr.dy, outExpr.dy, tInEnd, tOut0);
+          const alphaExpr = composeValue(inExpr.alpha, loopExpr.alpha, outExpr.alpha, tInEnd, tOut0);
+
+          const fsExpr = scaleExpr === '1' ? `${fontSize}` : `'round(${fontSize} * (${scaleExpr}))'`;
+          const xExpr = dxExpr === '0' ? `(w-text_w)/2` : `'(w-text_w)/2 + (${dxExpr})'`;
+          const yExpr = dyExpr === '0' ? `'${lineCenterY} - text_h/2'` : `'${lineCenterY} - text_h/2 + (${dyExpr})'`;
+          const aExpr = alphaExpr === '1' ? `1` : `'${alphaExpr}'`;
+
+          drawFilters.push(`drawtext=fontfile='${fontFile}':textfile='${rel(tf)}':fontsize=${fsExpr}${styleAttrs}:x=${xExpr}:y=${yExpr}:alpha=${aExpr}:enable='between(t,${tIn0.toFixed(2)},${end.toFixed(2)})'`);
+        }
+      }
+      drawFilters.push(...glitchTop);
 
       if (drawFilters.length > 0) {
         const nextMaster = `vt_${overlayCounter++}`;
         filters.push(`[${currentMaster}]${drawFilters.join(',')}[${nextMaster}]`);
         currentMaster = nextMaster;
       }
-    });
+    }
 
     finalVideoLabel = currentMaster;
 
@@ -825,6 +1414,12 @@ module.exports = {
   VOICES,
   FONTS_MAP,
   getFonts,
+  TEXT_EFFECTS_IN,
+  TEXT_EFFECTS_LOOP,
+  TEXT_EFFECTS_OUT,
+  SPEED_OPTIONS,
+  normalizeOverlay,
+  getTiming,
   VALID_XFADE_TRANSITIONS,
   plan,
   suggestTextOverlays,

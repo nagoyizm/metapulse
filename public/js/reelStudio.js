@@ -66,13 +66,105 @@
     { id: 'minimal', label: 'Limpio con Sombra' }
   ];
 
-  const TEXT_EFFECTS = [
-    { id: 'pop', label: 'Punch / Pop-in (Impacto viral)' },
-    { id: 'fade', label: 'Desvanecido Suave (Fade in/out)' },
-    { id: 'slide', label: 'Deslizamiento desde Abajo (Slide up)' },
-    { id: 'bounce', label: 'Rebote Elástico (Bounce)' },
-    { id: 'none', label: 'Corte Directo (Sin animación)' }
+  const TEXT_EFFECTS_IN = [
+    { id: 'pop', label: 'Punch / Pop (Impacto rápido)' },
+    { id: 'zoomin', label: 'Zoom in (Rebote dinámico)' },
+    { id: 'zoomout', label: 'Zoom desde cerca' },
+    { id: 'typewriter', label: 'Máquina de escribir' },
+    { id: 'wordbyword', label: 'Palabra por palabra' },
+    { id: 'wind', label: 'Viento con estela' },
+    { id: 'magic', label: 'Magia y destello' },
+    { id: 'glitch', label: 'Glitch' },
+    { id: 'slideup', label: 'Deslizar hacia arriba' },
+    { id: 'slidedown', label: 'Deslizar hacia abajo' },
+    { id: 'slideleft', label: 'Deslizar desde la derecha' },
+    { id: 'slideright', label: 'Deslizar desde la izquierda' },
+    { id: 'drop', label: 'Caída con rebote' },
+    { id: 'bounce', label: 'Rebote elástico' },
+    { id: 'fade', label: 'Fundido suave' },
+    { id: 'none', label: 'Corte directo' }
   ];
+
+  const TEXT_EFFECTS_LOOP = [
+    { id: 'none', label: 'Quieto' },
+    { id: 'float', label: 'Flotar' },
+    { id: 'pulse', label: 'Latido suave' },
+    { id: 'heartbeat', label: 'Corazón' },
+    { id: 'shake', label: 'Temblor' },
+    { id: 'swing', label: 'Vaivén' },
+    { id: 'glow', label: 'Respirar' },
+    { id: 'wave', label: 'Ola entre líneas' }
+  ];
+
+  const TEXT_EFFECTS_OUT = [
+    { id: 'fade', label: 'Fundido' },
+    { id: 'zoomout', label: 'Zoom out' },
+    { id: 'explode', label: 'Explosión' },
+    { id: 'slideup', label: 'Deslizar hacia arriba' },
+    { id: 'slidedown', label: 'Deslizar hacia abajo' },
+    { id: 'slideleft', label: 'Deslizar hacia la izquierda' },
+    { id: 'slideright', label: 'Deslizar hacia la derecha' },
+    { id: 'wind', label: 'Viento hacia la derecha' },
+    { id: 'magic', label: 'Magia y disolución' },
+    { id: 'glitch', label: 'Glitch' },
+    { id: 'typewriter', label: 'Borrado máquina' },
+    { id: 'drop', label: 'Caída fuera' },
+    { id: 'none', label: 'Corte directo' }
+  ];
+
+  const SPEED_OPTIONS = [
+    { id: 'fast', label: 'Rápida (0.25s)', dur: 0.25 },
+    { id: 'normal', label: 'Normal (0.45s)', dur: 0.45 },
+    { id: 'slow', label: 'Lenta (0.8s)', dur: 0.8 }
+  ];
+
+  const VALID_EFFECTS_IN = TEXT_EFFECTS_IN.map((e) => e.id);
+  const VALID_EFFECTS_LOOP = TEXT_EFFECTS_LOOP.map((e) => e.id);
+  const VALID_EFFECTS_OUT = TEXT_EFFECTS_OUT.map((e) => e.id);
+  const VALID_SPEEDS = ['fast', 'normal', 'slow'];
+
+  function normalizeOverlay(ov) {
+    if (!ov || typeof ov !== 'object') return null;
+    let effectIn = ov.effectIn;
+    let effectLoop = ov.effectLoop || 'none';
+    let effectOut = ov.effectOut;
+    let speed = ov.speed || 'normal';
+
+    if (!effectIn && ov.effect) {
+      if (ov.effect === 'pop') effectIn = 'pop';
+      else if (ov.effect === 'fade') { effectIn = 'fade'; effectOut = 'fade'; }
+      else if (ov.effect === 'slide') effectIn = 'slideup';
+      else if (ov.effect === 'bounce') effectIn = 'bounce';
+      else if (ov.effect === 'none') { effectIn = 'none'; effectOut = 'none'; }
+      else effectIn = ov.effect;
+    }
+
+    if (!effectIn || !VALID_EFFECTS_IN.includes(effectIn)) effectIn = 'pop';
+    if (!effectLoop || !VALID_EFFECTS_LOOP.includes(effectLoop)) effectLoop = 'none';
+    if (!effectOut || !VALID_EFFECTS_OUT.includes(effectOut)) effectOut = (effectIn === 'none' ? 'none' : 'fade');
+    if (!VALID_SPEEDS.includes(speed)) speed = 'normal';
+
+    return {
+      ...ov,
+      effectIn,
+      effectLoop,
+      effectOut,
+      speed
+    };
+  }
+
+  function getTiming(start, end, speed = 'normal') {
+    const dur = Math.max(0.1, (Number(end) || 0) - (Number(start) || 0));
+    const baseDur = speed === 'fast' ? 0.25 : speed === 'slow' ? 0.8 : 0.45;
+    const maxCombined = dur * 0.7;
+    let inDur = baseDur;
+    let outDur = baseDur;
+    if (inDur + outDur > maxCombined) {
+      inDur = maxCombined / 2;
+      outDur = maxCombined / 2;
+    }
+    return { inDur, outDur };
+  }
 
   function brandName() {
     const acc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
@@ -157,7 +249,7 @@
         S.scenes = data.scenes;
       }
       if (Array.isArray(data.textOverlays) && data.textOverlays.length) {
-        S.textOverlays = data.textOverlays;
+        S.textOverlays = data.textOverlays.map(normalizeOverlay).filter(Boolean);
       }
       if (data.voiceover) {
         S.voiceover = data.voiceover;
@@ -589,7 +681,7 @@
         transition: sc.transition || 'zoomin'
       }));
 
-      S.textOverlays = (data.textOverlays || []).map((t, idx) => ({
+      S.textOverlays = (data.textOverlays || []).map((t, idx) => normalizeOverlay({
         id: t.id || `txt_${idx + 1}`,
         text: t.text || '',
         start: Number(t.start) || 0,
@@ -597,7 +689,11 @@
         pos: t.pos || (idx === 0 ? 'top' : idx === 1 ? 'center' : 'bottom'),
         textStyle: t.textStyle || (idx === 0 ? 'yellow' : 'pill'),
         font: t.font || 'archivo',
-        effect: t.effect || 'pop'
+        effectIn: t.effectIn,
+        effectLoop: t.effectLoop,
+        effectOut: t.effectOut,
+        speed: t.speed,
+        effect: t.effect
       }));
 
       S.voiceover = data.voiceover || '';
@@ -653,7 +749,10 @@
           pos: 'top',
           textStyle: 'yellow',
           font: 'archivo',
-          effect: 'pop'
+          effectIn: 'pop',
+          effectLoop: 'none',
+          effectOut: 'fade',
+          speed: 'normal'
         }
       ];
     }
@@ -978,8 +1077,20 @@
       `<option value="${st.id}" ${st.id === (sel || 'yellow') ? 'selected' : ''}>${esc(st.label)}</option>`
     ).join('');
 
-    const effectOpts = (sel) => TEXT_EFFECTS.map((ef) =>
+    const effectInOpts = (sel) => TEXT_EFFECTS_IN.map((ef) =>
       `<option value="${ef.id}" ${ef.id === (sel || 'pop') ? 'selected' : ''}>${esc(ef.label)}</option>`
+    ).join('');
+
+    const effectLoopOpts = (sel) => TEXT_EFFECTS_LOOP.map((ef) =>
+      `<option value="${ef.id}" ${ef.id === (sel || 'none') ? 'selected' : ''}>${esc(ef.label)}</option>`
+    ).join('');
+
+    const effectOutOpts = (sel) => TEXT_EFFECTS_OUT.map((ef) =>
+      `<option value="${ef.id}" ${ef.id === (sel || 'fade') ? 'selected' : ''}>${esc(ef.label)}</option>`
+    ).join('');
+
+    const speedOpts = (sel) => SPEED_OPTIONS.map((sp) =>
+      `<option value="${sp.id}" ${sp.id === (sel || 'normal') ? 'selected' : ''}>${esc(sp.label)}</option>`
     ).join('');
 
     list.innerHTML = S.textOverlays.map((t, i) => `
@@ -1033,9 +1144,30 @@
             </select>
           </div>
           <div>
-            <label style="font-size:0.72rem; font-weight:600;">Efecto de Animación</label>
-            <select class="form-control form-control-sm reel-overlay-effect">
-              ${effectOpts(t.effect)}
+            <label style="font-size:0.72rem; font-weight:600;">Entrada</label>
+            <select class="form-control form-control-sm reel-overlay-effect-in">
+              ${effectInOpts(t.effectIn)}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Animación (Loop)</label>
+            <select class="form-control form-control-sm reel-overlay-effect-loop">
+              ${effectLoopOpts(t.effectLoop)}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:8px;">
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Salida</label>
+            <select class="form-control form-control-sm reel-overlay-effect-out">
+              ${effectOutOpts(t.effectOut)}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.72rem; font-weight:600;">Velocidad</label>
+            <select class="form-control form-control-sm reel-overlay-speed">
+              ${speedOpts(t.speed)}
             </select>
           </div>
         </div>
@@ -1096,25 +1228,49 @@
         saveState();
       });
 
-      card.querySelector('.reel-overlay-effect')?.addEventListener('change', (e) => {
-        ov.effect = e.target.value;
-        if (i === S.activeOverlayIdx) renderLiveOverlay(ov, true);
+      card.querySelector('.reel-overlay-effect-in')?.addEventListener('change', (e) => {
+        ov.effectIn = e.target.value;
+        if (i === S.activeOverlayIdx) previewTextOverlay(i);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-effect-loop')?.addEventListener('change', (e) => {
+        ov.effectLoop = e.target.value;
+        if (i === S.activeOverlayIdx) previewTextOverlay(i);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-effect-out')?.addEventListener('change', (e) => {
+        ov.effectOut = e.target.value;
+        if (i === S.activeOverlayIdx) previewTextOverlay(i);
+        saveState();
+      });
+
+      card.querySelector('.reel-overlay-speed')?.addEventListener('change', (e) => {
+        ov.speed = e.target.value;
+        if (i === S.activeOverlayIdx) previewTextOverlay(i);
         saveState();
       });
 
       card.querySelector('.reel-apply-text-style-all')?.addEventListener('click', () => {
         const chosenFont = ov.font || 'archivo';
         const chosenStyle = ov.textStyle || 'yellow';
-        const chosenEffect = ov.effect || 'pop';
+        const chosenIn = ov.effectIn || 'pop';
+        const chosenLoop = ov.effectLoop || 'none';
+        const chosenOut = ov.effectOut || 'fade';
+        const chosenSpeed = ov.speed || 'normal';
         S.textOverlays.forEach((t) => {
           t.font = chosenFont;
           t.textStyle = chosenStyle;
-          t.effect = chosenEffect;
+          t.effectIn = chosenIn;
+          t.effectLoop = chosenLoop;
+          t.effectOut = chosenOut;
+          t.speed = chosenSpeed;
         });
         renderTextOverlays();
         previewTextOverlay(i);
         saveState();
-        toast('Tipografía y estilo aplicados a todos los textos.', 'info');
+        toast('Tipografía, estilo y efectos aplicados a todos los textos.', 'info');
       });
 
       card.querySelector('.reel-del-text')?.addEventListener('click', () => {
@@ -1138,16 +1294,20 @@
       nextStart = Math.min(Math.max(0, tot - 1), Math.max(0, Number(last.end) || 0));
     }
     const nextEnd = Math.min(tot, nextStart + 2.5);
-    const newOv = {
+    const first = S.textOverlays.length ? S.textOverlays[0] : null;
+    const newOv = normalizeOverlay({
       id: `ov_${Date.now()}`,
       text: 'NUEVO TEXTO',
       start: Math.round(nextStart * 10) / 10,
       end: Math.round(nextEnd * 10) / 10,
       pos: 'center',
-      textStyle: S.textOverlays.length ? S.textOverlays[0].textStyle : 'yellow',
-      font: S.textOverlays.length ? S.textOverlays[0].font : 'archivo',
-      effect: 'pop'
-    };
+      textStyle: first ? first.textStyle : 'yellow',
+      font: first ? first.font : 'archivo',
+      effectIn: first ? first.effectIn : 'pop',
+      effectLoop: first ? first.effectLoop : 'none',
+      effectOut: first ? first.effectOut : 'fade',
+      speed: first ? first.speed : 'normal'
+    });
     S.textOverlays.push(newOv);
     S.activeOverlayIdx = S.textOverlays.length - 1;
     renderTextOverlays();
@@ -1167,7 +1327,7 @@
         voiceover: $('reel-voiceover')?.value || S.voiceover || ''
       });
       if (Array.isArray(data) && data.length) {
-        S.textOverlays = data;
+        S.textOverlays = data.map(normalizeOverlay).filter(Boolean);
         S.activeOverlayIdx = 0;
         renderTextOverlays();
         previewTextOverlay(0);
@@ -1209,7 +1369,20 @@
     };
   }
 
+  let previewAnimTimer1 = null;
+  let previewAnimTimer2 = null;
+  let previewAnimTimer3 = null;
+  let previewTwInterval = null;
+
+  function clearActivePreviewTimers() {
+    if (previewAnimTimer1) { clearTimeout(previewAnimTimer1); previewAnimTimer1 = null; }
+    if (previewAnimTimer2) { clearTimeout(previewAnimTimer2); previewAnimTimer2 = null; }
+    if (previewAnimTimer3) { clearTimeout(previewAnimTimer3); previewAnimTimer3 = null; }
+    if (previewTwInterval) { clearInterval(previewTwInterval); previewTwInterval = null; }
+  }
+
   function renderLiveOverlay(ov, triggerAnim = false) {
+    clearActivePreviewTimers();
     const topEl = $('reel-vp-text-top');
     const centerEl = $('reel-vp-text-center');
     const bottomEl = $('reel-vp-text-bottom');
@@ -1221,20 +1394,103 @@
 
     if (!ov || !ov.text || !ov.text.trim()) return;
 
-    const fontClass = `reel-font-${ov.font || 'archivo'}`;
-    const effectClass = ov.effect && ov.effect !== 'none' ? `effect-${ov.effect}` : '';
-    const badge = document.createElement('div');
-    badge.className = `reel-live-caption ${ov.textStyle || 'yellow'} ${fontClass} ${effectClass}`;
-    badge.textContent = ov.text.trim().toUpperCase();
+    const norm = normalizeOverlay(ov);
+    const targetEl = norm.pos === 'top' ? topEl : norm.pos === 'bottom' ? bottomEl : centerEl;
+    const fontClass = `reel-font-${norm.font || 'archivo'}`;
 
-    const targetEl = ov.pos === 'top' ? topEl : ov.pos === 'bottom' ? bottomEl : centerEl;
+    const badge = document.createElement('div');
+    badge.className = `reel-live-caption ${norm.textStyle || 'yellow'} ${fontClass}`;
+    const txt = norm.text.trim().toUpperCase();
+
+    if (!triggerAnim) {
+      badge.textContent = txt;
+      targetEl.appendChild(badge);
+      return;
+    }
+
+    // "Previsualizar" de un texto reproduce entrada -> 1.5 s de loop -> salida, una vez.
+    const { inDur, outDur } = getTiming(norm.start, norm.end, norm.speed);
+    badge.style.setProperty('--reel-in-dur', `${inDur}s`);
+    badge.style.setProperty('--reel-out-dur', `${outDur}s`);
     targetEl.appendChild(badge);
 
-    if (triggerAnim && effectClass) {
-      badge.classList.remove(effectClass);
-      void badge.offsetWidth;
-      badge.classList.add(effectClass);
+    const isTwIn = (norm.effectIn === 'typewriter');
+    const isWbwIn = (norm.effectIn === 'wordbyword');
+
+    // 1. Entrada
+    if (isTwIn) {
+      badge.textContent = '';
+      const totalChars = txt.length;
+      const stepMs = Math.max(16, (inDur * 1000) / totalChars);
+      let curChar = 0;
+      previewTwInterval = setInterval(() => {
+        curChar++;
+        badge.textContent = txt.slice(0, curChar);
+        if (curChar >= totalChars) {
+          clearInterval(previewTwInterval);
+          previewTwInterval = null;
+        }
+      }, stepMs);
+    } else if (isWbwIn) {
+      badge.textContent = '';
+      const words = txt.split(/\s+/).filter(Boolean);
+      const stepMs = Math.max(40, (inDur * 1000) / words.length);
+      let curWord = 0;
+      previewTwInterval = setInterval(() => {
+        curWord++;
+        badge.textContent = words.slice(0, curWord).join(' ');
+        if (curWord >= words.length) {
+          clearInterval(previewTwInterval);
+          previewTwInterval = null;
+        }
+      }, stepMs);
+    } else {
+      badge.textContent = txt;
+      if (norm.effectIn && norm.effectIn !== 'none') {
+        badge.classList.add(`reel-in-${norm.effectIn}`);
+      }
     }
+
+    // 2. Loop continuo durante 1.5s
+    previewAnimTimer1 = setTimeout(() => {
+      if (isTwIn || isWbwIn) {
+        if (previewTwInterval) { clearInterval(previewTwInterval); previewTwInterval = null; }
+        badge.textContent = txt;
+      }
+      if (norm.effectIn && norm.effectIn !== 'none') {
+        badge.classList.remove(`reel-in-${norm.effectIn}`);
+      }
+      if (norm.effectLoop && norm.effectLoop !== 'none') {
+        badge.classList.add(`reel-loop-${norm.effectLoop}`);
+      }
+
+      // 3. Salida
+      previewAnimTimer2 = setTimeout(() => {
+        if (norm.effectLoop && norm.effectLoop !== 'none') {
+          badge.classList.remove(`reel-loop-${norm.effectLoop}`);
+        }
+
+        if (norm.effectOut === 'typewriter') {
+          const totalChars = txt.length;
+          const stepMs = Math.max(16, (outDur * 1000) / totalChars);
+          let remChar = totalChars;
+          previewTwInterval = setInterval(() => {
+            remChar--;
+            badge.textContent = txt.slice(0, Math.max(0, remChar));
+            if (remChar <= 0) {
+              clearInterval(previewTwInterval);
+              previewTwInterval = null;
+              targetEl.innerHTML = '';
+            }
+          }, stepMs);
+        } else if (norm.effectOut && norm.effectOut !== 'none') {
+          badge.classList.add(`reel-out-${norm.effectOut}`);
+          previewAnimTimer3 = setTimeout(() => {
+            targetEl.innerHTML = '';
+          }, outDur * 1000);
+        }
+      }, 1500);
+    }, inDur * 1000);
   }
 
   function previewTextOverlay(idx) {
@@ -1623,7 +1879,8 @@
 
     // 2. Textos activos en t
     const activeByPos = {};
-    for (const ov of S.textOverlays) {
+    for (const rawOv of S.textOverlays) {
+      const ov = normalizeOverlay(rawOv);
       const s = Number(ov.start) || 0;
       const e = Number(ov.end) || 0;
       if (t >= s && t < e) {
@@ -1636,24 +1893,87 @@
       const el = $(`reel-vp-text-${pos}`);
       if (!el) return;
       const curOv = activeByPos[pos];
-      const prevOv = seqPrevOverlaysByPos[pos];
+      const prevState = seqPrevOverlaysByPos[pos];
 
       if (!curOv || !curOv.text || !curOv.text.trim()) {
+        if (prevState) {
+          el.innerHTML = '';
+          delete seqPrevOverlaysByPos[pos];
+        }
+        return;
+      }
+
+      const { inDur, outDur } = getTiming(curOv.start, curOv.end, curOv.speed);
+      const tInEnd = curOv.start + inDur;
+      const tOut0 = curOv.end - outDur;
+      const phase = (t < tInEnd) ? 'in' : (t >= tOut0) ? 'out' : 'loop';
+      const fullText = curOv.text.trim().toUpperCase();
+
+      const isTwIn = (curOv.effectIn === 'typewriter');
+      const isWbwIn = (curOv.effectIn === 'wordbyword');
+      const isTwOut = (curOv.effectOut === 'typewriter');
+
+      let currentDisplayText = fullText;
+      if (phase === 'in' && (isTwIn || isWbwIn)) {
+        const p = Math.min(1, Math.max(0, (t - curOv.start) / inDur));
+        if (isTwIn) {
+          const charCount = Math.round(p * fullText.length);
+          currentDisplayText = fullText.slice(0, charCount);
+        } else if (isWbwIn) {
+          const words = fullText.split(/\s+/).filter(Boolean);
+          const wordCount = Math.min(words.length, Math.max(1, Math.ceil(p * words.length)));
+          currentDisplayText = words.slice(0, wordCount).join(' ');
+        }
+      } else if (phase === 'out' && isTwOut) {
+        const q = Math.min(1, Math.max(0, (t - tOut0) / outDur));
+        const rem = Math.max(0, Math.round((1 - q) * fullText.length));
+        currentDisplayText = fullText.slice(0, rem);
+      }
+
+      let badge = el.querySelector('.reel-live-caption');
+
+      if (!prevState || prevState.id !== curOv.id || !badge) {
         el.innerHTML = '';
+        const fontClass = `reel-font-${curOv.font || 'archivo'}`;
+        badge = document.createElement('div');
+        badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} ${fontClass}`;
+        badge.style.setProperty('--reel-in-dur', `${inDur}s`);
+        badge.style.setProperty('--reel-out-dur', `${outDur}s`);
+        badge.textContent = currentDisplayText;
+
+        if (phase === 'in' && !isTwIn && !isWbwIn && curOv.effectIn !== 'none') {
+          badge.classList.add(`reel-in-${curOv.effectIn}`);
+        } else if (phase === 'loop' && curOv.effectLoop !== 'none') {
+          badge.classList.add(`reel-loop-${curOv.effectLoop}`);
+        } else if (phase === 'out' && !isTwOut && curOv.effectOut !== 'none') {
+          badge.classList.add(`reel-out-${curOv.effectOut}`);
+        }
+
+        el.appendChild(badge);
+        seqPrevOverlaysByPos[pos] = { id: curOv.id, phase, text: curOv.text };
         return;
       }
 
-      if (prevOv && prevOv.id === curOv.id && prevOv.text === curOv.text) {
-        return;
+      // Si cambió de fase
+      if (prevState.phase !== phase) {
+        badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} reel-font-${curOv.font || 'archivo'}`;
+        badge.style.setProperty('--reel-in-dur', `${inDur}s`);
+        badge.style.setProperty('--reel-out-dur', `${outDur}s`);
+
+        if (phase === 'in' && !isTwIn && !isWbwIn && curOv.effectIn !== 'none') {
+          badge.classList.add(`reel-in-${curOv.effectIn}`);
+        } else if (phase === 'loop' && curOv.effectLoop !== 'none') {
+          badge.classList.add(`reel-loop-${curOv.effectLoop}`);
+        } else if (phase === 'out' && !isTwOut && curOv.effectOut !== 'none') {
+          badge.classList.add(`reel-out-${curOv.effectOut}`);
+        }
+
+        seqPrevOverlaysByPos[pos].phase = phase;
       }
 
-      el.innerHTML = '';
-      const fontClass = `reel-font-${curOv.font || 'archivo'}`;
-      const effectClass = curOv.effect && curOv.effect !== 'none' ? `effect-${curOv.effect}` : '';
-      const badge = document.createElement('div');
-      badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} ${fontClass} ${effectClass}`;
-      badge.textContent = curOv.text.trim().toUpperCase();
-      el.appendChild(badge);
+      if (isTwIn || isWbwIn || isTwOut) {
+        badge.textContent = currentDisplayText;
+      }
     });
     seqPrevOverlaysByPos = activeByPos;
 
@@ -1712,7 +2032,8 @@
     }
 
     const activeByPos = {};
-    for (const ov of S.textOverlays) {
+    for (const rawOv of S.textOverlays) {
+      const ov = normalizeOverlay(rawOv);
       const s = Number(ov.start) || 0;
       const e = Number(ov.end) || 0;
       if (t >= s && t < e) {
@@ -1730,10 +2051,47 @@
         return;
       }
       el.innerHTML = '';
+
+      const { inDur, outDur } = getTiming(curOv.start, curOv.end, curOv.speed);
+      const tInEnd = curOv.start + inDur;
+      const tOut0 = curOv.end - outDur;
+      const phase = (t < tInEnd) ? 'in' : (t >= tOut0) ? 'out' : 'loop';
+      const fullText = curOv.text.trim().toUpperCase();
+
+      const isTwIn = (curOv.effectIn === 'typewriter');
+      const isWbwIn = (curOv.effectIn === 'wordbyword');
+      const isTwOut = (curOv.effectOut === 'typewriter');
+
+      let currentDisplayText = fullText;
+      if (phase === 'in' && (isTwIn || isWbwIn)) {
+        const p = Math.min(1, Math.max(0, (t - curOv.start) / inDur));
+        if (isTwIn) {
+          const charCount = Math.round(p * fullText.length);
+          currentDisplayText = fullText.slice(0, charCount);
+        } else if (isWbwIn) {
+          const words = fullText.split(/\s+/).filter(Boolean);
+          const wordCount = Math.min(words.length, Math.max(1, Math.ceil(p * words.length)));
+          currentDisplayText = words.slice(0, wordCount).join(' ');
+        }
+      } else if (phase === 'out' && isTwOut) {
+        const q = Math.min(1, Math.max(0, (t - tOut0) / outDur));
+        const rem = Math.max(0, Math.round((1 - q) * fullText.length));
+        currentDisplayText = fullText.slice(0, rem);
+      }
+
       const fontClass = `reel-font-${curOv.font || 'archivo'}`;
       const badge = document.createElement('div');
       badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} ${fontClass}`;
-      badge.textContent = curOv.text.trim().toUpperCase();
+      badge.textContent = currentDisplayText;
+
+      if (phase === 'loop' && curOv.effectLoop !== 'none') {
+        badge.classList.add(`reel-loop-${curOv.effectLoop}`);
+      } else if (phase === 'in' && !isTwIn && !isWbwIn && curOv.effectIn !== 'none') {
+        badge.classList.add(`reel-in-${curOv.effectIn}`);
+      } else if (phase === 'out' && !isTwOut && curOv.effectOut !== 'none') {
+        badge.classList.add(`reel-out-${curOv.effectOut}`);
+      }
+
       el.appendChild(badge);
     });
   }
@@ -2276,15 +2634,22 @@
           panY: sc.panY,
           transition: sc.transition
         })),
-        textOverlays: S.textOverlays.map((ov) => ({
-          text: ov.text,
-          start: Number(ov.start) || 0,
-          end: Number(ov.end) || 3,
-          pos: ov.pos || 'center',
-          textStyle: ov.textStyle || 'yellow',
-          font: ov.font || 'archivo',
-          effect: ov.effect || 'pop'
-        })),
+        textOverlays: S.textOverlays.map((ov) => {
+          const n = normalizeOverlay(ov);
+          return {
+            text: n.text,
+            start: Number(n.start) || 0,
+            end: Number(n.end) || 3,
+            pos: n.pos || 'center',
+            textStyle: n.textStyle || 'yellow',
+            font: n.font || 'archivo',
+            effectIn: n.effectIn,
+            effectLoop: n.effectLoop,
+            effectOut: n.effectOut,
+            speed: n.speed,
+            effect: n.effectIn
+          };
+        }),
         voice_segments: voiceSegmentsPayload,
         voice_volume: Number($('reel-voice-vol')?.value) || 1,
         music: S.music ? { url: S.music.url, title: S.music.title, artist: S.music.artist } : null,
