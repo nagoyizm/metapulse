@@ -517,19 +517,6 @@
     await Promise.all(clips.map((c) => analyzeSingleClip(S.clips.indexOf(c), false)));
   }
 
-  // Reordenar clips; las tomas ya creadas siguen apuntando a su clip original
-  function moveClip(i, dir) {
-    const j = i + dir;
-    if (j < 0 || j >= S.clips.length) return;
-    [S.clips[i], S.clips[j]] = [S.clips[j], S.clips[i]];
-    S.scenes.forEach((sc) => {
-      if (sc.clip === i) sc.clip = j;
-      else if (sc.clip === j) sc.clip = i;
-    });
-    renderClips();
-    saveState();
-  }
-
   async function analyzeAllClips() {
     const unanalyzed = S.clips
       .map((c, i) => (!c.analysis ? i : -1))
@@ -731,11 +718,7 @@
                 </strong>
                 ${statusBadge}
               </div>
-              <div style="display:flex; gap:4px; flex-shrink:0;">
-                <button type="button" class="btn btn-secondary btn-xs reel-move-clip" data-dir="-1" title="Subir (sale antes en el reel)" ${i === 0 ? 'disabled' : ''}>▲</button>
-                <button type="button" class="btn btn-secondary btn-xs reel-move-clip" data-dir="1" title="Bajar (sale después en el reel)" ${i === S.clips.length - 1 ? 'disabled' : ''}>▼</button>
-                <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip">✕</button>
-              </div>
+              <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip (y sus tomas)">✕</button>
             </div>
 
             <textarea class="form-control form-control-sm reel-clip-desc-input" rows="2" style="font-size:0.75rem;" placeholder="¿Qué ocurre en este clip? (ej: cámara lenta abriendo el helado, se ve el relleno cremoso)">${esc(c.description)}</textarea>
@@ -805,11 +788,13 @@
         S.clips[i].description = e.target.value;
         saveState();
       });
-      el.querySelectorAll('.reel-move-clip').forEach((btn) => {
-        btn.addEventListener('click', () => moveClip(i, +btn.dataset.dir));
-      });
       el.querySelector('.reel-del-clip')?.addEventListener('click', () => {
         S.clips.splice(i, 1);
+        S.scenes = S.scenes.filter((sc) => sc.clip !== i);
+        S.scenes.forEach((sc) => { if (sc.clip > i) sc.clip -= 1; });
+        if (S.scenes.length && S.scenes[0]) S.scenes[0].transition = 'none';
+        if (S.activeSceneIdx >= S.scenes.length) S.activeSceneIdx = S.scenes.length - 1;
+        renderScenes();
         renderClips();
         if (S.clips.length) {
           previewClip(Math.min(i, S.clips.length - 1));
@@ -984,21 +969,41 @@
               addedIndices.push(S.clips.length);
               S.clips.push(clipObj);
 
+              // Cada clip nuevo entra a la línea de tiempo, uno después de otro
+              const newScene = {
+                clip: S.clips.length - 1,
+                url: m.url,
+                kind: clipObj.kind,
+                start: 0,
+                length: isImg ? 2.5 : 3,
+                speed: 1,
+                fitMode: 'crop',
+                zoom: 1.0,
+                panX: 0.5,
+                panY: 0.5,
+                transition: S.scenes.length === 0 ? 'none' : 'zoomin',
+                _auto: true
+              };
+              S.scenes.push(newScene);
+
               if (!isImg) {
                 const v = document.createElement('video');
                 v.src = m.url;
                 v.preload = 'metadata';
                 v.onloadedmetadata = () => {
                   clipObj.duration = Math.round(v.duration * 10) / 10;
+                  if (newScene._auto) newScene.length = Math.min(clipObj.duration, 5);
+                  renderScenes();
                   renderClips();
                   saveState();
                 };
               }
             }
 
+            renderScenes();
             renderClips();
-            if (S.clips.length > 0) {
-              previewClip(S.clips.length - 1);
+            if (S.scenes.length > 0) {
+              selectSceneForFrame(S.scenes.length - json.data.length >= 0 ? S.scenes.length - json.data.length : 0);
             }
             saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
@@ -1779,6 +1784,7 @@
       bar.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:var(--text-muted); font-size:0.75rem;">Sin tomas configuradas</div>';
       if (ruler) ruler.innerHTML = '';
       if (playhead) playhead.style.display = 'none';
+      renderTransitionsRow();
       return;
     }
 
@@ -1818,6 +1824,8 @@
         ruler.appendChild(tick);
       }
     }
+
+    renderTransitionsRow();
 
     const blocks = bar.querySelectorAll('.reel-track-block');
     blocks.forEach((block) => {
@@ -1924,6 +1932,59 @@
         showStaticFrameAtTime(targetSec);
       };
     }
+  }
+
+  // Fila de transiciones: una por cada unión entre tomas, con botón para probarla
+  const TRANS_CHOICES = [
+    { id: 'zoomin', label: 'Zoom Dinámico' },
+    { id: 'slideleft', label: 'Deslizamiento' },
+    { id: 'fadewhite', label: 'Flash Blanco' },
+    { id: 'smoothleft', label: 'Paneo Suave' },
+    { id: 'dissolve', label: 'Disolución' },
+    { id: 'none', label: 'Corte directo' }
+  ];
+
+  function renderTransitionsRow() {
+    const row = $('reel-transitions-row');
+    if (!row) return;
+    if (S.scenes.length < 2) {
+      row.innerHTML = '';
+      row.style.display = 'none';
+      return;
+    }
+    row.style.display = 'flex';
+    row.innerHTML = S.scenes.slice(1).map((sc, k) => {
+      const i = k + 1;
+      const opts = TRANS_CHOICES.map((t) => `<option value="${t.id}" ${t.id === (sc.transition || 'zoomin') ? 'selected' : ''}>${t.label}</option>`).join('');
+      return `
+        <div class="reel-trans-item" data-i="${i}">
+          <span class="reel-trans-label">${i} → ${i + 1}</span>
+          <select class="form-control form-control-sm reel-trans-select">${opts}</select>
+          <button type="button" class="btn btn-secondary btn-xs reel-trans-test" title="Ver esta transición en la pantalla">▶ Probar</button>
+        </div>`;
+    }).join('');
+
+    row.querySelectorAll('.reel-trans-item').forEach((el) => {
+      const i = +el.dataset.i;
+      el.querySelector('.reel-trans-select').addEventListener('change', (e) => {
+        S.scenes[i].transition = e.target.value;
+        saveState();
+        renderScenes();
+        testTransition(i);
+      });
+      el.querySelector('.reel-trans-test').addEventListener('click', () => testTransition(i));
+    });
+  }
+
+  let transTestTimer = null;
+  function testTransition(i) {
+    const tl = buildTimeline();
+    const item = tl.items.find((it) => it.idx === i);
+    if (!item) return;
+    const from = Math.max(0, item.startAt - 1.2);
+    startSequence(from);
+    clearTimeout(transTestTimer);
+    transTestTimer = setTimeout(() => stopSequence(false), (item.startAt - from + Math.max(item.transDur, 0.35) + 1.2) * 1000);
   }
 
   function updateLiveMediaTransform(sc) {
