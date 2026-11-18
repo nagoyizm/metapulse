@@ -63,6 +63,143 @@
     }
   }
 
+  // ── Persistencia de Sesión / Borrador Local (para soportar F5 sin pérdidas) ──
+  const STORAGE_KEY = 'metapulse_reel_studio_draft';
+
+  function saveState() {
+    try {
+      const data = {
+        step: S.step,
+        template: S.template,
+        customScript: $('reel-custom-script')?.value || S.customScript,
+        goal: $('reel-goal')?.value || S.goal,
+        targetSeconds: Number($('reel-target')?.value) || S.targetSeconds,
+        clips: S.clips,
+        scenes: S.scenes,
+        activeSceneIdx: S.activeSceneIdx,
+        voiceover: $('reel-voiceover')?.value || S.voiceover,
+        caption: $('reel-caption')?.value || S.caption,
+        voice: S.voice,
+        music: S.music,
+        resultUrl: S.resultUrl,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  function restoreState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data) return;
+
+      if (data.template) S.template = data.template;
+      if (data.customScript) {
+        S.customScript = data.customScript;
+        const cs = $('reel-custom-script');
+        if (cs) cs.value = data.customScript;
+      }
+      if (data.goal) {
+        S.goal = data.goal;
+        const g = $('reel-goal');
+        if (g) g.value = data.goal;
+      }
+      if (data.targetSeconds) {
+        S.targetSeconds = data.targetSeconds;
+        const tg = $('reel-target');
+        if (tg) tg.value = data.targetSeconds;
+      }
+      if (Array.isArray(data.clips) && data.clips.length) {
+        S.clips = data.clips;
+      }
+      if (Array.isArray(data.scenes) && data.scenes.length) {
+        S.scenes = data.scenes;
+      }
+      if (data.voiceover) {
+        S.voiceover = data.voiceover;
+        const vo = $('reel-voiceover');
+        if (vo) vo.value = data.voiceover;
+      }
+      if (data.caption) {
+        S.caption = data.caption;
+        const cp = $('reel-caption');
+        if (cp) cp.value = data.caption;
+      }
+      if (data.voice) S.voice = data.voice;
+      if (data.music) S.music = data.music;
+      if (data.resultUrl) S.resultUrl = data.resultUrl;
+      if (data.activeSceneIdx != null) S.activeSceneIdx = data.activeSceneIdx;
+
+      // Resaltar plantilla en UI
+      document.querySelectorAll('.reel-template-card').forEach((card) => {
+        card.classList.toggle('active', card.dataset.id === S.template);
+      });
+      const customBox = $('reel-custom-script-box');
+      if (customBox) customBox.style.display = S.template === 'custom' ? 'block' : 'none';
+
+      renderClips();
+      renderScenes();
+      renderMusicSel();
+
+      if (S.resultUrl) {
+        const finalPlayer = $('reel-final-player');
+        if (finalPlayer) {
+          finalPlayer.src = S.resultUrl;
+          finalPlayer.style.display = 'block';
+        }
+        const actionsBox = $('reel-result-actions-box');
+        if (actionsBox) actionsBox.style.display = 'block';
+        const dlBtn = $('btn-reel-download');
+        if (dlBtn) {
+          dlBtn.href = S.resultUrl;
+          dlBtn.download = `reel_${Date.now()}.mp4`;
+        }
+      }
+
+      if (data.step && data.step > 1) {
+        goToStep(data.step);
+      }
+    } catch (_) {}
+  }
+
+  function clearState(confirmUser = true) {
+    if (confirmUser && (S.clips.length || S.scenes.length)) {
+      if (!confirm('¿Deseas reiniciar el Estudio de Reels? Se limpiarán los clips y escenas cargadas.')) {
+        return;
+      }
+    }
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
+    S.step = 1;
+    S.clips = [];
+    S.scenes = [];
+    S.activeSceneIdx = 0;
+    S.voiceover = '';
+    S.caption = '';
+    S.music = null;
+    S.resultUrl = '';
+    if ($('reel-custom-script')) $('reel-custom-script').value = '';
+    if ($('reel-goal')) $('reel-goal').value = '';
+    if ($('reel-voiceover')) $('reel-voiceover').value = '';
+    if ($('reel-caption')) $('reel-caption').value = '';
+    const finalPlayer = $('reel-final-player');
+    if (finalPlayer) {
+      finalPlayer.pause();
+      finalPlayer.src = '';
+      finalPlayer.style.display = 'none';
+    }
+    const actionsBox = $('reel-result-actions-box');
+    if (actionsBox) actionsBox.style.display = 'none';
+    renderClips();
+    renderScenes();
+    renderMusicSel();
+    goToStep(1);
+    toast('Estudio de Reels reiniciado.', 'info');
+  }
+
   // ── Navegación de Pasos ──
   function goToStep(n) {
     S.step = n;
@@ -78,6 +215,7 @@
     if (n === 3 && S.scenes.length > 0) {
       selectSceneForFrame(S.activeSceneIdx >= 0 && S.activeSceneIdx < S.scenes.length ? S.activeSceneIdx : 0);
     }
+    saveState();
   }
 
   // ── Paso 1: Plantillas y Fórmulas ──
@@ -127,6 +265,7 @@
         card.classList.add('active');
         const customBox = $('reel-custom-script-box');
         if (customBox) customBox.style.display = S.template === 'custom' ? 'block' : 'none';
+        saveState();
       });
     });
   }
@@ -192,10 +331,12 @@
       const i = +el.dataset.i;
       el.querySelector('.reel-clip-desc-input')?.addEventListener('input', (e) => {
         S.clips[i].description = e.target.value;
+        saveState();
       });
       el.querySelector('.reel-del-clip')?.addEventListener('click', () => {
         S.clips.splice(i, 1);
         renderClips();
+        saveState();
       });
     });
   }
@@ -283,11 +424,13 @@
                 v.onloadedmetadata = () => {
                   clipObj.duration = Math.round(v.duration * 10) / 10;
                   renderClips();
+                  saveState();
                 };
               }
             }
 
             renderClips();
+            saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
             resolve(json.data);
           } catch (err) {
@@ -503,36 +646,44 @@
           S.scenes[i].start = 0;
           renderScenes();
           selectSceneForFrame(i);
+          saveState();
         }
       });
       card.querySelector('.reel-scene-start')?.addEventListener('change', (e) => {
         S.scenes[i].start = Number(e.target.value) || 0;
         selectSceneForFrame(i);
+        saveState();
       });
       card.querySelector('.reel-scene-length')?.addEventListener('change', (e) => {
         S.scenes[i].length = Math.min(Math.max(Number(e.target.value) || 2.5, 0.8), 8);
         if (totalEl) totalEl.textContent = `${totalSeconds().toFixed(1)} s`;
+        saveState();
       });
       card.querySelector('.reel-scene-trans')?.addEventListener('change', (e) => {
         S.scenes[i].transition = e.target.value;
+        saveState();
       });
       card.querySelector('.reel-scene-text')?.addEventListener('input', (e) => {
         S.scenes[i].text = e.target.value;
         if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
+        saveState();
       });
       card.querySelector('.reel-scene-pos')?.addEventListener('change', (e) => {
         S.scenes[i].pos = e.target.value;
         if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
+        saveState();
       });
       card.querySelector('.reel-scene-style')?.addEventListener('change', (e) => {
         S.scenes[i].textStyle = e.target.value;
         if (i === S.activeSceneIdx) updateLiveTextOverlay(S.scenes[i]);
+        saveState();
       });
       card.querySelector('.reel-act-up')?.addEventListener('click', () => {
         if (i > 0) {
           [S.scenes[i], S.scenes[i - 1]] = [S.scenes[i - 1], S.scenes[i]];
           renderScenes();
           selectSceneForFrame(i - 1);
+          saveState();
         }
       });
       card.querySelector('.reel-act-down')?.addEventListener('click', () => {
@@ -540,12 +691,14 @@
           [S.scenes[i], S.scenes[i + 1]] = [S.scenes[i + 1], S.scenes[i]];
           renderScenes();
           selectSceneForFrame(i + 1);
+          saveState();
         }
       });
       card.querySelector('.reel-act-del')?.addEventListener('click', () => {
         S.scenes.splice(i, 1);
         renderScenes();
         if (S.scenes.length) selectSceneForFrame(Math.min(i, S.scenes.length - 1));
+        saveState();
       });
     });
 
@@ -575,6 +728,7 @@
     });
     renderScenes();
     selectSceneForFrame(S.scenes.length - 1);
+    saveState();
   }
 
   // ── Mini Pantalla 9:16 y Encuadre Interactivo ──
@@ -712,6 +866,7 @@
         const cropBox = $('reel-crop-controls');
         if (cropBox) cropBox.style.display = sc.fitMode === 'blur' ? 'none' : 'block';
         updateLiveMediaTransform(sc);
+        saveState();
       });
     }
 
@@ -722,6 +877,7 @@
         sc.zoom = parseFloat(zoomSlider.value) || 1.0;
         if (zoomVal) zoomVal.textContent = `${sc.zoom.toFixed(2)}x`;
         updateLiveMediaTransform(sc);
+        saveState();
       });
     }
 
@@ -731,6 +887,7 @@
         if (!sc) return;
         sc.panX = 0.0;
         updateLiveMediaTransform(sc);
+        saveState();
       });
     }
 
@@ -741,6 +898,7 @@
         sc.panX = 0.5;
         sc.panY = 0.5;
         updateLiveMediaTransform(sc);
+        saveState();
       });
     }
 
@@ -750,6 +908,7 @@
         if (!sc) return;
         sc.panX = 1.0;
         updateLiveMediaTransform(sc);
+        saveState();
       });
     }
 
@@ -784,7 +943,10 @@
       };
 
       const onPointerUp = () => {
-        isDraggingMedia = false;
+        if (isDraggingMedia) {
+          isDraggingMedia = false;
+          saveState();
+        }
       };
 
       wrap.addEventListener('mousedown', onPointerDown);
@@ -941,6 +1103,7 @@
       });
 
       S.resultUrl = data.url;
+      saveState();
 
       // Mostrar en el reproductor de la mini pantalla
       const finalPlayer = $('reel-final-player');
@@ -997,6 +1160,7 @@
       if (!json.success) throw new Error(json.error || 'Error al guardar');
 
       toast('Borrador de Reel guardado en el calendario.', 'success');
+      clearState(false);
       if (typeof window.switchTab === 'function') {
         window.switchTab('queue');
       }
@@ -1132,21 +1296,35 @@
       });
     });
 
+    // Botón reiniciar estudio
+    $('btn-reel-clear')?.addEventListener('click', () => clearState(true));
+    window.addEventListener('beforeunload', saveState);
+
+    // Inputs que persisten
+    $('reel-custom-script')?.addEventListener('input', saveState);
+    $('reel-goal')?.addEventListener('input', saveState);
+    $('reel-target')?.addEventListener('change', saveState);
+    $('reel-caption')?.addEventListener('input', saveState);
+
     // Controles de audio y voz
     $('reel-voice')?.addEventListener('change', (e) => {
       S.voice = e.target.value;
       S.voiceUrl = '';
+      saveState();
     });
     $('reel-voiceover')?.addEventListener('input', () => {
       S.voiceUrl = '';
+      saveState();
     });
     $('reel-voice-vol')?.addEventListener('input', (e) => {
       const n = $('reel-voice-vol-n');
       if (n) n.textContent = Math.round(e.target.value * 100) + '%';
+      saveState();
     });
     $('reel-music-vol')?.addEventListener('input', (e) => {
       const n = $('reel-music-vol-n');
       if (n) n.textContent = Math.round(e.target.value * 100) + '%';
+      saveState();
     });
 
     // Herramientas de encuadre interactivo
@@ -1167,6 +1345,9 @@
 
     renderClips();
     renderMusicSel();
+
+    // Restaurar borrador de sesión (para soportar F5 sin perder clips ni textos)
+    restoreState();
   }
 
   window.loadReelStudio = init;

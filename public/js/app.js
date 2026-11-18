@@ -39,6 +39,8 @@ function showToast(message, type = 'info', duration = 3500) {
 
 // Tab Navigation
 function navigateToTab(tabId) {
+  if (!tabId) return;
+
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.tab === tabId);
   });
@@ -48,6 +50,14 @@ function navigateToTab(tabId) {
   });
 
   AppState.activeTab = tabId;
+
+  // Persistir la pestaña actual en localStorage y en el hash de la URL (F5 mantiene la pestaña)
+  try {
+    localStorage.setItem('metapulse_active_tab', tabId);
+    if (window.location.hash !== '#' + tabId) {
+      history.replaceState(null, '', '#' + tabId);
+    }
+  } catch (_) {}
 
   // Actualizar título de cabecera
   const titles = {
@@ -94,6 +104,9 @@ function navigateToTab(tabId) {
 
   tabLoaders[tabId]?.();
 }
+
+window.navigateToTab = navigateToTab;
+window.switchTab = navigateToTab;
 
 // Live Clock
 function initClock() {
@@ -730,13 +743,30 @@ function setTheme(theme) {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initClock();
-  loadDashboardStatus();
 
   // Navigation clicks
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
       navigateToTab(item.dataset.tab);
     });
+  });
+
+  // Restaurar la última pestaña activa guardada o del hash en URL (para que F5 no vuelva a home)
+  const validTabs = ['dashboard', 'composer', 'queue', 'reels', 'inbox', 'activity', 'analytics', 'brand', 'media', 'settings'];
+  const hashTab = window.location.hash ? window.location.hash.replace('#', '') : null;
+  const savedTab = (hashTab && validTabs.includes(hashTab))
+    ? hashTab
+    : (localStorage.getItem('metapulse_active_tab') || 'dashboard');
+
+  const initialTab = validTabs.includes(savedTab) ? savedTab : 'dashboard';
+  navigateToTab(initialTab);
+
+  // Escuchar cambios de hash (soporte botones atrás/adelante del navegador)
+  window.addEventListener('hashchange', () => {
+    const currentHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+    if (validTabs.includes(currentHash) && AppState.activeTab !== currentHash) {
+      navigateToTab(currentHash);
+    }
   });
 
   document.getElementById('btn-quick-create').addEventListener('click', () => {
