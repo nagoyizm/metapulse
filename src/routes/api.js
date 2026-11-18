@@ -3554,11 +3554,23 @@ router.post('/reel/voice', async (req, res) => {
 
 router.post('/reel/render', async (req, res) => {
   try {
-    const { scenes, text_overlays = [], textOverlays = [], voice_url = '', voice_volume = 1, music = null, music_volume = 0.3, global_transition = 'zoomin' } = req.body;
+    const {
+      scenes,
+      text_overlays = [],
+      textOverlays = [],
+      voice_url = '',
+      voice_segments = [],
+      voiceSegments = [],
+      voice_volume = 1,
+      music = null,
+      music_volume = 0.3,
+      global_transition = 'zoomin'
+    } = req.body;
     const data = await reelStudio.render({
       scenes,
       textOverlays: (textOverlays && textOverlays.length) ? textOverlays : text_overlays,
       voiceUrl: voice_url,
+      voiceSegments: (voiceSegments && voiceSegments.length) ? voiceSegments : voice_segments,
       voiceVolume: voice_volume,
       music,
       musicVolume: music_volume,

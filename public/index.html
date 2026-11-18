@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Caveat:wght@700&family=Cinzel:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@400;700&family=Montserrat:wght@500;700;800&family=Oswald:wght@600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@600;700;800&family=Righteous&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&family=Syne:wght@800&family=Titan+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.4">
+  <link rel="stylesheet" href="css/style.css?v=3.5">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
   <link rel="stylesheet" href="css/composer-steps.css?v=1">
@@ -1650,8 +1650,6 @@
                     <span>Incluir voz en off (Gemini TTS gratuito)</span>
                   </label>
                   <div id="reel-voice-controls">
-                    <label style="font-size:0.75rem; font-weight:600; margin-top:6px;">Guion hablado</label>
-                    <textarea id="reel-voiceover" class="form-control" rows="2" placeholder="Texto que la voz leerá con naturalidad..."></textarea>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;">
                       <label style="font-size:0.75rem;">Voz
                         <select id="reel-voice" class="form-control"></select>
@@ -1660,15 +1658,32 @@
                         <input type="text" id="reel-voice-style" class="form-control" placeholder="Ej: cálida, entusiasta, cercana">
                       </label>
                     </div>
-                    <div style="display:flex; gap:12px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-voice">Escuchar muestra</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
                       <label style="display:flex; gap:6px; align-items:center; margin:0; font-size:0.75rem;">
                         Volumen voz: <input type="range" id="reel-voice-vol" min="0.4" max="1.6" step="0.1" value="1">
                         <span id="reel-voice-vol-n">100%</span>
                       </label>
-                      <audio id="reel-voice-audio" controls style="display:none; height:28px;"></audio>
                     </div>
-                    <small id="reel-voice-info" class="text-muted" style="display:block; margin-top:4px; font-size:0.7rem;"></small>
+
+                    <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border-subtle);">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <label for="reel-voiceover" style="font-size:0.75rem; font-weight:600; margin:0;">Guion completo</label>
+                        <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-voice-split">Dividir en frases</button>
+                      </div>
+                      <textarea id="reel-voiceover" class="form-control" rows="2" placeholder="Texto que la voz leerá con naturalidad..."></textarea>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label style="font-size:0.75rem; font-weight:700; margin:0;">Frases con tiempo</label>
+                        <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-voice-add-seg">+ Agregar frase</button>
+                      </div>
+                      <div id="reel-voice-warnings" style="margin-bottom:6px; font-size:0.72rem;"></div>
+                      <div id="reel-voice-segments-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    </div>
+
+                    <audio id="reel-voice-audio" controls style="display:none; height:28px; margin-top:8px;"></audio>
+                    <small id="reel-voice-info" class="text-muted" style="display:none; margin-top:4px; font-size:0.7rem;"></small>
                   </div>
                 </div>
 
@@ -1709,19 +1724,30 @@
           <!-- Columna Derecha: Mini Pantalla 9:16 y Herramientas de Encuadre -->
           <aside class="reel-studio-sidebar">
             <div class="reel-phone-mockup">
-              <div class="reel-phone-top-bar">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <span style="font-size:0.72rem; font-weight:700;">Mini Pantalla 9:16</span>
-                  <button type="button" class="reel-phone-btn" id="btn-reel-vp-play" title="Reproducir o pausar video">▶ Play</button>
-                  <button type="button" class="reel-phone-btn" id="btn-reel-vp-mute" title="Activar/Silenciar audio">🔇</button>
+              <div class="reel-phone-top-bar" style="flex-direction:column; align-items:stretch; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <span style="font-size:0.72rem; font-weight:700;">Mini Pantalla 9:16</span>
+                    <button type="button" class="reel-phone-btn" id="btn-reel-vp-play" title="Reproducir o pausar toma">Play</button>
+                    <button type="button" class="reel-phone-btn" id="btn-reel-vp-mute" title="Activar/Silenciar audio">Mute</button>
+                    <button type="button" class="reel-phone-btn" id="btn-reel-vp-seq-play" title="Ver secuencia completa">Ver secuencia</button>
+                    <button type="button" class="reel-phone-btn" id="btn-reel-vp-seq-stop" title="Detener secuencia" style="display:none;">Detener</button>
+                  </div>
+                  <span id="reel-active-scene-badge" class="badge" style="background:rgba(255,255,255,0.15); color:#fff; font-size:0.68rem;">Vista previa</span>
                 </div>
-                <span id="reel-active-scene-badge" class="badge" style="background:rgba(255,255,255,0.15); color:#fff; font-size:0.68rem;">Vista previa</span>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input type="range" id="reel-seq-progress" min="0" max="10" step="0.05" value="0" style="flex:1; cursor:pointer;" aria-label="Progreso de la secuencia">
+                  <span id="reel-seq-time" style="font-size:0.68rem; font-family:var(--font-mono, monospace); color:#cbd5e1; white-space:nowrap;">0.0 / 0.0 s</span>
+                </div>
               </div>
 
               <!-- El Lienzo 9:16 interactivo -->
               <div class="reel-viewport-916" id="reel-viewport">
                 <!-- Fondo borroso para modo 'blur' -->
                 <div class="reel-viewport-bg" id="reel-vp-bg"></div>
+
+                <!-- Capa de destello para transiciones fadewhite / fadeblack -->
+                <div id="reel-vp-flash" style="position:absolute; inset:0; pointer-events:none; opacity:0; z-index:5;"></div>
 
                 <!-- Envoltorio de media para arrastrar libremente (Pan X/Y) -->
                 <div class="reel-viewport-media-wrap" id="reel-vp-media-wrap">
@@ -4339,7 +4365,7 @@
   <script src="js/composer.js?v=4.3"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
-  <script src="js/reelStudio.js?v=2.6"></script>
+  <script src="js/reelStudio.js?v=2.7"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>

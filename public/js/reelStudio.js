@@ -18,6 +18,7 @@
     activeSceneIdx: 0,
     activeOverlayIdx: 0,
     voiceover: '',
+    voiceSegments: [],  // { id, text, start, url, duration }
     caption: '',
     voices: [],
     voice: 'Sulafat',
@@ -115,6 +116,7 @@
         activeSceneIdx: S.activeSceneIdx,
         activeOverlayIdx: S.activeOverlayIdx,
         voiceover: $('reel-voiceover')?.value || S.voiceover,
+        voiceSegments: S.voiceSegments,
         caption: $('reel-caption')?.value || S.caption,
         voice: S.voice,
         music: S.music,
@@ -162,6 +164,22 @@
         const vo = $('reel-voiceover');
         if (vo) vo.value = data.voiceover;
       }
+      if (Array.isArray(data.voiceSegments) && data.voiceSegments.length) {
+        S.voiceSegments = data.voiceSegments;
+      } else if (data.voiceover || S.voiceover) {
+        const txt = (data.voiceover || S.voiceover || '').trim();
+        if (txt) {
+          S.voiceSegments = [{
+            id: `vseg_${Date.now()}`,
+            text: txt,
+            start: 0,
+            url: null,
+            duration: null
+          }];
+        } else {
+          S.voiceSegments = [];
+        }
+      }
       if (data.caption) {
         S.caption = data.caption;
         const cp = $('reel-caption');
@@ -183,6 +201,7 @@
       renderClips();
       renderScenes();
       renderTextOverlays();
+      renderVoiceSegments();
       renderMusicSel();
 
       if (S.resultUrl) {
@@ -221,6 +240,7 @@
     S.clips = [];
     S.scenes = [];
     S.textOverlays = [];
+    S.voiceSegments = [];
     S.activeSceneIdx = 0;
     S.activeOverlayIdx = 0;
     S.voiceover = '';
@@ -243,6 +263,7 @@
     renderClips();
     renderScenes();
     renderTextOverlays();
+    renderVoiceSegments();
     renderMusicSel();
     goToStep(1);
     toast('Estudio de Reels reiniciado.', 'info');
@@ -250,6 +271,7 @@
 
   // ── Navegación de Pasos ──
   function goToStep(n) {
+    stopSequence(false);
     S.step = n;
     document.querySelectorAll('.reel-step-btn').forEach((b) => {
       b.classList.toggle('active', +b.dataset.step === n);
@@ -270,6 +292,7 @@
         previewTextOverlay(S.activeOverlayIdx >= 0 && S.activeOverlayIdx < S.textOverlays.length ? S.activeOverlayIdx : 0);
       }
     } else if (n === 5) {
+      renderVoiceSegments();
       renderMusicSel();
     }
     saveState();
@@ -582,9 +605,15 @@
       S.musicQuery = data.musicQuery || '';
       S.voiceUrl = '';
       S.resultUrl = '';
+      if (S.voiceover) {
+        S.voiceSegments = splitScriptIntoPhrases(S.voiceover);
+      } else {
+        S.voiceSegments = [];
+      }
 
       renderScenes();
       renderTextOverlays();
+      renderVoiceSegments();
       if ($('reel-music-q') && S.musicQuery) $('reel-music-q').value = S.musicQuery;
       if ($('reel-voiceover')) $('reel-voiceover').value = S.voiceover;
       if ($('reel-caption')) $('reel-caption').value = S.caption;
@@ -631,13 +660,100 @@
 
     renderScenes();
     renderTextOverlays();
+    renderVoiceSegments();
     goToStep(3);
     toast(`${S.scenes.length} toma(s) creadas (1 por cada clip subido).`, 'info');
   }
 
   // ── Paso 3: Pista de Video (Cortes, Encuadre 9:16 y Transiciones) ──
+  const VALID_XFADE_LIST = [
+    'zoomin',
+    'slideleft',
+    'slideright',
+    'smoothleft',
+    'smoothright',
+    'fadewhite',
+    'fadeblack',
+    'dissolve',
+    'fade'
+  ];
+
+  function buildTimeline() {
+    if (!S.scenes.length) {
+      return { total: 0, items: [] };
+    }
+
+    const items = [];
+    const len0 = Math.min(Math.max(Number(S.scenes[0].length) || 2.5, 0.8), 8);
+
+    if (S.scenes.length === 1) {
+      items.push({
+        idx: 0,
+        startAt: 0,
+        len: len0,
+        transition: 'none',
+        transDur: 0
+      });
+      return { total: len0, items };
+    }
+
+    const hasXfade = S.scenes.some((s, idx) => {
+      if (idx === 0) return false;
+      const tr = s.transition || 'zoomin';
+      return tr && tr !== 'none' && VALID_XFADE_LIST.includes(tr);
+    });
+
+    if (!hasXfade) {
+      let currentOffset = 0;
+      for (let i = 0; i < S.scenes.length; i++) {
+        const len = Math.min(Math.max(Number(S.scenes[i].length) || 2.5, 0.8), 8);
+        items.push({
+          idx: i,
+          startAt: currentOffset,
+          len,
+          transition: S.scenes[i].transition || 'none',
+          transDur: 0
+        });
+        currentOffset += len;
+      }
+      return { total: currentOffset, items };
+    }
+
+    // Encadenamiento dinámico con xfade (idéntico a reelStudioService.render)
+    items.push({
+      idx: 0,
+      startAt: 0,
+      len: len0,
+      transition: 'none',
+      transDur: 0
+    });
+
+    let currentDur = len0;
+    for (let i = 0; i < S.scenes.length - 1; i++) {
+      const nextIdx = i + 1;
+      const nextLen = Math.min(Math.max(Number(S.scenes[nextIdx].length) || 2.5, 0.8), 8);
+      const rawTr = S.scenes[nextIdx].transition || 'zoomin';
+      const isNone = (rawTr === 'none');
+      const tr = isNone ? 'none' : (VALID_XFADE_LIST.includes(rawTr) ? rawTr : 'zoomin');
+      const transDur = isNone ? 0.04 : Math.min(0.35, Math.min(currentDur * 0.35, nextLen * 0.35));
+      const offset = Math.max(0, currentDur - transDur);
+
+      items.push({
+        idx: nextIdx,
+        startAt: offset,
+        len: nextLen,
+        transition: tr,
+        transDur
+      });
+
+      currentDur = offset + nextLen;
+    }
+
+    return { total: currentDur, items };
+  }
+
   function totalSeconds() {
-    return S.scenes.reduce((acc, s) => acc + (Number(s.length) || 0), 0);
+    return buildTimeline().total;
   }
 
   function renderScenes() {
@@ -646,13 +762,27 @@
     const totalEl = $('reel-total-dur');
     if (!list) return;
 
+    const tl = buildTimeline();
+    const tot = tl.total;
+
     if (badge) {
       badge.textContent = S.scenes.length;
       badge.style.display = S.scenes.length ? 'inline-block' : 'none';
     }
     if (totalEl) {
-      totalEl.textContent = `${totalSeconds().toFixed(1)} s`;
+      totalEl.textContent = `${tot.toFixed(1)} s`;
     }
+    const textTot = $('reel-text-total-dur');
+    if (textTot) {
+      textTot.textContent = `${tot.toFixed(1)} s`;
+    }
+
+    const progressEl = $('reel-seq-progress');
+    if (progressEl) {
+      progressEl.max = tot.toFixed(2);
+      if (!seqPlaying) progressEl.value = '0';
+    }
+    if (!seqPlaying) updateSeqTimeLabel(0, tot);
 
     if (!S.scenes.length) {
       list.innerHTML = '<div class="reel-empty">No hay tomas de video armadas aún.</div>';
@@ -735,13 +865,16 @@
       });
       card.querySelector('.reel-scene-length')?.addEventListener('change', (e) => {
         S.scenes[i].length = Math.min(Math.max(Number(e.target.value) || 2.5, 0.8), 8);
-        if (totalEl) totalEl.textContent = `${totalSeconds().toFixed(1)} s`;
-        const textTot = $('reel-text-total-dur');
-        if (textTot) textTot.textContent = `${totalSeconds().toFixed(1)} s`;
+        renderScenes();
+        renderTextOverlays();
+        renderVoiceSegments();
         saveState();
       });
       card.querySelector('.reel-scene-trans')?.addEventListener('change', (e) => {
         S.scenes[i].transition = e.target.value;
+        renderScenes();
+        renderTextOverlays();
+        renderVoiceSegments();
         saveState();
       });
       card.querySelector('.reel-act-up')?.addEventListener('click', () => {
@@ -1051,20 +1184,29 @@
   }
 
   function findSceneAtTime(globalSec) {
-    let accum = 0;
-    for (let i = 0; i < S.scenes.length; i++) {
-      const sc = S.scenes[i];
-      const len = Number(sc.length) || 0;
-      if (globalSec >= accum && globalSec < accum + len) {
-        return { sceneIdx: i, scene: sc, offsetInScene: Math.max(0, globalSec - accum) };
+    const tl = buildTimeline();
+    if (!tl.items.length) return null;
+    const t = Math.max(0, Number(globalSec) || 0);
+
+    for (let i = tl.items.length - 1; i >= 0; i--) {
+      const it = tl.items[i];
+      if (t >= it.startAt) {
+        const sc = S.scenes[it.idx];
+        return {
+          sceneIdx: it.idx,
+          scene: sc,
+          offsetInScene: Math.max(0, t - it.startAt),
+          item: it
+        };
       }
-      accum += len;
     }
-    if (S.scenes.length > 0) {
-      const lastIdx = S.scenes.length - 1;
-      return { sceneIdx: lastIdx, scene: S.scenes[lastIdx], offsetInScene: 0 };
-    }
-    return null;
+    const first = tl.items[0];
+    return {
+      sceneIdx: first.idx,
+      scene: S.scenes[first.idx],
+      offsetInScene: 0,
+      item: first
+    };
   }
 
   function renderLiveOverlay(ov, triggerAnim = false) {
@@ -1228,10 +1370,14 @@
 
   function updatePlayBtn(isPlaying) {
     const btn = $('btn-reel-vp-play');
-    if (btn) btn.textContent = isPlaying ? '⏸ Pausar' : '▶ Play';
+    if (btn) btn.textContent = isPlaying ? 'Pausar' : 'Play';
   }
 
   function toggleVideoPlay() {
+    if (seqPlaying) {
+      stopSequence(true);
+      return;
+    }
     const vpVideo = $('reel-vp-video');
     const finalPlayer = $('reel-final-player');
     const activeVideo = (finalPlayer && finalPlayer.style.display !== 'none') ? finalPlayer : vpVideo;
@@ -1245,88 +1391,22 @@
     }
   }
 
+  let isMuted = false;
   function toggleVideoMute() {
+    isMuted = !isMuted;
     const vpVideo = $('reel-vp-video');
     const finalPlayer = $('reel-final-player');
     const activeVideo = (finalPlayer && finalPlayer.style.display !== 'none') ? finalPlayer : vpVideo;
     const btn = $('btn-reel-vp-mute');
-    if (!activeVideo) return;
-
-    activeVideo.muted = !activeVideo.muted;
-    if (btn) btn.textContent = activeVideo.muted ? '🔇' : '🔊';
+    if (activeVideo) activeVideo.muted = isMuted;
+    if (seqMusicAudio) seqMusicAudio.muted = isMuted;
+    seqVoiceAudios.forEach((va) => { if (va.audio) va.audio.muted = isMuted; });
+    if (btn) btn.textContent = isMuted ? 'Muted' : 'Mute';
   }
 
-  function selectSceneForFrame(idx) {
-    if (idx < 0 || idx >= S.scenes.length) return;
-    S.activeSceneIdx = idx;
-
-    // Resaltar tarjeta seleccionada en la lista
-    document.querySelectorAll('.reel-scene-card').forEach((card) => {
-      card.classList.toggle('selected-for-frame', +card.dataset.i === idx);
-    });
-
-    const badge = $('reel-active-scene-badge');
-    if (badge) badge.textContent = `Toma ${idx + 1}`;
-
-    const sc = S.scenes[idx];
-    const vpVideo = $('reel-vp-video');
-    const vpImg = $('reel-vp-img');
+  function applySceneFrame(sc, el) {
+    if (!sc || !el) return;
     const vpBg = $('reel-vp-bg');
-    const placeholder = $('reel-vp-placeholder');
-    const finalPlayer = $('reel-final-player');
-
-    // Asegurar que el reproductor de resultado no tape la edición
-    if (finalPlayer) finalPlayer.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'none';
-
-    if (sc.kind === 'imagen') {
-      if (vpVideo) {
-        vpVideo.pause();
-        vpVideo.style.display = 'none';
-      }
-      if (vpImg) {
-        vpImg.src = sc.url;
-        vpImg.style.display = 'block';
-      }
-      updatePlayBtn(false);
-    } else {
-      if (vpImg) vpImg.style.display = 'none';
-      if (vpVideo) {
-        vpVideo.src = sc.url + `#t=${sc.start || 0}`;
-        vpVideo.style.display = 'block';
-        vpVideo.currentTime = sc.start || 0;
-        vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
-      }
-    }
-
-    if (vpBg) {
-      vpBg.style.backgroundImage = `url("${sc.url}")`;
-    }
-
-    // Sincronizar controles de encuadre
-    const modeSel = $('reel-frame-mode');
-    if (modeSel) modeSel.value = sc.fitMode || 'crop';
-
-    const zoomSlider = $('reel-frame-zoom');
-    if (zoomSlider) zoomSlider.value = sc.zoom || 1.0;
-
-    const zoomVal = $('reel-zoom-val');
-    if (zoomVal) zoomVal.textContent = `${(sc.zoom || 1.0).toFixed(2)}x`;
-
-    const cropBox = $('reel-crop-controls');
-    if (cropBox) cropBox.style.display = sc.fitMode === 'blur' ? 'none' : 'block';
-
-    updateLiveMediaTransform(sc);
-    renderLiveOverlay(null);
-  }
-
-  function updateLiveMediaTransform(sc) {
-    const vpVideo = $('reel-vp-video');
-    const vpImg = $('reel-vp-img');
-    const vpBg = $('reel-vp-bg');
-    const mediaEl = sc.kind === 'imagen' ? vpImg : vpVideo;
-    if (!mediaEl) return;
-
     const panCoords = $('reel-pan-coords');
     const panX = sc.panX != null ? sc.panX : 0.5;
     const panY = sc.panY != null ? sc.panY : 0.5;
@@ -1337,22 +1417,361 @@
     }
 
     if (sc.fitMode === 'blur') {
-      if (vpBg) vpBg.style.opacity = '1';
-      mediaEl.style.width = '100%';
-      mediaEl.style.height = 'auto';
-      mediaEl.style.objectFit = 'contain';
-      mediaEl.style.transform = 'none';
+      if (vpBg) {
+        vpBg.style.backgroundImage = `url("${sc.url}")`;
+        vpBg.style.opacity = '1';
+      }
+      el.style.width = '100%';
+      el.style.height = 'auto';
+      el.style.objectFit = 'contain';
+      el.style.transform = 'none';
     } else {
       if (vpBg) vpBg.style.opacity = '0';
-      mediaEl.style.width = 'auto';
-      mediaEl.style.height = '100%';
-      mediaEl.style.objectFit = 'cover';
+      el.style.width = 'auto';
+      el.style.height = '100%';
+      el.style.objectFit = 'cover';
 
       // Cálculo de traslación visual en el viewport de 270x480
-      // En modo 'crop', centrado es 50%. Mover a 0% mueve a la izquierda, 100% a la derecha.
       const shiftX = (0.5 - panX) * 120 * zoom;
       const shiftY = (0.5 - panY) * 60 * zoom;
-      mediaEl.style.transform = `scale(${zoom}) translate(${shiftX}px, ${shiftY}px)`;
+      el.style.transform = `scale(${zoom}) translate(${shiftX}px, ${shiftY}px)`;
+    }
+  }
+
+  // ── Reproductor de Secuencia Completa en Mini Pantalla ──
+  let seqPlaying = false;
+  let seqStartTime = 0;
+  let seqRafId = null;
+  let seqActiveSceneIdx = -1;
+  let seqVoiceAudios = [];
+  let seqMusicAudio = null;
+  let seqPrevOverlaysByPos = {};
+
+  function updateSeqTimeLabel(cur, tot) {
+    const timeEl = $('reel-seq-time');
+    if (timeEl) {
+      timeEl.textContent = `${cur.toFixed(1)} / ${tot.toFixed(1)} s`;
+    }
+  }
+
+  function startSequence(fromTime = 0) {
+    if (!S.scenes.length) return toast('Sube clips y crea tomas primero en el Paso 3.', 'warning');
+    const tl = buildTimeline();
+    if (tl.total <= 0) return toast('La secuencia no tiene duración.', 'warning');
+
+    stopSequence(false);
+
+    const finalPlayer = $('reel-final-player');
+    if (finalPlayer) {
+      finalPlayer.pause();
+      finalPlayer.style.display = 'none';
+    }
+    const placeholder = $('reel-vp-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+
+    seqPlaying = true;
+    seqActiveSceneIdx = -1;
+    seqPrevOverlaysByPos = {};
+
+    $('btn-reel-vp-seq-play')?.style.setProperty('display', 'none');
+    $('btn-reel-vp-seq-stop')?.style.setProperty('display', 'inline-block');
+
+    const progressEl = $('reel-seq-progress');
+    if (progressEl) {
+      progressEl.max = tl.total.toFixed(2);
+      progressEl.value = fromTime.toFixed(2);
+    }
+    updateSeqTimeLabel(fromTime, tl.total);
+
+    // Precargar audios de frases de voz
+    seqVoiceAudios = [];
+    if ($('reel-use-voice')?.checked && Array.isArray(S.voiceSegments)) {
+      const vVol = Number($('reel-voice-vol')?.value) || 1;
+      S.voiceSegments.forEach((seg) => {
+        if (!seg.url) return;
+        const aud = new Audio(seg.url);
+        aud.preload = 'auto';
+        aud.volume = vVol;
+        aud.muted = isMuted;
+        let triggered = false;
+        if (fromTime >= seg.start) {
+          const segDur = seg.duration || 3;
+          if (fromTime < seg.start + segDur) {
+            aud.currentTime = fromTime - seg.start;
+            aud.play().catch(() => {});
+            triggered = true;
+          } else {
+            triggered = true;
+          }
+        }
+        seqVoiceAudios.push({ seg, audio: aud, triggered });
+      });
+    }
+
+    // Precargar música si está seleccionada
+    if (seqMusicAudio) {
+      seqMusicAudio.pause();
+      seqMusicAudio = null;
+    }
+    if (S.music && S.music.url) {
+      seqMusicAudio = new Audio(S.music.url);
+      seqMusicAudio.volume = Number($('reel-music-vol')?.value) || 0.3;
+      seqMusicAudio.muted = isMuted;
+      const mStart = (Number(S.music.start) || 0) + fromTime;
+      seqMusicAudio.currentTime = Math.max(0, mStart);
+      seqMusicAudio.play().catch(() => {});
+    }
+
+    seqStartTime = performance.now() - fromTime * 1000;
+
+    function tick() {
+      if (!seqPlaying) return;
+      const now = performance.now();
+      const t = (now - seqStartTime) / 1000;
+
+      if (t >= tl.total) {
+        stopSequence(true);
+        return;
+      }
+
+      renderSequenceFrame(t, tl);
+      seqRafId = requestAnimationFrame(tick);
+    }
+
+    seqRafId = requestAnimationFrame(tick);
+  }
+
+  function renderSequenceFrame(t, tl) {
+    const progressEl = $('reel-seq-progress');
+    if (progressEl) progressEl.value = t.toFixed(2);
+    updateSeqTimeLabel(t, tl.total);
+
+    // 1. Toma activa
+    let activeItem = tl.items[0];
+    for (let i = 0; i < tl.items.length; i++) {
+      if (t >= tl.items[i].startAt) {
+        activeItem = tl.items[i];
+      } else {
+        break;
+      }
+    }
+
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const wrap = $('reel-vp-media-wrap');
+    const flashEl = $('reel-vp-flash');
+    const sc = S.scenes[activeItem.idx];
+
+    if (activeItem.idx !== seqActiveSceneIdx) {
+      seqActiveSceneIdx = activeItem.idx;
+
+      const badge = $('reel-active-scene-badge');
+      if (badge) badge.textContent = `Toma ${activeItem.idx + 1} (${t.toFixed(1)}s)`;
+
+      if (sc.kind === 'imagen') {
+        if (vpVideo) {
+          vpVideo.pause();
+          vpVideo.style.display = 'none';
+        }
+        if (vpImg) {
+          vpImg.src = sc.url;
+          vpImg.style.display = 'block';
+          applySceneFrame(sc, vpImg);
+        }
+      } else {
+        if (vpImg) vpImg.style.display = 'none';
+        if (vpVideo) {
+          vpVideo.src = sc.url;
+          vpVideo.style.display = 'block';
+          applySceneFrame(sc, vpVideo);
+          const vTime = (sc.start || 0) + (t - activeItem.startAt);
+          vpVideo.currentTime = Math.max(0, vTime);
+          vpVideo.muted = isMuted;
+          vpVideo.play().catch(() => {});
+        }
+      }
+
+      // Transición CSS
+      if (wrap) wrap.className = 'reel-viewport-media-wrap';
+      if (flashEl) {
+        flashEl.className = '';
+        flashEl.style.opacity = '0';
+      }
+
+      if (activeItem.idx > 0) {
+        const tr = activeItem.transition || 'none';
+        const transDur = activeItem.transDur || 0.35;
+
+        if (tr === 'fadewhite' || tr === 'fadeblack') {
+          if (flashEl) {
+            flashEl.style.setProperty('--seq-trans-dur', `${transDur}s`);
+            flashEl.className = tr === 'fadewhite' ? 'seq-flash-white' : 'seq-flash-black';
+          }
+        } else if (tr && tr !== 'none' && wrap) {
+          wrap.style.setProperty('--seq-trans-dur', `${transDur}s`);
+          wrap.classList.add(`seq-trans-${tr}`);
+        }
+      }
+    } else {
+      if (sc && sc.kind !== 'imagen' && vpVideo && !vpVideo.paused) {
+        const expectedTime = (sc.start || 0) + (t - activeItem.startAt);
+        if (Math.abs(vpVideo.currentTime - expectedTime) > 0.35) {
+          vpVideo.currentTime = Math.max(0, expectedTime);
+        }
+      }
+    }
+
+    // 2. Textos activos en t
+    const activeByPos = {};
+    for (const ov of S.textOverlays) {
+      const s = Number(ov.start) || 0;
+      const e = Number(ov.end) || 0;
+      if (t >= s && t < e) {
+        const pos = ['top', 'bottom'].includes(ov.pos) ? ov.pos : 'center';
+        activeByPos[pos] = ov;
+      }
+    }
+
+    ['top', 'center', 'bottom'].forEach((pos) => {
+      const el = $(`reel-vp-text-${pos}`);
+      if (!el) return;
+      const curOv = activeByPos[pos];
+      const prevOv = seqPrevOverlaysByPos[pos];
+
+      if (!curOv || !curOv.text || !curOv.text.trim()) {
+        el.innerHTML = '';
+        return;
+      }
+
+      if (prevOv && prevOv.id === curOv.id && prevOv.text === curOv.text) {
+        return;
+      }
+
+      el.innerHTML = '';
+      const fontClass = `reel-font-${curOv.font || 'archivo'}`;
+      const effectClass = curOv.effect && curOv.effect !== 'none' ? `effect-${curOv.effect}` : '';
+      const badge = document.createElement('div');
+      badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} ${fontClass} ${effectClass}`;
+      badge.textContent = curOv.text.trim().toUpperCase();
+      el.appendChild(badge);
+    });
+    seqPrevOverlaysByPos = activeByPos;
+
+    // 3. Frases de Voz
+    seqVoiceAudios.forEach((item) => {
+      if (!item.triggered && t >= item.seg.start) {
+        item.triggered = true;
+        const offset = t - item.seg.start;
+        item.audio.currentTime = Math.max(0, offset);
+        item.audio.volume = Number($('reel-voice-vol')?.value) || 1;
+        item.audio.muted = isMuted;
+        item.audio.play().catch(() => {});
+      }
+    });
+  }
+
+  function showStaticFrameAtTime(t, tl) {
+    if (!tl) tl = buildTimeline();
+    const progressEl = $('reel-seq-progress');
+    if (progressEl) progressEl.value = t.toFixed(2);
+    updateSeqTimeLabel(t, tl.total);
+
+    const found = findSceneAtTime(t);
+    if (!found || !found.scene) return;
+    const sc = found.scene;
+    const vpVideo = $('reel-vp-video');
+    const vpImg = $('reel-vp-img');
+    const placeholder = $('reel-vp-placeholder');
+    const finalPlayer = $('reel-final-player');
+
+    if (finalPlayer) finalPlayer.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'none';
+
+    const badge = $('reel-active-scene-badge');
+    if (badge) badge.textContent = `Toma ${found.sceneIdx + 1} (${t.toFixed(1)}s)`;
+
+    if (sc.kind === 'imagen') {
+      if (vpVideo) {
+        vpVideo.pause();
+        vpVideo.style.display = 'none';
+      }
+      if (vpImg) {
+        vpImg.src = sc.url;
+        vpImg.style.display = 'block';
+        applySceneFrame(sc, vpImg);
+      }
+    } else {
+      if (vpImg) vpImg.style.display = 'none';
+      if (vpVideo) {
+        vpVideo.src = sc.url;
+        vpVideo.style.display = 'block';
+        applySceneFrame(sc, vpVideo);
+        vpVideo.pause();
+        vpVideo.currentTime = (sc.start || 0) + (found.offsetInScene || 0);
+      }
+    }
+
+    const activeByPos = {};
+    for (const ov of S.textOverlays) {
+      const s = Number(ov.start) || 0;
+      const e = Number(ov.end) || 0;
+      if (t >= s && t < e) {
+        const pos = ['top', 'bottom'].includes(ov.pos) ? ov.pos : 'center';
+        activeByPos[pos] = ov;
+      }
+    }
+
+    ['top', 'center', 'bottom'].forEach((pos) => {
+      const el = $(`reel-vp-text-${pos}`);
+      if (!el) return;
+      const curOv = activeByPos[pos];
+      if (!curOv || !curOv.text || !curOv.text.trim()) {
+        el.innerHTML = '';
+        return;
+      }
+      el.innerHTML = '';
+      const fontClass = `reel-font-${curOv.font || 'archivo'}`;
+      const badge = document.createElement('div');
+      badge.className = `reel-live-caption ${curOv.textStyle || 'yellow'} ${fontClass}`;
+      badge.textContent = curOv.text.trim().toUpperCase();
+      el.appendChild(badge);
+    });
+  }
+
+  function stopSequence(resetToActiveScene = true) {
+    if (seqRafId) {
+      cancelAnimationFrame(seqRafId);
+      seqRafId = null;
+    }
+    seqPlaying = false;
+
+    seqVoiceAudios.forEach((item) => {
+      if (item.audio) {
+        item.audio.pause();
+        item.audio.currentTime = 0;
+      }
+    });
+    seqVoiceAudios = [];
+
+    if (seqMusicAudio) {
+      seqMusicAudio.pause();
+      seqMusicAudio = null;
+    }
+
+    const wrap = $('reel-vp-media-wrap');
+    if (wrap) wrap.className = 'reel-viewport-media-wrap';
+    const flashEl = $('reel-vp-flash');
+    if (flashEl) {
+      flashEl.className = '';
+      flashEl.style.opacity = '0';
+    }
+
+    $('btn-reel-vp-seq-play')?.style.setProperty('display', 'inline-block');
+    $('btn-reel-vp-seq-stop')?.style.setProperty('display', 'none');
+
+    if (resetToActiveScene && S.scenes.length) {
+      const idx = (S.activeSceneIdx >= 0 && S.activeSceneIdx < S.scenes.length) ? S.activeSceneIdx : 0;
+      selectSceneForFrame(idx);
     }
   }
 
@@ -1422,6 +1841,7 @@
     // Arrastre libre con cursor (Drag-to-pan)
     if (wrap) {
       const onPointerDown = (e) => {
+        if (seqPlaying) return;
         const sc = S.scenes[S.activeSceneIdx];
         if (!sc || sc.fitMode === 'blur') return;
         isDraggingMedia = true;
@@ -1466,13 +1886,247 @@
     }
   }
 
-  // ── Paso 4: Música, Voz y Render ──
+  // ── Paso 5: Música, Voz y Render ──
   function renderVoices() {
     const sel = $('reel-voice');
     if (!sel || !S.voices.length) return;
     sel.innerHTML = S.voices.map((v) =>
       `<option value="${v.id}" ${v.id === S.voice ? 'selected' : ''}>${esc(v.label)} — ${esc(v.desc)}</option>`
     ).join('');
+  }
+
+  let currentVoiceAudio = null;
+
+  async function listenVoiceSegment(idx, btn) {
+    const seg = S.voiceSegments[idx];
+    if (!seg) return;
+    const text = (seg.text || '').trim();
+    if (!text) return toast('Escribe texto en la frase para escucharla.', 'warning');
+
+    if (currentVoiceAudio) {
+      try { currentVoiceAudio.pause(); } catch (_) {}
+      currentVoiceAudio = null;
+    }
+
+    if (seg.url) {
+      currentVoiceAudio = new Audio(seg.url);
+      currentVoiceAudio.play().catch(() => toast('No se pudo reproducir el audio.', 'warning'));
+      return;
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generando...';
+    }
+    try {
+      const data = await api('/reel/voice', {
+        text,
+        voice: S.voice,
+        style: $('reel-voice-style')?.value || ''
+      });
+      seg.url = data.url;
+      seg.duration = data.duration;
+      saveState();
+      renderVoiceSegments();
+      currentVoiceAudio = new Audio(data.url);
+      currentVoiceAudio.play().catch(() => {});
+    } catch (err) {
+      toast('Error sintetizando frase: ' + err.message, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Generar y escuchar';
+      }
+    }
+  }
+
+  function splitScriptIntoPhrases(script) {
+    if (!script || typeof script !== 'string') return [];
+    const rawPhrases = script
+      .split(/[\r\n.!?]+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    if (!rawPhrases.length) return [];
+
+    let currentStart = 0;
+    return rawPhrases.map((phrase) => {
+      const startSec = Math.round(currentStart * 10) / 10;
+      const wordsCount = phrase.split(/\s+/).filter(Boolean).length;
+      const estimatedDur = (wordsCount / 2.6) + 0.3;
+      currentStart = startSec + estimatedDur;
+
+      return {
+        id: `vseg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        text: phrase,
+        start: startSec,
+        duration: null,
+        url: null
+      };
+    });
+  }
+
+  function renderVoiceSegments() {
+    const list = $('reel-voice-segments-list');
+    const wBox = $('reel-voice-warnings');
+    if (!list) return;
+
+    if (!Array.isArray(S.voiceSegments)) S.voiceSegments = [];
+
+    // Validaciones visuales y advertencias
+    const warnings = [];
+    const tl = buildTimeline();
+    const totalDur = tl.total || totalSeconds();
+
+    for (let i = 0; i < S.voiceSegments.length; i++) {
+      const seg = S.voiceSegments[i];
+      const nextSeg = S.voiceSegments[i + 1];
+      if (seg.duration != null && nextSeg != null) {
+        const segEnd = (Number(seg.start) || 0) + seg.duration;
+        const nextStart = Number(nextSeg.start) || 0;
+        if (segEnd > nextStart) {
+          const diff = (segEnd - nextStart).toFixed(1);
+          warnings.push(`La frase ${i + 1} se solapará con la frase ${i + 2} por ${diff} s. Retrasa el inicio de la frase ${i + 2}.`);
+        }
+      }
+    }
+
+    if (S.voiceSegments.length > 0) {
+      let maxVoiceEnd = 0;
+      for (const s of S.voiceSegments) {
+        const sStart = Number(s.start) || 0;
+        const sDur = s.duration || 0;
+        const end = sStart + sDur;
+        if (end > maxVoiceEnd) maxVoiceEnd = end;
+      }
+      if (totalDur > 0 && maxVoiceEnd > totalDur) {
+        const extra = (maxVoiceEnd - totalDur).toFixed(1);
+        warnings.push(`El video se extenderá automáticamente ${extra} s para terminar la locución.`);
+      }
+    }
+
+    if (wBox) {
+      if (warnings.length > 0) {
+        wBox.innerHTML = warnings.map((w) => `<div class="reel-voice-warning-box">⚠️ ${esc(w)}</div>`).join('');
+        wBox.style.display = 'block';
+      } else {
+        wBox.innerHTML = '';
+        wBox.style.display = 'none';
+      }
+    }
+
+    if (!S.voiceSegments.length) {
+      list.innerHTML = '<div class="reel-empty" style="font-size:0.75rem; padding:8px 12px;">Sin frases configuradas. Escribe un guion arriba y pulsa "Dividir en frases" o agrega una frase manualmente.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    S.voiceSegments.forEach((seg, idx) => {
+      const row = document.createElement('div');
+      row.className = 'reel-voice-seg-row';
+      row.dataset.idx = idx;
+
+      const nextSeg = S.voiceSegments[idx + 1];
+      let isOverlap = false;
+      if (seg.duration != null && nextSeg != null) {
+        const segEnd = (Number(seg.start) || 0) + seg.duration;
+        const nextStart = Number(nextSeg.start) || 0;
+        if (segEnd > nextStart) isOverlap = true;
+      }
+
+      row.innerHTML = `
+        <textarea class="form-control reel-voice-seg-text" rows="2" placeholder="Texto de la frase...">${esc(seg.text || '')}</textarea>
+        <div class="reel-voice-seg-bottom">
+          <div class="reel-voice-seg-start-wrap">
+            <label>Inicio (s):</label>
+            <input type="number" class="form-control form-control-sm reel-voice-seg-start" min="0" max="120" step="0.1" value="${Number(seg.start) || 0}">
+            ${seg.duration != null
+              ? `<span class="reel-voice-dur-badge ${isOverlap ? 'overlap' : ''}">${seg.duration.toFixed(1)} s</span>`
+              : '<span class="reel-voice-dur-badge" style="opacity:0.6;">sin generar</span>'}
+          </div>
+          <div class="reel-voice-seg-actions">
+            <button type="button" class="btn btn-secondary btn-xs btn-reel-seg-listen" data-idx="${idx}">Generar y escuchar</button>
+            <button type="button" class="btn btn-ghost btn-xs btn-reel-seg-del" data-idx="${idx}" style="color:var(--accent-rose, #ef4444);">Quitar</button>
+          </div>
+        </div>
+      `;
+
+      const txt = row.querySelector('.reel-voice-seg-text');
+      txt?.addEventListener('input', (e) => {
+        seg.text = e.target.value;
+        seg.url = null;
+        seg.duration = null;
+        saveState();
+        const badge = row.querySelector('.reel-voice-dur-badge');
+        if (badge) {
+          badge.textContent = 'sin generar';
+          badge.className = 'reel-voice-dur-badge';
+          badge.style.opacity = '0.6';
+        }
+      });
+      txt?.addEventListener('blur', () => {
+        renderVoiceSegments();
+      });
+
+      const startInput = row.querySelector('.reel-voice-seg-start');
+      startInput?.addEventListener('change', (e) => {
+        const val = Math.max(0, parseFloat(e.target.value) || 0);
+        seg.start = Math.round(val * 10) / 10;
+        saveState();
+        renderVoiceSegments();
+      });
+
+      row.querySelector('.btn-reel-seg-listen')?.addEventListener('click', (e) => {
+        listenVoiceSegment(idx, e.currentTarget);
+      });
+
+      row.querySelector('.btn-reel-seg-del')?.addEventListener('click', () => {
+        S.voiceSegments.splice(idx, 1);
+        saveState();
+        renderVoiceSegments();
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  function addVoiceSegment() {
+    if (!Array.isArray(S.voiceSegments)) S.voiceSegments = [];
+    let nextStart = 0;
+    if (S.voiceSegments.length > 0) {
+      const last = S.voiceSegments[S.voiceSegments.length - 1];
+      const lastStart = Number(last.start) || 0;
+      const wordsCount = (last.text || '').split(/\s+/).filter(Boolean).length;
+      const lastDur = last.duration != null ? last.duration : ((wordsCount / 2.6) + 0.3);
+      nextStart = Math.round((lastStart + lastDur) * 10) / 10;
+    } else {
+      nextStart = 0;
+    }
+    S.voiceSegments.push({
+      id: `vseg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      text: '',
+      start: nextStart,
+      duration: null,
+      url: null
+    });
+    saveState();
+    renderVoiceSegments();
+  }
+
+  function invalidateAllVoiceSegments() {
+    if (!Array.isArray(S.voiceSegments)) return;
+    let changed = false;
+    S.voiceSegments.forEach((s) => {
+      if (s.url || s.duration != null) {
+        s.url = null;
+        s.duration = null;
+        changed = true;
+      }
+    });
+    if (changed) {
+      saveState();
+      renderVoiceSegments();
+    }
   }
 
   async function previewVoice() {
@@ -1495,7 +2149,7 @@
         a.play().catch(() => {});
       }
       const info = $('reel-voice-info');
-      if (info) info.textContent = `Voz lista (${data.duration.toFixed(1)} s). Si dura más que el video, se alarga la última escena.`;
+      if (info) info.textContent = `Voz lista (${data.duration.toFixed(1)} s).`;
       toast('Muestra de voz lista.', 'success');
     } catch (err) {
       toast('No se pudo generar la voz: ' + err.message, 'error');
@@ -1571,21 +2225,44 @@
 
     S.voiceover = $('reel-voiceover')?.value || '';
     S.caption = $('reel-caption')?.value || '';
-    const useVoice = $('reel-use-voice')?.checked && S.voiceover.trim();
+    const useVoice = $('reel-use-voice')?.checked;
 
     setBusy('btn-reel-render', true, 'Renderizando reel en Contabo...');
     toast('Procesando video con FFmpeg: encuadres, transiciones y audio...', 'info');
 
     try {
-      if (useVoice && !S.voiceUrl) {
-        toast('Generando voz de locución...', 'info');
-        const v = await api('/reel/voice', {
-          text: S.voiceover,
-          voice: S.voice,
-          style: $('reel-voice-style')?.value || ''
-        });
-        S.voiceUrl = v.url;
-        S.voiceDur = v.duration;
+      const voiceSegmentsPayload = [];
+
+      if (useVoice) {
+        // Si no se dividió en frases pero hay texto en voiceover, dividir automáticamente
+        if ((!S.voiceSegments || !S.voiceSegments.length) && S.voiceover.trim()) {
+          S.voiceSegments = splitScriptIntoPhrases(S.voiceover);
+          renderVoiceSegments();
+        }
+
+        const activeSegs = (S.voiceSegments || []).filter((s) => s.text && s.text.trim());
+        if (activeSegs.length > 0) {
+          const style = $('reel-voice-style')?.value || '';
+          for (let i = 0; i < activeSegs.length; i++) {
+            const seg = activeSegs[i];
+            if (!seg.url) {
+              toast(`Sintetizando locución (frase ${i + 1}/${activeSegs.length})...`, 'info');
+              const v = await api('/reel/voice', {
+                text: seg.text.trim(),
+                voice: S.voice,
+                style
+              });
+              seg.url = v.url;
+              seg.duration = v.duration;
+            }
+            voiceSegmentsPayload.push({
+              url: seg.url,
+              start: Number(seg.start) || 0
+            });
+          }
+          saveState();
+          renderVoiceSegments();
+        }
       }
 
       const data = await api('/reel/render', {
@@ -1608,7 +2285,7 @@
           font: ov.font || 'archivo',
           effect: ov.effect || 'pop'
         })),
-        voice_url: useVoice ? S.voiceUrl : '',
+        voice_segments: voiceSegmentsPayload,
         voice_volume: Number($('reel-voice-vol')?.value) || 1,
         music: S.music ? { url: S.music.url, title: S.music.title, artist: S.music.artist } : null,
         music_volume: Number($('reel-music-vol')?.value) || 0.3,
@@ -1798,6 +2475,20 @@
     // Paso 5: Música, Voz y Render
     $('btn-reel-back-step-4')?.addEventListener('click', () => goToStep(4));
     $('btn-reel-voice')?.addEventListener('click', previewVoice);
+    $('btn-reel-voice-split')?.addEventListener('click', () => {
+      const text = ($('reel-voiceover')?.value || '').trim();
+      if (!text) return toast('Escribe o genera un guion primero.', 'warning');
+      if (S.voiceSegments && S.voiceSegments.length > 0) {
+        if (!confirm('Ya tienes frases configuradas. ¿Deseas reemplazarlas por la división del guion actual?')) {
+          return;
+        }
+      }
+      S.voiceSegments = splitScriptIntoPhrases(text);
+      saveState();
+      renderVoiceSegments();
+      toast(`${S.voiceSegments.length} frase(s) creada(s). Ajusta los segundos de inicio.`, 'info');
+    });
+    $('btn-reel-voice-add-seg')?.addEventListener('click', addVoiceSegment);
     $('btn-reel-music-search')?.addEventListener('click', searchMusic);
     $('reel-music-q')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -1829,12 +2520,18 @@
     $('reel-voice')?.addEventListener('change', (e) => {
       S.voice = e.target.value;
       S.voiceUrl = '';
+      invalidateAllVoiceSegments();
+      saveState();
+    });
+    $('reel-voice-style')?.addEventListener('input', () => {
+      invalidateAllVoiceSegments();
       saveState();
     });
     $('reel-voiceover')?.addEventListener('input', () => {
       S.voiceUrl = '';
       saveState();
     });
+    $('reel-use-voice')?.addEventListener('change', saveState);
     $('reel-voice-vol')?.addEventListener('input', (e) => {
       const n = $('reel-voice-vol-n');
       if (n) n.textContent = Math.round(e.target.value * 100) + '%';
@@ -1849,6 +2546,20 @@
     // Controles de reproducción de la mini pantalla
     $('btn-reel-vp-play')?.addEventListener('click', toggleVideoPlay);
     $('btn-reel-vp-mute')?.addEventListener('click', toggleVideoMute);
+    $('btn-reel-vp-seq-play')?.addEventListener('click', () => startSequence(0));
+    $('btn-reel-vp-seq-stop')?.addEventListener('click', () => stopSequence(false));
+
+    const seqProgress = $('reel-seq-progress');
+    if (seqProgress) {
+      seqProgress.addEventListener('input', (e) => {
+        const targetSec = parseFloat(e.target.value) || 0;
+        if (seqPlaying) {
+          stopSequence(false);
+        }
+        showStaticFrameAtTime(targetSec);
+      });
+    }
+
     $('reel-vp-video')?.addEventListener('play', () => updatePlayBtn(true));
     $('reel-vp-video')?.addEventListener('pause', () => updatePlayBtn(false));
     $('reel-final-player')?.addEventListener('play', () => updatePlayBtn(true));
@@ -1872,6 +2583,7 @@
 
     renderClips();
     renderMusicSel();
+    renderVoiceSegments();
 
     // Restaurar borrador de sesión (para soportar F5 sin perder clips ni textos)
     restoreState();

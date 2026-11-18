@@ -533,6 +533,7 @@ async function render({
   scenes = [],
   textOverlays = [],
   voiceUrl = '',
+  voiceSegments = [],
   voiceVolume = 1,
   music = null,
   musicVolume = 0.3,
@@ -612,9 +613,14 @@ async function render({
           const nextIdx = i + 1;
           const nextLen = scenes[nextIdx]._len;
           let tr = scenes[nextIdx].transition || globalTransition || 'zoomin';
-          if (!VALID_XFADE_TRANSITIONS.includes(tr)) tr = 'zoomin';
+          const isNone = (tr === 'none');
+          if (isNone) {
+            tr = 'fade';
+          } else if (!VALID_XFADE_TRANSITIONS.includes(tr)) {
+            tr = 'zoomin';
+          }
 
-          const transDur = Math.min(0.35, Math.min(currentDur * 0.35, nextLen * 0.35));
+          const transDur = isNone ? 0.04 : Math.min(0.35, Math.min(currentDur * 0.35, nextLen * 0.35));
           const offset = Math.max(0, currentDur - transDur);
           const outLabel = `vx${i + 1}`;
 
@@ -629,15 +635,31 @@ async function render({
       }
     }
 
-    // Alargamiento si la voz es más larga que el video (tpad sobre el stream final)
-    let voiceAbs = null;
-    let voiceDur = 0;
-    if (voiceUrl) {
-      voiceAbs = localPath(voiceUrl);
-      const size = fs.statSync(voiceAbs).size;
-      voiceDur = /\.wav$/i.test(voiceAbs) ? (size - 44) / (24000 * 2) : await probeDuration(voiceAbs);
+    // Normalización y validación de frases de voz
+    let rawSegments = Array.isArray(voiceSegments) ? voiceSegments.slice(0, 20) : [];
+    if (!rawSegments.length && voiceUrl) {
+      rawSegments = [{ url: voiceUrl, start: 0 }];
     }
-    const extra = voiceAbs ? Math.max(0, voiceDur + 0.5 - totalDuration) : 0;
+
+    const validVoiceSegments = [];
+    let voiceEnd = 0;
+    for (const seg of rawSegments) {
+      if (!seg || typeof seg.url !== 'string') continue;
+      if (!seg.url.startsWith('/uploads/reels/')) continue;
+      const start = Math.max(0, Math.min(Number(seg.start) || 0, 120));
+      const abs = localPath(seg.url);
+      let dur = 0;
+      if (fs.existsSync(abs)) {
+        const size = fs.statSync(abs).size;
+        dur = /\.wav$/i.test(abs) ? (size - 44) / (24000 * 2) : await probeDuration(abs);
+      }
+      validVoiceSegments.push({ url: seg.url, start, abs, dur });
+      const segEnd = start + dur;
+      if (segEnd > voiceEnd) voiceEnd = segEnd;
+    }
+
+    // Alargamiento si la voz es más larga que el video (tpad sobre el stream final)
+    const extra = validVoiceSegments.length ? Math.max(0, voiceEnd + 0.5 - totalDuration) : 0;
     let masterVideo = finalVideoLabel;
     if (extra > 0) {
       filters.push(`[${masterVideo}]tpad=stop_mode=clone:stop_duration=${extra.toFixed(2)}[vout_padded]`);
@@ -727,27 +749,46 @@ async function render({
 
     finalVideoLabel = currentMaster;
 
-    // Audio mixing con sidechain compressor ducking
+    // Audio mixing con frases de voz (adelay + amix) y música de fondo con ducking
     let nextIdx = scenes.length;
-    let voiceIdx = -1;
+    const voiceSegIndices = [];
+    for (const seg of validVoiceSegments) {
+      inputs.push('-i', seg.abs);
+      voiceSegIndices.push(nextIdx++);
+    }
+
     let musicIdx = -1;
-    if (voiceAbs) { inputs.push('-i', voiceAbs); voiceIdx = nextIdx++; }
     if (music?.url) {
       const cached = await musicService.ensureTrackCached(music.url, { title: music.title || '', artist: music.artist || '' });
       inputs.push('-ss', String(Math.max(Number(music.start) || 0, 0)), '-i', cached);
       musicIdx = nextIdx++;
     }
 
+    const hasVoice = validVoiceSegments.length > 0;
+    if (hasVoice) {
+      if (validVoiceSegments.length > 1) {
+        validVoiceSegments.forEach((seg, k) => {
+          const delayMs = Math.round(seg.start * 1000);
+          filters.push(`[${voiceSegIndices[k]}:a]adelay=${delayMs}|${delayMs},apad[s_${k}]`);
+        });
+        const mixInputs = validVoiceSegments.map((_, k) => `[s_${k}]`).join('');
+        filters.push(`${mixInputs}amix=inputs=${validVoiceSegments.length}:normalize=0:duration=longest[vmix]`);
+      } else {
+        const delayMs = Math.round(validVoiceSegments[0].start * 1000);
+        filters.push(`[${voiceSegIndices[0]}:a]adelay=${delayMs}|${delayMs},apad[vmix]`);
+      }
+    }
+
     const fadeOutAt = Math.max(totalDuration - 1.2, 0).toFixed(2);
     let audioMap = null;
-    if (voiceIdx >= 0 && musicIdx >= 0) {
-      filters.push(`[${voiceIdx}:a]volume=${Number(voiceVolume) || 1},apad,asplit=2[vo][vsc]`);
+    if (hasVoice && musicIdx >= 0) {
+      filters.push(`[vmix]volume=${Number(voiceVolume) || 1},apad,asplit=2[vo][vsc]`);
       filters.push(`[${musicIdx}:a]volume=${Number(musicVolume) || 0.3},aloop=loop=-1:size=2e9[mus]`);
       filters.push(`[mus][vsc]sidechaincompress=threshold=0.04:ratio=8:attack=20:release=400[duck]`);
       filters.push(`[vo][duck]amix=inputs=2:duration=first:dropout_transition=0,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
       audioMap = '[aout]';
-    } else if (voiceIdx >= 0) {
-      filters.push(`[${voiceIdx}:a]volume=${Number(voiceVolume) || 1},apad,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
+    } else if (hasVoice) {
+      filters.push(`[vmix]volume=${Number(voiceVolume) || 1},apad,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
       audioMap = '[aout]';
     } else if (musicIdx >= 0) {
       filters.push(`[${musicIdx}:a]volume=${Math.min((Number(musicVolume) || 0.3) * 2.5, 1)},aloop=loop=-1:size=2e9,atrim=0:${totalDuration.toFixed(2)},afade=t=out:st=${fadeOutAt}:d=1.2[aout]`);
