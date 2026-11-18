@@ -6,7 +6,10 @@ const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const { execFile } = require('child_process');
-const ffmpegPath = require('ffmpeg-static');
+// El ffmpeg-static de Linux viene sin drawtext (falta libharfbuzz): preferir FFMPEG_PATH o el ffmpeg del sistema (apt).
+const ffmpegPath = process.env.FFMPEG_PATH
+  || ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'].find(p => fs.existsSync(p))
+  || require('ffmpeg-static');
 const { getSetting } = require('../database/db');
 const aiService = require('./aiService');
 const musicService = require('./musicService');
