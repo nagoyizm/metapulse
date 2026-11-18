@@ -43,10 +43,15 @@
 
   function showLoginOverlay(errorMessage = null) {
     const overlay = document.getElementById('auth-overlay');
+    const loadingCard = document.getElementById('auth-loading-card');
+    const loginCard = document.getElementById('auth-login-card');
     const errorBox = document.getElementById('auth-error-box');
     const userBadge = document.getElementById('auth-user-badge');
 
     if (userBadge) userBadge.style.display = 'none';
+
+    if (loadingCard) loadingCard.style.display = 'none';
+    if (loginCard) loginCard.style.display = 'block';
 
     if (overlay) {
       overlay.style.display = 'flex';
@@ -71,12 +76,16 @@
 
   function hideLoginOverlay(user) {
     const overlay = document.getElementById('auth-overlay');
+    const loadingCard = document.getElementById('auth-loading-card');
+    const loginCard = document.getElementById('auth-login-card');
     const userBadge = document.getElementById('auth-user-badge');
     const userNameEl = document.getElementById('auth-user-name');
 
     if (overlay) {
       overlay.style.display = 'none';
     }
+    if (loadingCard) loadingCard.style.display = 'none';
+    if (loginCard) loginCard.style.display = 'none';
 
     if (userBadge) {
       userBadge.style.display = 'inline-flex';
@@ -87,11 +96,24 @@
   }
 
   async function checkAuthStatus() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const loadingCard = document.getElementById('auth-loading-card');
+    const loginCard = document.getElementById('auth-login-card');
+
+    if (!token) {
+      showLoginOverlay();
+      return false;
+    }
+
+    // Mientras se verifica el token existente, asegurar que solo se vea la pantalla de carga (sin flash de login)
+    if (loadingCard) loadingCard.style.display = 'flex';
+    if (loginCard) loginCard.style.display = 'none';
+
     try {
       const res = await originalFetch('/api/auth/me', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem(TOKEN_KEY) || ''}`,
-          'x-auth-token': localStorage.getItem(TOKEN_KEY) || ''
+          'Authorization': `Bearer ${token}`,
+          'x-auth-token': token
         }
       });
       const json = await res.json();
@@ -99,11 +121,11 @@
         hideLoginOverlay(json.user);
         return true;
       } else {
-        showLoginOverlay();
+        showLoginOverlay('Tu sesión ha expirado. Por favor ingresa nuevamente.');
         return false;
       }
     } catch (_) {
-      showLoginOverlay();
+      showLoginOverlay('Error de conexión al verificar sesión.');
       return false;
     }
   }

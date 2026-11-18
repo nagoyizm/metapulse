@@ -15,7 +15,23 @@
 <body class="light-theme">
   <!-- PANTALLA DE ACCESO Y SEGURIDAD METAPULSE -->
   <div id="auth-overlay" style="display: flex; position: fixed; inset: 0; z-index: 999999; background: radial-gradient(circle at top, #201e1b 0%, #0e0d0c 100%); align-items: center; justify-content: center; padding: 20px; font-family: 'Inter', sans-serif;">
-    <div style="background: rgba(23, 22, 20, 0.95); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 100%; max-width: 440px; padding: 38px 32px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.06); color: #fff;">
+    
+    <!-- PANTALLA DE CARGA (cuando ya hay sesión activa para evitar flash de login en F5) -->
+    <div id="auth-loading-card" style="display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #fff; padding: 40px 20px;">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #cc8800, #c55221); box-shadow: 0 8px 30px rgba(204,136,0,0.35); margin-bottom: 20px;">
+        <svg viewBox="0 0 24 24" width="34" height="34" stroke="#fff" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+        </svg>
+      </div>
+      <h3 style="margin: 0 0 10px; font-size: 1.25rem; font-weight: 700; color: #fff;">Iniciando MetaPulse...</h3>
+      <div style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #94a3b8;">
+        <span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.2); border-top-color:#cc8800; border-radius:50%; animation:spin 0.8s linear infinite;"></span>
+        <span>Cargando sesión...</span>
+      </div>
+    </div>
+
+    <!-- TARJETA DE LOGIN (solo si no hay sesión o expiró) -->
+    <div id="auth-login-card" style="background: rgba(23, 22, 20, 0.95); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 100%; max-width: 440px; padding: 38px 32px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.06); color: #fff;">
       
       <div style="text-align: center; margin-bottom: 28px;">
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #cc8800, #c55221); box-shadow: 0 8px 30px rgba(204,136,0,0.35); margin-bottom: 16px;">
@@ -66,6 +82,19 @@
       </div>
     </div>
   </div>
+
+  <script>
+    (function() {
+      try {
+        if (localStorage.getItem('metapulse_token')) {
+          var lc = document.getElementById('auth-loading-card');
+          var logc = document.getElementById('auth-login-card');
+          if (lc) lc.style.display = 'flex';
+          if (logc) logc.style.display = 'none';
+        }
+      } catch (_) {}
+    })();
+  </script>
 
   <div class="app-layout">
     <!-- Sidebar Navigation -->
@@ -4270,7 +4299,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- JS SCRIPTS -->
-  <script src="js/auth.js?v=2.4"></script>
+  <script src="js/auth.js?v=2.5"></script>
   <script src="js/app.js?v=2.8"></script>
   <script src="js/contactPlacer.js?v=1.0"></script>
   <script src="js/composer.js?v=4.3"></script>
