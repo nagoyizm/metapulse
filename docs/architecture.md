@@ -31,6 +31,7 @@ SPA en un solo `index.html` con pestañas: Hoy, Crear, Calendario, Bandeja, Resu
 | `js/analytics.js` | resultados |
 | `js/inbox.js` | bandeja (comentarios) |
 | `js/watermark.js`, `js/storyMusic.js`, `js/settings.js` | marca de agua, música de historias, ajustes |
+| `js/reelStudio.js` | Estudio de Reels 2.0 (stepper 5 pasos, subida con progreso XHR, encuadre 9:16 interactivo con mini pantalla, capa de textos independientes con línea de tiempo global, 14 fuentes virales, efectos de animación, persistencia `localStorage`) |
 | `css/composer-steps.css` | pasos del Creador, menú IA, progreso y resumen antes de agendar |
 
 ## Backend
@@ -47,6 +48,7 @@ Servicios principales (`src/services/`):
 - `metricsSyncService` — cron diario 04:17; guarda métricas en `post_metrics`.
 - `inboxSyncService` — cada 90 s; comentarios + alertas WhatsApp (los DMs fallan por permisos; esperado).
 - `imageService` (`stampContactLine`: contacto sobre la imagen final con Lato), `videoService`, `musicService` — sharp/ffmpeg: marca de agua, formatos, afiches, video con audio.
+- `reelStudioService` — motor de Estudio de Reels: planificación IA (`plan`), sugerencia de ganchos (`suggestTextOverlays`), TTS Gemini (`synthesizeVoice`), encadenamiento de video con FFmpeg (`xfade`, `tpad`, reencuadre `crop`/`blur` con pan/zoom) y capa de textos flotantes independientes con 14 tipografías TTF (`assets/fonts/`) y animaciones (`pop`, `fade`, `slide`, `bounce`).
 - `chileCalendar` — feriados y fechas de ocasión de Chile (ocasión real del brief).
 - `aiService` (Campiña): `buildPostBrief`, `generateCampinaHeadlines`, `buildCampinaSceneDirective`, `chooseCampinaArtDirection`, `resolveCampinaVisualSelection`, `buildCampinaImagePrompt` (Prompt Maestro v2), `buildCampinaPostBlock`/`FullPrompt`, `loadUploadImageInline` (reduce a 1280 px).
 - `aiCacheService`, `aiJobQueueService`, `slotService`, `authService`, `whatsappService`.

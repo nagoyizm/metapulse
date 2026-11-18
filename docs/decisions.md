@@ -85,3 +85,13 @@ Formato: fecha · decisión · por qué.
 
 ## Arrastrar borradores entre días del calendario
 - En el Planner, los borradores son arrastrables a otro día (mantienen su hora de Chile; PUT /posts/:id con scheduled_at). Solo borradores; no funciona con tacto en celular (HTML5 drag and drop).
+
+## Estudio de Reels 2.0
+- **2026-11-18 · Desacoplamiento de Pista de Video y Capa de Textos.**
+  - *Por qué:* Los textos de Reels/TikTok no deben estar limitados a los cortes de cámara. Un texto gancho o explicativo debe poder abarcar varios clips y permanecer visible mientras el video de fondo cambia con transiciones (`xfade`). El stepper se divide en 5 pasos claros: 1. Guion y Fórmula ➔ 2. Clips ➔ 3. Cortes de Video y Encuadre 9:16 ➔ 4. Capa de Textos y Efectos ➔ 5. Música, Voz y Render.
+- **2026-11-18 · 14 Tipografías Virales locales para Reels (`assets/fonts/`).**
+  - *Por qué:* El servidor Contabo no cuenta con fuentes del sistema instaladas. Para que FFmpeg dibuje con fidelidad tipográfica, se almacenan los archivos `.ttf` locales en `assets/fonts/` (Archivo Black, Bangers, Titan One, Righteous, Syne, Bebas Neue, Anton, etc.) y se vinculan a Google Fonts en el frontend.
+- **2026-11-18 · Animaciones de texto en FFmpeg mediante expresiones matemáticas en `alpha` e `y`.**
+  - *Por qué:* `drawtext` de FFmpeg rechaza funciones dinámicas por fotograma en `fontsize`, pero sí evalúa expresiones en `alpha` e `y`. Se implementaron animaciones de punch/pop-in (`y` elástico + rampa de `alpha`), fade suave, slide-up desde abajo y bounce, calculadas por segundo con retardo acumulativo por renglón.
+- **2026-11-18 · Persistencia en localStorage (`metapulse_reel_studio_draft`) para blindar contra F5.**
+  - *Por qué:* Las recargas accidentales o F5 provocaban la pérdida de clips subidos, encuadres interactivos y textos. Ahora el estado completo se serializa en el navegador y se restaura sin perder nada.

@@ -1,6 +1,6 @@
 # CURRENT_STATE — MetaPulse
 
-Actualizado: 2026-11-05 · `main` desplegado en Contabo (commit `3f2a9eb`, PM2 online).
+Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `b44b142`, PM2 online).
 
 ## Funciona (en producción)
 - Publicación programada FB/IG con detección de fallos parciales; IA de texto con Gemini 3.x (cadena gratis, salto ante 503); métricas diarias; limpieza de captions.
@@ -13,6 +13,15 @@ Actualizado: 2026-11-05 · `main` desplegado en Contabo (commit `3f2a9eb`, PM2 o
   - Música: mood y palabras clave que abren el buscador existente.
 - Otras marcas (Kmarket, Agendio) conservan su flujo anterior y la tarjeta "Imagen sugerida".
 
+- **Estudio de Reels 2.0 (Pestaña Reels, Kmarket y La Campiña):**
+  - **Arquitectura desacoplada en 5 pasos:**
+    1. *Guion y Fórmula:* Plantillas narrativas (reseña, top 3, atmósfera, promo) o guion personalizado libre + duración objetivo (6 a 25 s).
+    2. *Clips Grabados:* Subida múltiple (MP4/MOV/fotos) con barra de progreso XHR en tiempo real (MB/%/velocidad), arrastre drag & drop y descripciones por clip.
+    3. *Cortes de Video y Encuadre 9:16:* Secuencia de tomas, inicio en clip original, duración de corte, transiciones dinámicas xfade (*Zoom Dinámico/Punch*, *Slide rápido*, *Flash blanco*, *Paneo suave*, *Disolución*, *Corte directo*). Encuadre horizontal a vertical 9:16 interactivo en la **mini pantalla** mediante botones (Izquierda/Centro/Derecha), zoom slider y arrastre directo con el ratón (pan X/Y libre) sobre el canvas, con soporte de modo `crop` o `blur`.
+    4. *Capa de Textos y Efectos Virales:* Overlays de texto flotantes con tiempos independientes (`start` y `end` en segundos globales). Un texto puede abarcar varias tomas y permanecer visible durante transiciones de video. 14 tipografías virales instaladas en el servidor, 5 estilos de cápsula (amarilla viral TikTok, cápsula oscura, borde de impacto Hormozi, resplandor neón, sombra limpia) y 5 efectos de animación (`pop` punch, `fade`, `slide`, `bounce`, `none`). Previsualización instantánea en la mini pantalla y botón "Sugerir textos con IA" (`/api/reel/suggest-texts`) sin alterar los cortes de video.
+    5. *Música, Voz y Render:* Locución con Gemini TTS gratuito (Sulafat, Achird, etc.), búsqueda de música libre con ducking automático al hablar la voz, renderizado MP4 1080x1920 con FFmpeg encadenando filtros xfade + drawtext sobre master stream, y guardado directo a borrador de post.
+  - **Persistencia local de borrador (`localStorage`):** Guardado automático en `metapulse_reel_studio_draft` para soportar F5 / recargas sin perder clips subidos, encuadres, tomas ni textos.
+
 - **Historias:** `storySlotGuard` separa >=90 min las historias de una misma cuenta (goteo y lote); `node scripts/repair-story-slots.js [--apply]` reordena las ya agendadas.
 - **Seguridad:** panel en `https://vmi3557669.taile1b8f4.ts.net` (Tailscale encendido); URL pública solo sirve `/uploads/*`. ufw 22/80/443, SSH solo llave, puerto 3000 local. Ver `docs/decisions.md` > Seguridad.
 
@@ -21,17 +30,12 @@ Actualizado: 2026-11-05 · `main` desplegado en Contabo (commit `3f2a9eb`, PM2 o
 
 - **Diseñador de historias (Creador → "Compartir como Historia" → 🎨):** texto gancho en cuadro blanco pegado a la imagen (Gemini lo sugiere; checkbox), ubicación, mención, cuenta regresiva (se recalcula por cada historia agendada) y stickers de emoji (Noto) que el dueño arrastra a su posición. Estático = imagen con borde blanco; animado = video de 7 s con GIF. Historias derivadas ya no llevan sticker de canción (si hay música, solo el audio). Solo imágenes; el diseño no se guarda en borradores ni aplica al lote.
 
-## Novedades 2026-10-18 → 2026-11-05 (ya en producción)
-- **Calendario:** arrastrar borradores a otro día para reordenarlos.
-- **La Campiña:** check "Oferta/promoción" en el Creador (estética sobria + sello con texto exacto, conserva indicaciones de escena); la foto de referencia manda sobre el plan, resumen de lo que ve la IA y botón reanalizar; "Rehacer análisis"/"Preparar post" usan el texto actual del editor.
-- **Contacto:** se elige dónde estamparlo arrastrándolo sobre la imagen.
-- **Música:** búsqueda por tema con filtro de licencia comercial (ccMixter, Jamendo, Audius, Mi música), crédito automático al portapapeles; ccMixter vía proxy con Referer; al cambiar de canción se regenera desde la imagen original.
-- **Historias:** GIF animados conservan la música; máximo configurable por ventana de 24 h con reubicación; diseñador funciona si el post pasó a video.
-- **Creador/IA:** "Reescribir con instrucción libre" (con deshacer, reintenta si repite); editar posts programados en el Redactor; subida con barra de progreso (videos hasta 300 MB); lote conserva ediciones y avisa de tarjetas incompletas, logo no se estampa por defecto.
-- **Actividad:** pestaña con feed de me gusta/comentarios de Instagram. **Archivos:** limpieza automática de generados sin uso (60 días). **Inicio:** publicaciones con falla parcial y motivo por red.
-- **Seguridad:** sin contraseña en código, bloqueo por cuenta, cookie estricta, CORS cerrado, HTTPS por Tailscale.
-
-- **Estudio de Reels (pestaña Reels, Kmarket y La Campiña):** subir clips/fotos y describirlos → la IA arma escenas, textos en pantalla, guion de voz y caption → voz Gemini TTS elegible (Sulafat, Achird, Vindemiatrix, Leda, Aoede, Puck, Algieba, Charon, Orus) + música con ducking → MP4 1080x1920 (FFmpeg, `reelStudioService.js`) → borrador de Reel. Probado con clips sintéticos y TTS real; falta probar con tus videos en el navegador. Sin logo todavía.
+## Novedades 2026-11-05 → 2026-11-18 (ya en producción)
+- **Estudio de Reels 2.0 completo:** Separación total de pista de video (Paso 3) y capa de textos (Paso 4).
+- **14 Tipografías virales para Reels y TikTok:** Archivo Black, Bangers, Titan One, Righteous, Syne, Bebas Neue, Anton, Montserrat, Poppins, Oswald, Playfair Display, Cinzel, Caveat, Lato (TTF locales en `assets/fonts/` + Google Fonts).
+- **Animaciones de texto en Reels:** Pop-in / Punch, Fade suave, Slide up desde abajo y Bounce elástico tanto en CSS en la mini pantalla como en expresiones matemáticas de tiempo en FFmpeg (`alpha` e `y`).
+- **Mini pantalla 9:16 interactiva:** Visualización vertical fiel a Reels, encuadre pan/zoom arrastrable con el ratón, botón "Previsualizar" por texto y reproducción sincronizada.
+- **Resistencia a F5:** Sesión y borrador de reels persisten en `localStorage`; no se resetea al recargar.
 
 ## Pendiente de prueba por el dueño
 00. Lo de la sección anterior (oferta, arrastre en calendario, contacto arrastrable, búsqueda de música por tema, actividad) no tiene registro de prueba del dueño.
