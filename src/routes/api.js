@@ -3522,8 +3522,8 @@ router.get('/reel/fonts', (req, res) => res.json({ success: true, data: reelStud
 router.post('/reel/analyze-clip', async (req, res) => {
   try {
     const { url, brand = '', goal = '', force = false } = req.body || {};
-    if (!url || typeof url !== 'string' || !url.startsWith('/uploads/reels/')) {
-      return res.status(400).json({ success: false, error: 'URL inválida: debe comenzar con /uploads/reels/' });
+    if (!url || typeof url !== 'string' || !url.startsWith('/uploads/') || url.includes('..')) {
+      return res.status(400).json({ success: false, error: 'URL inválida: debe comenzar con /uploads/' });
     }
     const data = await reelStudio.analyzeClip({ url, brand, goal, force: Boolean(force) });
     res.json({ success: true, data });
