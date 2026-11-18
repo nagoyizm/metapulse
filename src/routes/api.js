@@ -3519,10 +3519,48 @@ router.get('/reel/templates', (req, res) => res.json({ success: true, data: reel
 router.get('/reel/transitions', (req, res) => res.json({ success: true, data: reelStudio.VALID_XFADE_TRANSITIONS }));
 router.get('/reel/fonts', (req, res) => res.json({ success: true, data: reelStudio.getFonts() }));
 
+router.post('/reel/analyze-clip', async (req, res) => {
+  try {
+    const { url, brand = '', goal = '', force = false } = req.body || {};
+    if (!url || typeof url !== 'string' || !url.startsWith('/uploads/reels/')) {
+      return res.status(400).json({ success: false, error: 'URL inválida: debe comenzar con /uploads/reels/' });
+    }
+    const data = await reelStudio.analyzeClip({ url, brand, goal, force: Boolean(force) });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Reel analyze-clip]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/reel/review-clips', async (req, res) => {
+  try {
+    const { brand = '', goal = '', template = 'auto', targetSeconds = 12, target_seconds, clips = [] } = req.body || {};
+    const data = await reelStudio.reviewClips({
+      brand,
+      goal,
+      template,
+      targetSeconds: targetSeconds || target_seconds || 12,
+      clips
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Reel review-clips]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/reel/plan', async (req, res) => {
   try {
-    const { brand = '', clips = [], goal = '', target_seconds = 10, template = 'auto', custom_script = '' } = req.body;
-    const data = await reelStudio.plan({ brand, clips, goal, targetSeconds: target_seconds, template, customScript: custom_script });
+    const { brand = '', clips = [], goal = '', target_seconds = 10, targetSeconds, template = 'auto', custom_script = '', customScript } = req.body || {};
+    const data = await reelStudio.plan({
+      brand,
+      clips,
+      goal,
+      targetSeconds: targetSeconds || target_seconds || 10,
+      template,
+      customScript: customScript || custom_script
+    });
     res.json({ success: true, data });
   } catch (err) {
     console.error('[Reel plan]', err.message);

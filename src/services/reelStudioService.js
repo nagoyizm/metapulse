@@ -552,6 +552,293 @@ function wordsPerSecond() {
   return 2.4;
 }
 
+function brandRulesFor(brand = '') {
+  const lower = String(brand).toLowerCase();
+  const isKmarket = lower.includes('kmarket');
+  const isCampina = lower.includes('campi');
+  return isKmarket
+    ? 'Marca: Kmarket Algarrobo, tienda de snacks, helados, ramen y bebidas coreanas empaquetadas (NO es carnicería ni restaurante). Tono cercano, apetitoso y sobrio. El caption DEBE terminar con la dirección: "📍 Encuéntralo en Kmarket Algarrobo\\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo" y 3-5 hashtags incluyendo #KmarketAlgarrobo #KFood.'
+    : isCampina
+      ? 'Marca: Cabañas La Campiña (Algarrobo): cabañas rústicas familiares, quinchos con parrilla, pinos y jardines. CERO tinajas, jacuzzis ni hot tubs. Tono cálido y familiar. El caption invita a escribir por WhatsApp para reservar y lleva 3-5 hashtags.'
+      : `Marca: ${brand || 'la marca'}. Tono cercano y claro.`;
+}
+
+// ───────────────────── Análisis Multimodal de un Clip ─────────────────────
+async function analyzeClip({ url, brand = '', goal = '', force = false }) {
+  if (!url) throw new Error('Se requiere el parámetro url del clip');
+  const abs = localPath(url);
+  const stat = fs.statSync(abs);
+  const parsedPath = path.parse(abs);
+  const cachePath = path.join(parsedPath.dir, `${parsedPath.name}.analysis.json`);
+
+  if (!force && fs.existsSync(cachePath)) {
+    try {
+      const cached = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+      if (cached && cached.fileSize === stat.size) {
+        const { fileSize, ...rest } = cached;
+        return rest;
+      }
+    } catch (_) {}
+  }
+
+  const isVid = !isImage(abs);
+  let duration = 0;
+  const images = [];
+  const tmpFiles = [];
+
+  try {
+    if (isVid) {
+      const dur = await probeDuration(abs);
+      duration = Math.round(dur * 10) / 10;
+      const n = Math.min(12, Math.max(4, Math.ceil(dur || 1)));
+      ensureDirs();
+      const tMin = Math.min(0.2, (dur || 1) * 0.1);
+      const tMax = Math.max(tMin, (dur || 1) - 0.2);
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? tMin : tMin + (i / (n - 1)) * (tMax - tMin);
+        const tmpPath = path.join(TMP_DIR, `frame_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}.jpg`);
+        tmpFiles.push(tmpPath);
+        await runFFmpeg(['-ss', t.toFixed(3), '-i', abs, '-frames:v', '1', '-vf', 'scale=512:-2', '-q:v', '5', '-y', tmpPath]);
+        if (fs.existsSync(tmpPath)) {
+          const buf = fs.readFileSync(tmpPath);
+          images.push({
+            mime_type: 'image/jpeg',
+            data: buf.toString('base64'),
+            label: `Cuadro en el segundo ${t.toFixed(1)}`
+          });
+        }
+      }
+    } else {
+      const sharp = require('sharp');
+      const buf = await sharp(abs)
+        .resize({ width: 768, height: 768, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toBuffer();
+      images.push({
+        mime_type: 'image/jpeg',
+        data: buf.toString('base64'),
+        label: 'Fotografía'
+      });
+    }
+  } finally {
+    for (const f of tmpFiles) {
+      try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_) {}
+    }
+  }
+
+  const brandRules = brandRulesFor(brand);
+  const prompt = `Eres un editor experto de reels verticales para Instagram y TikTok.
+Analiza este clip audiovisual para la marca.
+
+${brandRules}
+${goal ? `OBJETIVO DEL REEL: ${goal}` : ''}
+${isVid ? `DURACIÓN DEL CLIP: ${duration} segundos.` : 'TIPO DE ARCHIVO: Fotografía / imagen fija.'}
+
+Analiza las imágenes proporcionadas y extrae la información en formato JSON estricto:
+{
+  "description": "qué se ve, 1-2 frases concretas (sujeto, acción, lugar)",
+  "subject": "sujeto principal",
+  "mood": "cálido | enérgico | tranquilo | apetitoso | ...",
+  "shotType": "primer plano | plano medio | general | detalle | ...",
+  "highlights": [ { "start": 6.0, "end": 9.0, "label": "primer plano del ramen humeante", "score": 9 } ],
+  "hook": { "start": 6.0, "end": 7.5, "why": "por qué este momento funciona como gancho inicial" },
+  "framing": { "panX": 0.5, "panY": 0.45, "zoom": 1.0, "fitMode": "crop" },
+  "issues": ["movido entre 2 y 3 s", "oscuro al inicio"],
+  "textIdeas": ["RAMEN EN 3 MINUTOS", "..."]
+}
+
+REGLAS DE ANÁLISIS:
+- highlights: tramos destacados de 1.5 a 4.0 segundos, máximo 4, contenidos dentro de la duración (${duration}s) y ordenados por score descendente (1-10).
+- hook: el tramo de mayor impacto inicial (1.0 a 3.0 segundos) dentro de la duración.
+- framing: panX y panY (números entre 0.0 y 1.0) indican la posición del sujeto principal en el cuadro para recortar a formato vertical 9:16 (0.5 = centro); zoom (número >= 1.0, default 1.0); fitMode: "crop" por defecto para llenar 9:16 vertical, o "blur" únicamente si es un paisaje amplio o plano panorámico que no se debe recortar.
+- No inventar lo que no se ve en las imágenes.
+- Cumplir estrictamente las reglas de la marca (ej. en La Campiña: CERO tinajas, jacuzzis ni hot tubs aunque parezca que hay).
+- textIdeas: máximo 4 ideas de texto en pantalla, cortas (de 2 a 6 palabras), contundentes, en mayúsculas, sin emojis.
+- Devuelve ESTRICTAMENTE JSON sin texto adicional ni markdown.`;
+
+  const { data: raw, model } = await aiService.generateJSONWithImages({
+    prompt,
+    images,
+    temperature: 0.3,
+    maxOutputTokens: 2048
+  });
+
+  const description = String(raw?.description || '').slice(0, 300);
+  const subject = String(raw?.subject || '').slice(0, 100);
+  const mood = String(raw?.mood || '').slice(0, 60);
+  const shotType = String(raw?.shotType || '').slice(0, 60);
+
+  const rawHighlights = Array.isArray(raw?.highlights) ? raw.highlights : [];
+  const highlights = rawHighlights.map((h) => {
+    let hStart = Math.max(0, Number(h.start) || 0);
+    let hEnd = Number(h.end) || (hStart + 2.0);
+    if (isVid && duration > 0) {
+      if (hStart >= duration) return null;
+      hEnd = Math.min(duration, Math.max(hStart + 0.5, hEnd));
+    }
+    if (hEnd <= hStart) return null;
+    const score = Math.min(10, Math.max(1, Math.round(Number(h.score) || 7)));
+    const label = String(h.label || '').slice(0, 100);
+    return {
+      start: Math.round(hStart * 10) / 10,
+      end: Math.round(hEnd * 10) / 10,
+      label,
+      score
+    };
+  }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 4);
+
+  let hook = null;
+  if (raw?.hook && typeof raw.hook === 'object') {
+    let hkStart = Math.max(0, Number(raw.hook.start) || 0);
+    let hkEnd = Number(raw.hook.end) || (hkStart + 2.0);
+    if (isVid && duration > 0) {
+      if (hkStart >= duration) hkStart = 0;
+      hkEnd = Math.min(duration, Math.max(hkStart + 0.5, hkEnd));
+    }
+    hook = {
+      start: Math.round(hkStart * 10) / 10,
+      end: Math.round(hkEnd * 10) / 10,
+      why: String(raw.hook.why || '').slice(0, 200)
+    };
+  } else if (highlights.length > 0) {
+    hook = {
+      start: highlights[0].start,
+      end: highlights[0].end,
+      why: highlights[0].label
+    };
+  } else {
+    hook = {
+      start: 0,
+      end: Math.min(2.5, duration || 2.5),
+      why: 'Inicio del clip'
+    };
+  }
+
+  const rawFraming = raw?.framing || {};
+  const panX = typeof rawFraming.panX === 'number' ? Math.min(1, Math.max(0, rawFraming.panX)) : 0.5;
+  const panY = typeof rawFraming.panY === 'number' ? Math.min(1, Math.max(0, rawFraming.panY)) : 0.5;
+  const zoom = typeof rawFraming.zoom === 'number' ? Math.min(3, Math.max(1, rawFraming.zoom)) : 1.0;
+  const fitMode = rawFraming.fitMode === 'blur' ? 'blur' : 'crop';
+  const framing = {
+    panX: Math.round(panX * 100) / 100,
+    panY: Math.round(panY * 100) / 100,
+    zoom: Math.round(zoom * 10) / 10,
+    fitMode
+  };
+
+  const issues = (Array.isArray(raw?.issues) ? raw.issues : [])
+    .map(s => String(s || '').slice(0, 100))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const textIdeas = (Array.isArray(raw?.textIdeas) ? raw.textIdeas : [])
+    .map(t => {
+      const words = String(t || '').trim().replace(/\s+/g, ' ').split(' ');
+      if (words.length < 2) return null;
+      return words.slice(0, 6).join(' ').toUpperCase();
+    })
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const result = {
+    description,
+    subject,
+    mood,
+    shotType,
+    highlights,
+    hook,
+    framing,
+    issues,
+    textIdeas,
+    duration,
+    analyzedAt: new Date().toISOString(),
+    model: model || 'gemini'
+  };
+
+  try {
+    fs.writeFileSync(cachePath, JSON.stringify({ ...result, fileSize: stat.size }, null, 2), 'utf8');
+  } catch (cErr) {
+    console.warn('[analyzeClip] Error escribiendo cache:', cErr.message);
+  }
+
+  return result;
+}
+
+// ───────────────────── Sugerencias del Conjunto de Clips ─────────────────────
+async function reviewClips({ brand = '', goal = '', template = 'auto', targetSeconds = 12, clips = [] }) {
+  const brandRules = brandRulesFor(brand);
+  const prompt = `Eres un director y editor experto de reels verticales para Instagram y TikTok.
+Analiza este conjunto de clips disponibles y sugiere la mejor estructura para el reel.
+
+${brandRules}
+${goal ? `OBJETIVO INDICADO POR EL DUEÑO: ${goal}` : ''}
+FÓRMULA ACTUAL SELECCIONADA: ${template}
+DURACIÓN OBJETIVO PREVISTA: ${targetSeconds} segundos.
+
+CLIPS DISPONIBLES:
+${JSON.stringify(clips.map((c, i) => ({
+  index: c.index !== undefined ? c.index : i,
+  description: c.description || c.analysis?.description || '',
+  analysis: c.analysis ? {
+    subject: c.analysis.subject,
+    mood: c.analysis.mood,
+    shotType: c.analysis.shotType,
+    highlights: c.analysis.highlights,
+    hook: c.analysis.hook,
+    issues: c.analysis.issues
+  } : null
+})), null, 2)}
+
+Devuelve ESTRICTAMENTE un JSON con:
+{
+  "hookClip": 0,
+  "recommendedTemplate": "review | top3 | atmosphere | promo",
+  "recommendedSeconds": 12,
+  "missingShots": ["un plano de cierre con el local o el logo"],
+  "tips": ["el clip 1 está oscuro: úsalo poco"],
+  "goalIdea": "objetivo sugerido si el dueño no escribió uno"
+}
+
+REGLAS:
+- hookClip: índice (0-based) del clip con el gancho más potente para abrir el video.
+- recommendedTemplate: el id de la fórmula narrativa ideal entre "review", "top3", "atmosphere", "promo".
+- recommendedSeconds: duración total recomendada en segundos (entre 8 y 20).
+- missingShots: lista de 1 a 3 planos o tomas que faltan para completar la historia.
+- tips: 1 a 3 consejos concretos de edición basados en la calidad y contenido de los clips.
+- goalIdea: si el dueño no escribió objetivo, una frase clara con el objetivo sugerido; si ya lo escribió, un complemento breve.`;
+
+  const { data: raw } = await aiService.generateJSON({ prompt, temperature: 0.5 });
+
+  const maxClipIdx = Math.max(0, clips.length - 1);
+  const hookClip = Math.min(maxClipIdx, Math.max(0, parseInt(raw?.hookClip, 10) || 0));
+  const validTemplates = ['review', 'top3', 'atmosphere', 'promo'];
+  const recommendedTemplate = validTemplates.includes(raw?.recommendedTemplate)
+    ? raw.recommendedTemplate
+    : (String(brand).toLowerCase().includes('campi') ? 'atmosphere' : 'review');
+  const recommendedSeconds = Math.min(25, Math.max(6, Number(raw?.recommendedSeconds) || Number(targetSeconds) || 12));
+
+  const missingShots = (Array.isArray(raw?.missingShots) ? raw.missingShots : [])
+    .map(s => String(s || '').slice(0, 150))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const tips = (Array.isArray(raw?.tips) ? raw.tips : [])
+    .map(s => String(s || '').slice(0, 150))
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const goalIdea = String(raw?.goalIdea || '').slice(0, 150);
+
+  return {
+    hookClip,
+    recommendedTemplate,
+    recommendedSeconds,
+    missingShots,
+    tips,
+    goalIdea
+  };
+}
+
 // ───────────────────────── Plan con IA ─────────────────────────
 async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10, template = 'auto', customScript = '' }) {
   if (!clips.length) throw new Error('Agrega al menos un clip o imagen.');
@@ -562,23 +849,28 @@ async function plan({ brand = '', clips = [], goal = '', targetSeconds = 10, tem
     const c = clips[i];
     const abs = localPath(c.url);
     const dur = await probeDuration(abs);
-    described.push({
+    const userDesc = String(c.description || '').trim();
+    const item = {
       index: i,
       url: c.url,
       kind: isImage(abs) ? 'imagen' : 'video',
       duration: dur ? Math.round(dur * 10) / 10 : null,
-      description: String(c.description || '').slice(0, 300)
-    });
+      description: (userDesc || (c.analysis && c.analysis.description) || '').slice(0, 300)
+    };
+    if (c.analysis) {
+      item.analysis = {
+        description: c.analysis.description || '',
+        highlights: Array.isArray(c.analysis.highlights) ? c.analysis.highlights : [],
+        hook: c.analysis.hook || null,
+        shotType: c.analysis.shotType || '',
+        mood: c.analysis.mood || '',
+        issues: Array.isArray(c.analysis.issues) ? c.analysis.issues : []
+      };
+    }
+    described.push(item);
   }
 
-  const lower = String(brand).toLowerCase();
-  const isKmarket = lower.includes('kmarket');
-  const isCampina = lower.includes('campi');
-  const brandRules = isKmarket
-    ? 'Marca: Kmarket Algarrobo, tienda de snacks, helados, ramen y bebidas coreanas empaquetadas (NO es carnicería ni restaurante). Tono cercano, apetitoso y sobrio. El caption DEBE terminar con la dirección: "📍 Encuéntralo en Kmarket Algarrobo\\nEl Boldo 366, local 13, Espacio Algarrobo, Algarrobo" y 3-5 hashtags incluyendo #KmarketAlgarrobo #KFood.'
-    : isCampina
-      ? 'Marca: Cabañas La Campiña (Algarrobo): cabañas rústicas familiares, quinchos con parrilla, pinos y jardines. CERO tinajas, jacuzzis ni hot tubs. Tono cálido y familiar. El caption invita a escribir por WhatsApp para reservar y lleva 3-5 hashtags.'
-      : `Marca: ${brand || 'la marca'}. Tono cercano y claro.`;
+  const brandRules = brandRulesFor(brand);
 
   let templateDirective = '';
   if (customScript && customScript.trim()) {
@@ -605,7 +897,8 @@ ${JSON.stringify(described, null, 1)}
 
 REGLAS DE EDICIÓN:
 1. Pista de Video:
-   - Toma 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos.
+   - Toma 1 = GANCHO VISUAL potente que detiene el scroll en los primeros 1.5 segundos. La toma 1 usa el hook del clip más fuerte.
+   - Si un clip trae highlights, elige start/length dentro de ellos; evita los tramos con issues.
    - Cada toma usa un clip (start y length en segundos). Tomas dinámicas de 1.5 a 3.5 segundos.
    - "transition": sugiere la transición hacia la siguiente toma entre "zoomin", "slideleft", "fadewhite", "smoothleft", "dissolve" o "none".
    - "fitMode": "crop" (llena pantalla vertical 9:16) o "blur" (fondo borroso para planos amplios que no se deben recortar).
@@ -679,6 +972,21 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       ? s.transition
       : defaultTransitions[idx % defaultTransitions.length];
 
+    let fitMode = s.fitMode === 'blur' ? 'blur' : 'crop';
+    let zoom = 1.0;
+    let panX = 0.5;
+    let panY = 0.5;
+
+    // Post-proceso: si la toma de un clip con analysis.framing queda con zoom 1 y pan 0.5 por defecto, aplicarle framing
+    const origClip = clips[clipIdx];
+    const framing = origClip?.analysis?.framing;
+    if (framing && zoom === 1.0 && panX === 0.5 && panY === 0.5) {
+      if (typeof framing.panX === 'number') panX = Math.min(1, Math.max(0, framing.panX));
+      if (typeof framing.panY === 'number') panY = Math.min(1, Math.max(0, framing.panY));
+      if (typeof framing.zoom === 'number') zoom = Math.min(3, Math.max(1, framing.zoom));
+      if (framing.fitMode === 'blur' || framing.fitMode === 'crop') fitMode = framing.fitMode;
+    }
+
     const scObj = {
       clip: clipIdx,
       url: info.url,
@@ -689,10 +997,10 @@ Devuelve ESTRICTAMENTE JSON con esta estructura:
       pos: ['top', 'center', 'bottom'].includes(s.pos) ? s.pos : 'center',
       textStyle: ['pill', 'minimal', 'impact', 'yellow', 'neon'].includes(s.textStyle) ? s.textStyle : 'pill',
       font: s.font && FONTS_MAP[s.font] ? s.font : 'archivo',
-      fitMode: s.fitMode === 'blur' ? 'blur' : 'crop',
-      zoom: 1.0,
-      panX: 0.5,
-      panY: 0.5,
+      fitMode,
+      zoom,
+      panX,
+      panY,
       transition: assignedTransition
     };
     accumTime += scObj.length;
@@ -1425,5 +1733,8 @@ module.exports = {
   suggestTextOverlays,
   synthesizeVoice,
   render,
-  probeDuration
+  probeDuration,
+  brandRulesFor,
+  analyzeClip,
+  reviewClips
 };

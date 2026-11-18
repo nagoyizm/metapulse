@@ -3378,10 +3378,23 @@ input:checked + .slider:before {
 .reel-dropzone:hover { border-color: var(--primary); background: rgba(99, 102, 241, 0.04); }
 .reel-dropzone.dragover { border-color: var(--primary); background: rgba(99, 102, 241, 0.12); transform: scale(1.01); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
 .reel-dropzone-compact { padding: 12px; margin-top: 10px; border-style: dashed; }
-.reel-clip-card { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface); margin-bottom: 8px; }
-.reel-clip-thumb-box { width: 68px; height: 100px; flex: none; border-radius: 6px; overflow: hidden; background: #0f172a; position: relative; }
+.reel-clip-card { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface); margin-bottom: 10px; transition: border-color 0.2s, box-shadow 0.2s; }
+.reel-clip-thumb-box { width: 72px; height: 110px; flex: none; border-radius: 6px; overflow: hidden; background: #0f172a; position: relative; cursor: pointer; }
 .reel-clip-thumb-box video, .reel-clip-thumb-box img { width: 100%; height: 100%; object-fit: cover; }
 .reel-clip-dur-badge { position: absolute; bottom: 3px; right: 3px; font-size: 0.65rem; background: rgba(0,0,0,0.75); color: #fff; padding: 1px 4px; border-radius: 3px; font-weight: 600; }
+
+.reel-analysis-box { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle); font-size: 0.76rem; }
+.reel-analysis-suggestion { font-size: 0.74rem; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 6px 8px; margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.reel-highlights-container { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.reel-highlight-chip { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 8px; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: 6px; font-size: 0.72rem; }
+.reel-highlight-clickable { flex: 1; cursor: pointer; color: var(--text-primary); transition: color 0.15s; }
+.reel-highlight-clickable:hover { color: var(--primary); }
+.reel-badge-hook { background: #fef3c7; color: #92400e; font-weight: 700; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-right: 4px; display: inline-block; }
+.reel-issues-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.reel-issue-badge { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; }
+.reel-text-ideas-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center; }
+.reel-text-idea-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-subtle); color: var(--text-primary); transition: all 0.15s; }
+.reel-text-idea-chip:hover { border-color: var(--primary); background: var(--primary-subtle); color: var(--primary); }
 
 /* Escenas */
 .reel-scene-card { border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; background: var(--bg-surface); margin-bottom: 10px; transition: border-color 0.2s; }

@@ -1,88 +1,89 @@
-# TASK — Reels: efectos de texto de entrada, animación continua y salida
+# TASK — Reels: la IA mira y analiza los clips
 
-Respaldo: etiqueta git `reels-v2`. Ejecutor: NO hacer commit. Respetar los saltos de línea de cada archivo. No leer completos los archivos grandes: usar grep y rangos.
+Respaldo: etiqueta git `reels-v2`. Ejecutor: NO hacer commit. Respetar los saltos de línea de cada archivo. No leer completos los archivos grandes (`aiService.js` ~3.700 líneas): usar grep y rangos.
 
 ## Archivos permitidos
+- `src/services/aiService.js` (solo agregar un método nuevo)
 - `src/services/reelStudioService.js`
-- `public/js/reelStudio.js`
-- `public/css/style.css`
-- `public/index.html` (solo cache busters: `style.css?v=3.6`, `reelStudio.js?v=2.8`)
+- `src/routes/api.js` (solo rutas `/reel/*` nuevas)
+- `public/js/reelStudio.js`, `public/css/style.css`, `public/index.html` (paso 2 y cache busters)
 
-## Modelo de datos
-Cada overlay de texto pasa de un solo `effect` a:
-- `effectIn` (entrada), `effectLoop` (mientras está en pantalla), `effectOut` (salida)
-- `speed`: `'fast' | 'normal' | 'slow'` → duración de la entrada y de la salida: 0.25 / 0.45 / 0.8 s. Si el texto dura poco, ambas se acortan para que entrada + salida <= 70 % de `end - start`.
+## 1. Llamada multimodal genérica (`aiService.js`)
+Agregar `async generateJSONWithImages({ prompt, images = [], temperature = 0.4, maxOutputTokens = 4096 })`:
+- `images` = `[{ mime_type, data /* base64 */, label? }]`. Cada imagen va como parte `inline_data`, precedida de una parte de texto con su `label` si lo trae (ej. "Cuadro en el segundo 4.0").
+- Recorre `sanitizeGeminiModels(getSetting('ai_model'))` como en `chooseCampinaArtDirection` (~línea 2840): salta de modelo ante error o 503, `responseMimeType: 'application/json'`, ignora partes con `thought`, limpia los ```json y aplica las mismas protecciones que `generateJSON` (rechaza `finishReason` MAX_TOKENS y `looksLikeLeakedReasoning`). Timeout de 60 s.
+- Devuelve `{ data, model }` igual que `generateJSON`. Sin API key → error claro.
 
-Compatibilidad: si un overlay trae solo `effect` (borradores y respuestas viejas de la IA), convertir así: `pop→pop`, `fade→fade` (y `effectOut=fade`), `slide→slideup`, `bounce→bounce`, `none→none`. `effectLoop` por defecto `none`, `effectOut` por defecto `fade`.
+## 2. Análisis de un clip (`reelStudioService.analyzeClip({ url, brand, goal })`)
+- **Caché:** `uploads/reels/<nombre>.analysis.json`. Si existe y el archivo de medios no cambió (mismo tamaño), devolverlo sin llamar a la IA. `force: true` lo ignora.
+- **Cuadros:**
+  - Video: duración con `probeDuration`. `n = min(12, max(4, ceil(dur)))` cuadros repartidos uniformemente (evitar el primer 0.2 s y el último). Por cada uno: `ffmpeg -ss <t> -i <archivo> -frames:v 1 -vf scale=512:-2 -q:v 5` a JPEG en `uploads/reels/tmp/`. Leer como base64 y borrarlos.
+  - Foto: la imagen reducida a 768 px con `sharp`.
+- **Prompt** (español, pide JSON estricto). Incluye la marca con las mismas `brandRules` de `plan()` (extraerlas a una función `brandRulesFor(brand)` y usarla en ambos), el objetivo si viene y la duración. Pide:
+```json
+{
+  "description": "qué se ve, 1-2 frases concretas (sujeto, acción, lugar)",
+  "subject": "sujeto principal",
+  "mood": "cálido | enérgico | tranquilo | apetitoso | ...",
+  "shotType": "primer plano | plano medio | general | detalle | ...",
+  "highlights": [ { "start": 6.0, "end": 9.0, "label": "primer plano del ramen humeante", "score": 9 } ],
+  "hook": { "start": 6.0, "end": 7.5, "why": "..." },
+  "framing": { "panX": 0.5, "panY": 0.45, "zoom": 1.0, "fitMode": "crop" },
+  "issues": ["movido entre 2 y 3 s", "oscuro al inicio"],
+  "textIdeas": ["RAMEN EN 3 MINUTOS", "..."]
+}
+```
+  Reglas para la IA: `highlights` de 1.5 a 4 s, máximo 4, dentro de la duración y ordenados por `score` (1-10). `framing.panX`/`panY` (0-1) indican dónde está el sujeto, para recortar a 9:16; `fitMode: "blur"` solo si es un paisaje amplio que no se debe recortar. No inventar lo que no se ve. Cumplir las reglas de la marca (ej. La Campiña: nada de tinajas ni jacuzzis aunque parezca que hay).
+- **Validar y normalizar:** recortar números a rango, quitar highlights fuera de la duración, máximo 4 `textIdeas` de 2-6 palabras. Guardar la caché y devolver `{ ...analysis, duration, analyzedAt, model }`.
 
-Definir las listas UNA sola vez en el servicio (`TEXT_EFFECTS_IN`, `TEXT_EFFECTS_LOOP`, `TEXT_EFFECTS_OUT`, con `{ id, label }` en español) y usarlas en todas las validaciones que hoy repiten `['pop','fade','slide','bounce','none']` (líneas ~324, ~416 y ~665). Exportarlas. En el front, la misma lista copiada (no hay build) en `reelStudio.js`.
+## 3. Sugerencias del conjunto (`reelStudioService.reviewClips({ brand, goal, template, targetSeconds, clips })`)
+`clips` = `[{ index, description, analysis }]` (solo texto, sin imágenes). La IA devuelve:
+```json
+{
+  "hookClip": 2,
+  "recommendedTemplate": "review | top3 | atmosphere | promo",
+  "recommendedSeconds": 12,
+  "missingShots": ["un plano de cierre con el local o el logo", "..."],
+  "tips": ["el clip 1 está oscuro: úsalo poco", "..."],
+  "goalIdea": "objetivo sugerido si el dueño no escribió uno"
+}
+```
+Usar los ids reales de `TEMPLATES`. Validar.
 
-## Catálogo
-Entrada (`effectIn`):
-| id | Nombre | Cómo se ve |
-|---|---|---|
-| `pop` | Punch / Pop | el actual: cae un poco con alfa rápido |
-| `zoomin` | Zoom in | crece de 30 % a 100 % con leve rebote (overshoot 108 %) |
-| `zoomout` | Zoom desde cerca | baja de 180 % a 100 % con fundido |
-| `typewriter` | Máquina de escribir | aparecen las letras una a una (de izquierda a derecha) |
-| `wordbyword` | Palabra por palabra | aparecen las palabras una a una (estilo Hormozi) |
-| `wind` | Viento | entra desde la izquierda con estela: 2 copias fantasma detrás (alfa 0.35 y 0.15, desfasadas 40 y 80 px) que se juntan con el texto |
-| `magic` | Magia | parpadeo/destello (alfa oscilante que se estabiliza) + zoom 70→100 % + halo: copia detrás, un poco más grande, color claro, alfa que baja a 0 |
-| `glitch` | Glitch | sacudida horizontal + copias roja y cian desplazadas ±8 px que desaparecen al terminar la entrada |
-| `slideup` / `slidedown` / `slideleft` / `slideright` | Deslizar | entra desde ese lado con fundido |
-| `drop` | Caída con rebote | cae desde arriba de la pantalla y rebota 2 veces |
-| `bounce` | Rebote | el actual |
-| `fade` | Fundido | alfa de 0 a 1 |
-| `none` | Corte directo | |
+## 4. Plan usando el análisis (`plan()`)
+- Si un clip trae `analysis`, en `described` agregar `analysis: { description, highlights, hook, shotType, mood, issues }` y usar `analysis.description` cuando el dueño no escribió descripción. La descripción del dueño siempre manda sobre la de la IA.
+- Agregar al prompt: "Si un clip trae highlights, elige start/length dentro de ellos; la toma 1 usa el hook del clip más fuerte; evita los tramos con issues".
+- Post-proceso: si la toma de un clip con `analysis.framing` queda con zoom 1 y pan 0.5 por defecto, aplicarle `framing` (panX, panY, zoom, fitMode).
 
-Animación continua (`effectLoop`, entre el fin de la entrada y el inicio de la salida):
-| id | Nombre | Cómo se ve |
-|---|---|---|
-| `none` | Quieto | |
-| `float` | Flotar | `y += 10*sin(2π·t/2.2)` |
-| `pulse` | Latido suave | tamaño ±4 % con período de 1.2 s |
-| `heartbeat` | Corazón | doble pulso cada 1 s (+6 %) |
-| `shake` | Temblor | jitter horizontal ±4 px de alta frecuencia |
-| `swing` | Vaivén | `x += 14*sin(2π·t/1.6)` |
-| `glow` | Respirar | alfa entre 0.8 y 1 |
-| `wave` | Ola | cada línea flota desfasada (por índice de línea) |
+## 5. Rutas (`api.js`)
+- `POST /reel/analyze-clip` `{ url, brand, goal, force }` → `analyzeClip`. Validar que `url` empiece con `/uploads/reels/`, si no, 400.
+- `POST /reel/review-clips` `{ brand, goal, template, targetSeconds, clips }` → `reviewClips`.
+- `POST /reel/plan`: pasar el `analysis` de cada clip si viene.
+Mismo patrón `try/catch` y `{ success, data|error }`.
 
-Salida (`effectOut`): `fade`, `zoomout` (encoge a 0 con fundido), `explode` (crece a 160 % y se desvanece), `slideup`, `slidedown`, `slideleft`, `slideright`, `wind` (se va a la derecha con estela), `magic` (destello y se disuelve), `glitch`, `typewriter` (se borran las letras de derecha a izquierda), `drop` (cae fuera de la pantalla), `none`.
-
-## Render (servidor, `render()` alrededor de las líneas 655-720)
-Construir las expresiones de `drawtext` para `x`, `y`, `alpha` y `fontsize`. Ya está verificado que `fontsize` acepta expresiones con `t` que se evalúan en cada cuadro.
-- Centrado: `x=(w-text_w)/2 + dx(t)` y `y = centroLinea - text_h/2 + dy(t)`, para que el zoom crezca desde el centro.
-- Para cada línea `k`: `tIn0 = start + k*0.08` (el escalonado de hoy), `tInEnd = tIn0 + inDur`, `tOut0 = end - outDur`. Usar una variable de progreso `p = clip((t - tIn0)/inDur, 0, 1)` y `q = clip((t - tOut0)/outDur, 0, 1)`, con easing `easeOutBack` y `easeOutCubic` escritos como expresiones.
-- Componer: valor final = entrada(p) aplicada si `t < tInEnd`, loop si `tInEnd <= t < tOut0`, salida(q) si `t >= tOut0`. Usar `if(lt(t,..),..)` anidados. Hacer una función por efecto que devuelva `{ dx, dy, alpha, scale }` como strings de expresión, y armarlas al final (`fontsize = round(base*scale)`).
-- Escapar las comas dentro de las expresiones como ya se hace (comillas simples alrededor de la expresión) y probarlo.
-- **typewriter / wordbyword:** un `drawtext` por prefijo (letra o palabra), cada uno con su ventana `enable`. Para que el texto crezca de izquierda a derecha sin moverse, el `x` de todos los prefijos debe ser el de la línea completa: dibujar la línea completa con `alpha=0` no sirve para medir, así que hay que calcular el ancho con la fuente. Usar `sharp` (ya instalado) para renderizar la línea con `fontfile` y obtener su ancho en px al `fontsize` base; si no es confiable, usar el prefijo centrado (crece desde el centro). Máximo 30 pasos por línea (agrupar letras si son más). La salida `typewriter` hace lo mismo en orden inverso.
-- **wind / magic / glitch:** las capas extra son `drawtext` adicionales del mismo texto con su propio `alpha`/`x`/`fontcolor`, activas solo durante la entrada o la salida (`enable`). Van ANTES de la capa principal, para que queden detrás.
-- Con estilos de caja (`box=1`), las capas fantasma se dibujan sin caja.
-- Límite: máximo 120 `drawtext` en total por render. Si se pasa, degradar typewriter → fade y quitar las capas fantasma, y anotar en `console.warn`.
-
-## IA (`suggestTextOverlays` y el plan del guion)
-Actualizar el prompt para que devuelva `effectIn`, `effectLoop`, `effectOut` y `speed`, con la lista de ids válidos y una guía corta: gancho inicial → `zoomin`/`glitch`/`magic`; listas → `wordbyword`; cierre/CTA → `pop` + `pulse`; atmósfera → `fade` + `float`. Validar contra las listas.
-
-## Front (`reelStudio.js` + `style.css`)
-- En cada tarjeta de texto (paso 4), reemplazar el selector de efecto por cuatro: "Entrada", "Animación", "Salida" y "Velocidad". Guardarlos en el estado y en `localStorage`, con la migración del campo viejo `effect` al restaurar.
-- "Aplicar esta fuente y estilo a todos" también copia los cuatro.
-- Vista previa en la mini pantalla (botón "Previsualizar" del texto y reproductor de secuencia):
-  - Entrada y salida con `@keyframes` CSS (`reel-in-<id>`, `reel-out-<id>`) y la duración según `speed`.
-  - El loop con keyframes infinitos (`reel-loop-<id>`) que se aplican al terminar la entrada.
-  - La salida se dispara a `end - outDur`.
-  - typewriter / wordbyword: revelar con JS (spans) en vez de CSS.
-  - glitch / wind / magic: `text-shadow` animado o pseudo-elementos. Basta con una aproximación fiel.
-- "Previsualizar" de un texto reproduce entrada → 1.5 s de loop → salida, una vez.
-- Usar el reloj del reproductor de secuencia (de la tarea anterior, ya en el código) para decidir el estado de cada texto según `t`; si se arrastra la barra, mostrar el estado de ese momento sin reiniciar animaciones de forma rara.
+## 6. Interfaz (paso 2, Clips)
+- Casilla "Analizar con IA al subir" (marcada por defecto; se guarda en `localStorage`). Al terminar de subir, analiza los clips nuevos de a uno (secuencial, para no topar el límite gratis), con estado en la tarjeta: "Analizando...", "Analizado" o "Error: reintentar".
+- Botón "Analizar todos con IA" (salta los ya analizados) y, en cada tarjeta, "Volver a analizar" (`force`).
+- En cada tarjeta, con el análisis listo:
+  - Si la descripción está vacía, llenarla con `analysis.description`. Si no, mostrar "Sugerencia: ..." con el botón "Usar".
+  - Chips con los highlights (`6.0–9.0 s · primer plano del ramen`). Clic → previsualiza ese tramo en la mini pantalla (reusar `previewClip` saltando a `start`). Botón chico "Usar como toma" → agrega una toma en el paso 3 con ese `start`/`length` y el `framing`.
+  - El hook marcado con una insignia "Gancho".
+  - `issues` como avisos chicos en ámbar.
+  - `textIdeas` como chips. Clic → agrega un texto en el paso 4 (de 0 a 2.5 s si no hay textos; si no, después del último).
+- Panel "Sugerencias de la IA" sobre "Planificar con IA", con el botón "Revisar mis clips" → `/reel/review-clips`. Muestra gancho sugerido, fórmula y duración recomendadas (con botón "Aplicar", que los fija en el paso 1), planos que faltan y consejos. Si el objetivo está vacío, ofrece `goalIdea` con "Usar".
+- `planWithAI()` envía el `analysis` de cada clip.
+- El análisis se guarda dentro de `S.clips[i].analysis` (persiste con el borrador).
+- Todo texto de la IA pasa por `esc()` antes de entrar al DOM. Botones sin emojis.
+- Cache busters: `style.css` y `reelStudio.js` +1 respecto al valor que tengan en ese momento.
 
 ## Verificación (el ejecutor la corre y reporta)
-1. `node --check` en los JS tocados.
-2. Script de humo en la carpeta temporal del sistema con `NODE_PATH="C:/Users/aaaa/proyecto manejo redes sociales/node_modules"`:
-   - 1 video `testsrc` de 6 s en `uploads/reels/tmp/`.
-   - Llamar a `render` con 4 textos que cubran: `typewriter`+`float`+`fade`, `magic`+`pulse`+`explode`, `glitch`+`shake`+`glitch`, `wind`+`none`+`wind`, con estilos `yellow` e `impact`.
-   - Que genere el MP4 sin error. Extraer 6 cuadros PNG (a la mitad de cada entrada y de cada salida) a la carpeta temporal y listar sus rutas en el reporte, para que Claude los mire. Borrar después el MP4 y los videos de prueba (los PNG no).
-   - Probar también un overlay viejo con solo `effect: 'slide'`.
-3. No llamar a Gemini.
+1. `node --check` en todos los JS tocados.
+2. Humo con `NODE_PATH="C:/Users/aaaa/proyecto manejo redes sociales/node_modules"`, contra la BD local (que tiene la API key):
+   - Buscar un clip real en `C:/Users/aaaa/proyecto manejo redes sociales/uploads/reels/` (mp4/mov). Si no hay, generar un `testsrc` de 8 s en `uploads/reels/tmp/`.
+   - Llamar UNA vez a `analyzeClip` (llamada real a Gemini) e imprimir el JSON. Llamarlo de nuevo y confirmar que sale de la caché (sin llamada).
+   - Llamar una vez a `reviewClips` con ese análisis e imprimir el resultado.
+   - Borrar la caché `.analysis.json` y los archivos de prueba creados (no los clips reales).
+3. Confirmar que no quedan JPEG temporales en `uploads/reels/tmp/`.
 
 ## Reporte
-Archivos tocados, resumen, salida de la verificación, rutas de los PNG y lo que quedó sin verificar.
+Archivos tocados, resumen por punto (1 a 6), el JSON real de `analyzeClip` y `reviewClips`, salida de la verificación y lo que quedó sin verificar.

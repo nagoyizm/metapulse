@@ -443,6 +443,163 @@
   }
 
   // ── Paso 2: Subida y Clips ──
+  async function analyzeSingleClip(i, force = false) {
+    if (i < 0 || i >= S.clips.length) return;
+    const clip = S.clips[i];
+    clip._analyzingState = 'analyzing';
+    renderClips();
+
+    try {
+      const data = await api('/reel/analyze-clip', {
+        url: clip.url,
+        brand: brandName(),
+        goal: $('reel-goal')?.value || '',
+        force: Boolean(force)
+      });
+      clip.analysis = data;
+      clip._analyzingState = 'done';
+      if (!clip.description || !clip.description.trim()) {
+        clip.description = data.description || '';
+      }
+      renderClips();
+      saveState();
+      toast(`Clip ${i + 1} analizado con éxito`, 'success');
+    } catch (err) {
+      clip._analyzingState = 'error';
+      renderClips();
+      saveState();
+      toast(`Error analizando clip ${i + 1}: ${err.message}`, 'error');
+    }
+  }
+
+  async function analyzeClipsSequentially(indices) {
+    for (const idx of indices) {
+      if (idx >= S.clips.length) continue;
+      await analyzeSingleClip(idx, false);
+    }
+  }
+
+  async function analyzeAllClips() {
+    const unanalyzed = S.clips
+      .map((c, i) => (!c.analysis ? i : -1))
+      .filter((i) => i >= 0);
+    if (!unanalyzed.length) {
+      return toast('Todos los clips ya están analizados.', 'info');
+    }
+    setBusy('btn-reel-analyze-all', true, 'Analizando...');
+    try {
+      await analyzeClipsSequentially(unanalyzed);
+    } finally {
+      setBusy('btn-reel-analyze-all', false);
+    }
+  }
+
+  async function reviewClipsWithAI() {
+    if (!S.clips.length) return toast('Sube al menos un clip primero.', 'warning');
+    setBusy('btn-reel-review-clips', true, 'Revisando clips...');
+    const reviewContent = $('reel-ai-review-content');
+
+    try {
+      const data = await api('/reel/review-clips', {
+        brand: brandName(),
+        goal: $('reel-goal')?.value || '',
+        template: S.template,
+        targetSeconds: Number($('reel-target')?.value) || 12,
+        clips: S.clips.map((c, idx) => ({
+          index: idx,
+          description: c.description,
+          analysis: c.analysis || null
+        }))
+      });
+
+      if (reviewContent) {
+        reviewContent.style.display = 'block';
+        const templateTitle = DEFAULT_TEMPLATES.find(t => t.id === data.recommendedTemplate)?.title || data.recommendedTemplate;
+        const hookClipNum = (data.hookClip != null ? data.hookClip : 0) + 1;
+        const currentGoal = ($('reel-goal')?.value || '').trim();
+
+        reviewContent.innerHTML = `
+          <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <strong style="color:var(--text-primary);">Gancho sugerido:</strong>
+                <button type="button" class="btn btn-xs btn-ghost" id="btn-reel-review-preview-hook" style="color:var(--primary); font-weight:700;">
+                  Clip ${hookClipNum} (previsualizar)
+                </button>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge" style="background:var(--primary-subtle); color:var(--primary);">
+                  ${esc(templateTitle)} · ${data.recommendedSeconds}s
+                </span>
+                <button type="button" class="btn btn-xs btn-primary" id="btn-reel-apply-recommendation">Aplicar a Paso 1</button>
+              </div>
+            </div>
+
+            ${(data.missingShots && data.missingShots.length) ? `
+              <div>
+                <span style="font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">Planos que faltan:</span>
+                <ul style="margin:0; padding-left:18px; color:var(--text-primary); font-size:0.76rem;">
+                  ${data.missingShots.map(s => `<li>${esc(s)}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+
+            ${(data.tips && data.tips.length) ? `
+              <div>
+                <span style="font-weight:600; color:var(--text-secondary); display:block; margin-bottom:4px;">Consejos de edición:</span>
+                <ul style="margin:0; padding-left:18px; color:var(--text-primary); font-size:0.76rem;">
+                  ${data.tips.map(t => `<li>${esc(t)}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+
+            ${(!currentGoal && data.goalIdea) ? `
+              <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-surface-subtle); padding:6px 10px; border-radius:6px; font-size:0.75rem;">
+                <div>
+                  <span style="font-weight:600; color:var(--text-secondary);">Objetivo sugerido:</span>
+                  <span style="color:var(--text-primary); margin-left:4px;">${esc(data.goalIdea)}</span>
+                </div>
+                <button type="button" class="btn btn-xs btn-secondary" id="btn-reel-use-goal">Usar</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        $('btn-reel-review-preview-hook')?.addEventListener('click', () => {
+          if (data.hookClip >= 0 && data.hookClip < S.clips.length) {
+            previewClip(data.hookClip);
+          }
+        });
+
+        $('btn-reel-apply-recommendation')?.addEventListener('click', () => {
+          S.template = data.recommendedTemplate;
+          S.targetSeconds = data.recommendedSeconds;
+          const tg = $('reel-target');
+          if (tg) tg.value = data.recommendedSeconds;
+          document.querySelectorAll('.reel-template-card').forEach((card) => {
+            card.classList.toggle('active', card.dataset.id === S.template);
+          });
+          const customBox = $('reel-custom-script-box');
+          if (customBox) customBox.style.display = S.template === 'custom' ? 'block' : 'none';
+          saveState();
+          toast('Fórmula y duración aplicadas al Paso 1', 'success');
+        });
+
+        $('btn-reel-use-goal')?.addEventListener('click', () => {
+          const g = $('reel-goal');
+          if (g) g.value = data.goalIdea;
+          S.goal = data.goalIdea;
+          saveState();
+          toast('Objetivo actualizado', 'success');
+        });
+      }
+    } catch (err) {
+      toast('Error revisando clips: ' + err.message, 'error');
+    } finally {
+      setBusy('btn-reel-review-clips', false);
+    }
+  }
+
   function renderClips() {
     const list = $('reel-clips-list');
     const drop = $('reel-dropzone');
@@ -479,30 +636,109 @@
       `;
     }
 
-    list.innerHTML = S.clips.map((c, i) => `
-      <div class="reel-clip-card" data-i="${i}">
-        <div class="reel-clip-thumb-box">
-          ${c.kind === 'imagen'
-            ? `<img src="${esc(c.url)}" alt="">`
-            : `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" playsinline></video>`}
-          ${c.duration ? `<span class="reel-clip-dur-badge">${c.duration.toFixed(1)}s</span>` : ''}
-        </div>
-        <div style="flex:1; min-width:0;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <strong style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              ${i + 1}. ${esc(c.name || 'Clip')}
-            </strong>
-            <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip">✕</button>
+    list.innerHTML = S.clips.map((c, i) => {
+      const isAnalyzing = c._analyzingState === 'analyzing';
+      const isError = c._analyzingState === 'error';
+      const hasAnalysis = Boolean(c.analysis);
+
+      let statusBadge = '';
+      if (isAnalyzing) {
+        statusBadge = '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.7rem; font-weight:600;">Analizando...</span>';
+      } else if (isError) {
+        statusBadge = `
+          <span class="badge" style="background:#fee2e2; color:#991b1b; font-size:0.7rem; font-weight:600;">Error: reintentar</span>
+          <button type="button" class="btn btn-secondary btn-xs reel-retry-clip" data-i="${i}">Reintentar</button>
+        `;
+      } else if (hasAnalysis) {
+        statusBadge = `
+          <span class="badge" style="background:#d1fae5; color:#065f46; font-size:0.7rem; font-weight:600;">Analizado</span>
+          <button type="button" class="btn btn-secondary btn-xs reel-reanalyze-clip" data-i="${i}" title="Volver a analizar con IA">Volver a analizar</button>
+        `;
+      } else {
+        statusBadge = `
+          <button type="button" class="btn btn-secondary btn-xs reel-analyze-clip" data-i="${i}" title="Analizar clip con IA">Analizar con IA</button>
+        `;
+      }
+
+      const showSuggestion = hasAnalysis && c.description && c.description.trim() && c.analysis.description && c.description.trim() !== c.analysis.description.trim();
+
+      return `
+        <div class="reel-clip-card" data-i="${i}">
+          <div class="reel-clip-thumb-box">
+            ${c.kind === 'imagen'
+              ? `<img src="${esc(c.url)}" alt="">`
+              : `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" playsinline></video>`}
+            ${c.duration ? `<span class="reel-clip-dur-badge">${c.duration.toFixed(1)}s</span>` : ''}
           </div>
-          <textarea class="form-control form-control-sm reel-clip-desc-input" rows="2" style="font-size:0.75rem;" placeholder="¿Qué ocurre en este clip? (ej: cámara lenta abriendo el helado, se ve el relleno cremoso)">${esc(c.description)}</textarea>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:8px;">
+              <div style="display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden;">
+                <strong style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  ${i + 1}. ${esc(c.name || 'Clip')}
+                </strong>
+                ${statusBadge}
+              </div>
+              <button type="button" class="btn btn-secondary btn-xs reel-del-clip" title="Eliminar clip">✕</button>
+            </div>
+
+            <textarea class="form-control form-control-sm reel-clip-desc-input" rows="2" style="font-size:0.75rem;" placeholder="¿Qué ocurre en este clip? (ej: cámara lenta abriendo el helado, se ve el relleno cremoso)">${esc(c.description)}</textarea>
+
+            ${showSuggestion ? `
+              <div class="reel-analysis-suggestion">
+                <div style="min-width:0; flex:1;">
+                  <span style="font-weight:600; color:var(--text-secondary);">Sugerencia:</span>
+                  <span style="color:var(--text-primary); margin-left:4px;">${esc(c.analysis.description)}</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-xs reel-use-desc" data-i="${i}">Usar</button>
+              </div>
+            ` : ''}
+
+            ${hasAnalysis ? `
+              <div class="reel-analysis-box">
+                <div style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:4px;">
+                  ${[c.analysis.subject, c.analysis.mood, c.analysis.shotType].filter(Boolean).map(esc).join(' · ')}
+                </div>
+
+                ${(Array.isArray(c.analysis.highlights) && c.analysis.highlights.length) ? `
+                  <div class="reel-highlights-container">
+                    ${c.analysis.highlights.map((h) => {
+                      const isHook = c.analysis.hook && Math.abs(h.start - c.analysis.hook.start) < 0.6;
+                      return `
+                        <div class="reel-highlight-chip">
+                          <span class="reel-highlight-clickable reel-preview-hl" data-i="${i}" data-start="${h.start}">
+                            ${isHook ? '<span class="reel-badge-hook">Gancho</span>' : ''}
+                            <strong>${h.start.toFixed(1)}–${h.end.toFixed(1)} s</strong> · ${esc(h.label)}
+                          </span>
+                          <button type="button" class="btn btn-secondary btn-xs reel-use-as-scene" data-i="${i}" data-start="${h.start}" data-end="${h.end}">Usar como toma</button>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                ` : ''}
+
+                ${(c.analysis.issues && c.analysis.issues.length) ? `
+                  <div class="reel-issues-container">
+                    ${c.analysis.issues.map(iss => `<span class="reel-issue-badge">⚠️ ${esc(iss)}</span>`).join('')}
+                  </div>
+                ` : ''}
+
+                ${(c.analysis.textIdeas && c.analysis.textIdeas.length) ? `
+                  <div class="reel-text-ideas-container">
+                    <span style="font-size:0.7rem; color:var(--text-secondary);">Textos:</span>
+                    ${c.analysis.textIdeas.map(txt => `<button type="button" class="btn btn-secondary btn-xs reel-add-text-idea" data-text="${esc(txt)}">${esc(txt)}</button>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     list.querySelectorAll('.reel-clip-card').forEach((el) => {
       const i = +el.dataset.i;
       el.addEventListener('click', (e) => {
-        if (e.target.closest('textarea') || e.target.closest('button')) return;
+        if (e.target.closest('textarea') || e.target.closest('button') || e.target.closest('.reel-highlight-chip')) return;
         previewClip(i);
       });
       el.querySelector('.reel-clip-thumb-box')?.addEventListener('click', () => {
@@ -521,6 +757,90 @@
           resetViewportPlaceholder();
         }
         saveState();
+      });
+      el.querySelector('.reel-use-desc')?.addEventListener('click', () => {
+        if (S.clips[i].analysis?.description) {
+          S.clips[i].description = S.clips[i].analysis.description;
+          renderClips();
+          saveState();
+        }
+      });
+      el.querySelector('.reel-analyze-clip')?.addEventListener('click', () => {
+        analyzeSingleClip(i, false);
+      });
+      el.querySelector('.reel-reanalyze-clip')?.addEventListener('click', () => {
+        analyzeSingleClip(i, true);
+      });
+      el.querySelector('.reel-retry-clip')?.addEventListener('click', () => {
+        analyzeSingleClip(i, true);
+      });
+    });
+
+    list.querySelectorAll('.reel-preview-hl').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = +el.dataset.i;
+        const start = parseFloat(el.dataset.start) || 0;
+        previewClip(i, start);
+      });
+    });
+
+    list.querySelectorAll('.reel-use-as-scene').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = +btn.dataset.i;
+        const start = parseFloat(btn.dataset.start) || 0;
+        const end = parseFloat(btn.dataset.end) || (start + 2.5);
+        const length = Math.max(1, Math.round((end - start) * 10) / 10);
+        const clip = S.clips[i];
+        if (!clip) return;
+        const framing = clip.analysis?.framing || {};
+        S.scenes.push({
+          clip: i,
+          url: clip.url,
+          kind: clip.kind,
+          start: Math.round(start * 10) / 10,
+          length,
+          fitMode: framing.fitMode === 'blur' ? 'blur' : 'crop',
+          zoom: typeof framing.zoom === 'number' ? framing.zoom : 1.0,
+          panX: typeof framing.panX === 'number' ? framing.panX : 0.5,
+          panY: typeof framing.panY === 'number' ? framing.panY : 0.5,
+          transition: 'zoomin'
+        });
+        renderScenes();
+        saveState();
+        toast('Toma agregada al paso 3', 'success');
+      });
+    });
+
+    list.querySelectorAll('.reel-add-text-idea').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const txt = btn.dataset.text;
+        if (!txt) return;
+        let start = 0;
+        let end = 2.5;
+        if (S.textOverlays.length > 0) {
+          const maxEnd = Math.max(...S.textOverlays.map(t => Number(t.end) || 0));
+          start = Math.round(maxEnd * 10) / 10;
+          end = Math.round((start + 2.5) * 10) / 10;
+        }
+        S.textOverlays.push(normalizeOverlay({
+          id: `ov_${Date.now()}`,
+          text: txt,
+          start,
+          end,
+          pos: 'top',
+          textStyle: 'yellow',
+          font: 'archivo',
+          effectIn: 'pop',
+          effectLoop: 'none',
+          effectOut: 'fade',
+          speed: 'normal'
+        }));
+        renderTextOverlays();
+        saveState();
+        toast('Texto agregado al paso 4', 'success');
       });
     });
   }
@@ -590,6 +910,7 @@
               if (progressBox) progressBox.style.display = 'none';
             }, 2000);
 
+            const addedIndices = [];
             for (const m of json.data) {
               const isImg = (m.mime_type || '').startsWith('image/');
               const clipObj = {
@@ -599,6 +920,7 @@
                 name: m.original_name,
                 duration: null
               };
+              addedIndices.push(S.clips.length);
               S.clips.push(clipObj);
 
               if (!isImg) {
@@ -619,6 +941,12 @@
             }
             saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
+
+            const autoAnalyze = $('reel-auto-analyze')?.checked ?? (localStorage.getItem('reel_auto_analyze') !== 'false');
+            if (autoAnalyze && addedIndices.length > 0) {
+              analyzeClipsSequentially(addedIndices);
+            }
+
             resolve(json.data);
           } catch (err) {
             handleError(err.message);
@@ -661,7 +989,11 @@
       const customScript = S.template === 'custom' ? ($('reel-custom-script')?.value.trim() || '') : '';
       const data = await api('/reel/plan', {
         brand: brandName(),
-        clips: S.clips.map((c) => ({ url: c.url, description: c.description })),
+        clips: S.clips.map((c) => ({
+          url: c.url,
+          description: c.description,
+          analysis: c.analysis || undefined
+        })),
         goal: $('reel-goal')?.value || '',
         target_seconds: Number($('reel-target')?.value) || 10,
         template: S.template,
@@ -1569,7 +1901,7 @@
     updatePlayBtn(false);
   }
 
-  function previewClip(idx) {
+  function previewClip(idx, startTime = 0) {
     if (idx < 0 || idx >= S.clips.length) return;
     const c = S.clips[idx];
     const vpVideo = $('reel-vp-video');
@@ -1606,7 +1938,7 @@
         vpVideo.style.display = 'block';
         vpVideo.style.transform = 'none';
         vpVideo.style.objectFit = 'cover';
-        vpVideo.currentTime = 0;
+        vpVideo.currentTime = Number(startTime) || 0;
         vpVideo.play().then(() => updatePlayBtn(true)).catch(() => updatePlayBtn(false));
       }
     }
@@ -2808,6 +3140,15 @@
   async function init() {
     if (!$('tab-reels') || init.done) return;
     init.done = true;
+
+    // Casilla "Analizar con IA al subir": recordar la preferencia
+    const autoChk = $('reel-auto-analyze');
+    if (autoChk) {
+      try { autoChk.checked = localStorage.getItem('reel_auto_analyze') !== 'false'; } catch (e) { /* sin storage */ }
+      autoChk.addEventListener('change', () => {
+        try { localStorage.setItem('reel_auto_analyze', autoChk.checked ? 'true' : 'false'); } catch (e) { /* sin storage */ }
+      });
+    }
 
     // Actualizar nombre de cuenta
     const brandBadge = $('reel-brand-badge');

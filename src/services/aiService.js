@@ -164,6 +164,81 @@ class AIService {
   }
 
   /**
+   * Llamada multimodal estructurada en JSON con imágenes para Gemini
+   */
+  async generateJSONWithImages({ prompt, images = [], temperature = 0.4, maxOutputTokens = 4096 }) {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('No hay clave de Gemini configurada');
+    }
+
+    const parts = [];
+    if (Array.isArray(images)) {
+      for (const img of images) {
+        if (!img) continue;
+        if (img.label) {
+          parts.push({ text: String(img.label) });
+        }
+        if (img.data && img.mime_type) {
+          parts.push({
+            inline_data: {
+              mime_type: img.mime_type,
+              data: img.data
+            }
+          });
+        }
+      }
+    }
+    parts.push({ text: prompt });
+
+    const models = sanitizeGeminiModels(getSetting('ai_model'));
+    let lastError = null;
+
+    for (const m of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+        const res = await axios.post(
+          url,
+          {
+            contents: [{ parts }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature,
+              maxOutputTokens
+            }
+          },
+          { timeout: 60000 }
+        );
+
+        const cand = res.data?.candidates?.[0];
+        const resParts = cand?.content?.parts || [];
+        const rawJson = resParts.find(p => !p.thought)?.text || resParts[resParts.length - 1]?.text;
+
+        if (!rawJson) {
+          throw new Error('Respuesta vacía de Gemini');
+        }
+        if (cand?.finishReason === 'MAX_TOKENS' || this.looksLikeLeakedReasoning(rawJson)) {
+          throw new Error('Gemini devolvió razonamiento interno o texto cortado (' + (cand?.finishReason || 'sin motivo') + '); se descarta');
+        }
+
+        let clean = rawJson.trim();
+        if (clean.startsWith('```json')) clean = clean.slice(7);
+        if (clean.startsWith('```')) clean = clean.slice(3);
+        if (clean.endsWith('```')) clean = clean.slice(0, -3);
+        clean = clean.trim();
+
+        const data = JSON.parse(clean);
+        return { data, model: m };
+      } catch (err) {
+        lastError = err;
+        console.warn(`[generateJSONWithImages] Falló llamada con modelo ${m}:`, err.response?.data?.error?.message || err.message);
+      }
+    }
+
+    throw lastError || new Error('No se pudo generar JSON con ningún modelo de Gemini');
+  }
+
+  /**
    * Sugiere una propuesta visual y prompt para Gemini a partir del copy y perfil de marca
    */
   async suggestImagePrompt({ caption, accountName = '', accountId = '', format = 'feed' }) {
