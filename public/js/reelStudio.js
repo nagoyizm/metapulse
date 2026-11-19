@@ -3928,6 +3928,48 @@
     renderVoiceSegments();
   }
 
+  // Arma el guion y las frases de voz a partir de los textos de «Textos y Efectos»,
+  // en orden y comenzando en el segundo donde aparece cada texto.
+  function voiceFromTexts() {
+    const items = (S.textOverlays || [])
+      .map((raw) => normalizeOverlay(raw))
+      .map((ov) => ({ text: String(ov.text || '').replace(/\s+/g, ' ').trim(), start: Number(ov.start) || 0 }))
+      .filter((o) => o.text)
+      .sort((a, b) => a.start - b.start);
+    if (!items.length) return toast('Primero agrega textos en la pestaña Textos y Efectos.', 'warning');
+
+    const hasPrev = ($('reel-voiceover')?.value || '').trim() || (S.voiceSegments || []).some((s) => (s.text || '').trim());
+    if (hasPrev && !confirm('Ya tienes guion o frases. ¿Reemplazarlos por los textos del video?')) return;
+
+    // Los textos suelen venir en MAYÚSCULAS: pasarlos a minúsculas para que la voz los lea natural
+    const natural = (t) => {
+      const base = t === t.toUpperCase() ? t.toLowerCase() : t;
+      const s = base.charAt(0).toUpperCase() + base.slice(1);
+      return /[.!?…]$/.test(s) ? s : s + '.';
+    };
+
+    let prevEnd = 0;
+    S.voiceSegments = items.map((o) => {
+      const text = natural(o.text);
+      const words = text.split(/\s+/).filter(Boolean).length;
+      const start = Math.round(Math.max(o.start, prevEnd) * 10) / 10;
+      prevEnd = start + words / 2.6 + 0.3;
+      return {
+        id: `vseg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        text,
+        start,
+        duration: null,
+        url: null
+      };
+    });
+    S.voiceover = S.voiceSegments.map((s) => s.text).join(' ');
+    const vo = $('reel-voiceover');
+    if (vo) vo.value = S.voiceover;
+    saveState();
+    renderVoiceSegments();
+    toast(`${S.voiceSegments.length} frase(s) creadas desde tus textos. Edítalas si quieres y genera la voz.`, 'success');
+  }
+
   function invalidateAllVoiceSegments() {
     if (!Array.isArray(S.voiceSegments)) return;
     let changed = false;
@@ -4481,6 +4523,48 @@
     }
   }
 
+  // Al descargar el MP4: ofrecer borrar lo que solo servía para armar este reel
+  let cleanupAskedFor = '';
+  async function offerCleanupAfterDownload() {
+    if (!S.resultUrl || cleanupAskedFor === S.resultUrl) return;
+    const clipUrls = S.clips.map((c) => c.url);
+    const voiceUrls = (S.voiceSegments || []).map((v) => v.url).filter(Boolean);
+    if (!clipUrls.length && !voiceUrls.length) return;
+    cleanupAskedFor = S.resultUrl;
+    const wipe = window.confirm(
+      `Descargaste el MP4. ¿Borrar ahora todo lo de este reel?
+
+• ${clipUrls.length} clip(s)/foto(s) originales (de la galería)
+• copias livianas de la vista previa
+• voces generadas
+
+Los archivos que use otra publicación no se borran. El video renderizado no se toca.
+
+Aceptar = borrar · Cancelar = conservar todo`
+    );
+    if (!wipe) return;
+    try {
+      const cr = await fetch('/api/reel/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clipUrls, voiceUrls, deleteOriginals: true })
+      });
+      const cj = await cr.json();
+      if (!cj.success) throw new Error(cj.error || 'falló');
+      S.clips = [];
+      S.scenes = [];
+      S.voiceSegments = [];
+      renderClips();
+      renderScenes();
+      renderVoiceSegments();
+      saveState();
+      const mb = ((cj.data.freed || 0) / (1024 * 1024)).toFixed(1);
+      toast(`Limpieza hecha: ${cj.data.originals} clip(s) borrados, ${mb} MB liberados.${cj.data.kept ? ` ${cj.data.kept} se conservan porque los usa otra publicación.` : ''}`, 'success');
+    } catch (e) {
+      toast('No se pudo limpiar: ' + e.message, 'warning');
+    }
+  }
+
   async function saveDraft() {
     if (!S.resultUrl) return toast('Renderiza el video primero.', 'warning');
     const acc = typeof window.getActiveAccount === 'function' ? window.getActiveAccount() : null;
@@ -4507,28 +4591,6 @@
       S.resultSaved = true;
       toast('Borrador de Reel guardado en el calendario.', 'success');
 
-      // Limpieza: ofrecer borrar lo que solo servía para armar este reel
-      const clipUrls = S.clips.map((c) => c.url);
-      const voiceUrls = (S.voiceSegments || []).map((v) => v.url).filter(Boolean);
-      if (clipUrls.length || voiceUrls.length) {
-        const wipe = window.confirm(
-          `¿Borrar también todo lo de este reel?\n\n• ${clipUrls.length} clip(s)/foto(s) originales (de la galería)\n• copias livianas de la vista previa\n• voces generadas\n\nEl video renderizado queda guardado en el borrador. Los archivos que usa otra publicación no se borran.\n\nAceptar = borrar · Cancelar = conservar los clips`
-        );
-        try {
-          const cr = await fetch('/api/reel/cleanup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clipUrls, voiceUrls, deleteOriginals: wipe })
-          });
-          const cj = await cr.json();
-          if (cj.success && wipe) {
-            const mb = ((cj.data.freed || 0) / (1024 * 1024)).toFixed(1);
-            toast(`Limpieza hecha: ${cj.data.originals} clip(s) borrados, ${mb} MB liberados.${cj.data.kept ? ` ${cj.data.kept} se conservan porque los usa otra publicación.` : ''}`, 'success');
-          }
-        } catch (e) {
-          toast('No se pudo limpiar: ' + e.message, 'warning');
-        }
-      }
       clearState(false);
       if (typeof window.switchTab === 'function') {
         window.switchTab('queue');
@@ -4677,6 +4739,7 @@
       toast(`${S.voiceSegments.length} frase(s) creada(s). Ajusta los segundos de inicio.`, 'info');
     });
     $('btn-reel-voice-add-seg')?.addEventListener('click', addVoiceSegment);
+    $('btn-reel-voice-from-texts')?.addEventListener('click', voiceFromTexts);
     $('btn-reel-music-search')?.addEventListener('click', searchMusic);
     $('reel-music-q')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -4686,6 +4749,7 @@
     });
     $('btn-reel-render')?.addEventListener('click', renderReel);
     $('btn-reel-save-draft')?.addEventListener('click', saveDraft);
+    $('btn-reel-download')?.addEventListener('click', () => setTimeout(offerCleanupAfterDownload, 1500));
     $('btn-reel-back-edit')?.addEventListener('click', () => goToStep(2));
 
     // Navegación de pasos por tabs
