@@ -3533,6 +3533,41 @@ router.post('/reel/proxy', async (req, res) => {
   }
 });
 
+// Limpieza al guardar un reel: copias livianas + voces; y, si el dueño lo confirma, los clips originales
+// (solo los que no usa ninguna publicación). El video renderizado nunca se borra.
+router.post('/reel/cleanup', (req, res) => {
+  try {
+    const { clipUrls = [], voiceUrls = [], deleteOriginals = false } = req.body || {};
+    const clips = (Array.isArray(clipUrls) ? clipUrls : []).filter((u) => typeof u === 'string' && u.startsWith('/uploads/') && !u.includes('..')).slice(0, 200);
+    const voices = (Array.isArray(voiceUrls) ? voiceUrls : []).filter((u) => typeof u === 'string').slice(0, 200);
+    const out = reelStudio.cleanupReelAssets({ clipUrls: clips, voiceUrls: voices });
+    let originals = 0;
+    let kept = 0;
+    if (deleteOriginals) {
+      const used = new Set();
+      for (const r of db.prepare('SELECT media_urls FROM posts').all()) {
+        try { for (const u of JSON.parse(r.media_urls || '[]')) used.add(String(u).split('?')[0]); } catch (_) { /* fila inválida */ }
+      }
+      for (const u of clips) {
+        const clean = u.split('?')[0];
+        const m = /^\/uploads\/([^/\\]+)$/.exec(clean); // solo la carpeta raíz de subidas
+        if (!m) continue;
+        if (used.has(clean)) { kept++; continue; }
+        const abs = path.join(__dirname, '..', '..', 'uploads', m[1]);
+        try {
+          if (fs.existsSync(abs)) { out.freed += fs.statSync(abs).size; fs.unlinkSync(abs); }
+          db.prepare('DELETE FROM media_items WHERE filepath = ?').run(clean);
+          originals++;
+        } catch (e) { console.warn('[Reel cleanup]', e.message); }
+      }
+    }
+    res.json({ success: true, data: { ...out, originals, kept } });
+  } catch (err) {
+    console.error('[Reel cleanup]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/reel/analyze-clip', async (req, res) => {
   try {
     const { url, brand = '', goal = '', force = false } = req.body || {};

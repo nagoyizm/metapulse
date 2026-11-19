@@ -1305,6 +1305,31 @@ function makeProxy(url) {
   return job;
 }
 
+// Borra las copias livianas y las voces generadas de un reel. Nunca toca el video renderizado.
+function cleanupReelAssets({ clipUrls = [], voiceUrls = [] }) {
+  const crypto = require('crypto');
+  let deleted = 0;
+  let freed = 0;
+  const rm = (f) => {
+    try {
+      if (fs.existsSync(f)) { freed += fs.statSync(f).size; fs.unlinkSync(f); deleted++; }
+    } catch (_) { /* seguir con el resto */ }
+  };
+  for (const u of clipUrls) {
+    try {
+      const src = path.resolve(ROOT, String(u || '').split('?')[0].replace(/^[\\/]+/, ''));
+      if (!src.startsWith(path.resolve(ROOT, 'uploads'))) continue;
+      const name = 'p_' + crypto.createHash('md5').update(rel(src)).digest('hex').slice(0, 16) + '.mp4';
+      rm(path.join(REELS_DIR, 'proxy', name));
+    } catch (_) { /* ignorar */ }
+  }
+  for (const u of voiceUrls) {
+    const m = /^\/uploads\/reels\/([A-Za-z0-9_-]+\.wav)$/.exec(String(u || '').split('?')[0]);
+    if (m) rm(path.join(REELS_DIR, m[1]));
+  }
+  return { deleted, freed };
+}
+
 // Borra el render temporal anterior (solo archivos reel_*.mp4 dentro de uploads/reels)
 function deleteTempRender(oldUrl, newUrl) {
   try {
@@ -1807,6 +1832,7 @@ module.exports = {
   VALID_SCENE_SPEEDS,
   deleteTempRender,
   makeProxy,
+  cleanupReelAssets,
   normalizeOverlay,
   getTiming,
   VALID_XFADE_TRANSITIONS,

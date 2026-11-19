@@ -4506,6 +4506,29 @@
 
       S.resultSaved = true;
       toast('Borrador de Reel guardado en el calendario.', 'success');
+
+      // Limpieza: ofrecer borrar lo que solo servía para armar este reel
+      const clipUrls = S.clips.map((c) => c.url);
+      const voiceUrls = (S.voiceSegments || []).map((v) => v.url).filter(Boolean);
+      if (clipUrls.length || voiceUrls.length) {
+        const wipe = window.confirm(
+          `¿Borrar también todo lo de este reel?\n\n• ${clipUrls.length} clip(s)/foto(s) originales (de la galería)\n• copias livianas de la vista previa\n• voces generadas\n\nEl video renderizado queda guardado en el borrador. Los archivos que usa otra publicación no se borran.\n\nAceptar = borrar · Cancelar = conservar los clips`
+        );
+        try {
+          const cr = await fetch('/api/reel/cleanup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clipUrls, voiceUrls, deleteOriginals: wipe })
+          });
+          const cj = await cr.json();
+          if (cj.success && wipe) {
+            const mb = ((cj.data.freed || 0) / (1024 * 1024)).toFixed(1);
+            toast(`Limpieza hecha: ${cj.data.originals} clip(s) borrados, ${mb} MB liberados.${cj.data.kept ? ` ${cj.data.kept} se conservan porque los usa otra publicación.` : ''}`, 'success');
+          }
+        } catch (e) {
+          toast('No se pudo limpiar: ' + e.message, 'warning');
+        }
+      }
       clearState(false);
       if (typeof window.switchTab === 'function') {
         window.switchTab('queue');
