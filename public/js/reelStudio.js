@@ -3940,7 +3940,7 @@
         const row = document.createElement('div');
         row.className = 'reel-track';
         row.dataset.stream = t.streamUrl || '';
-        row.dataset.key = 'res:' + (t.previewUrl || t.streamUrl || '');
+        row.dataset.key = 'exp:' + (t.streamUrl || '');
         row.innerHTML = `
           <button type="button" class="btn btn-secondary btn-xs" data-a="play" title="Escuchar muestra">▶</button>
           <span class="reel-track-info"><strong>${esc(t.title)}</strong><small>${esc(t.artist || '')}</small></span>
@@ -3948,11 +3948,13 @@
           <button type="button" class="btn btn-primary btn-xs" data-a="use">Usar</button>
         `;
         row.querySelector('[data-a="play"]')?.addEventListener('click', () => {
-          playMusicKey(row.dataset.key, t.previewUrl || t.streamUrl, 0);
+          exploreTrack({ url: t.streamUrl, title: t.title, artist: t.artist || '' }, true);
         });
         row.querySelector('[data-a="use"]')?.addEventListener('click', () => {
+          const fromExplore = EXP.track && EXP.track.url === t.streamUrl && audioKey === 'exp:' + t.streamUrl;
+          const startAt = fromExplore ? Math.floor(audioEl.currentTime || 0) : 0;
           stopMusicPreview();
-          S.music = { url: t.streamUrl, title: t.title, artist: t.artist || '', start: 0, duration: 0 };
+          S.music = { url: t.streamUrl, title: t.title, artist: t.artist || '', start: startAt, duration: fromExplore ? Math.floor(audioEl.duration || 0) : 0 };
           renderMusicSel();
           probeMusicDuration(S.music.url);
           saveState();
@@ -3983,6 +3985,7 @@
       const playing = musicIsPlaying(row.dataset.key);
       if (btn) btn.textContent = playing ? '⏸' : '▶';
       row.classList.toggle('is-playing', playing);
+      row.classList.toggle('is-exploring', Boolean(EXP.track && row.dataset.stream === EXP.track.url));
       const inUse = Boolean(S.music && S.music.url && row.dataset.stream === S.music.url);
       row.classList.toggle('is-active', inUse);
       const tag = row.querySelector('.reel-track-inuse');
@@ -3995,7 +3998,12 @@
   function ensureAudioEl() {
     if (!audioEl) {
       audioEl = new Audio();
-      ['play', 'pause', 'ended'].forEach((ev) => audioEl.addEventListener(ev, updateMusicButtons));
+      ['play', 'pause', 'ended'].forEach((ev) => audioEl.addEventListener(ev, () => {
+        updateMusicButtons();
+        if (EXP.sync) EXP.sync();
+      }));
+      audioEl.addEventListener('loadedmetadata', () => { if (EXP.sync) EXP.sync(); });
+      audioEl.addEventListener('timeupdate', () => { if (EXP.sync) EXP.sync(); });
       audioEl.addEventListener('timeupdate', () => {
         const pos = $('reel-music-pos');
         if (pos && audioKey === 'sel') pos.textContent = fmtMusicTime(audioEl.currentTime);
@@ -4049,6 +4057,127 @@
       }
     });
     probe.src = url;
+  }
+
+  // ── Explorador: línea de tiempo de la canción ANTES de elegirla con «Usar» ──
+  const EXP = { track: null };
+
+  function exploreTrack(track, autoplay) {
+    const key = 'exp:' + track.url;
+    EXP.track = track;
+    renderExplorer();
+    if (autoplay) {
+      if (audioKey === key && audioEl && !audioEl.paused) {
+        audioEl.pause();
+      } else {
+        playMusicKey(key, track.url, 0);
+      }
+    }
+    updateMusicButtons();
+  }
+
+  function renderExplorer() {
+    const box = $('reel-music-explore');
+    if (!box) return;
+    const tr = EXP.track;
+    if (!tr) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    const key = 'exp:' + tr.url;
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div class="reel-music-active">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="reel-music-badge" style="background:#6366f1;">Explorando</span>
+          <strong>${esc(tr.title)}</strong>
+          <span class="text-muted" style="font-weight:400;">${esc(tr.artist || '')}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-xs" id="reel-exp-play">▶ Reproducir</button>
+          <span class="text-muted" style="font-weight:400;"><span id="reel-exp-pos">0:00</span> / <span id="reel-exp-total">?</span></span>
+        </div>
+        <div class="mus-bar" id="reel-exp-bar" style="margin-top:8px;" title="Haz clic para saltar a esa parte de la canción">
+          <div class="mus-play" id="reel-exp-playhead" style="display:block;"></div>
+        </div>
+        <div class="mus-ruler" id="reel-exp-ruler"></div>
+        <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secondary btn-xs" id="reel-exp-back">−5 s</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="reel-exp-fwd">+5 s</button>
+          <button type="button" class="btn btn-primary btn-xs" id="reel-exp-use-here">Usar desde aquí</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="reel-exp-use-zero">Usar desde el inicio</button>
+        </div>
+      </div>`;
+
+    const a = ensureAudioEl();
+    const durNow = () => (audioKey === key && isFinite(a.duration) ? a.duration : 0);
+    const drawRuler = () => {
+      const d = durNow();
+      const ruler = $('reel-exp-ruler');
+      const tot = $('reel-exp-total');
+      if (tot) tot.textContent = d ? fmtMusicTime(d) : '?';
+      if (!ruler || !d || ruler.dataset.d === String(Math.floor(d))) return;
+      ruler.dataset.d = String(Math.floor(d));
+      const stepS = d > 240 ? 60 : d > 120 ? 30 : 15;
+      let h = '';
+      for (let s = 0; s <= d; s += stepS) h += `<span style="left:${(s / d) * 100}%">${fmtMusicTime(s)}</span>`;
+      ruler.innerHTML = h;
+    };
+    EXP.sync = () => {
+      const d = durNow();
+      const on = audioKey === key;
+      const pos = on ? a.currentTime : 0;
+      const posEl = $('reel-exp-pos');
+      if (posEl) posEl.textContent = fmtMusicTime(pos);
+      const ph = $('reel-exp-playhead');
+      if (ph) ph.style.left = d ? `${Math.min(100, (pos / d) * 100)}%` : '0%';
+      const btn = $('reel-exp-play');
+      if (btn) btn.textContent = musicIsPlaying(key) ? '⏸ Pausar' : '▶ Reproducir';
+      drawRuler();
+    };
+
+    const seekTo = (sec, play) => {
+      if (audioKey !== key) {
+        playMusicKey(key, tr.url, sec);
+        return;
+      }
+      a.currentTime = Math.max(0, Math.min(sec, (durNow() || sec) - 0.2));
+      if (play && a.paused) a.play().catch(() => {});
+      EXP.sync();
+    };
+
+    $('reel-exp-play')?.addEventListener('click', () => playMusicKey(key, tr.url, 0));
+    $('reel-exp-back')?.addEventListener('click', () => seekTo((audioKey === key ? a.currentTime : 0) - 5, false));
+    $('reel-exp-fwd')?.addEventListener('click', () => seekTo((audioKey === key ? a.currentTime : 0) + 5, false));
+    const bar = $('reel-exp-bar');
+    const secAt = (x) => {
+      const r = bar.getBoundingClientRect();
+      const d = durNow() || 180;
+      return Math.max(0, Math.min(1, (x - r.left) / r.width)) * d;
+    };
+    bar?.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      seekTo(secAt(e.clientX), true);
+      const move = (ev) => seekTo(secAt(ev.clientX), false);
+      const up = () => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    });
+
+    const useAt = (sec) => {
+      S.music = { url: tr.url, title: tr.title, artist: tr.artist || '', start: Math.max(0, Math.floor(sec)), duration: Math.floor(durNow() || 0) };
+      stopMusicPreview();
+      renderMusicSel();
+      saveState();
+      toast(`Música seleccionada: ${tr.title} (desde ${fmtMusicTime(S.music.start)})`, 'success');
+    };
+    $('reel-exp-use-here')?.addEventListener('click', () => useAt(audioKey === key ? a.currentTime : 0));
+    $('reel-exp-use-zero')?.addEventListener('click', () => useAt(0));
+    EXP.sync();
   }
 
   function renderMusicSel(skipProbe) {

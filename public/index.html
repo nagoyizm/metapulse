@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Caveat:wght@700&family=Cinzel:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@400;700&family=Montserrat:wght@500;700;800&family=Oswald:wght@600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@600;700;800&family=Righteous&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&family=Syne:wght@800&family=Titan+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=4.6">
+  <link rel="stylesheet" href="css/style.css?v=4.7">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
   <link rel="stylesheet" href="css/composer-steps.css?v=1">
@@ -1723,12 +1723,13 @@
 
                 <!-- Música de fondo -->
                 <div style="background:var(--bg-surface-subtle); padding:12px; border-radius:8px; border:1px solid var(--border-subtle); margin-bottom:14px;">
-                  <h5 style="margin:0 0 6px; font-size:0.84rem; font-weight:700;">Música de fondo <small class="text-muted" style="font-weight:400;">· editor v3.8</small></h5>
+                  <h5 style="margin:0 0 6px; font-size:0.84rem; font-weight:700;">Música de fondo <small class="text-muted" style="font-weight:400;">· editor v3.9</small></h5>
                   <div style="display:flex; gap:6px;">
                     <input type="text" id="reel-music-q" class="form-control" placeholder="Buscar música (ej: alegre, coreano, acústico, chill)">
                     <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-music-search">Buscar</button>
                   </div>
                   <div id="reel-music-results" class="reel-music-results" style="max-height:160px; overflow-y:auto; margin:6px 0;"></div>
+                  <div id="reel-music-explore" style="display:none; margin-top:6px; padding:8px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px;"></div>
                   <div id="reel-music-sel" class="reel-music-sel" style="font-size:0.78rem; font-weight:600; padding:6px; background:var(--bg-surface); border-radius:6px; border:1px solid var(--border-subtle); margin-top:6px;">
                     Sin música seleccionada
                   </div>
@@ -4412,7 +4413,7 @@
   <script src="js/composer.js?v=4.3"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
-  <script src="js/reelStudio.js?v=3.8"></script>
+  <script src="js/reelStudio.js?v=3.9"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>

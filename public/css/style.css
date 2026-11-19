@@ -4234,3 +4234,5 @@ input:checked + .slider:before {
 .mus-play { position:absolute; top:0; bottom:0; width:2px; background:#ef4444; display:none; pointer-events:none; z-index:3; }
 .mus-ruler { position:relative; height:14px; margin-top:2px; }
 .mus-ruler span { position:absolute; font-size:0.6rem; color:var(--text-muted); transform:translateX(-50%); }
+
+.reel-track.is-exploring { border-color:#6366f1; }
