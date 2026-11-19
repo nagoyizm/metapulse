@@ -3747,6 +3747,13 @@
 
   let currentVoiceAudio = null;
 
+  let fallbackToastAt = 0;
+  function noteVoiceFallback(data) {
+    if (!data || !data.fallbackFrom || Date.now() - fallbackToastAt < 20000) return;
+    fallbackToastAt = Date.now();
+    toast(`Gemini no pudo (${data.fallbackReason || 'error'}): usé una voz chilena de Edge. Para que todas las frases suenen igual, elige Catalina o Lorenzo y regenera.`, 'warning');
+  }
+
   // Acento y estilo solo existen en las voces de Gemini; las de Edge ya son chilenas
   function syncVoiceEngineUi() {
     const edge = String($('reel-voice')?.value || S.voice || '').startsWith('edge:');
@@ -3788,6 +3795,7 @@
         style: $('reel-voice-style')?.value || '',
         accent: $('reel-voice-accent')?.value || 'cl'
       });
+      noteVoiceFallback(data);
       seg.url = data.url;
       seg.duration = data.duration;
       saveState();
@@ -4477,8 +4485,10 @@
               const v = await api('/reel/voice', {
                 text: seg.text.trim(),
                 voice: S.voice,
-                style
+                style,
+                accent: $('reel-voice-accent')?.value || 'cl'
               });
+              noteVoiceFallback(v);
               seg.url = v.url;
               seg.duration = v.duration;
             }

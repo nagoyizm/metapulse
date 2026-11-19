@@ -1262,7 +1262,23 @@ async function synthesizeEdge(text, edgeVoice) {
   throw new Error('No se pudo generar la voz con Edge: ' + (lastErr?.message || 'error desconocido'));
 }
 
-async function synthesizeVoice({ text, voice = 'Sulafat', style = '', accent = 'cl' }) {
+// Si Gemini falla (cuota gratis agotada, caída, etc.) se usa una voz chilena de Edge para no cortar el render.
+async function synthesizeVoice(opts) {
+  const voice = (opts && opts.voice) || 'Sulafat';
+  if (String(voice).startsWith('edge:')) return synthesizeVoiceInner(opts);
+  try {
+    return await synthesizeVoiceInner(opts);
+  } catch (err) {
+    const clean = String((opts && opts.text) || '').replace(/\s+/g, ' ').trim();
+    if (!clean) throw err;
+    const edgeId = ['Charon', 'Orus'].includes(voice) ? 'es-CL-LorenzoNeural' : 'es-CL-CatalinaNeural';
+    console.warn(`[ReelStudio] Gemini TTS falló (${String(err.message).slice(0, 90)}); usando Edge ${edgeId}.`);
+    const r = await synthesizeEdge(clean, edgeId);
+    return { ...r, fallbackFrom: voice, fallbackReason: /quota|cuota/i.test(err.message) ? 'cuota gratis de Gemini agotada' : 'Gemini no respondió' };
+  }
+}
+
+async function synthesizeVoiceInner({ text, voice = 'Sulafat', style = '', accent = 'cl' }) {
   if (String(voice).startsWith('edge:') && VOICES.some(v => v.id === voice)) {
     const clean = String(text || '').replace(/\s+/g, ' ').trim();
     if (!clean) throw new Error('El guion de voz está vacío.');
