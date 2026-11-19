@@ -1223,7 +1223,7 @@ async function synthesizeVoice({ text, voice = 'Sulafat', style = '' }) {
 }
 
 // ───────────────────────── Render con FFmpeg ─────────────────────────
-function wrapText(text, maxChars) {
+function wrapText(text, maxChars, maxLines = 3) {
   const words = String(text).toUpperCase().split(/\s+/).filter(Boolean);
   const lines = [];
   let cur = '';
@@ -1231,7 +1231,24 @@ function wrapText(text, maxChars) {
     if ((cur + ' ' + w).trim().length > maxChars && cur) { lines.push(cur); cur = w; } else { cur = (cur + ' ' + w).trim(); }
   }
   if (cur) lines.push(cur);
-  return lines.slice(0, 3);
+  return maxLines ? lines.slice(0, maxLines) : lines;
+}
+
+// Ajusta el texto SIN perder palabras: si no cabe en 3 líneas de 16 letras, ensancha las líneas
+// (y el render reduce la tipografía para que no se salga de los 1080 px de ancho).
+function wrapTextFit(text) {
+  for (const maxChars of [16, 18, 20, 22, 25, 28, 32]) {
+    const lines = wrapText(text, maxChars, 0);
+    if (lines.length <= 3) return lines;
+  }
+  return wrapText(text, 32, 0).slice(0, 6);
+}
+
+// Tamaño máximo para que la línea más larga entre en pantalla (ancho útil ~940 px de 1080)
+function fitFontSize(lines, fontSize) {
+  const longest = Math.max(1, ...lines.map((l) => l.length));
+  const maxByWidth = Math.floor(940 / (0.64 * longest));
+  return Math.max(40, Math.min(fontSize, maxByWidth));
 }
 
 function synthesizeOverlaysFromScenes(scenes) {
@@ -1429,7 +1446,7 @@ async function render({
     // Presupuesto de drawtexts (máximo 120 por render)
     let estimatedDrawtexts = 0;
     overlaysToRender.forEach((ov) => {
-      const lines = wrapText(ov.text, 16);
+      const lines = wrapTextFit(ov.text);
       lines.forEach((ln) => {
         let countForLine = 1;
         if (ov.effectIn === 'typewriter') countForLine += Math.min(30, ln.length) - 1;
@@ -1477,7 +1494,7 @@ async function render({
 
       const { inDur, outDur } = getTiming(start, end, speed);
 
-      const lines = wrapText(textRaw, 16);
+      const lines = wrapTextFit(textRaw);
       if (!lines.length) continue;
 
       let fontSize = lines.length > 2 ? 88 : 100;
@@ -1487,6 +1504,7 @@ async function render({
       if (fontKey === 'caveat') {
         fontSize = lines.length > 2 ? 104 : 120;
       }
+      fontSize = fitFontSize(lines, fontSize);
       const lineH = Math.round(fontSize * 1.25);
       const blockH = lines.length * lineH;
       const baseY = pos === 'top' ? 240 : pos === 'bottom' ? H - 420 - blockH : Math.round((H - blockH) / 2);
