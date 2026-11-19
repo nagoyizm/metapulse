@@ -2561,6 +2561,16 @@
   function renderTextTimeline() {
     const wrap = $('reel-text-timeline');
     if (!wrap) return;
+    try {
+      renderTextTimelineInner(wrap);
+    } catch (err) {
+      console.error('[Reel textline]', err);
+      wrap.innerHTML = `<div class="rtl-empty">No se pudo dibujar la línea de tiempo: ${esc(err.message)}</div>`;
+    }
+  }
+
+  function renderTextTimelineInner(wrap) {
+    ensureScenesFromClips();
     const tl = buildTimeline();
     if (!S.scenes.length || tl.total <= 0) {
       wrap.innerHTML = '<div class="rtl-empty">Agrega clips en «Clips y Cortes» para ver la línea de tiempo.</div>';
@@ -2573,14 +2583,14 @@
     for (let s = 0; s <= total; s += step) ticks += `<span class="rtl-tick" style="left:${pct(s)}">${s}s</span>`;
 
     const sceneBlocks = tl.items.map((it) =>
-      `<div class="rtl-scene" style="left:${pct(it.startAt)}; width:${pct(it.len)}">Toma ${it.idx + 1}</div>`).join('');
+      `<div class="rtl-scene" style="left:${pct(it.startAt)}; width:${pct(it.len)}" title="Toma ${it.idx + 1} · ${it.len.toFixed(1)} s"><b>Toma ${it.idx + 1}</b><small>${it.len.toFixed(1)}s</small></div>`).join('');
 
     const lanes = S.textOverlays.map((ov, i) => {
       const st = Math.max(0, Number(ov.start) || 0);
       const en = Math.min(total, Math.max(st + 0.2, Number(ov.end) || st + 2));
       return `<div class="rtl-lane">
         <div class="rtl-text ${i === S.activeOverlayIdx ? 'active' : ''}" data-i="${i}" style="left:${pct(st)}; width:${pct(en - st)}" title="Arrastra para mover · bordes para ajustar">
-          <span class="rtl-h rtl-h-l"></span><span class="rtl-label">${esc((ov.text || '').slice(0, 40) || 'Texto')}</span><span class="rtl-h rtl-h-r"></span>
+          <span class="rtl-h rtl-h-l"></span><span class="rtl-label">${esc(String(ov.text || '').slice(0, 40) || 'Texto')}</span><span class="rtl-h rtl-h-r"></span>
         </div></div>`;
     }).join('');
 

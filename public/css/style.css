@@ -4210,3 +4210,8 @@ input:checked + .slider:before {
 .rtl-label { flex:1; padding:0 8px; font-size:0.7rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
 .rtl-h { width:8px; align-self:stretch; background:rgba(0,0,0,0.28); cursor:ew-resize; flex-shrink:0; }
 .rtl-playhead { position:absolute; top:-2px; bottom:-2px; width:2px; background:#ef4444; z-index:10; pointer-events:none; transform:translateX(-50%); }
+
+.rtl-scene { flex-direction:column; line-height:1.1; gap:1px; }
+.rtl-scene small { font-size:0.62rem; font-weight:500; opacity:0.8; }
+.rtl-scene-track { height:38px; }
+.rtl-lane { height:28px; }
