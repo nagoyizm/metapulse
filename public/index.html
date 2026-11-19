@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bangers&family=Bebas+Neue&family=Caveat:wght@700&family=Cinzel:wght@700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Lato:wght@400;700&family=Montserrat:wght@500;700;800&family=Oswald:wght@600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&family=Poppins:wght@600;700;800&family=Righteous&family=Spectral:ital,wght@0,500;0,600;0,700;1,600&family=Syne:wght@800&family=Titan+One&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=4.0">
+  <link rel="stylesheet" href="css/style.css?v=4.1">
   <link rel="stylesheet" href="css/previews.css">
   <link rel="stylesheet" href="css/story-music.css">
   <link rel="stylesheet" href="css/composer-steps.css?v=1">
@@ -1499,10 +1499,9 @@
             <!-- Navegación de Pasos -->
             <nav class="reel-steps-nav" id="reel-steps-nav">
               <button type="button" class="reel-step-btn active" data-step="1">1. Guion y Fórmula</button>
-              <button type="button" class="reel-step-btn" data-step="2">2. Clips Grabados <span id="reel-badge-clips-count" style="display:none; margin-left:4px;" class="badge">0</span></button>
-              <button type="button" class="reel-step-btn" data-step="3">3. Cortes y Encuadre <span id="reel-badge-scenes-count" style="display:none; margin-left:4px;" class="badge">0</span></button>
-              <button type="button" class="reel-step-btn" data-step="4">4. Textos y Efectos <span id="reel-badge-texts-count" style="display:none; margin-left:4px;" class="badge">0</span></button>
-              <button type="button" class="reel-step-btn" data-step="5">5. Música y Render</button>
+              <button type="button" class="reel-step-btn" data-step="2">2. Clips y Cortes <span id="reel-badge-clips-count" style="display:none; margin-left:4px;" class="badge">0</span></button>
+              <button type="button" class="reel-step-btn" data-step="4">3. Textos y Efectos <span id="reel-badge-texts-count" style="display:none; margin-left:4px;" class="badge">0</span></button>
+              <button type="button" class="reel-step-btn" data-step="5">4. Música y Render</button>
             </nav>
 
             <!-- PASO 1: Guion y Fórmula -->
@@ -1608,6 +1607,15 @@
                 <!-- 2. Recortador de la toma seleccionada (Trimmer del clip original) -->
                 <div class="reel-trimmer-box" id="reel-trimmer-box" style="display:none;"></div>
 
+                <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 8px; flex-wrap:wrap; gap:8px;">
+                  <div>
+                    <strong style="font-size:0.85rem;">Tomas: orden, duración, velocidad y encuadre 9:16 <small class="text-muted">· Duración total: <span id="reel-total-dur">0.0 s</span></small></strong>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-add-scene">+ Agregar toma</button>
+                </div>
+                <div id="reel-scenes-list"></div>
+
+                <div style="margin:16px 0 4px; font-size:0.8rem; font-weight:700; color:var(--text-primary);">Descripción de cada clip</div>
                 <div id="reel-clips-list" style="margin-top:12px;"></div>
 
                 <!-- Panel Sugerencias de la IA -->
@@ -1625,29 +1633,10 @@
                 <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-back-step-1">Volver a Guion</button>
                   <div style="display:flex; gap:8px;">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-manual-scenes" title="Crea exactamente 1 escena por cada video que subiste (ej: 2 videos = 2 escenas)">1 escena por video</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-reel-plan" title="La IA analiza tus descripciones y arma la narrativa con transiciones">Armar reel con IA</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-manual-scenes" title="Reinicia la línea de tiempo: un clip completo por toma, en el orden de subida">Reiniciar tomas</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-plan" title="La IA analiza tus descripciones y propone una narrativa (reemplaza las tomas)">Armar reel con IA</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-reel-go-step-4">Continuar a Textos y Efectos</button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- PASO 3: Cortes de Video y Encuadre 9:16 -->
-            <div class="card reel-step-pane" id="reel-pane-3">
-              <div class="card-body">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                  <div>
-                    <h4 style="margin:0 0 4px; font-size:0.95rem;">Cortes de Video y Continuidad <small class="text-muted">· Duración total: <span id="reel-total-dur">0.0 s</span></small></h4>
-                    <small class="text-muted">Organiza el orden de tus tomas, duración de cada corte, encuadre 9:16 y transiciones dinámicas.</small>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-xs" id="btn-reel-add-scene">+ Agregar toma</button>
-                </div>
-
-                <div id="reel-scenes-list"></div>
-
-                <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-back-step-2">Volver a Clips</button>
-                  <button type="button" class="btn btn-primary btn-sm" id="btn-reel-go-step-4">Continuar a Textos y Efectos</button>
                 </div>
               </div>
             </div>
@@ -1675,7 +1664,7 @@
                 <div id="reel-texts-list"></div>
 
                 <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-back-step-3">Volver a Cortes</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-reel-back-step-3">Volver a Clips y Cortes</button>
                   <button type="button" class="btn btn-primary btn-sm" id="btn-reel-go-step-5">Continuar a Música y Render</button>
                 </div>
               </div>
@@ -4406,7 +4395,7 @@
   <script src="js/composer.js?v=4.3"></script>
   <script src="js/storyMusic.js?v=3.0"></script>
   <script src="js/storyDesigner.js?v=1.1"></script>
-  <script src="js/reelStudio.js?v=3.1"></script>
+  <script src="js/reelStudio.js?v=3.2"></script>
   <script src="js/calendar.js?v=2.9"></script>
   <script src="js/analytics.js?v=2.5"></script>
   <script src="js/activity.js?v=1.1"></script>

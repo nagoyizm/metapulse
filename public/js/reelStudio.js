@@ -389,6 +389,7 @@
 
   // ── Navegación de Pasos ──
   function goToStep(n) {
+    if (n === 3) n = 2; // Cortes y encuadre ahora viven en el paso 2
     stopSequence(false);
     S.step = n;
     document.querySelectorAll('.reel-step-btn').forEach((b) => {
@@ -402,7 +403,7 @@
 
     if (n === 2 && S.clips.length > 0 && !S.scenes.length) {
       previewClip(0);
-    } else if (n === 3 && S.scenes.length > 0) {
+    } else if (n === 2 && S.scenes.length > 0) {
       selectSceneForFrame(S.activeSceneIdx >= 0 && S.activeSceneIdx < S.scenes.length ? S.activeSceneIdx : 0);
     } else if (n === 4) {
       renderTextOverlays();
@@ -975,7 +976,7 @@
                 url: m.url,
                 kind: clipObj.kind,
                 start: 0,
-                length: isImg ? 2.5 : 3,
+                length: isImg ? 2.5 : 8,
                 speed: 1,
                 fitMode: 'crop',
                 zoom: 1.0,
@@ -992,7 +993,7 @@
                 v.preload = 'metadata';
                 v.onloadedmetadata = () => {
                   clipObj.duration = Math.round(v.duration * 10) / 10;
-                  if (newScene._auto) newScene.length = Math.min(clipObj.duration, 5);
+                  if (newScene._auto) newScene.length = Math.min(clipObj.duration, 15);
                   renderScenes();
                   renderClips();
                   saveState();
@@ -1123,13 +1124,13 @@
   }
 
   function createManualScenes() {
-    if (!S.clips.length) return toast('Sube clips primero en el Paso 2.', 'warning');
+    if (!S.clips.length) return toast('Sube clips primero.', 'warning');
     S.scenes = S.clips.map((c, i) => ({
       clip: i,
       url: c.url,
       kind: c.kind,
       start: 0,
-      length: c.duration ? Math.min(c.duration, 4) : 3,
+      length: c.duration ? Math.min(c.duration, 15) : 3,
       speed: 1,
       fitMode: 'crop',
       zoom: 1.0,
@@ -2248,7 +2249,7 @@
   }
 
   function addScene() {
-    if (!S.clips.length) return toast('Sube clips primero en el Paso 2.', 'warning');
+    if (!S.clips.length) return toast('Sube clips primero.', 'warning');
     const clipIdx = S.scenes.length ? S.scenes[S.scenes.length - 1].clip : 0;
     const c = S.clips[clipIdx];
     S.scenes.push({
