@@ -1258,6 +1258,17 @@ function synthesizeOverlaysFromScenes(scenes) {
   return list;
 }
 
+// Borra el render temporal anterior (solo archivos reel_*.mp4 dentro de uploads/reels)
+function deleteTempRender(oldUrl, newUrl) {
+  try {
+    const m = /^\/uploads\/reels\/(reel_[A-Za-z0-9_-]+\.mp4)$/.exec(String(oldUrl || '').split('?')[0]);
+    if (!m || oldUrl === newUrl) return false;
+    const f = path.join(REELS_DIR, m[1]);
+    if (fs.existsSync(f)) { fs.unlinkSync(f); return true; }
+  } catch (_) { /* no bloquear el render por esto */ }
+  return false;
+}
+
 async function render({
   scenes = [],
   textOverlays = [],
@@ -1746,6 +1757,7 @@ module.exports = {
   TEXT_EFFECTS_OUT,
   SPEED_OPTIONS,
   VALID_SCENE_SPEEDS,
+  deleteTempRender,
   normalizeOverlay,
   getTiming,
   VALID_XFADE_TRANSITIONS,

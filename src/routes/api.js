@@ -3602,7 +3602,8 @@ router.post('/reel/render', async (req, res) => {
       voice_volume = 1,
       music = null,
       music_volume = 0.3,
-      global_transition = 'zoomin'
+      global_transition = 'zoomin',
+      replace_url = ''
     } = req.body;
     const data = await reelStudio.render({
       scenes,
@@ -3614,6 +3615,8 @@ router.post('/reel/render', async (req, res) => {
       musicVolume: music_volume,
       globalTransition: global_transition
     });
+    // El render anterior es temporal: se reemplaza (salvo que ya se guardó como borrador)
+    reelStudio.deleteTempRender(replace_url, data.url);
     res.json({ success: true, data });
   } catch (err) {
     console.error('[Reel render]', err.message);

@@ -27,6 +27,8 @@
     music: null,        // { url, title, artist }
     musicQuery: '',
     resultUrl: '',
+    resultSaved: false,
+    resultMeta: '',
     busy: false
   };
 
@@ -234,6 +236,8 @@
         voice: S.voice,
         music: S.music,
         resultUrl: S.resultUrl,
+        resultSaved: S.resultSaved,
+        resultMeta: S.resultMeta,
         savedAt: Date.now()
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -306,6 +310,8 @@
       if (data.voice) S.voice = data.voice;
       if (data.music) S.music = data.music;
       if (data.resultUrl) S.resultUrl = data.resultUrl;
+      S.resultSaved = Boolean(data.resultSaved);
+      S.resultMeta = data.resultMeta || '';
       if (data.activeSceneIdx != null) S.activeSceneIdx = data.activeSceneIdx;
       if (data.activeOverlayIdx != null) S.activeOverlayIdx = data.activeOverlayIdx;
 
@@ -322,20 +328,7 @@
       renderVoiceSegments();
       renderMusicSel();
 
-      if (S.resultUrl) {
-        const finalPlayer = $('reel-final-player');
-        if (finalPlayer) {
-          finalPlayer.src = S.resultUrl;
-          finalPlayer.style.display = 'block';
-        }
-        const actionsBox = $('reel-result-actions-box');
-        if (actionsBox) actionsBox.style.display = 'block';
-        const dlBtn = $('btn-reel-download');
-        if (dlBtn) {
-          dlBtn.href = S.resultUrl;
-          dlBtn.download = `reel_${Date.now()}.mp4`;
-        }
-      }
+      showRenderResult(false);
 
       if (data.step && data.step > 1) {
         goToStep(data.step);
@@ -365,6 +358,9 @@
     S.caption = '';
     S.music = null;
     S.resultUrl = '';
+    S.resultSaved = false;
+    S.resultMeta = '';
+    showRenderResult(false);
     if ($('reel-custom-script')) $('reel-custom-script').value = '';
     if ($('reel-goal')) $('reel-goal').value = '';
     if ($('reel-voiceover')) $('reel-voiceover').value = '';
@@ -3943,40 +3939,52 @@
         voice_volume: Number($('reel-voice-vol')?.value) || 1,
         music: S.music ? { url: S.music.url, title: S.music.title, artist: S.music.artist } : null,
         music_volume: Number($('reel-music-vol')?.value) || 0.3,
-        global_transition: 'zoomin'
+        global_transition: 'zoomin',
+        replace_url: (S.resultUrl && !S.resultSaved) ? S.resultUrl : ''
       });
 
       S.resultUrl = data.url;
+      S.resultSaved = false;
+      S.resultMeta = `${data.duration} segundos · ${(data.sizeBytes / 1048576).toFixed(1)} MB · 1080x1920`;
       saveState();
 
-      // Mostrar en el reproductor de la mini pantalla
-      const finalPlayer = $('reel-final-player');
-      if (finalPlayer) {
-        finalPlayer.src = data.url + '?t=' + Date.now();
-        finalPlayer.style.display = 'block';
-        finalPlayer.play().catch(() => {});
-      }
-
-      const actionsBox = $('reel-result-actions-box');
-      if (actionsBox) actionsBox.style.display = 'block';
-
-      const meta = $('reel-result-meta');
-      if (meta) {
-        meta.textContent = `${data.duration} segundos · ${(data.sizeBytes / 1048576).toFixed(1)} MB · 1080x1920`;
-      }
-
-      const dlBtn = $('btn-reel-download');
-      if (dlBtn) {
-        dlBtn.href = data.url;
-        dlBtn.download = `reel_${Date.now()}.mp4`;
-      }
-
-      toast('¡Reel renderizado con éxito! Puedes revisarlo en la mini pantalla.', 'success');
+      showRenderResult(true);
+      goToStep(6);
+      toast('¡Reel renderizado con éxito! Míralo en la pestaña Render.', 'success');
     } catch (err) {
       console.error('[Reel render]', err);
       toast('Error al renderizar: ' + err.message, 'error');
     } finally {
       setBusy('btn-reel-render', false);
+    }
+  }
+
+  // Muestra (o limpia) el render temporal en la pestaña Render
+  function showRenderResult(autoplay = false) {
+    const player = $('reel-result-player');
+    const box = $('reel-result-actions-box');
+    const empty = $('reel-result-empty');
+    const badge = $('reel-badge-render');
+    const has = Boolean(S.resultUrl);
+    if (box) box.style.display = has ? 'block' : 'none';
+    if (empty) empty.style.display = has ? 'none' : 'block';
+    if (badge) badge.style.display = has ? 'inline-block' : 'none';
+    if (player) {
+      if (has) {
+        player.src = S.resultUrl + '?t=' + Date.now();
+        if (autoplay) player.play().catch(() => {});
+      } else {
+        player.pause();
+        player.removeAttribute('src');
+        player.load();
+      }
+    }
+    const meta = $('reel-result-meta');
+    if (meta) meta.textContent = S.resultMeta || '';
+    const dlBtn = $('btn-reel-download');
+    if (dlBtn && has) {
+      dlBtn.href = S.resultUrl;
+      dlBtn.download = `reel_${Date.now()}.mp4`;
     }
   }
 
@@ -4003,6 +4011,7 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Error al guardar');
 
+      S.resultSaved = true;
       toast('Borrador de Reel guardado en el calendario.', 'success');
       clearState(false);
       if (typeof window.switchTab === 'function') {
@@ -4161,6 +4170,7 @@
     });
     $('btn-reel-render')?.addEventListener('click', renderReel);
     $('btn-reel-save-draft')?.addEventListener('click', saveDraft);
+    $('btn-reel-back-edit')?.addEventListener('click', () => goToStep(2));
 
     // Navegación de pasos por tabs
     document.querySelectorAll('.reel-step-btn').forEach((btn) => {
