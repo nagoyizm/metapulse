@@ -2297,6 +2297,7 @@
     if (!list) return;
 
     const tot = totalSeconds();
+    renderTextTimeline();
     if (badge) {
       badge.textContent = S.textOverlays.length;
       badge.style.display = S.textOverlays.length ? 'inline-block' : 'none';
@@ -2440,7 +2441,7 @@
           </button>
         </div>
       </div>
-    `).join('');
+    `).filter((_, i) => i === S.activeOverlayIdx).join('');
 
     // Eventos de inputs de texto
     list.querySelectorAll('.reel-text-card').forEach((card) => {
@@ -2544,6 +2545,106 @@
         if (S.textOverlays.length) previewTextOverlay(S.activeOverlayIdx);
         else renderLiveOverlay(null);
         saveState();
+      });
+    });
+  }
+
+  // ── Línea de tiempo de textos (estilo CapCut) ──
+  function setTextPlayhead(t, total) {
+    const ph = $('reel-text-playhead');
+    if (ph && total > 0) {
+      ph.style.display = 'block';
+      ph.style.left = `${Math.max(0, Math.min(100, (t / total) * 100))}%`;
+    }
+  }
+
+  function renderTextTimeline() {
+    const wrap = $('reel-text-timeline');
+    if (!wrap) return;
+    const tl = buildTimeline();
+    if (!S.scenes.length || tl.total <= 0) {
+      wrap.innerHTML = '<div class="rtl-empty">Agrega clips en «Clips y Cortes» para ver la línea de tiempo.</div>';
+      return;
+    }
+    const total = tl.total;
+    const pct = (v) => `${Math.max(0, Math.min(100, (v / total) * 100)).toFixed(3)}%`;
+    const step = total > 20 ? 5 : total > 8 ? 2 : 1;
+    let ticks = '';
+    for (let s = 0; s <= total; s += step) ticks += `<span class="rtl-tick" style="left:${pct(s)}">${s}s</span>`;
+
+    const sceneBlocks = tl.items.map((it) =>
+      `<div class="rtl-scene" style="left:${pct(it.startAt)}; width:${pct(it.len)}">Toma ${it.idx + 1}</div>`).join('');
+
+    const lanes = S.textOverlays.map((ov, i) => {
+      const st = Math.max(0, Number(ov.start) || 0);
+      const en = Math.min(total, Math.max(st + 0.2, Number(ov.end) || st + 2));
+      return `<div class="rtl-lane">
+        <div class="rtl-text ${i === S.activeOverlayIdx ? 'active' : ''}" data-i="${i}" style="left:${pct(st)}; width:${pct(en - st)}" title="Arrastra para mover · bordes para ajustar">
+          <span class="rtl-h rtl-h-l"></span><span class="rtl-label">${esc((ov.text || '').slice(0, 40) || 'Texto')}</span><span class="rtl-h rtl-h-r"></span>
+        </div></div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="rtl-ruler" id="rtl-ruler">${ticks}</div>
+      <div class="rtl-tracks" id="rtl-tracks">
+        <div class="rtl-scene-track" id="rtl-scene-track">${sceneBlocks}</div>
+        ${lanes || '<div class="rtl-lane rtl-lane-empty">Aún no hay textos. Pulsa «+ Agregar texto».</div>'}
+        <div class="rtl-playhead" id="reel-text-playhead" style="display:none;"></div>
+      </div>`;
+
+    const tracks = $('rtl-tracks');
+    const seek = (clientX) => {
+      const r = tracks.getBoundingClientRect();
+      const tt = Math.max(0, Math.min(total, ((clientX - r.left) / r.width) * total));
+      if (seqPlaying) stopSequence(false);
+      showStaticFrameAtTime(tt, tl);
+    };
+    $('rtl-ruler').addEventListener('click', (e) => seek(e.clientX));
+    $('rtl-scene-track').addEventListener('click', (e) => seek(e.clientX));
+    wrap.querySelectorAll('.rtl-lane').forEach((ln) => ln.addEventListener('click', (e) => {
+      if (e.target === ln) seek(e.clientX);
+    }));
+
+    wrap.querySelectorAll('.rtl-text').forEach((blk) => {
+      const i = +blk.dataset.i;
+      blk.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const ov = S.textOverlays[i];
+        if (!ov) return;
+        const mode = e.target.classList.contains('rtl-h-l') ? 'l' : e.target.classList.contains('rtl-h-r') ? 'r' : 'm';
+        const laneW = blk.parentElement.getBoundingClientRect().width || 1;
+        const x0 = e.clientX;
+        const s0 = Number(ov.start) || 0;
+        const e0 = Number(ov.end) || s0 + 2;
+
+        const onMove = (ev) => {
+          const dt = ((ev.clientX - x0) / laneW) * total;
+          let ns = s0;
+          let ne = e0;
+          if (mode === 'm') {
+            const len = e0 - s0;
+            ns = Math.max(0, Math.min(total - len, s0 + dt));
+            ne = ns + len;
+          } else if (mode === 'l') {
+            ns = Math.max(0, Math.min(e0 - 0.4, s0 + dt));
+          } else {
+            ne = Math.min(total, Math.max(s0 + 0.4, e0 + dt));
+          }
+          ov.start = Math.round(ns * 10) / 10;
+          ov.end = Math.round(ne * 10) / 10;
+          blk.style.left = pct(ov.start);
+          blk.style.width = pct(ov.end - ov.start);
+        };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          S.activeOverlayIdx = i;
+          renderTextOverlays();
+          previewTextOverlay(i);
+          saveState();
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
       });
     });
   }
@@ -3071,6 +3172,7 @@
     if (progressEl) progressEl.value = t.toFixed(2);
     updateSeqTimeLabel(t, tl.total);
 
+    setTextPlayhead(t, tl.total);
     const trackPlayhead = $('reel-track-playhead');
     if (trackPlayhead && tl.total > 0) {
       trackPlayhead.style.left = `${(t / tl.total) * 100}%`;
@@ -3273,6 +3375,7 @@
     if (progressEl) progressEl.value = t.toFixed(2);
     updateSeqTimeLabel(t, tl.total);
 
+    setTextPlayhead(t, tl.total);
     const trackPlayhead = $('reel-track-playhead');
     if (trackPlayhead && tl.total > 0) {
       trackPlayhead.style.left = `${(t / tl.total) * 100}%`;
