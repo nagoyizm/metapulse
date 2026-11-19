@@ -1176,21 +1176,15 @@ async function listTtsModels(apiKey) {
   }
 }
 
-async function synthesizeVoice({ text, voice = 'Sulafat', style = '' }) {
-  const apiKey = aiService.getApiKey();
-  if (!apiKey) throw new Error('No hay clave de Gemini configurada.');
-  const clean = String(text || '').trim();
-  if (!clean) throw new Error('El guion de voz está vacío.');
-  const voiceName = VOICES.some(v => v.id === voice) ? voice : 'Sulafat';
-  const direction = style || 'Di con voz cálida, cercana y natural, en español de Chile, con ritmo ágil y sonrisa en la voz';
+// Una llamada al TTS probando los modelos disponibles; devuelve el PCM crudo
+async function ttsRequest(promptText, voiceName, apiKey) {
   const body = {
-    contents: [{ parts: [{ text: `${direction}: ${clean}` }] }],
+    contents: [{ parts: [{ text: promptText }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
     }
   };
-
   const tried = new Set();
   let lastErr = null;
   let queue = [...TTS_MODELS];
@@ -1203,12 +1197,7 @@ async function synthesizeVoice({ text, voice = 'Sulafat', style = '' }) {
       const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, body, { timeout: 60000 });
       const part = (res.data?.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
       if (!part) throw new Error('Gemini no devolvió audio.');
-      const wav = pcmToWav(Buffer.from(part.inlineData.data, 'base64'));
-      ensureDirs();
-      const name = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`;
-      const out = path.join(REELS_DIR, name);
-      fs.writeFileSync(out, wav);
-      return { url: `/uploads/reels/${name}`, duration: (wav.length - 44) / (24000 * 2), voice: voiceName, model };
+      return { pcm: Buffer.from(part.inlineData.data, 'base64'), model };
     } catch (err) {
       lastErr = err;
       const status = err.response?.status;
@@ -1220,6 +1209,67 @@ async function synthesizeVoice({ text, voice = 'Sulafat', style = '' }) {
     }
   }
   throw new Error('No se pudo generar la voz: ' + (lastErr?.response?.data?.error?.message || lastErr?.message || 'sin modelo TTS disponible'));
+}
+
+// Indicación de interpretación. El acento chileno va SIEMPRE por defecto; nunca se debe pronunciar.
+function voiceDirection(style = '', accent = 'cl') {
+  const accentTxt = accent === 'neutro'
+    ? 'español neutro latinoamericano'
+    : 'español de Chile, con acento y entonación chilena natural (no españa ni mexicano)';
+  const base = `voz cálida, cercana y natural, ${accentTxt}, ritmo ágil y sonrisa en la voz`;
+  const extra = String(style || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  return extra ? `${base}; además: ${extra}` : base;
+}
+
+async function synthesizeVoice({ text, voice = 'Sulafat', style = '', accent = 'cl' }) {
+  const apiKey = aiService.getApiKey();
+  if (!apiKey) throw new Error('No hay clave de Gemini configurada.');
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!clean) throw new Error('El guion de voz está vacío.');
+  const voiceName = VOICES.some(v => v.id === voice) ? voice : 'Sulafat';
+  const direction = voiceDirection(style, accent);
+  const words = clean.split(/\s+/).length;
+  // Duración máxima razonable: si el audio dura mucho más, el modelo leyó las instrucciones en voz alta
+  const maxDur = words * 0.6 + 2.2;
+
+  const prompts = [
+    `Lee en voz alta ÚNICAMENTE el texto del guion. Las siguientes indicaciones son solo para tu interpretación y NO deben pronunciarse nunca: ${direction}.\n\nGuion:\n${clean}`,
+    `Lee exactamente esto, con ${direction} (sin decir la indicación): ${clean}`,
+    clean // último recurso: sin indicaciones, imposible que las lea
+  ];
+
+  let best = null;
+  for (let i = 0; i < prompts.length; i++) {
+    const { pcm, model } = await ttsRequest(prompts[i], voiceName, apiKey);
+    const dur = pcm.length / (24000 * 2);
+    if (!best || dur < best.dur) best = { pcm, model, dur };
+    if (dur <= maxDur) break;
+    console.warn(`[ReelStudio] TTS intento ${i + 1}: ${dur.toFixed(1)}s para ${words} palabras (máx ${maxDur.toFixed(1)}s); reintentando sin que lea las indicaciones.`);
+  }
+  const wav = pcmToWav(best.pcm);
+  ensureDirs();
+  const name = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`;
+  fs.writeFileSync(path.join(REELS_DIR, name), wav);
+  return { url: `/uploads/reels/${name}`, duration: (wav.length - 44) / (24000 * 2), voice: voiceName, model: best.model };
+}
+
+// Muestra corta de una voz (con el acento elegido). Se guarda y se reutiliza: no gasta cuota repetida.
+async function voiceSample({ voice = 'Sulafat', style = '', accent = 'cl' }) {
+  const voiceName = VOICES.some(v => v.id === voice) ? voice : 'Sulafat';
+  const crypto = require('crypto');
+  const key = crypto.createHash('md5').update(voiceDirection(style, accent)).digest('hex').slice(0, 8);
+  const name = `sample_${voiceName}_${key}.wav`;
+  const out = path.join(REELS_DIR, name);
+  ensureDirs();
+  if (fs.existsSync(out) && fs.statSync(out).size > 2000) {
+    return { url: `/uploads/reels/${name}`, voice: voiceName, cached: true };
+  }
+  const gen = await synthesizeVoice({
+    text: 'Hola, así suena esta voz en tus reels. Reserva con anticipación por nuestros canales oficiales.',
+    voice: voiceName, style, accent
+  });
+  fs.renameSync(path.join(REELS_DIR, path.basename(gen.url)), out);
+  return { url: `/uploads/reels/${name}`, voice: voiceName, cached: false };
 }
 
 // ───────────────────────── Render con FFmpeg ─────────────────────────
@@ -1832,6 +1882,7 @@ module.exports = {
   VALID_SCENE_SPEEDS,
   deleteTempRender,
   makeProxy,
+  voiceSample,
   cleanupReelAssets,
   normalizeOverlay,
   getTiming,

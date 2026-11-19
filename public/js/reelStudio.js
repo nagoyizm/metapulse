@@ -3771,7 +3771,8 @@
       const data = await api('/reel/voice', {
         text,
         voice: S.voice,
-        style: $('reel-voice-style')?.value || ''
+        style: $('reel-voice-style')?.value || '',
+        accent: $('reel-voice-accent')?.value || 'cl'
       });
       seg.url = data.url;
       seg.duration = data.duration;
@@ -4029,7 +4030,8 @@
       const data = await api('/reel/voice', {
         text,
         voice: S.voice,
-        style: $('reel-voice-style')?.value || ''
+        style: $('reel-voice-style')?.value || '',
+        accent: $('reel-voice-accent')?.value || 'cl'
       });
       S.voiceUrl = data.url;
       S.voiceDur = data.duration;
@@ -4809,6 +4811,31 @@ Aceptar = borrar · Cancelar = conservar todo`
       S.voiceUrl = '';
       invalidateAllVoiceSegments();
       saveState();
+    });
+    $('reel-voice-accent')?.addEventListener('change', () => {
+      invalidateAllVoiceSegments();
+      saveState();
+    });
+    $('btn-reel-voice-sample')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      const old = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Generando...';
+      try {
+        const data = await api('/reel/voice-sample', {
+          voice: $('reel-voice')?.value || S.voice,
+          style: $('reel-voice-style')?.value || '',
+          accent: $('reel-voice-accent')?.value || 'cl'
+        });
+        if (currentVoiceAudio) { try { currentVoiceAudio.pause(); } catch (_) {} }
+        currentVoiceAudio = new Audio(data.url);
+        currentVoiceAudio.play().catch(() => toast('No se pudo reproducir la muestra.', 'warning'));
+      } catch (err) {
+        toast('No se pudo generar la muestra: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = old;
+      }
     });
     $('reel-voice-style')?.addEventListener('input', () => {
       invalidateAllVoiceSegments();

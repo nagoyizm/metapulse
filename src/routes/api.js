@@ -3630,11 +3630,22 @@ router.post('/reel/suggest-texts', async (req, res) => {
 
 router.post('/reel/voice', async (req, res) => {
   try {
-    const { text, voice = 'Sulafat', style = '' } = req.body;
-    const data = await reelStudio.synthesizeVoice({ text, voice, style });
+    const { text, voice = 'Sulafat', style = '', accent = 'cl' } = req.body;
+    const data = await reelStudio.synthesizeVoice({ text, voice, style, accent });
     res.json({ success: true, data });
   } catch (err) {
     console.error('[Reel voice]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/reel/voice-sample', async (req, res) => {
+  try {
+    const { voice = 'Sulafat', style = '', accent = 'cl' } = req.body || {};
+    const data = await reelStudio.voiceSample({ voice, style, accent });
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Reel voice-sample]', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
