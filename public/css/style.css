@@ -4215,3 +4215,14 @@ input:checked + .slider:before {
 .rtl-scene small { font-size:0.62rem; font-weight:500; opacity:0.8; }
 .rtl-scene-track { height:38px; }
 .rtl-lane { height:28px; }
+
+/* Música: filas de resultados y pista activa */
+.reel-track { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; border:1px solid transparent; }
+.reel-track + .reel-track { margin-top:2px; }
+.reel-track .reel-track-info { flex:1; min-width:0; display:flex; flex-direction:column; font-size:0.76rem; }
+.reel-track .reel-track-info small { color:var(--text-muted); }
+.reel-track.is-playing { background:rgba(99,102,241,0.08); }
+.reel-track.is-active { border-color:#16a34a; background:rgba(22,163,74,0.08); }
+.reel-track-inuse { font-size:0.7rem; font-weight:700; color:#16a34a; white-space:nowrap; }
+.reel-music-active { font-size:0.78rem; }
+.reel-music-badge { background:#16a34a; color:#fff; font-size:0.66rem; font-weight:700; padding:2px 7px; border-radius:10px; }

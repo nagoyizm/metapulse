@@ -3096,6 +3096,7 @@
     if (tl.total <= 0) return toast('La secuencia no tiene duración.', 'warning');
 
     stopSequence(false);
+    if (audioEl) audioEl.pause();
 
     const finalPlayer = $('reel-final-player');
     if (finalPlayer) {
@@ -3938,20 +3939,23 @@
       tracks.forEach((t) => {
         const row = document.createElement('div');
         row.className = 'reel-track';
+        row.dataset.stream = t.streamUrl || '';
+        row.dataset.key = 'res:' + (t.previewUrl || t.streamUrl || '');
         row.innerHTML = `
-          <button type="button" class="btn btn-secondary btn-xs" data-a="play">▶</button>
+          <button type="button" class="btn btn-secondary btn-xs" data-a="play" title="Escuchar muestra">▶</button>
           <span class="reel-track-info"><strong>${esc(t.title)}</strong><small>${esc(t.artist || '')}</small></span>
+          <span class="reel-track-inuse" style="display:none;">✔ En uso</span>
           <button type="button" class="btn btn-primary btn-xs" data-a="use">Usar</button>
         `;
         row.querySelector('[data-a="play"]')?.addEventListener('click', () => {
-          if (!audioEl) audioEl = new Audio();
-          audioEl.src = t.previewUrl || t.streamUrl;
-          audioEl.play().catch(() => toast('No se pudo reproducir la muestra.', 'warning'));
+          playMusicKey(row.dataset.key, t.previewUrl || t.streamUrl, 0);
         });
         row.querySelector('[data-a="use"]')?.addEventListener('click', () => {
-          S.music = { url: t.streamUrl, title: t.title, artist: t.artist || '' };
-          if (audioEl) audioEl.pause();
+          stopMusicPreview();
+          S.music = { url: t.streamUrl, title: t.title, artist: t.artist || '', start: 0, duration: 0 };
           renderMusicSel();
+          probeMusicDuration(S.music.url);
+          saveState();
           toast(`Música seleccionada: ${t.title}`, 'success');
         });
         box.appendChild(row);
@@ -3961,17 +3965,159 @@
     }
   }
 
+  // ── Reproductor de música (una sola pista sonando a la vez) ──
+  let audioKey = '';
+
+  function fmtMusicTime(sec) {
+    const s = Math.max(0, Math.round(Number(sec) || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function musicIsPlaying(key) {
+    return Boolean(audioEl && !audioEl.paused && audioKey === key);
+  }
+
+  function updateMusicButtons() {
+    document.querySelectorAll('#reel-music-results .reel-track').forEach((row) => {
+      const btn = row.querySelector('[data-a="play"]');
+      const playing = musicIsPlaying(row.dataset.key);
+      if (btn) btn.textContent = playing ? '⏸' : '▶';
+      row.classList.toggle('is-playing', playing);
+      const inUse = Boolean(S.music && S.music.url && row.dataset.stream === S.music.url);
+      row.classList.toggle('is-active', inUse);
+      const tag = row.querySelector('.reel-track-inuse');
+      if (tag) tag.style.display = inUse ? 'inline' : 'none';
+    });
+    const selBtn = $('reel-music-play');
+    if (selBtn) selBtn.textContent = musicIsPlaying('sel') ? '⏸ Pausar' : '▶ Reproducir';
+  }
+
+  function ensureAudioEl() {
+    if (!audioEl) {
+      audioEl = new Audio();
+      ['play', 'pause', 'ended'].forEach((ev) => audioEl.addEventListener(ev, updateMusicButtons));
+      audioEl.addEventListener('timeupdate', () => {
+        const pos = $('reel-music-pos');
+        if (pos && audioKey === 'sel') pos.textContent = fmtMusicTime(audioEl.currentTime);
+      });
+    }
+    return audioEl;
+  }
+
+  // Reproduce o pausa una pista; si ya suena esa misma clave, la pausa
+  function playMusicKey(key, url, startAt) {
+    const a = ensureAudioEl();
+    if (audioKey === key && !a.paused) {
+      a.pause();
+      return;
+    }
+    if (audioKey !== key || a.getAttribute('data-src') !== url) {
+      a.src = url;
+      a.setAttribute('data-src', url);
+      audioKey = key;
+      a.addEventListener('loadedmetadata', function onMeta() {
+        a.removeEventListener('loadedmetadata', onMeta);
+        if (startAt > 0 && isFinite(a.duration)) a.currentTime = Math.min(startAt, a.duration - 0.5);
+      });
+    } else if (key === 'sel' && startAt != null && a.ended) {
+      a.currentTime = startAt;
+    }
+    if (typeof stopSequence === 'function' && seqPlaying) stopSequence(false);
+    a.play().catch(() => toast('No se pudo reproducir la canción.', 'warning'));
+  }
+
+  function stopMusicPreview() {
+    if (audioEl) audioEl.pause();
+    updateMusicButtons();
+  }
+
+  // Averigua la duración real de la canción elegida para limitar el selector de inicio
+  function probeMusicDuration(url) {
+    const probe = new Audio();
+    probe.preload = 'metadata';
+    probe.addEventListener('loadedmetadata', () => {
+      if (S.music && S.music.url === url && isFinite(probe.duration)) {
+        S.music.duration = Math.floor(probe.duration);
+        const sl = $('reel-music-start');
+        if (sl) {
+          sl.max = String(Math.max(1, S.music.duration - 5));
+          const lbl = $('reel-music-total');
+          if (lbl) lbl.textContent = fmtMusicTime(S.music.duration);
+        }
+        saveState();
+      }
+    });
+    probe.src = url;
+  }
+
   function renderMusicSel() {
     const el = $('reel-music-sel');
     if (!el) return;
-    el.innerHTML = S.music
-      ? `🎵 <strong>${esc(S.music.title)}</strong> ${esc(S.music.artist)} <button type="button" class="btn btn-secondary btn-xs" id="reel-music-clear" style="margin-left:8px;">Quitar</button>`
-      : 'Sin música seleccionada';
+    if (!S.music) {
+      el.innerHTML = 'Sin música seleccionada';
+      updateMusicButtons();
+      return;
+    }
+    if (!S.music.duration) probeMusicDuration(S.music.url);
+    const start = Math.max(0, Number(S.music.start) || 0);
+    const max = Math.max(30, (Number(S.music.duration) || 180) - 5);
+    el.innerHTML = `
+      <div class="reel-music-active">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="reel-music-badge">♪ Activa</span>
+          <strong>${esc(S.music.title)}</strong>
+          <span class="text-muted" style="font-weight:400;">${esc(S.music.artist || '')}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;">
+          <button type="button" class="btn btn-primary btn-xs" id="reel-music-play">▶ Reproducir</button>
+          <button type="button" class="btn btn-secondary btn-xs" id="reel-music-clear">Quitar</button>
+          <span class="text-muted" style="font-weight:400;">Suena: <span id="reel-music-pos">${fmtMusicTime(start)}</span></span>
+        </div>
+        <div style="margin-top:8px; font-weight:400;">
+          <label style="font-size:0.74rem; font-weight:600; display:block; margin-bottom:2px;">
+            Empieza en: <span id="reel-music-start-lbl">${fmtMusicTime(start)}</span>
+            <span class="text-muted" style="font-weight:400;">de <span id="reel-music-total">${S.music.duration ? fmtMusicTime(S.music.duration) : '?'}</span></span>
+          </label>
+          <input type="range" id="reel-music-start" min="0" max="${max}" step="1" value="${start}" style="width:100%;">
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <button type="button" class="btn btn-secondary btn-xs" id="reel-music-start-here" title="Usar el punto donde está sonando ahora">Empezar desde aquí</button>
+            <button type="button" class="btn btn-secondary btn-xs" id="reel-music-start-zero">Desde el inicio</button>
+          </div>
+        </div>
+      </div>`;
 
+    const setStart = (v, seek) => {
+      S.music.start = Math.max(0, Math.round(v));
+      const sl = $('reel-music-start');
+      if (sl) sl.value = String(S.music.start);
+      const lbl = $('reel-music-start-lbl');
+      if (lbl) lbl.textContent = fmtMusicTime(S.music.start);
+      if (seek && audioEl && audioKey === 'sel') audioEl.currentTime = S.music.start;
+      saveState();
+    };
+
+    $('reel-music-start')?.addEventListener('input', (e) => {
+      const v = +e.target.value;
+      const lbl = $('reel-music-start-lbl');
+      if (lbl) lbl.textContent = fmtMusicTime(v);
+      S.music.start = v;
+    });
+    $('reel-music-start')?.addEventListener('change', (e) => setStart(+e.target.value, true));
+    $('reel-music-start-here')?.addEventListener('click', () => {
+      if (audioEl && audioKey === 'sel') setStart(audioEl.currentTime, false);
+      else toast('Reproduce la canción y pulsa aquí en el punto donde quieres que empiece.', 'info');
+    });
+    $('reel-music-start-zero')?.addEventListener('click', () => setStart(0, true));
+    $('reel-music-play')?.addEventListener('click', () => {
+      playMusicKey('sel', S.music.url, Number(S.music.start) || 0);
+    });
     $('reel-music-clear')?.addEventListener('click', () => {
+      if (audioKey === 'sel') stopMusicPreview();
       S.music = null;
       renderMusicSel();
+      saveState();
     });
+    updateMusicButtons();
   }
 
   // ── Renderizado Definitivo ──
@@ -4050,7 +4196,7 @@
         }),
         voice_segments: voiceSegmentsPayload,
         voice_volume: Number($('reel-voice-vol')?.value) || 1,
-        music: S.music ? { url: S.music.url, title: S.music.title, artist: S.music.artist } : null,
+        music: S.music ? { url: S.music.url, title: S.music.title, artist: S.music.artist, start: Number(S.music.start) || 0 } : null,
         music_volume: Number($('reel-music-vol')?.value) || 0.3,
         global_transition: 'zoomin',
         replace_url: (S.resultUrl && !S.resultSaved) ? S.resultUrl : ''
