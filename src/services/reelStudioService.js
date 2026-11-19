@@ -1275,6 +1275,36 @@ function synthesizeOverlaysFromScenes(scenes) {
   return list;
 }
 
+// Copia liviana para la vista previa del editor (480 px, 24 fps, keyframes cada 0,5 s => saltos rápidos).
+// Una sola conversión a la vez para no saturar la RAM. El render final sigue usando el original.
+let proxyChain = Promise.resolve();
+function makeProxy(url) {
+  const job = proxyChain.then(async () => {
+    const src = localPath(url);
+    if (isImage(src)) return { url, proxyUrl: url };
+    const crypto = require('crypto');
+    const name = 'p_' + crypto.createHash('md5').update(rel(src)).digest('hex').slice(0, 16) + '.mp4';
+    const dir = path.join(REELS_DIR, 'proxy');
+    fs.mkdirSync(dir, { recursive: true });
+    const out = path.join(dir, name);
+    const proxyUrl = '/uploads/reels/proxy/' + name;
+    if (fs.existsSync(out) && fs.statSync(out).size > 1000) return { url, proxyUrl };
+    const tmp = out + '.tmp.mp4';
+    await runFFmpeg([
+      '-y', '-hide_banner', '-loglevel', 'error', '-threads', '1',
+      '-i', src,
+      '-vf', 'scale=480:-2:flags=fast_bilinear,fps=24',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-g', '12', '-keyint_min', '12', '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac', '-b:a', '64k', '-ac', '2',
+      '-movflags', '+faststart', tmp
+    ], 600000);
+    fs.renameSync(tmp, out);
+    return { url, proxyUrl };
+  });
+  proxyChain = job.catch(() => {});
+  return job;
+}
+
 // Borra el render temporal anterior (solo archivos reel_*.mp4 dentro de uploads/reels)
 function deleteTempRender(oldUrl, newUrl) {
   try {
@@ -1776,6 +1806,7 @@ module.exports = {
   SPEED_OPTIONS,
   VALID_SCENE_SPEEDS,
   deleteTempRender,
+  makeProxy,
   normalizeOverlay,
   getTiming,
   VALID_XFADE_TRANSITIONS,

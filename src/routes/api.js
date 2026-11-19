@@ -3519,6 +3519,20 @@ router.get('/reel/templates', (req, res) => res.json({ success: true, data: reel
 router.get('/reel/transitions', (req, res) => res.json({ success: true, data: reelStudio.VALID_XFADE_TRANSITIONS }));
 router.get('/reel/fonts', (req, res) => res.json({ success: true, data: reelStudio.getFonts() }));
 
+router.post('/reel/proxy', async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== 'string' || !url.startsWith('/uploads/') || url.includes('..')) {
+      return res.status(400).json({ success: false, error: 'URL inválida: debe comenzar con /uploads/' });
+    }
+    const data = await reelStudio.makeProxy(url);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Reel proxy]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/reel/analyze-clip', async (req, res) => {
   try {
     const { url, brand = '', goal = '', force = false } = req.body || {};

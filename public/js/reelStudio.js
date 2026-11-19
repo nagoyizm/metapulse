@@ -704,7 +704,7 @@
           <div class="reel-clip-thumb-box">
             ${c.kind === 'imagen'
               ? `<img src="${esc(c.url)}" alt="">`
-              : `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" playsinline></video>`}
+              : `<video src="${esc(pv(c.url))}#t=0.5" muted preload="metadata" playsinline></video>`}
             ${c.duration ? `<span class="reel-clip-dur-badge">${c.duration.toFixed(1)}s</span>` : ''}
           </div>
           <div style="flex:1; min-width:0;">
@@ -1004,6 +1004,7 @@
             }
             saveState();
             toast(`${json.data.length} clip(s) subidos con éxito. Descríbelos y arma el reel.`, 'success');
+            queueProxies();
 
             const autoAnalyze = $('reel-auto-analyze')?.checked ?? false;
             if (autoAnalyze && addedIndices.length > 0) {
@@ -1041,6 +1042,63 @@
 
       xhr.send(fd);
     });
+  }
+
+  // ── Copias livianas para la vista previa (el render usa siempre el original) ──
+  function pv(url) {
+    const c = S.clips.find((x) => x.url === url);
+    return c && c.proxy ? c.proxy : url;
+  }
+
+  let proxyBusy = false;
+  const proxyFailed = new Set();
+  async function queueProxies() {
+    if (proxyBusy) return;
+    proxyBusy = true;
+    let made = 0;
+    try {
+      for (;;) {
+        const c = S.clips.find((x) => x.kind !== 'imagen' && !x.proxy && !proxyFailed.has(x.url));
+        if (!c) break;
+        try {
+          const res = await fetch('/api/reel/proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: c.url })
+          });
+          const json = await res.json();
+          if (!json.success) throw new Error(json.error || 'falló');
+          c.proxy = json.data.proxyUrl;
+          made++;
+          saveState();
+        } catch (err) {
+          proxyFailed.add(c.url);
+          console.warn('[Reel proxy]', err.message);
+        }
+      }
+    } finally {
+      proxyBusy = false;
+    }
+    if (made) {
+      renderClips();
+      toast('Vista previa liviana lista: ahora reproduce más fluido.', 'success');
+    }
+  }
+
+  let preloadEl = null;
+  function preloadNextScene(idx) {
+    const nx = S.scenes[idx + 1];
+    if (!nx || nx.kind === 'imagen') return;
+    if (!preloadEl) {
+      preloadEl = document.createElement('video');
+      preloadEl.muted = true;
+      preloadEl.preload = 'auto';
+    }
+    const u = pv(nx.url);
+    if (preloadEl.getAttribute('data-src') !== u) {
+      preloadEl.setAttribute('data-src', u);
+      preloadEl.src = u;
+    }
   }
 
   // ── Planificación IA ──
@@ -1272,7 +1330,7 @@
     v.muted = true;
     v.playsInline = true;
     v.preload = 'auto';
-    v.src = url;
+    v.src = pv(url);
 
     const canvas = document.createElement('canvas');
     canvas.width = 80;
@@ -2042,9 +2100,9 @@
       if (vpVideo) {
         const seekTime = Number(sc.start) || 0;
         const currentSrc = vpVideo.src ? vpVideo.src.split('#')[0] : '';
-        const targetSrc = sc.url.split('#')[0];
+        const targetSrc = new URL(pv(sc.url), location.href).href;
         if (currentSrc !== targetSrc) {
-          vpVideo.src = sc.url;
+          vpVideo.src = pv(sc.url);
         }
         vpVideo.style.display = 'block';
         vpVideo.playbackRate = sc.speed || 1;
@@ -2910,7 +2968,7 @@
         if (vpImg) vpImg.style.display = 'none';
         if (vpVideo) {
           const seekTime = (sc.start || 0) + (found.offsetInScene || 0);
-          vpVideo.src = sc.url + `#t=${seekTime}`;
+          vpVideo.src = pv(sc.url) + `#t=${seekTime}`;
           vpVideo.style.display = 'block';
           vpVideo.playbackRate = sc.speed || 1;
           vpVideo.currentTime = seekTime;
@@ -2982,7 +3040,7 @@
     } else {
       if (vpImg) vpImg.style.display = 'none';
       if (vpVideo) {
-        vpVideo.src = c.url;
+        vpVideo.src = pv(c.url);
         vpVideo.style.display = 'block';
         vpVideo.style.transform = 'none';
         vpVideo.style.objectFit = 'cover';
@@ -3225,10 +3283,11 @@
       } else {
         if (vpImg) vpImg.style.display = 'none';
         if (vpVideo) {
-          vpVideo.src = sc.url;
+          vpVideo.src = pv(sc.url);
           vpVideo.style.display = 'block';
           vpVideo.playbackRate = sp;
           applySceneFrame(sc, vpVideo);
+          preloadNextScene(activeItem.idx);
           const vTime = (sc.start || 0) + (t - activeItem.startAt) * sp;
           vpVideo.currentTime = Math.max(0, vTime);
           vpVideo.muted = isMuted;
@@ -3420,7 +3479,7 @@
     } else {
       if (vpImg) vpImg.style.display = 'none';
       if (vpVideo) {
-        vpVideo.src = sc.url;
+        vpVideo.src = pv(sc.url);
         vpVideo.style.display = 'block';
         vpVideo.playbackRate = sp;
         applySceneFrame(sc, vpVideo);
@@ -4698,6 +4757,7 @@
 
     // Restaurar borrador de sesión (para soportar F5 sin perder clips ni textos)
     restoreState();
+    queueProxies();
   }
 
   window.loadReelStudio = init;
