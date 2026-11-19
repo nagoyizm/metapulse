@@ -21,7 +21,7 @@
     voiceSegments: [],  // { id, text, start, url, duration }
     caption: '',
     voices: [],
-    voice: 'Sulafat',
+    voice: 'edge:es-CL-CatalinaNeural',
     voiceUrl: '',
     voiceDur: 0,
     music: null,        // { url, title, artist }
@@ -3742,9 +3742,23 @@
     sel.innerHTML = S.voices.map((v) =>
       `<option value="${v.id}" ${v.id === S.voice ? 'selected' : ''}>${esc(v.label)} — ${esc(v.desc)}</option>`
     ).join('');
+    syncVoiceEngineUi();
   }
 
   let currentVoiceAudio = null;
+
+  // Acento y estilo solo existen en las voces de Gemini; las de Edge ya son chilenas
+  function syncVoiceEngineUi() {
+    const edge = String($('reel-voice')?.value || S.voice || '').startsWith('edge:');
+    ['reel-voice-accent', 'reel-voice-style'].forEach((id) => {
+      const el = $(id);
+      if (el) {
+        el.disabled = edge;
+        const lbl = el.closest('label');
+        if (lbl) lbl.style.opacity = edge ? '0.45' : '1';
+      }
+    });
+  }
 
   async function listenVoiceSegment(idx, btn) {
     const seg = S.voiceSegments[idx];
@@ -4808,6 +4822,7 @@ Aceptar = borrar · Cancelar = conservar todo`
     // Controles de audio y voz
     $('reel-voice')?.addEventListener('change', (e) => {
       S.voice = e.target.value;
+      syncVoiceEngineUi();
       S.voiceUrl = '';
       invalidateAllVoiceSegments();
       saveState();

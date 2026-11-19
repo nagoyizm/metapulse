@@ -448,6 +448,8 @@ function composeValue(inVal, loopVal, outVal, tInEnd, tOut0) {
 
 // Voces de Gemini TTS elegibles (nombre oficial -> cómo suena)
 const VOICES = [
+  { id: 'edge:es-CL-CatalinaNeural', label: 'Catalina (Chile)', desc: 'Mujer chilena real · gratis y sin cuota (Edge)' },
+  { id: 'edge:es-CL-LorenzoNeural', label: 'Lorenzo (Chile)', desc: 'Hombre chileno real · gratis y sin cuota (Edge)' },
   { id: 'Sulafat', label: 'Sulafat', desc: 'Cálida y cercana (recomendada)' },
   { id: 'Achird', label: 'Achird', desc: 'Amistosa, como un vecino simpático' },
   { id: 'Vindemiatrix', label: 'Vindemiatrix', desc: 'Suave y amable' },
@@ -1221,7 +1223,51 @@ function voiceDirection(style = '', accent = 'cl') {
   return extra ? `${base}; además: ${extra}` : base;
 }
 
+// Voces de Edge (Microsoft): acento chileno real, sin clave ni cuota. Se convierten a WAV 24 kHz mono.
+async function synthesizeEdge(text, edgeVoice) {
+  const { MsEdgeTTS, OUTPUT_FORMAT } = require('msedge-tts');
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const tts = new MsEdgeTTS();
+    try {
+      await tts.setMetadata(edgeVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+      const { audioStream } = tts.toStream(text);
+      const buf = await new Promise((resolve, reject) => {
+        const chunks = [];
+        const timer = setTimeout(() => reject(new Error('Edge TTS tardó demasiado.')), 45000);
+        audioStream.on('data', (c) => chunks.push(c));
+        audioStream.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks)); });
+        audioStream.on('error', (e) => { clearTimeout(timer); reject(e); });
+      });
+      try { tts.close(); } catch (_) { /* ya cerrado */ }
+      if (buf.length < 500) throw new Error('Edge TTS no devolvió audio.');
+      ensureDirs();
+      const base = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const mp3 = path.join(REELS_DIR, base + '.mp3');
+      const wavPath = path.join(REELS_DIR, base + '.wav');
+      fs.writeFileSync(mp3, buf);
+      try {
+        await runFFmpeg(['-y', '-hide_banner', '-loglevel', 'error', '-i', mp3, '-ar', '24000', '-ac', '1', wavPath], 60000);
+      } finally {
+        try { fs.unlinkSync(mp3); } catch (_) { /* nada */ }
+      }
+      const size = fs.statSync(wavPath).size;
+      return { url: `/uploads/reels/${base}.wav`, duration: (size - 44) / (24000 * 2), voice: `edge:${edgeVoice}`, model: 'edge-tts' };
+    } catch (err) {
+      lastErr = err;
+      try { tts.close(); } catch (_) { /* ignorar */ }
+      console.warn(`[ReelStudio] Edge TTS intento ${attempt} falló:`, err.message);
+    }
+  }
+  throw new Error('No se pudo generar la voz con Edge: ' + (lastErr?.message || 'error desconocido'));
+}
+
 async function synthesizeVoice({ text, voice = 'Sulafat', style = '', accent = 'cl' }) {
+  if (String(voice).startsWith('edge:') && VOICES.some(v => v.id === voice)) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!clean) throw new Error('El guion de voz está vacío.');
+    return synthesizeEdge(clean, voice.slice(5));
+  }
   const apiKey = aiService.getApiKey();
   if (!apiKey) throw new Error('No hay clave de Gemini configurada.');
   const clean = String(text || '').replace(/\s+/g, ' ').trim();
@@ -1257,8 +1303,9 @@ async function synthesizeVoice({ text, voice = 'Sulafat', style = '', accent = '
 async function voiceSample({ voice = 'Sulafat', style = '', accent = 'cl' }) {
   const voiceName = VOICES.some(v => v.id === voice) ? voice : 'Sulafat';
   const crypto = require('crypto');
-  const key = crypto.createHash('md5').update(voiceDirection(style, accent)).digest('hex').slice(0, 8);
-  const name = `sample_${voiceName}_${key}.wav`;
+  const isEdge = voiceName.startsWith('edge:');
+  const key = isEdge ? 'e1' : crypto.createHash('md5').update(voiceDirection(style, accent)).digest('hex').slice(0, 8);
+  const name = `sample_${voiceName.replace(/[^A-Za-z0-9-]/g, '_')}_${key}.wav`;
   const out = path.join(REELS_DIR, name);
   ensureDirs();
   if (fs.existsSync(out) && fs.statSync(out).size > 2000) {
