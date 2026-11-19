@@ -2051,10 +2051,26 @@
     if (el) applySceneFrame(sc, el);
   }
 
+  // Reproducción acotada al tramo recortado de la toma seleccionada (-1 = sin límite)
+  let vpRangeIdx = -1;
+  let vpRangeRaf = 0;
+  function vpRangeTick() {
+    vpRangeRaf = 0;
+    const v = $('reel-vp-video');
+    if (vpRangeIdx < 0 || seqPlaying || !v || v.paused) return;
+    const sc = S.scenes[vpRangeIdx];
+    if (!sc) return;
+    const s = Number(sc.start) || 0;
+    const e = s + (Number(sc.length) || 2.5);
+    if (v.currentTime >= e - 0.03 || v.currentTime < s - 0.3) v.currentTime = s; // vuelve a empezar el tramo
+    vpRangeRaf = requestAnimationFrame(vpRangeTick);
+  }
+
   function selectSceneForFrame(idx) {
     if (idx < 0 || idx >= S.scenes.length) return;
     S.activeSceneIdx = idx;
     const sc = S.scenes[idx];
+    vpRangeIdx = sc.kind === 'imagen' ? -1 : idx; // la pantalla solo reproduce el tramo recortado
 
     document.querySelectorAll('.reel-scene-card').forEach((card) => {
       card.classList.toggle('selected-for-frame', +card.dataset.i === idx);
@@ -2943,6 +2959,7 @@
     if (badge) badge.textContent = `Texto ${idx + 1} (${ov.start.toFixed(1)}s)`;
 
     const found = findSceneAtTime(ov.start);
+    vpRangeIdx = (found && found.scene && found.scene.kind !== 'imagen') ? S.scenes.indexOf(found.scene) : -1;
     const vpVideo = $('reel-vp-video');
     const vpImg = $('reel-vp-img');
     const vpBg = $('reel-vp-bg');
@@ -2984,6 +3001,7 @@
 
   // ── Mini Pantalla 9:16 y Encuadre Interactivo ──
   function resetViewportPlaceholder() {
+    vpRangeIdx = -1;
     const vpVideo = $('reel-vp-video');
     const vpImg = $('reel-vp-img');
     const vpBg = $('reel-vp-bg');
@@ -3010,6 +3028,15 @@
   function previewClip(idx, startTime = 0) {
     if (idx < 0 || idx >= S.clips.length) return;
     const c = S.clips[idx];
+    // Si el clip ya es una toma, mostrar solo el tramo recortado (no el clip completo)
+    if (!startTime) {
+      const si = S.scenes.findIndex((s) => s.clip === idx);
+      if (si >= 0) {
+        selectSceneForFrame(si);
+        return;
+      }
+    }
+    vpRangeIdx = -1;
     const vpVideo = $('reel-vp-video');
     const vpImg = $('reel-vp-img');
     const vpBg = $('reel-vp-bg');
@@ -3078,6 +3105,11 @@
     if (!activeVideo || activeVideo.style.display === 'none') return;
 
     if (activeVideo.paused) {
+      const rsc = (activeVideo === vpVideo && vpRangeIdx >= 0) ? S.scenes[vpRangeIdx] : null;
+      if (rsc) {
+        const rs = Number(rsc.start) || 0;
+        if (activeVideo.currentTime < rs || activeVideo.currentTime >= rs + (Number(rsc.length) || 2.5) - 0.05) activeVideo.currentTime = rs;
+      }
       activeVideo.play().then(() => updatePlayBtn(true)).catch(() => {});
     } else {
       activeVideo.pause();
@@ -3149,6 +3181,7 @@
   }
 
   function startSequence(fromTime = 0) {
+    vpRangeIdx = -1;
     if (!S.scenes.length) return toast('Sube clips y crea tomas primero en el Paso 3.', 'warning');
     const tl = buildTimeline();
     if (tl.total <= 0) return toast('La secuencia no tiene duración.', 'warning');
@@ -3440,6 +3473,7 @@
   }
 
   function showStaticFrameAtTime(t, tl) {
+    vpRangeIdx = -1;
     if (!tl) tl = buildTimeline();
     const progressEl = $('reel-seq-progress');
     if (progressEl) progressEl.value = t.toFixed(2);
@@ -4813,7 +4847,10 @@ Aceptar = borrar · Cancelar = conservar todo`
       });
     }
 
-    $('reel-vp-video')?.addEventListener('play', () => updatePlayBtn(true));
+    $('reel-vp-video')?.addEventListener('play', () => {
+      updatePlayBtn(true);
+      if (!vpRangeRaf) vpRangeRaf = requestAnimationFrame(vpRangeTick);
+    });
     $('reel-vp-video')?.addEventListener('pause', () => updatePlayBtn(false));
     $('reel-vp-video')?.addEventListener('timeupdate', () => {
       const v = $('reel-vp-video');
