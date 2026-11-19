@@ -1776,6 +1776,7 @@
   }
 
   function renderTrack() {
+    ensureScenesFromClips();
     const bar = $('reel-track-bar');
     const ruler = $('reel-track-ruler');
     const playhead = $('reel-track-playhead');
@@ -2061,7 +2062,28 @@
     renderTrimmer();
   }
 
+  // Si hay clips y ninguna toma, cada clip entra completo y en orden
+  function ensureScenesFromClips() {
+    if (S.scenes.length || !S.clips.length) return;
+    S.scenes = S.clips.map((c, i) => ({
+      clip: i,
+      url: c.url,
+      kind: c.kind,
+      start: 0,
+      length: c.kind === 'imagen' ? 2.5 : (c.duration ? Math.min(c.duration, 15) : 8),
+      speed: 1,
+      fitMode: 'crop',
+      zoom: 1.0,
+      panX: 0.5,
+      panY: 0.5,
+      transition: i === 0 ? 'none' : 'zoomin'
+    }));
+    S.activeSceneIdx = 0;
+    saveState();
+  }
+
   function renderScenes() {
+    ensureScenesFromClips();
     const list = $('reel-scenes-list');
     const badge = $('reel-badge-scenes-count');
     const totalEl = $('reel-total-dur');
