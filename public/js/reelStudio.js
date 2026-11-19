@@ -3999,6 +3999,12 @@
       audioEl.addEventListener('timeupdate', () => {
         const pos = $('reel-music-pos');
         if (pos && audioKey === 'sel') pos.textContent = fmtMusicTime(audioEl.currentTime);
+        const ph = $('reel-music-playhead');
+        if (ph && audioKey === 'sel' && S.music) {
+          const d = Math.max(30, Number(S.music.duration) || 180);
+          ph.style.display = 'block';
+          ph.style.left = `${Math.min(100, (audioEl.currentTime / d) * 100)}%`;
+        }
       });
     }
     return audioEl;
@@ -4038,29 +4044,23 @@
     probe.addEventListener('loadedmetadata', () => {
       if (S.music && S.music.url === url && isFinite(probe.duration)) {
         S.music.duration = Math.floor(probe.duration);
-        const sl = $('reel-music-start');
-        if (sl) {
-          sl.max = String(Math.max(1, S.music.duration - 5));
-          const lbl = $('reel-music-total');
-          if (lbl) lbl.textContent = fmtMusicTime(S.music.duration);
-        }
+        renderMusicSel(true);
         saveState();
       }
     });
     probe.src = url;
   }
 
-  function renderMusicSel() {
+  function renderMusicSel(skipProbe) {
     const el = $('reel-music-sel');
     if (!el) return;
     if (!S.music) {
-      el.innerHTML = 'Sin música seleccionada';
+      el.innerHTML = 'Sin música seleccionada. Elige una canción con «Usar» y aquí aparecerá su línea de tiempo para elegir desde dónde parte.';
       updateMusicButtons();
       return;
     }
-    if (!S.music.duration) probeMusicDuration(S.music.url);
+    if (!S.music.duration && !skipProbe) probeMusicDuration(S.music.url);
     const start = Math.max(0, Number(S.music.start) || 0);
-    const max = Math.max(30, (Number(S.music.duration) || 180) - 5);
     el.innerHTML = `
       <div class="reel-music-active">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -4073,36 +4073,82 @@
           <button type="button" class="btn btn-secondary btn-xs" id="reel-music-clear">Quitar</button>
           <span class="text-muted" style="font-weight:400;">Suena: <span id="reel-music-pos">${fmtMusicTime(start)}</span></span>
         </div>
-        <div style="margin-top:8px; font-weight:400;">
-          <label style="font-size:0.74rem; font-weight:600; display:block; margin-bottom:2px;">
-            Empieza en: <span id="reel-music-start-lbl">${fmtMusicTime(start)}</span>
+        <div style="margin-top:10px; font-weight:400;">
+          <div style="font-size:0.74rem; font-weight:600; margin-bottom:4px;">
+            Línea de tiempo de la canción · empieza en <span id="reel-music-start-lbl">${fmtMusicTime(start)}</span>
             <span class="text-muted" style="font-weight:400;">de <span id="reel-music-total">${S.music.duration ? fmtMusicTime(S.music.duration) : '?'}</span></span>
-          </label>
-          <input type="range" id="reel-music-start" min="0" max="${max}" step="1" value="${start}" style="width:100%;">
-          <div style="display:flex; gap:6px; margin-top:4px;">
+          </div>
+          <div class="mus-bar" id="reel-music-bar" title="Haz clic o arrastra el tramo para elegir dónde empieza">
+            <div class="mus-seg" id="reel-music-seg"><span>Tu reel</span></div>
+            <div class="mus-play" id="reel-music-playhead"></div>
+          </div>
+          <div class="mus-ruler" id="reel-music-ruler"></div>
+          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secondary btn-xs" id="reel-music-back1">−1 s</button>
+            <button type="button" class="btn btn-secondary btn-xs" id="reel-music-fwd1">+1 s</button>
             <button type="button" class="btn btn-secondary btn-xs" id="reel-music-start-here" title="Usar el punto donde está sonando ahora">Empezar desde aquí</button>
             <button type="button" class="btn btn-secondary btn-xs" id="reel-music-start-zero">Desde el inicio</button>
           </div>
         </div>
       </div>`;
 
+    const musDur = () => Math.max(30, Number(S.music.duration) || 180);
+    const reelLen = () => Math.max(1, totalSeconds() || 10);
+    const drawSeg = () => {
+      const seg = $('reel-music-seg');
+      if (!seg) return;
+      const d = musDur();
+      const st = Math.min(S.music.start || 0, Math.max(0, d - 1));
+      seg.style.left = `${(st / d) * 100}%`;
+      seg.style.width = `${Math.min(100 - (st / d) * 100, (reelLen() / d) * 100)}%`;
+      const ruler = $('reel-music-ruler');
+      if (ruler && !ruler.dataset.d || (ruler && ruler.dataset.d !== String(d))) {
+        ruler.dataset.d = String(d);
+        const stepS = d > 240 ? 60 : d > 120 ? 30 : 15;
+        let h = '';
+        for (let s = 0; s <= d; s += stepS) h += `<span style="left:${(s / d) * 100}%">${fmtMusicTime(s)}</span>`;
+        ruler.innerHTML = h;
+      }
+    };
     const setStart = (v, seek) => {
-      S.music.start = Math.max(0, Math.round(v));
-      const sl = $('reel-music-start');
-      if (sl) sl.value = String(S.music.start);
+      const d = musDur();
+      S.music.start = Math.max(0, Math.min(Math.round(v), Math.max(0, d - 1)));
       const lbl = $('reel-music-start-lbl');
       if (lbl) lbl.textContent = fmtMusicTime(S.music.start);
+      const pos = $('reel-music-pos');
+      if (pos && !musicIsPlaying('sel')) pos.textContent = fmtMusicTime(S.music.start);
+      drawSeg();
       if (seek && audioEl && audioKey === 'sel') audioEl.currentTime = S.music.start;
       saveState();
     };
+    drawSeg();
 
-    $('reel-music-start')?.addEventListener('input', (e) => {
-      const v = +e.target.value;
-      const lbl = $('reel-music-start-lbl');
-      if (lbl) lbl.textContent = fmtMusicTime(v);
-      S.music.start = v;
+    const bar = $('reel-music-bar');
+    const secAt = (clientX) => {
+      const r = bar.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * musDur();
+    };
+    bar?.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const onSeg = e.target.closest('#reel-music-seg');
+      const offset = onSeg ? secAt(e.clientX) - (S.music.start || 0) : reelLen() / 2;
+      const move = (ev) => {
+        S.music.start = Math.max(0, Math.round(secAt(ev.clientX) - offset));
+        drawSeg();
+        const lbl = $('reel-music-start-lbl');
+        if (lbl) lbl.textContent = fmtMusicTime(S.music.start);
+      };
+      const up = () => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        setStart(S.music.start, true);
+      };
+      move(e);
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
     });
-    $('reel-music-start')?.addEventListener('change', (e) => setStart(+e.target.value, true));
+    $('reel-music-back1')?.addEventListener('click', () => setStart((S.music.start || 0) - 1, true));
+    $('reel-music-fwd1')?.addEventListener('click', () => setStart((S.music.start || 0) + 1, true));
     $('reel-music-start-here')?.addEventListener('click', () => {
       if (audioEl && audioKey === 'sel') setStart(audioEl.currentTime, false);
       else toast('Reproduce la canción y pulsa aquí en el punto donde quieres que empiece.', 'info');

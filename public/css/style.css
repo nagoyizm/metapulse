@@ -4226,3 +4226,11 @@ input:checked + .slider:before {
 .reel-track-inuse { font-size:0.7rem; font-weight:700; color:#16a34a; white-space:nowrap; }
 .reel-music-active { font-size:0.78rem; }
 .reel-music-badge { background:#16a34a; color:#fff; font-size:0.66rem; font-weight:700; padding:2px 7px; border-radius:10px; }
+
+/* Línea de tiempo de la canción */
+.mus-bar { position:relative; height:44px; border-radius:8px; background:repeating-linear-gradient(90deg, rgba(99,102,241,0.10) 0 3px, rgba(99,102,241,0.04) 3px 6px); border:1px solid var(--border-subtle); cursor:pointer; user-select:none; overflow:hidden; }
+.mus-seg { position:absolute; top:0; bottom:0; background:rgba(22,163,74,0.35); border:2px solid #16a34a; border-radius:6px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; cursor:grab; min-width:24px; }
+.mus-seg span { font-size:0.68rem; font-weight:700; color:#14532d; pointer-events:none; white-space:nowrap; }
+.mus-play { position:absolute; top:0; bottom:0; width:2px; background:#ef4444; display:none; pointer-events:none; z-index:3; }
+.mus-ruler { position:relative; height:14px; margin-top:2px; }
+.mus-ruler span { position:absolute; font-size:0.6rem; color:var(--text-muted); transform:translateX(-50%); }
