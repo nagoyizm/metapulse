@@ -95,3 +95,13 @@ Formato: fecha · decisión · por qué.
   - *Por qué:* `drawtext` de FFmpeg rechaza funciones dinámicas por fotograma en `fontsize`, pero sí evalúa expresiones en `alpha` e `y`. Se implementaron animaciones de punch/pop-in (`y` elástico + rampa de `alpha`), fade suave, slide-up desde abajo y bounce, calculadas por segundo con retardo acumulativo por renglón.
 - **2026-11-18 · Persistencia en localStorage (`metapulse_reel_studio_draft`) para blindar contra F5.**
   - *Por qué:* Las recargas accidentales o F5 provocaban la pérdida de clips subidos, encuadres interactivos y textos. Ahora el estado completo se serializa en el navegador y se restaura sin perder nada.
+
+## Estudio de Reels 2.2 (vista previa y voz)
+- **2026-11-20 · Vista previa con copias livianas (proxies).**
+  - *Por qué:* los videos originales (4K/60 fps del celular) se pegaban en el navegador. Se generan copias 480 px/24 fps con ffmpeg (una a la vez, caché por hash) solo para previsualizar; el render usa siempre los originales.
+- **2026-11-20 · La limpieza de temporales se ofrece al descargar el MP4, no al guardar borrador.**
+  - *Por qué:* el borrador es una acción explícita aparte y debe conservar clips y voces. Los originales solo se borran si el dueño acepta y no están en ningún post.
+- **2026-11-20 · Voz por defecto: Edge TTS chileno, con respaldo automático desde Gemini TTS.**
+  - *Por qué:* Gemini TTS gratis permite ~10 solicitudes/día y rompía el render. Edge (Catalina/Lorenzo es-CL) no tiene clave ni cuota y suena chileno. Es un servicio no oficial de Microsoft: si deja de funcionar, la alternativa es Azure TTS (oficial). La instrucción de estilo no se pronuncia nunca (instrucción separada, control de duración y último intento sin instrucciones).
+- **2026-11-20 · Voz clonada con Chatterbox en el PC del dueño, llamada desde Contabo por túnel SSH inverso.**
+  - *Por qué:* Contabo no tiene GPU y entrenar una voz chilena propia necesitaría 30–60 min de grabaciones de una persona concreta, que no hay. Con una muestra de 31 s, Chatterbox multilingüe con poco énfasis (exaggeration 0.45, cfg 0.5) y puntuación sobria sonó mejor y más chileno que niveles "comerciales" altos (entonación caribeña) o que la conversión de voz con fuente Catalina. El túnel (`127.0.0.1:18765` solo en Contabo) mantiene el flujo del editor igual; sin PC o sin túnel cae a Catalina. La voz de referencia no se versiona.

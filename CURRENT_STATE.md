@@ -37,6 +37,14 @@ Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `97b1391`, PM2 o
 - **La IA mira los clips:** `analyzeClip` manda hasta 12 cuadros a Gemini (`aiService.generateJSONWithImages`), caché `<clip>.analysis.json`; `reviewClips` sugiere gancho/fórmula/duración/planos faltantes; `plan()` usa highlights y encuadre.
 - Riesgo: gemini-3.8-flash a veces agota el timeout de 60 s con imágenes; el análisis tarda hasta pasar al siguiente modelo.
 
+## Reel Studio 2.2 (2026-11-20, en producción, sin prueba del dueño en navegador)
+- **Editor:** pasos 1–2 fusionados, pestaña Render, línea de tiempo de textos, explorador de música, texto con ajuste de línea y tamaño (ya no se corta).
+- **Vista previa liviana:** proxies ffmpeg 480 px/24 fps (`makeProxy`, `uploads/reels/proxy/`, de a uno) y precarga de la siguiente escena. En "Clips y Cortes" el preview reproduce solo el tramo recortado en bucle.
+- **Limpieza al descargar el MP4** (no al guardar borrador): `POST /reel/cleanup` borra proxies, voces y (si el dueño acepta) los originales no usados en posts.
+- **Voz:** botón "generar texto desde Textos y Efectos"; la instrucción de estilo ya no se pronuncia; acento chileno por defecto; botón "▶ Escuchar" para probar la voz. Voces **Edge TTS** (Catalina/Lorenzo es-CL, sin clave ni cuota; servicio no oficial de Microsoft) por defecto; si Gemini TTS falla (cuota 10/día) cae solo a Edge.
+- **Voz clonada local `local:andrea`:** Chatterbox corre en el PC del dueño (RTX 3060), no en Contabo (sin GPU). Contabo la llama por túnel SSH inverso (`127.0.0.1:18765` en Contabo; el 8765 lo usa otro programa). Si el PC o el túnel están caídos, cae a Catalina con aviso. Uso: ejecutar `tools/voz-local/iniciar_voz_local.bat` (abre servidor + túnel; dejar abiertas las ventanas). Entorno en `F:\voces-test\` (venv Python 3.11); referencia de voz `F:\voces-test\voces\andrea.wav`, **no se versiona**. Parámetros: exaggeration 0.45, cfg 0.5, sin exclamaciones, números a palabras.
+- Riesgo: confirmar que Andrea sabe y acepta que su voz se clone y se publique en reels.
+
 ## Novedades 2026-11-05 → 2026-11-18 (ya en producción)
 - **Estudio de Reels 2.0 completo:** Separación total de pista de video (Paso 3) y capa de textos (Paso 4).
 - **14 Tipografías virales para Reels y TikTok:** Archivo Black, Bangers, Titan One, Righteous, Syne, Bebas Neue, Anton, Montserrat, Poppins, Oswald, Playfair Display, Cinzel, Caveat, Lato (TTF locales en `assets/fonts/` + Google Fonts).
@@ -53,6 +61,7 @@ Actualizado: 2026-11-18 · `main` desplegado en Contabo (commit `97b1391`, PM2 o
 4. Prompt v2 en Gemini: titular no cortado en recorte 1:1, sin madera inventada, sin manos/rostros raros, personas no estereotipadas.
 5. Completar **dirección** en Marca (La Campiña) para habilitar "Ubicación"; corregir WhatsApp de Agendio (igual al de La Campiña).
 6. Nada de lo nuevo se probó con Gemini real ni en navegador: solo humo con modelo simulado.
+7. Reel Studio 2.2 en el navegador: vista previa liviana, bucle del tramo recortado, limpieza al descargar, botón de voz desde textos, voces Catalina/Lorenzo y "Andrea (clon, tu PC)" con `iniciar_voz_local.bat` encendido (y apagado, para ver el respaldo a Catalina).
 
 ## Decisiones abiertas
 - Creador: C8 (esconder botones de diseñar imagen), C11 (panel en pestañas/acordeón), C13 (copiar/abrir Gemini fijos), C14 (pre-escucha de música).
