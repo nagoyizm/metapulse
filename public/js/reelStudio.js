@@ -3751,12 +3751,15 @@
   function noteVoiceFallback(data) {
     if (!data || !data.fallbackFrom || Date.now() - fallbackToastAt < 20000) return;
     fallbackToastAt = Date.now();
-    toast(`Gemini no pudo (${data.fallbackReason || 'error'}): usé una voz chilena de Edge. Para que todas las frases suenen igual, elige Catalina o Lorenzo y regenera.`, 'warning');
+    const local = String(data.fallbackFrom).startsWith('local:');
+    toast(local
+      ? `Voz de Andrea no disponible (${data.fallbackReason || 'error'}): usé Catalina de Edge. Inicia "Voz local" en tu PC y regenera las frases para que suenen todas igual.`
+      : `Gemini no pudo (${data.fallbackReason || 'error'}): usé una voz chilena de Edge. Para que todas las frases suenen igual, elige Catalina o Lorenzo y regenera.`, 'warning');
   }
 
-  // Acento y estilo solo existen en las voces de Gemini; las de Edge ya son chilenas
+  // Acento y estilo solo existen en las voces de Gemini; las de Edge y la local ya son chilenas
   function syncVoiceEngineUi() {
-    const edge = String($('reel-voice')?.value || S.voice || '').startsWith('edge:');
+    const edge = /^(edge|local):/.test(String($('reel-voice')?.value || S.voice || ''));
     ['reel-voice-accent', 'reel-voice-style'].forEach((id) => {
       const el = $(id);
       if (el) {
@@ -4852,6 +4855,7 @@ Aceptar = borrar · Cancelar = conservar todo`
           style: $('reel-voice-style')?.value || '',
           accent: $('reel-voice-accent')?.value || 'cl'
         });
+        noteVoiceFallback(data);
         if (currentVoiceAudio) { try { currentVoiceAudio.pause(); } catch (_) {} }
         currentVoiceAudio = new Audio(data.url);
         currentVoiceAudio.play().catch(() => toast('No se pudo reproducir la muestra.', 'warning'));

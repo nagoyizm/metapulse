@@ -450,6 +450,7 @@ function composeValue(inVal, loopVal, outVal, tInEnd, tOut0) {
 const VOICES = [
   { id: 'edge:es-CL-CatalinaNeural', label: 'Catalina (Chile)', desc: 'Mujer chilena real · gratis y sin cuota (Edge)' },
   { id: 'edge:es-CL-LorenzoNeural', label: 'Lorenzo (Chile)', desc: 'Hombre chileno real · gratis y sin cuota (Edge)' },
+  { id: 'local:andrea', label: 'Andrea (clon, tu PC)', desc: 'Voz clonada con Chatterbox · requiere tu PC con "Voz local" iniciada; si no, usa Catalina' },
   { id: 'Sulafat', label: 'Sulafat', desc: 'Cálida y cercana (recomendada)' },
   { id: 'Achird', label: 'Achird', desc: 'Amistosa, como un vecino simpático' },
   { id: 'Vindemiatrix', label: 'Vindemiatrix', desc: 'Suave y amable' },
@@ -1262,9 +1263,45 @@ async function synthesizeEdge(text, edgeVoice) {
   throw new Error('No se pudo generar la voz con Edge: ' + (lastErr?.message || 'error desconocido'));
 }
 
-// Si Gemini falla (cuota gratis agotada, caída, etc.) se usa una voz chilena de Edge para no cortar el render.
+// Voz clonada que corre en el PC del dueño (Chatterbox, GPU). Contabo la alcanza por un túnel SSH inverso
+// (tools/voz-local). El puerto 18765 solo existe en localhost de Contabo mientras el PC esté conectado.
+const LOCAL_TTS_URL = process.env.LOCAL_TTS_URL || 'http://127.0.0.1:18765';
+
+async function synthesizeLocal(text, voiceId) {
+  const name = String(voiceId).slice(6);
+  try {
+    await axios.get(`${LOCAL_TTS_URL}/health`, { timeout: 3000 });
+  } catch (_) {
+    const e = new Error('La voz local no está conectada (PC apagado o sin túnel).');
+    e.localDown = true;
+    throw e;
+  }
+  const res = await axios.post(`${LOCAL_TTS_URL}/tts`, { text, voice: name }, {
+    responseType: 'arraybuffer', timeout: 180000, maxContentLength: 80 * 1024 * 1024
+  });
+  const wav = Buffer.from(res.data);
+  if (wav.length < 2000) throw new Error('La voz local no devolvió audio.');
+  ensureDirs();
+  const base = `voice_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`;
+  fs.writeFileSync(path.join(REELS_DIR, base), wav);
+  return { url: `/uploads/reels/${base}`, duration: (wav.length - 44) / (24000 * 2), voice: voiceId, model: 'chatterbox-local' };
+}
+
+// Si la voz elegida falla (cuota de Gemini, PC apagado, etc.) se usa una voz chilena de Edge para no cortar el render.
 async function synthesizeVoice(opts) {
   const voice = (opts && opts.voice) || 'Sulafat';
+  if (String(voice).startsWith('local:')) {
+    const clean = String((opts && opts.text) || '').replace(/\s+/g, ' ').trim();
+    if (!clean) throw new Error('El guion de voz está vacío.');
+    try {
+      return await synthesizeLocal(clean, voice);
+    } catch (err) {
+      const detail = err.localDown ? 'tu PC no está conectada' : 'la voz local falló: ' + String(err.message).slice(0, 80);
+      console.warn(`[ReelStudio] Voz local no disponible (${detail}); usando Edge Catalina.`);
+      const r = await synthesizeEdge(clean, 'es-CL-CatalinaNeural');
+      return { ...r, fallbackFrom: voice, fallbackReason: detail };
+    }
+  }
   if (String(voice).startsWith('edge:')) return synthesizeVoiceInner(opts);
   try {
     return await synthesizeVoiceInner(opts);
@@ -1319,7 +1356,7 @@ async function synthesizeVoiceInner({ text, voice = 'Sulafat', style = '', accen
 async function voiceSample({ voice = 'Sulafat', style = '', accent = 'cl' }) {
   const voiceName = VOICES.some(v => v.id === voice) ? voice : 'Sulafat';
   const crypto = require('crypto');
-  const isEdge = voiceName.startsWith('edge:');
+  const isEdge = voiceName.startsWith('edge:') || voiceName.startsWith('local:');
   const key = isEdge ? 'e1' : crypto.createHash('md5').update(voiceDirection(style, accent)).digest('hex').slice(0, 8);
   const name = `sample_${voiceName.replace(/[^A-Za-z0-9-]/g, '_')}_${key}.wav`;
   const out = path.join(REELS_DIR, name);
@@ -1331,6 +1368,10 @@ async function voiceSample({ voice = 'Sulafat', style = '', accent = 'cl' }) {
     text: 'Hola, así suena esta voz en tus reels. Reserva con anticipación por nuestros canales oficiales.',
     voice: voiceName, style, accent
   });
+  // Si cayó a una voz de respaldo, no se guarda con el nombre de la voz pedida (ensuciaría la caché)
+  if (gen.fallbackFrom) {
+    return { url: gen.url, voice: voiceName, cached: false, fallbackFrom: gen.fallbackFrom, fallbackReason: gen.fallbackReason };
+  }
   fs.renameSync(path.join(REELS_DIR, path.basename(gen.url)), out);
   return { url: `/uploads/reels/${name}`, voice: voiceName, cached: false };
 }
