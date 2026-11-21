@@ -825,7 +825,7 @@ router.post('/posts', async (req, res) => {
           media_urls,
           post_type,
           story_music_config,
-          accountName,
+          accountName: finalAccountName,
           targetSchedule,
           story_strategy,
           story_timing_rule,
@@ -835,7 +835,9 @@ router.post('/posts', async (req, res) => {
           title,
           content,
           platforms,
-          accountId,
+          // Cuenta ya resuelta (cuerpo, cabecera x-account-id o predeterminada). Con la cruda quedaba vacía y la
+          // historia salía en la cuenta "Predeterminada" del momento (la última elegida), no en la del post.
+          accountId: finalAccountId,
           presetName,
           stmt
         });
